@@ -103,6 +103,7 @@ LearnFlow ist eine interne Lernplattform, die neuen Mitarbeitenden erlaubt, Frag
 
 **Akzeptanzkriterien:**
 - ✓ Upload in den Formaten PDF, Word (.docx) und Markdown.
+- ✓ Gescannte PDFs ohne Textlayer werden abgewiesen mit der Meldung: „Dieses PDF enthält keinen lesbaren Text. Bitte eine durchsuchbare Version hochladen." — kein OCR im MVP.
 - ✓ Dokumente bis 50 Seiten / 10 MB sind nach maximal 5 Minuten als Quelle verfügbar.
 - ✓ Maximale Dateigrösse: 100 MB; Dateien über 100 MB werden mit einer Fehlermeldung abgewiesen.
 - ✓ Alle hochgeladenen Dokumente zeigen eine Fortschrittsanzeige während der Verarbeitung.
