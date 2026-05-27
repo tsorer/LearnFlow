@@ -253,9 +253,9 @@ US-02 enthält zwei verschiedene Unterdrückungsmechanismen (Konfidenz-Score vs.
 
 ### Risiko 3 · Externe Abhängigkeiten blockieren zum falschen Zeitpunkt
 
-Zwei ungelöste externe Abhängigkeiten können den Zeitplan gefährden: (a) LLM-API-Quota — Quota-Anfragen können Wochen dauern, Stack-Entscheidung ist noch offen; (b) E-Mail-Service für US-06 — kein Mail-Provider definiert, SMTP-Konfiguration ist eine separate Abhängigkeit. Beide müssen früh in Sprint 0 angestossen werden, nicht erst wenn die Story implementiert werden soll.
+Eine ungelöste externe Abhängigkeit kann den Zeitplan gefährden: LLM-API-Quota — Quota-Anfragen können Wochen dauern, Stack-Entscheidung ist noch offen. Diese muss früh in Sprint 0 angestossen werden, nicht erst wenn die Story implementiert werden soll.
 
-**Was zu klären ist:** LLM-Provider und Quota bis Ende Sprint 0 bestätigt; Mail-Service-Entscheidung vor US-06-Implementierung.
+**Was zu klären ist:** LLM-Provider und Quota bis Ende Sprint 0 bestätigt.
 
 ---
 
