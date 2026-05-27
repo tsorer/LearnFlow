@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir \"C:\\\\Projects\\\\CAS\\\\LearnFlow\\\\LearnFlow\\\\Frank\\\\Modul3Tag1\" /B)",
+      "PowerShell(Test-Path \"$env:TEMP\\\\docx_extract\"; Get-ChildItem \"$env:TEMP\\\\docx_extract\" -Recurse 2>&1 | Select-Object FullName)",
+      "PowerShell(Get-Content \"C:\\\\Users\\\\MoritzFrank\\\\AppData\\\\Local\\\\Temp\\\\docx_to_md2.ps1\" -Raw | Invoke-Expression)"
+    ]
+  }
+}
