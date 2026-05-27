@@ -98,5 +98,5 @@ Konfidenz-Schwellenwert ist falsch kalibriert — Stefan meldet das. Ein Entwick
 
 ---
 
-*Quelle: Modul3Tag1_Architektur.md · BFH CAS ADAI 2026*
+*Quelle: Docs/02_Requirements.md · BFH CAS ADAI 2026*
 *Stand: v1 — 2026-05-27*
