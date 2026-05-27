@@ -83,7 +83,7 @@ Beziehe dich auf unser spezifisches Projekt.
 **Architektonische Massnahmen die wir umsetzen werden:**
 
 - **Reliability:** Mehrschichtiger Unterdrückungsmechanismus (Quellenprüfung → Konfidenz-Score → Self-Check-Anteil). Circuit Breaker für LLM-Aufrufe (Timeout, HTTP 5xx, Quota). Fail-Safe als Designprinzip: „keine Antwort" ist immer besser als eine unsichere Antwort. Konfidenz-Schwellenwerte in der DB, nicht im Code — empirisch kalibrierbar nach Tech Spike.
-- **Security:** JWT (8 h) + bcrypt-Hashing; Admin-Middleware für rollenbasierte Zugriffskontrolle; URL-Zugriff ohne Admin-Rolle wird serverseitig abgewiesen; Azure OpenAI EU (GDPR). Auth-Schicht so bauen, dass SSO später ohne Umbau nachrüstbar ist.
+- **Security:** JWT (8 h) + bcrypt-Hashing; Admin-Middleware für rollenbasierte Zugriffskontrolle; URL-Zugriff ohne Admin-Rolle wird serverseitig abgewiesen; OpenAI API (GDPR). Auth-Schicht so bauen, dass SSO später ohne Umbau nachrüstbar ist.
 - **Maintainability:** Admin-UI für Threshold-Änderungen ohne Neustart; LiteLLM-Abstraktion für Modellwechsel via Config; Docker Compose für reproduzierbare Deployments; klare Modul-Grenzen ohne Ripple-Effects.
 - **Performance:** Async Streaming-Response (FastAPI + React EventSource/SSE); pgvector HNSW-Index für schnelle Similarity-Suche; Dokument-Processing asynchron (Upload sofort bestätigt, Verarbeitung im Hintergrund). 10-Sek.-Limit als festes Akzeptanzkriterium in CI/CD-Tests verankern.
 - **Testability:** Evaluationsdataset vor Sprint 1 (echte Dokumente, In-Corpus + Out-of-Corpus Fragen, erwartete Antworten). Automatisiertes Scoring im CI. LiteLLM ermöglicht A/B-Tests zwischen Providern mit identischer RAG-Pipeline.
@@ -134,10 +134,13 @@ vs Microservices |
 
 **Unsere Entscheidung für den ADR:**
 
-
-
+**ADR-001 — Tech-Stack:** Modularer Monolith mit Python/FastAPI + React (TypeScript) + PostgreSQL + pgvector + LiteLLM (OpenAI API) + Docker Compose
 
 **Die Alternativen die wir abgewogen haben:**
+
+| Option A | Option B | Option C |
+|---|---|---|
+| Modularer Monolith (gewählt) | Microservices | Node.js / Next.js Fullstack |
 
 
 
@@ -164,35 +167,41 @@ Erstelle das vollständige ADR mit:
 
 **Unser ADR — zum Ausfüllen / Überarbeiten**
 
+> ADRs aufgeteilt nach Review: [ADR-001](ADR-001_Architekturstil.md) · [ADR-002](ADR-002_Backend-Frontend-Stack.md) · [ADR-003](ADR-003_Datenpersistenz.md) · [ADR-004](ADR-004_LLM-Provider.md) · [ADR-005](ADR-005_Embedding-Modell.md)
 
 **ADR-Nummer und Titel:**
 
-
+ADR-001 · Tech-Stack — Modularer Monolith mit FastAPI, React und PostgreSQL + pgvector
 
 **Status:**
 
-
+Proposed
 
 **Kontext — Warum müssen wir entscheiden?**
 
-
-
+LearnFlow ist eine RAG-Plattform für < 30 Nutzer, 1 Pilot-Bereich, 360 h Gesamtbudget. Die Top-3-QAs (Reliability, Security, Maintainability) verlangen eine klar modulare, aber deploymentarme Architektur. Stack muss in Woche 1 fixiert sein — ein späterer Umbau ist bei diesem Budget nicht möglich.
 
 **Entscheidung — Was haben wir entschieden?**
 
-
-
+Wir bauen einen modularen Monolithen: Python/FastAPI (Backend) + React/TypeScript (Frontend) + PostgreSQL + pgvector (Datenbank + Vektor-Suche) + LiteLLM/OpenAI API (LLM) + Docker Compose (Deployment).
 
 | Positive Konsequenzen: | Negative Konsequenzen: |
 | --- | --- |
+| + Python KI/ML-Ökosystem direkt verfügbar (LangChain, LiteLLM) | − Single Instance: kein Failover bei Ausfall (akzeptiert für Pilot) |
+| + Ein PostgreSQL-Server statt separater Vector-DB — minimaler Ops-Aufwand | − pgvector skaliert nicht auf Milliarden Vektoren (kein Problem für < 5 000 Chunks) |
+| + LiteLLM ermöglicht Provider-Wechsel via Config — Maintainability-NFA erfüllt | − Azure OpenAI Quota-Genehmigung kann Wochen dauern — Risiko 3 |
+| + Docker Compose auf jedem Dev-Laptop reproduzierbar | − GIL-Engpass bei parallelen Embeddings (Mitigation: Background Workers) |
+| + FastAPI + React im Team bekannt — keine Lernkurve | − Monolith schwerer in Microservices aufzuteilen (Mitigation: Stateless-Design) |
 
 
 **+**
 
-
+Vollständige Positivliste → [ADR-001_Tech-Stack.md](ADR-001_Tech-Stack.md)
 
 
 **−**
+
+Vollständige Negativliste → [ADR-001_Tech-Stack.md](ADR-001_Tech-Stack.md)
 
 
 
@@ -261,26 +270,33 @@ Dann: Was haben wir vergessen?
 
 
 
-**C1 — System Context: [EUER PROJEKTNAME]**
+**C1 — System Context: LearnFlow**
 
+> Vollständiges Diagram: [C4_C1_System-Context.md](C4_C1_System-Context.md)
 
 **System-Name (Mitte):**
 
-
+LearnFlow — Interne RAG-Lernplattform. Quellenbelegte KI-Antworten aus kuratiertem Wissenskorpus. Ein Pilot-Bereich, Web-App.
 
 **Nutzertypen (wer interagiert?):**
 
-
-
+| Person | Rolle | Interaktion |
+|---|---|---|
+| Lara | Lernende / Junior Developer | Frage stellen, Antwort lesen, Feedback geben, Quiz absolvieren |
+| Stefan | Bereichsverantwortlicher / Knowledge Owner | Dokumente hochladen, Quiz freigeben, Stale-Inhalte validieren |
+| Admin | Technisch verantwortlich | Konfidenz- und Stale-Schwellenwerte konfigurieren |
 
 **Externe Systeme (welche Abhängigkeiten?):**
 
-
-
+| System | Zweck | Status |
+|---|---|---|
+| OpenAI API | LLM (gpt-4o-mini) + Embeddings (text-embedding-3-small) via LiteLLM | MVP |
+| Unternehmens-IdP (Azure AD / SAML 2.0) | SSO-Authentifizierung + Rollen-Synchronisation | Post-MVP |
 
 **Überraschungen — was hat AI gefunden das wir vergessen hatten?**
 
-
+1. **Kein Monitoring / Alerting** — Für Reliability-NFA (Halluzinationsrate messbar) braucht es Observability. Kein externer Service definiert; strukturiertes Container-Logging als Pilot-Lösung.
+2. **Ollama im Entwicklungs-Kontext** — Im Produktions-C1 korrekt nicht gezeigt; im Dev-Systemkontext wäre Ollama ein zusätzlicher Knoten.
 
 
 Teil 2 · C2 Container Diagram (20 Min)
