@@ -17,17 +17,17 @@ C4Container
     System_Ext(idp, "Unternehmens-IdP", "Azure AD / SAML 2.0. SSO-Auth + Rollen-Sync. (Post-MVP)")
 
     System_Boundary(learnflow, "LearnFlow") {
-        Container(webapp, "Web App", "React 18 / TypeScript 5 · Nginx", "SPA: Q&A-Interface, Dokument-Upload, Quiz, Feedback, Admin-Seite. Konsumiert SSE-Stream für Token-by-Token-Anzeige.")
-        Container(api, "API Server", "Python 3.13 / FastAPI (ASGI)", "REST-Endpunkte + SSE-Streaming. Auth-Middleware (JWT/RBAC). RAG-Pipeline-Orchestrierung (Hybrid-Retrieval, ADR-007). LiteLLM-Integration für LLM und Embeddings. Mehrstufige Konfidenz-Unterdrückungspipeline (ADR-008).")
+        Container(webapp, "Web App", "React 18 / TypeScript 5 · Nginx", "SPA: Q&A-Interface, Dokument-Upload, Quiz, Feedback, Admin-Seite. Empfängt vollständige Batch-Response (JSON) und zeigt Antwort mit Quellenreferenzen an.")
+        Container(api, "API Server", "Python 3.13 / FastAPI (ASGI)", "REST-Endpunkte (Batch-Response JSON). Auth-Middleware (JWT/RBAC). RAG-Pipeline-Orchestrierung (Hybrid-Retrieval, ADR-007). LiteLLM-Integration für LLM und Embeddings. Mehrstufige Konfidenz-Unterdrückungspipeline (ADR-008, fail-closed).")
         Container(worker, "Background Worker", "pgqueuer (PostgreSQL-nativer Job-Queue)", "Asynchrones Dokument-Processing: Parsing (PDF/DOCX/MD), Chunking, Embedding-Generierung via LiteLLM, pgvector-Indexierung. Erfüllt 5-Minuten-SLA für Dokumente ≤ 50 Seiten.")
-        ContainerDb(db, "Datenbank", "PostgreSQL 17 + pgvector", "Relationale Tabellen: users, documents, feedback, config, quiz_questions. Vektor-Tabelle: embeddings (HNSW-Index) + Volltext-Index (tsvector/GIN, deutsch) für Hybrid-Retrieval. Original-Dokumente als bytea. config-Tabelle: alle Schwellenwerte ohne Neustart änderbar.")
+        ContainerDb(db, "Datenbank", "PostgreSQL 17 + pgvector", "Relationale Tabellen: users, documents, feedback, config, quiz_questions. Vektor-Tabelle: embeddings (HNSW-Index) + Volltext-Index (tsvector/GIN, deutsch) für Hybrid-Retrieval. Original-Dokumente als bytea (max. 10 MB). config-Tabelle: alle Schwellenwerte ohne Neustart änderbar.")
     }
 
     Rel(lara, webapp, "Fragen stellen, Antworten + Quellen lesen, Feedback geben, Quiz absolvieren", "HTTPS")
     Rel(stefan, webapp, "Dokumente hochladen, Quiz-Fragen freigeben, Stale-Inhalte validieren", "HTTPS")
     Rel(admin, webapp, "Konfidenz- und Stale-Schwellenwerte konfigurieren", "HTTPS")
 
-    Rel(webapp, api, "REST-Calls + SSE-Stream (Q&A-Antworten token-by-token)", "HTTPS")
+    Rel(webapp, api, "REST-Calls (Q&A als Batch-Response JSON, Login, Upload, Feedback, Quiz)", "HTTPS")
     Rel(api, db, "Lesen/Schreiben: Users, Dokumente, Config, Feedback, Quiz, Embeddings (Similarity Search)", "SQL · TCP 5432")
     Rel(api, worker, "Dokument-Job enqueuen nach Upload", "pg_notify · TCP 5432")
     Rel(worker, db, "Chunks + Embeddings schreiben, HNSW-Index aufbauen", "SQL · TCP 5432")
@@ -47,10 +47,10 @@ C4Container
 
 | Container | Technologie | Begründung (1 Satz) |
 |---|---|---|
-| **Web App** | React 18 / TypeScript 5, Vite, Nginx | Interaktive SPA mit SSE-Unterstützung für Token-by-Token-Streaming — HTMX wäre umständlicher für Quiz, Feedback-UI und Quellenhervorhebung. |
-| **API Server** | Python 3.13 / FastAPI (ASGI) | Async-native SSE-Streaming, RBAC-Middleware und das gesamte Python-KI-Ökosystem (LiteLLM, LangChain, pypdf, python-docx) sind direkt verfügbar — kein Adapter-Layer. |
+| **Web App** | React 18 / TypeScript 5, Vite, Nginx | Standard `fetch()` für Batch-Response JSON — kein SSE-State-Management nötig; HTMX wäre umständlicher für Quiz, Feedback-UI und Quellenhervorhebung. |
+| **API Server** | Python 3.13 / FastAPI (ASGI) | Async-native (ASGI), RBAC-Middleware und das gesamte Python-KI-Ökosystem (LiteLLM, LangChain, pypdf, python-docx) direkt verfügbar — kein Adapter-Layer. |
 | **Background Worker** | pgqueuer (PostgreSQL-nativer Job-Queue) | Dokument-Processing (Parsing → Chunking → Embedding → Indexierung) muss asynchron laufen, damit der Upload sofort bestätigt wird und der 5-Minuten-SLA eingehalten wird. |
-| **Datenbank** | PostgreSQL 17 + pgvector | Ein einziger Server für relationale Daten, Vektor-Embeddings (pgvector HNSW), Volltext-Index (tsvector/GIN) für Hybrid-Retrieval und Original-Dokumente (bytea) — ein Backup, eine Verbindungskonfiguration, kein zweiter Service. |
+| **Datenbank** | PostgreSQL 17 + pgvector | Ein einziger Server für relationale Daten, Vektor-Embeddings (pgvector HNSW), Volltext-Index (tsvector/GIN) für Hybrid-Retrieval und Original-Dokumente (bytea, max. 10 MB) — ein Backup, eine Verbindungskonfiguration, kein zweiter Service. |
 
 #### 1.2 Welche Technologien passen zu unseren QAs?
 
@@ -60,7 +60,7 @@ C4Container
 | **Reliability** | Datenbank | Konfidenz- und Stale-Schwellenwerte in `config`-Tabelle — empirisch kalibrierbar ohne Deployment. |
 | **Security** | API Server | JWT (8 h) + bcrypt-Hashing; RBAC-Middleware; pseudonymisiertes Feedback-Schreiben; serverseitige URL-Abweisung ohne Admin-Rolle. |
 | **Maintainability** | API Server | LiteLLM-Abstraktion: Provider-Wechsel (Azure OpenAI EU ↔ OpenAI Direct ↔ Ollama) ist ein Konfigurationseintrag in der `config`-Tabelle — kein Code-Change. |
-| **Performance** | API Server + Web App | FastAPI `StreamingResponse` (SSE) + React `EventSource` — Token-by-Token-Anzeige; wahrgenommene Wartezeit sinkt deutlich unter 10 s p95. |
+| **Performance** | API Server + Web App | FastAPI async Batch-Response + Ladeanimation im Frontend; Wartezeit ≤ 10 s p95 über Retrieval-Optimierung (pgvector HNSW, ADR-007). |
 | **Performance** | Datenbank | pgvector HNSW-Index liefert Sub-100-ms-Latenz bei Similarity Search für < 10 000 Chunks. |
 | **Performance** | Background Worker | Dokument-Processing asynchron — Upload wird sofort bestätigt, Verarbeitung läuft im Hintergrund. |
 | **Testability** | Background Worker + API Server | Modulare RAG-Komponenten (Chunking, Embedding, Retrieval, Generierung) — jede einzeln isolierbar und testbar; Evaluationsdataset läuft im CI gegen jede Komponente. |
@@ -70,7 +70,7 @@ C4Container
 | Von | Nach | Inhalt | Protokoll |
 |---|---|---|---|
 | Browser (Lara/Stefan/Admin) | Web App | HTML/JS/CSS ausliefern | HTTPS |
-| Web App | API Server | REST-Calls (Login, Upload, Feedback, Quiz) + SSE-Stream (Q&A-Antworten token-by-token) | HTTPS |
+| Web App | API Server | REST-Calls (Q&A Batch-Response JSON, Login, Upload, Feedback, Quiz) | HTTPS |
 | API Server | Datenbank | Lesen/Schreiben: Users, Dokumente, Config, Feedback, Quiz-Fragen; Similarity Search (Embeddings) | SQL · TCP 5432 |
 | API Server | Background Worker | Dokument-Job nach Upload enqueuen (Dokument-ID, Bereich) | pg_notify · TCP 5432 |
 | Background Worker | Datenbank | Chunks + Embeddings schreiben; HNSW-Index aufbauen | SQL · TCP 5432 |
@@ -101,11 +101,11 @@ Lara tippt Frage
   7. Grounding-/Citation-Check (ADR-008, Stufe 2)
      └── Coverage < 50 % → unterdrückt
   8. Self-Check für Grenzfälle (ADR-008, Stufe 3, optional)
-  9. SSE-Stream öffnen
-       │ text/event-stream
+  9. Batch-Response senden (JSON: Antwort + Quellenreferenzen + Konfidenz-Score)
+       │ application/json
        ▼
   [Web App]
-  Token-by-Token anzeigen + Quellenreferenzen einblenden
+  Antwort + Quellenreferenzen anzeigen (Ladeanimation während Verarbeitung)
 ```
 
 ---
@@ -122,7 +122,7 @@ Stefan lädt PDF hoch
        ▼
   [API Server]
   1. Auth + Rolle prüfen (Bereichsverantwortlicher)
-  2. Datei in DB speichern (bytea), Zeitstempel setzen
+  2. Datei in DB speichern (bytea, max. 10 MB — serverseitig geprüft), Zeitstempel setzen
   3. Job in Queue schreiben (Dokument-ID)
   4. Sofortige Bestätigung an Stefan → "Upload erfolgreich, Verarbeitung läuft"
        │

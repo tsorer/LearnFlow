@@ -36,13 +36,13 @@ LearnFlow ist eine interne RAG-Lernplattform für neue Mitarbeitende. Neue Mitar
 
 | Container | Technologie | Begründung | Grösstes Risiko |
 |---|---|---|---|
-| **Web App** | React 18 / TypeScript 5 · Vite · Nginx | SSE-native SPA für Token-by-Token Q&A, Quiz und Quellenhervorhebung | Quellenhervorhebung in PDFs (PDF.js) unterschätzt → **MVP-Scope noch zu klären** |
-| **API Server** | Python 3.13 / FastAPI (ASGI) | Async SSE-Streaming, Python-KI-Ökosystem, RBAC als Dependency Injection | Konfidenz-Scoring konzeptionell noch undefiniert; **Prompt-Injection nicht adressiert** *(Peer Review)* |
+| **Web App** | React 18 / TypeScript 5 · Vite · Nginx | SPA mit Batch-Response-Integration (JSON), Quiz und Quellenhervorhebung | Quellenhervorhebung in PDFs (PDF.js) unterschätzt → **MVP-Scope noch zu klären** |
+| **API Server** | Python 3.13 / FastAPI (ASGI) | Async Batch-Response (JSON), Python-KI-Ökosystem, RBAC als Dependency Injection | Konfidenz-Scoring definiert (ADR-008 Accepted); **Prompt-Injection nicht adressiert** *(Peer Review)* |
 | **Background Worker** | pgqueuer (PostgreSQL-nativer Job-Queue) | Asynchrones Dokument-Processing ohne Redis; Jobs transaktional, kein Datenverlust bei Crash | Kleine Community; Single-Threaded: parallele Uploads stauen Queue |
 | **Datenbank** | PostgreSQL 17 + pgvector | Relationale Daten + Vektoren (HNSW) + Volltext (`tsvector`/GIN, deutsch) + Original-Dokumente in einem Service | **Single Point of Failure — kein Replica, kein Backup definiert** *(verschärft: Peer Review)* |
 
 **Kommunikation:**
-- Web App → API Server: REST + SSE (HTTPS) — synchron/streaming
+- Web App → API Server: REST (HTTPS, Batch-Response JSON) — synchron
 - API Server → Datenbank: SQL via asyncpg (TCP 5432) — synchron
 - API Server → Background Worker: pg_notify (TCP 5432) — asynchron
 - Background Worker → Datenbank: SQL (TCP 5432) — synchron
@@ -57,22 +57,22 @@ LearnFlow ist eine interne RAG-Lernplattform für neue Mitarbeitende. Neue Mitar
 | ADR | Entscheid | Status |
 |---|---|---|
 | **ADR-001** | Architekturstil: Modularer Monolith — kein Microservices-Overhead bei < 30 Nutzern und 360 h Budget | **Accepted** *(aktualisiert nach Peer Review)* |
-| **ADR-002** | Backend/Frontend-Stack: Python 3.13 / FastAPI + React 18 / TypeScript 5 — async SSE-native, Python-KI-Ökosystem direkt verfügbar | Proposed |
+| **ADR-002** | Backend/Frontend-Stack: Python 3.13 / FastAPI + React 18 / TypeScript 5 — Batch-Response JSON, Python-KI-Ökosystem direkt verfügbar | **Accepted** *(aktualisiert 2026-06-03: kein SSE-Streaming)* |
 | **ADR-003** | Datenpersistenz: PostgreSQL 17 + pgvector — relationale Daten + Vektoren + Dokumente in einem Service, ein Backup, kein zweiter Service | Proposed |
 | **ADR-004** | LLM-Provider: LiteLLM-Abstraktion — MVP: OpenAI Direct (keine echten internen Dokumente), Produktion: Azure OpenAI EU, OnPrem: Ollama; Wechsel per Konfigurationseintrag, kein Code-Change | Proposed |
 | **ADR-005** | Embedding-Modell: `text-embedding-3-small` (1536 Dim; MVP via OpenAI Direct, Prod via Azure EU) / `bge-m3` (Ollama, 1024 Dim) — konfigurierbar via LiteLLM | Proposed |
 | **ADR-006** | Background Worker: pgqueuer statt Celery + Redis — kein separater Broker, Jobs PostgreSQL-transaktional, ein Service weniger | Accepted |
 | **ADR-007** | Retrieval: Struktur-bewusstes Chunking + Hybrid-Retrieval (Dense + Sparse, RRF) + Retrieval-Gate | Proposed |
-| **ADR-008** | Reliability: Mehrstufige Konfidenzpipeline (fail-closed) — Retrieval-Gate → Konfidenz → Grounding-/Citation-Check → LLM-Self-Check | Proposed |
+| **ADR-008** | Reliability: Mehrstufige Konfidenzpipeline (fail-closed) — Retrieval-Gate → Konfidenz → Grounding-/Citation-Check → LLM-Self-Check | **Accepted** *(aktualisiert 2026-06-03)* |
 | **ADR-009** | Eval-Strategie: Gold-Dataset (In-/Out-of-Corpus/Adversarial) + RAGAS + CI-Regressionsgate (Build bricht bei Halluzination > 0 %) | Proposed |
 
-> **Hinweis:** ADR-001 Status von «Proposed» auf «Accepted» aktualisiert — Peer Review hat keine offenen Gegenargumente ergeben. ADR-006 ist «Accepted». Alle weiteren ADRs bleiben «Proposed» bis Tech Spike abgeschlossen.
+> **Hinweis:** ADR-001 (Peer Review), ADR-002 (kein SSE, Batch-Response), ADR-006 (pgqueuer) und ADR-008 (Konfidenzpipeline) sind «Accepted». Alle weiteren ADRs bleiben «Proposed» bis Tech Spike abgeschlossen.
 
 ---
 
 ## Datenarchitektur (ADR-003)
 
-- **Ein Persistenz-Service:** PostgreSQL 17 für relationale Daten (`users`, `documents`, `feedback`, `config`, `quiz_questions`), Vektor-Embeddings (`embeddings` mit HNSW), Volltext-Index (`tsvector`/GIN) und Original-Dokumente (`bytea`).
+- **Ein Persistenz-Service:** PostgreSQL 17 für relationale Daten (`users`, `documents`, `feedback`, `config`, `quiz_questions`), Vektor-Embeddings (`embeddings` mit HNSW), Volltext-Index (`tsvector`/GIN) und Original-Dokumente (`bytea`, max. 10 MB).
 - **Migrationen:** Alembic, versioniert in Git.
 - **Konfiguration:** `config`-Tabelle hält alle Schwellenwerte → ohne Deployment kalibrierbar (Maintainability-NFA).
 - **Constraint:** pgvector indexiert HNSW nur bis **2000 Dimensionen** (1536/1024 unkritisch; `text-embedding-3-large`/3072 erfordert Matryoshka-Reduktion oder `halfvec`).
@@ -125,15 +125,15 @@ Parsing (pypdf/python-docx) → **struktur-bewusstes Chunking** (Überschrift > 
 | **Onboarding-Prozess undefiniert** | Wer legt Stefans Account per DB-Script an? Pilot-Start-Checkliste erstellen | 🟠 Prozess |
 | **Go/No-Go-Kriterien für Tech Spike fehlen** | Evaluationsdataset + Mindest-Scores definieren bevor Spike startet | 🔴 Blocker |
 | **E-Mail-Service für US-06 ungeklärt** | SMTP-Provider-Entscheid vor US-06-Implementierung — Sprint 0 | 🟠 Abhängigkeit |
-| **`bytea` vs. Large Object (`lo`)** | RAM-/WAL-Verhalten für grosse PDFs prüfen — vor Schema-Erstellung entscheiden (ADR-003) | 🔴 Blocker |
-| **Streaming ↔ Grounding-Check** | Fail-closed (ADR-008) vs. Token-Streaming (Performance-Anforderung, ≤ 10 s @ p95) auflösen: generieren-dann-streamen vs. In-Stream-Korrektur | 🟠 Architektur |
+| ~~**`bytea` vs. Large Object (`lo`)**~~ | ✅ **Gelöst (2026-06-03):** `bytea` für MVP mit hartem 10 MB Limit (serverseitig, US-04 konform). `lo`-Evaluation entfällt. MinIO/S3 als Post-MVP-Option offen (ADR-003). | ✅ Erledigt |
+| ~~**Streaming ↔ Grounding-Check**~~ | ✅ **Gelöst (2026-06-03):** Batch-Response — kein SSE-Streaming. Gesamte Konfidenzpipeline (ADR-008) läuft durch bevor Antwort ausgeliefert wird. ADR-002 aktualisiert. | ✅ Erledigt |
 | **Provider-Umstellung vor echten Daten** | MVP nutzt OpenAI Direct (US); vor dem ersten echten internen Dokument auf Azure OpenAI EU umstellen (LiteLLM-`config`). Go-Live-Checklist + optionaler Guard gegen Nicht-EU-Provider bei „intern/produktiv" markiertem Korpus (ADR-004/005) | 🔴 Compliance |
 
 ---
 
 ## Offene Fragen für Tag 2
 
-1. **Konfidenz-Scoring-Mechanismus festlegen** — Self-Check: LLM-Selbstevaluation oder semantische Ähnlichkeit? Vorrang-Reihenfolge der Unterdrückungsmechanismen (ADR-008) definieren. Blocker für US-02 und Tech Spike.
+1. ~~**Konfidenz-Scoring-Mechanismus festlegen**~~ — ✅ **Gelöst (2026-06-03):** ADR-008 Accepted. Mehrstufige Defense-in-Depth: Retrieval-Gate → Retrieval-Konfidenz (deterministisch) → Grounding-/Citation-Check (deterministisch) → LLM-Self-Check (nur Grenzfälle). Schwellenwerte in `config`-Tabelle. Kalibrierung via Tech Spike.
 
 2. **Chunking- und Retrieval-Parameter entscheiden** — Chunk-Grösse (256/512/1024), Overlap, Similarity-Schwelle, Citation-Coverage, Top-`k`/`n`, RRF-`k` sind Hypothesen (ADR-007/008) und müssen vor Sprint 1 durch Tech Spike kalibriert werden.
 

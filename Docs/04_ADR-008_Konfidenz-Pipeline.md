@@ -1,9 +1,9 @@
 # ADR-008: Konfidenz- & Unterdrückungspipeline — Mehrstufige Defense-in-Depth, fail-closed
 
-| Feld | Inhalt |
-|---|---|
-| **Status** | Proposed |
-| **Datum** | 2026-05-31 |
+| Feld          | Inhalt                                |
+| ------------- | ------------------------------------- |
+| **Status**    | Accepted                              |
+| **Datum**     | 2026-05-31 · aktualisiert 2026-06-03  |
 | **Verfasser** | LearnFlow-Team (Frank, Niklaus, Reto) |
 
 ---
@@ -20,6 +20,8 @@ Leitprinzip: **fail-closed**. Da die NFA 0 % Halluzination *über* hohem Recall 
 
 **Abgrenzung:** ADR-007 = Chunking/Retrieval/Gate. ADR-008 = alles *nach* dem Retrieval-Gate (Konfidenz-Berechnung, Post-Generierungs-Prüfungen, User-Anzeige).
 
+**Voraussetzung Batch-Response (ADR-002, aktualisiert 2026-06-03):** Die Pipeline ist sequenziell und fail-closed — alle Stufen müssen abgeschlossen sein, bevor die Antwort ausgeliefert wird. SSE-Streaming wurde deshalb bewusst verworfen (ADR-002). Der früher dokumentierte Konflikt «Streaming vs. Fail-Closed» ist damit aufgelöst.
+
 ---
 
 ## Entscheidung
@@ -27,10 +29,13 @@ Leitprinzip: **fail-closed**. Da die NFA 0 % Halluzination *über* hohem Recall 
 Wir implementieren die Reliability als **mehrstufige Defense-in-Depth-Pipeline** im API Server. Jede Stufe kann unterdrücken; eine Antwort wird nur ausgeliefert, wenn alle Stufen passieren. Alle Schwellen liegen in der `config`-Tabelle (ADR-003) und sind **ohne Deployment** kalibrierbar.
 
 ### Stufe 0 — Retrieval-Gate *(aus ADR-007, vorgelagert)*
+
 Kein Chunk über Similarity-Schwelle → sofort „Weiss ich nicht", kein LLM-Aufruf.
 
 ### Stufe 1 — Retrieval-Konfidenz (deterministisch, vor der Generierung)
+
 Aus den Retrieval-Signalen wird ein **Retrieval-Konfidenz-Score** berechnet:
+
 - maximale Similarity des Top-Chunks,
 - mittlere Similarity der Top-`n`,
 - Anzahl Chunks über Schwelle (Evidenz-Dichte).
@@ -38,22 +43,26 @@ Aus den Retrieval-Signalen wird ein **Retrieval-Konfidenz-Score** berechnet:
 Liegt der Score unter `min_retrieval_confidence` → „Weiss ich nicht" (kein LLM-Aufruf).
 
 ### Stufe 2 — Grounding-/Citation-Check (deterministisch, nach der Generierung)
+
 Der Grounding-Prompt (ADR-007) zwingt das LLM, **jede Aussage mit einer Chunk-Referenz** zu belegen. Nach der Generierung wird deterministisch geprüft:
+
 - Anteil belegter Antwort-Segmente (**Citation-Coverage**),
 - Gültigkeit der Referenzen (zeigen sie auf tatsächlich gelieferte Chunks?).
 
 Coverage unter `min_citation_coverage` (Startwert **50 %**) oder ungültige/erfundene Referenzen → **unterdrückt**.
 
 ### Stufe 3 — LLM-Self-Check (nur für Grenzfälle, kostenkontrolliert)
+
 Für Antworten, deren Konfidenz **nahe der Schwelle** liegt, erfolgt **ein** zusätzlicher, günstiger LLM-Aufruf (Verifikations-Prompt): „Ist diese Antwort vollständig durch den bereitgestellten Kontext gedeckt? Welche Teile nicht?". Meldet der Self-Check ungedeckte Aussagen → unterdrückt. Antworten mit klar hoher Konfidenz überspringen diese Stufe (kein Token-Overhead im Normalfall).
 
 ### Komposit-Konfidenz & Anzeige (US-02)
+
 Der **angezeigte** Konfidenzwert ist eine gewichtete Kombination aus Retrieval-Konfidenz (Stufe 1) und Citation-Coverage (Stufe 2); Gewichte in `config`. Mapping auf drei Bänder für die UI:
 
-| Band | Bedeutung | UI |
-|---|---|---|
-| **Hoch** | gut belegt, hohe Coverage | Antwort + Quellen, grün |
-| **Mittel** | belegt, aber lückenhaft | Antwort + Quellen + Hinweis, gelb |
+| Band                      | Bedeutung                  | UI                                                                             |
+| ------------------------- | -------------------------- | ------------------------------------------------------------------------------ |
+| **Hoch**                  | gut belegt, hohe Coverage  | Antwort + Quellen, grün                                                        |
+| **Mittel**                | belegt, aber lückenhaft    | Antwort + Quellen + Hinweis, gelb                                              |
 | **Niedrig / unterdrückt** | unter Schwelle / ungedeckt | „Weiss ich nicht" (+ optional nächstliegende Quellen, ohne generierten Inhalt) |
 
 Unterdrückte Antworten liefern eine **standardisierte** „Weiss ich nicht"-Meldung — nie generierten Fließtext.
@@ -73,7 +82,7 @@ Unterdrückte Antworten liefern eine **standardisierte** „Weiss ich nicht"-Mel
 
 ### Negative Konsequenzen
 
-- **−** Höhere Latenz für Grenzfälle (Stufe 3 = zweiter LLM-Aufruf). Mitigation: nur nahe der Schwelle ausgelöst; bei klar hoher/niedriger Konfidenz übersprungen. Im Rahmen der Performance-NFA (≤ 10 s p95).
+- **−** Höhere Latenz für Grenzfälle (Stufe 3 = zweiter LLM-Aufruf). Da kein Streaming mehr, wartet Lara auf die vollständige Antwort — Stufe 3 addiert direkt zur wahrgenommenen Wartezeit. Mitigation: nur nahe der Schwelle ausgelöst; bei klar hoher/niedriger Konfidenz übersprungen. Im Rahmen der Performance-NFA (≤ 10 s p95) zu validieren.
 - **−** Fail-closed senkt den Recall: korrekte, aber knapp belegte Antworten werden evtl. fälschlich unterdrückt. Bewusst akzeptiert; über `config`-Schwellen justierbar.
 - **−** Citation-Coverage misst *Beleg-Form*, nicht *inhaltliche Korrektheit* — ein LLM könnte korrekt zitieren und trotzdem falsch schlussfolgern. Mitigation: Stufe 3 (Self-Check) fängt einen Teil davon; Restrisiko über Eval messen.
 - **−** Alle Startwerte (Coverage 50 %, Gewichte, Band-Grenzen) sind **Hypothesen** und ohne Kalibrierung gegen ein Eval-Dataset nicht NFA-garantierend. Abhängigkeit zur (noch offenen) Eval-Strategie.
@@ -83,13 +92,13 @@ Unterdrückte Antworten liefern eine **standardisierte** „Weiss ich nicht"-Mel
 
 ## Abgewogene Alternativen
 
-| Alternative | Warum verworfen |
-|---|---|
-| **Nur LLM-Selbsteinschätzung** („Wie sicher bist du? 0–100 %") | Einfach, aber notorisch unzuverlässig — LLMs sind oft selbstsicher *und* falsch. Als alleiniges Mass ungeeignet für eine 0 %-Halluzinations-NFA. Fließt allenfalls als schwaches Zusatzsignal in Stufe 3 ein. |
-| **Token-Logprob-/Perplexity-basierte Konfidenz** | Token-Wahrscheinlichkeiten wären ein echtes Signal, sind aber providerabhängig und über die Chat-API uneinheitlich verfügbar — bricht die Provider-Portabilität (Azure ↔ Ollama via LiteLLM, ADR-004). Verworfen. |
-| **Nur Schwellenwert-Gate (ADR-007), keine Post-Generierungs-Prüfung** | Günstig, aber lässt Halluzinationen *innerhalb* gefundener Chunks ungeprüft (falsche Kombination/Übergeneralisierung). Reicht für eine 0 %-NFA nicht. |
-| **Self-Check für *jede* Antwort (immer zweiter LLM-Aufruf)** | Maximale Sicherheit, aber verdoppelt Tokens/Latenz pro Anfrage. Verworfen zugunsten des kostenkontrollierten Grenzfall-Triggers (Stufe 3 nur nahe der Schwelle). |
-| **Separater Klassifikator/Cross-Encoder als Faithfulness-Modell** | Stärkste Faithfulness-Prüfung, holt aber PyTorch/ein Zusatzmodell zurück (gegen ADR-005) oder einen weiteren Provider. Post-MVP-Option; Schnittstelle bleibt offen. |
+| Alternative                                                           | Warum verworfen                                                                                                                                                                                                   |
+| --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Nur LLM-Selbsteinschätzung** („Wie sicher bist du? 0–100 %")        | Einfach, aber notorisch unzuverlässig — LLMs sind oft selbstsicher *und* falsch. Als alleiniges Mass ungeeignet für eine 0 %-Halluzinations-NFA. Fließt allenfalls als schwaches Zusatzsignal in Stufe 3 ein.     |
+| **Token-Logprob-/Perplexity-basierte Konfidenz**                      | Token-Wahrscheinlichkeiten wären ein echtes Signal, sind aber providerabhängig und über die Chat-API uneinheitlich verfügbar — bricht die Provider-Portabilität (Azure ↔ Ollama via LiteLLM, ADR-004). Verworfen. |
+| **Nur Schwellenwert-Gate (ADR-007), keine Post-Generierungs-Prüfung** | Günstig, aber lässt Halluzinationen *innerhalb* gefundener Chunks ungeprüft (falsche Kombination/Übergeneralisierung). Reicht für eine 0 %-NFA nicht.                                                             |
+| **Self-Check für *jede* Antwort (immer zweiter LLM-Aufruf)**          | Maximale Sicherheit, aber verdoppelt Tokens/Latenz pro Anfrage. Verworfen zugunsten des kostenkontrollierten Grenzfall-Triggers (Stufe 3 nur nahe der Schwelle).                                                  |
+| **Separater Klassifikator/Cross-Encoder als Faithfulness-Modell**     | Stärkste Faithfulness-Prüfung, holt aber PyTorch/ein Zusatzmodell zurück (gegen ADR-005) oder einen weiteren Provider. Post-MVP-Option; Schnittstelle bleibt offen.                                               |
 
 ---
 

@@ -1,11 +1,11 @@
 # ADR-005: Embedding-Modell — Konfigurierbar via LiteLLM (MVP: OpenAI Direct · Produktion: Azure OpenAI EU · OnPrem: Ollama)
 
-| Feld | Inhalt |
-|---|---|
-| **Status** | Proposed |
-| **Datum** | 2026-05-27 |
+| Feld             | Inhalt                                                                    |
+| ---------------- | ------------------------------------------------------------------------- |
+| **Status**       | Proposed                                                                  |
+| **Datum**        | 2026-05-27                                                                |
 | **Aktualisiert** | 2026-05-31 — MVP-Prämisse (keine echten internen Dokumente) eingearbeitet |
-| **Verfasser** | LearnFlow-Team (Frank, Niklaus, Reto) |
+| **Verfasser**    | LearnFlow-Team (Frank, Niklaus, Reto)                                     |
 
 ---
 
@@ -18,6 +18,7 @@ Die RAG-Pipeline braucht Embeddings in zwei Phasen: beim Dokument-Upload (alle C
 **Datenschutz-Relevanz für die Produktion:** Beim Indexieren wird der *gesamte* Dokumentkorpus an den Embedding-Provider gesendet (jeder Chunk jedes Dokuments) — die datenintensivste Exposition der gesamten Pipeline. Sobald **echte interne Dokumente** indexiert werden, muss der Provider daher derselben EU-/Compliance-Linie folgen wie der LLM-Provider in ADR-004.
 
 Das Projekt braucht drei lauffähige Szenarien:
+
 1. **MVP / Standard**: OpenAI Direct — einfachste Anbindung (nur API-Key), zulässig mangels echter interner Daten.
 2. **Produktion (echte interne Dokumente)**: Azure OpenAI EU — hohe Qualität bei garantierter EU-Datenresidenz.
 3. **OnPrem / Datenschutz**: Ollama — keine API-Kosten, kein Datentransfer, offline-fähig.
@@ -30,11 +31,11 @@ Wir verwenden **LiteLLM als Abstraktions-Layer für Embeddings** — identisch z
 
 **Konfigurierte Standardwerte je Umgebung:**
 
-| Umgebung | Provider | Modell | Dimension |
-|---|---|---|---|
-| **MVP / Standard** (keine echten internen Dokumente) | **OpenAI Direct** | `text-embedding-3-small` | 1536 |
-| Produktion (echte interne Dokumente) | Azure OpenAI EU | `text-embedding-3-small` | 1536 |
-| OnPrem / Datenschutz | Ollama | `bge-m3` | 1024 |
+| Umgebung                                             | Provider          | Modell                   | Dimension |
+| ---------------------------------------------------- | ----------------- | ------------------------ | --------- |
+| **MVP / Standard** (keine echten internen Dokumente) | **OpenAI Direct** | `text-embedding-3-small` | 1536      |
+| Produktion (echte interne Dokumente)                 | Azure OpenAI EU   | `text-embedding-3-small` | 1536      |
+| OnPrem / Datenschutz                                 | Ollama            | `bge-m3`                 | 1024      |
 
 Die aktive Konfiguration (Modell-Name + Dimension) wird beim Start in der Datenbank persistiert. Bei einem Modellwechsel triggert ein Migrations-Script die vollständige Re-Indexierung aller Dokumente.
 
@@ -67,15 +68,15 @@ Die aktive Konfiguration (Modell-Name + Dimension) wird beim Start in der Datenb
 
 ## Abgewogene Alternativen
 
-| Alternative | Warum verworfen |
-|---|---|
-| **Feste Dimension für alle Umgebungen** | Unnötige Einschränkung, da Installationen ohnehin nicht kompatibel sind und keine Vereinheitlichung brauchen. (Anmerkung: `text-embedding-3-small` unterstützt Matryoshka-Dimension-Reduktion nahezu verlustfrei, z. B. auf 1024 — eine Vereinheitlichung wäre also technisch günstig möglich, ist aber kein Ziel.) |
-| **`text-embedding-3-large` (3072 Dim) in Produktion** | Deutlich höhere Retrieval-Qualität, insbesondere für deutschsprachige Fachtexte, ebenfalls auf Azure OpenAI EU verfügbar. **Offen für den Spike-Eval** (siehe Constraint unten) statt heute fix verworfen: höhere Kosten pro Token, und 3072 Dim überschreiten das HNSW-Indexlimit von pgvector (2000) — erfordert Matryoshka-Reduktion auf ≤ 2000 oder den `halfvec`-Typ. |
-| **`nomic-embed-text` statt `bge-m3` (Ollama lokal)** | 274 MB statt 1.2 GB — deutlich schlanker. Verworfen wegen englisch-primärem Training: auf deutschsprachigen Fachtexten schlechtere Retrieval-Qualität als `bge-m3`. Valide Alternative falls Laptop-Ressourcen knapp sind. |
-| **`sentence-transformers` direkt im Backend** | PyTorch-Dependency (+1.5 GB Docker-Image); kein Vorteil gegenüber Ollama (gleiche Modelle verfügbar, aber Ollama läuft als separater Prozess ohne Image-Overhead). |
-| **Azure OpenAI EU als MVP-Default** | EU-konform, aber der Setup-/Quota-Aufwand bringt im MVP keinen Schutzwert, solange keine echten internen Dokumente indexiert werden. Zugunsten OpenAI Direct als MVP-Start zurückgestellt; bleibt der Produktiv-Pfad. |
-| **OpenAI Direct auch in Produktion (mit echten Daten)** | Sofort einsatzbereit ohne Azure-Setup. Verworfen aus demselben Grund wie in ADR-004: der vollständige interne Korpus würde auf US-Servern verarbeitet — kein EU-Datenhaltungs-Guarantee, Widerspruch zur Datenschutz-Linie. Nur zulässig im MVP ohne echte interne Dokumente. |
-| **Nur Cloud, kein lokaler Fallback** | Verhindert Entwicklung ohne Netzwerkzugang und schliesst datenschutzkritische OnPrem-Deployments aus — widerspricht der Maintainability-NFA. |
+| Alternative                                             | Warum verworfen                                                                                                                                                                                                                                                                                                                                                            |
+| ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Feste Dimension für alle Umgebungen**                 | Unnötige Einschränkung, da Installationen ohnehin nicht kompatibel sind und keine Vereinheitlichung brauchen. (Anmerkung: `text-embedding-3-small` unterstützt Matryoshka-Dimension-Reduktion nahezu verlustfrei, z. B. auf 1024 — eine Vereinheitlichung wäre also technisch günstig möglich, ist aber kein Ziel.)                                                        |
+| **`text-embedding-3-large` (3072 Dim) in Produktion**   | Deutlich höhere Retrieval-Qualität, insbesondere für deutschsprachige Fachtexte, ebenfalls auf Azure OpenAI EU verfügbar. **Offen für den Spike-Eval** (siehe Constraint unten) statt heute fix verworfen: höhere Kosten pro Token, und 3072 Dim überschreiten das HNSW-Indexlimit von pgvector (2000) — erfordert Matryoshka-Reduktion auf ≤ 2000 oder den `halfvec`-Typ. |
+| **`nomic-embed-text` statt `bge-m3` (Ollama lokal)**    | 274 MB statt 1.2 GB — deutlich schlanker. Verworfen wegen englisch-primärem Training: auf deutschsprachigen Fachtexten schlechtere Retrieval-Qualität als `bge-m3`. Valide Alternative falls Laptop-Ressourcen knapp sind.                                                                                                                                                 |
+| **`sentence-transformers` direkt im Backend**           | PyTorch-Dependency (+1.5 GB Docker-Image); kein Vorteil gegenüber Ollama (gleiche Modelle verfügbar, aber Ollama läuft als separater Prozess ohne Image-Overhead).                                                                                                                                                                                                         |
+| **Azure OpenAI EU als MVP-Default**                     | EU-konform, aber der Setup-/Quota-Aufwand bringt im MVP keinen Schutzwert, solange keine echten internen Dokumente indexiert werden. Zugunsten OpenAI Direct als MVP-Start zurückgestellt; bleibt der Produktiv-Pfad.                                                                                                                                                      |
+| **OpenAI Direct auch in Produktion (mit echten Daten)** | Sofort einsatzbereit ohne Azure-Setup. Verworfen aus demselben Grund wie in ADR-004: der vollständige interne Korpus würde auf US-Servern verarbeitet — kein EU-Datenhaltungs-Guarantee, Widerspruch zur Datenschutz-Linie. Nur zulässig im MVP ohne echte interne Dokumente.                                                                                              |
+| **Nur Cloud, kein lokaler Fallback**                    | Verhindert Entwicklung ohne Netzwerkzugang und schliesst datenschutzkritische OnPrem-Deployments aus — widerspricht der Maintainability-NFA.                                                                                                                                                                                                                               |
 
 ---
 
