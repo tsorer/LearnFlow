@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(extract-text \"C:\\\\Projects\\\\CAS\\\\LearnFlow\\\\LearnFlow\\\\Combined\\\\Modul3Tag1\\\\2026_05_27_ADAI Modul3 Tag1 Uebungen_Reto.docx\")",
+      "Bash(pandoc \"C:\\\\Projects\\\\CAS\\\\LearnFlow\\\\LearnFlow\\\\Combined\\\\Modul3Tag1\\\\2026_05_27_ADAI Modul3 Tag1 Uebungen_Reto.docx\" -t markdown)",
+      "PowerShell(pandoc \"C:\\\\Projects\\\\CAS\\\\LearnFlow\\\\LearnFlow\\\\Combined\\\\Modul3Tag1\\\\2026_05_27_ADAI Modul3 Tag1 Uebungen_Reto.docx\" -t markdown 2>&1)"
+    ]
+  }
+}

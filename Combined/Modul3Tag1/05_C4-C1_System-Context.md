@@ -37,12 +37,11 @@
             │ (via LiteLLM)                            │ (Post-MVP)
             │                                          │
             ▼                                          ▼
-  [LLM-Provider · via LiteLLM]          [Unternehmens-IdP]
+  [Azure OpenAI EU]                     [Unternehmens-IdP]
   gpt-4o-mini (LLM)                          Azure AD / SAML 2.0
   text-embedding-3-small                      Post-MVP
-  MVP: OpenAI Direct
-  Prod (echte Daten): Azure OpenAI EU
-  OnPrem: Ollama
+  EU-Datenresidenz (DSGVO)
+  via LiteLLM · Ollama-Fallback
 ```
 
 ---
@@ -59,14 +58,14 @@ C4Context
 
     System(learnflow, "LearnFlow", "Interne RAG-Lernplattform.<br/>Quellenbelegte KI-Antworten aus<br/>kuratiertem Wissenskorpus.")
 
-    System_Ext(openai, "LLM-Provider (via LiteLLM)", "LLM-Generierung (gpt-4o-mini)<br/>+ Embeddings (text-embedding-3-small)<br/>MVP: OpenAI Direct (keine echten internen Dok.)<br/>Prod: Azure OpenAI EU (EU-Datenresidenz)<br/>OnPrem: Ollama")
+    System_Ext(openai, "Azure OpenAI EU", "LLM-Generierung (gpt-4o-mini)<br/>+ Embeddings (text-embedding-3-small)<br/>EU-Datenresidenz · via LiteLLM<br/>Dev: OpenAI Direct · OnPrem: Ollama-Fallback")
     System_Ext(idp, "Unternehmens-IdP", "Azure AD / SAML 2.0.<br/>SSO-Authentifizierung.<br/>(Post-MVP)")
 
     Rel(lara, learnflow, "Frage stellen, Antwort lesen,<br/>Feedback geben, Quiz absolvieren", "HTTPS")
     Rel(stefan, learnflow, "Dokumente hochladen,<br/>Quiz-Fragen freigeben,<br/>Stale-Inhalte validieren", "HTTPS")
     Rel(admin, learnflow, "Schwellenwerte konfigurieren<br/>(Konfidenz, Stale-Tage)", "HTTPS")
 
-    Rel(learnflow, openai, "LLM-Anfragen + Embedding-Anfragen<br/>(via LiteLLM; MVP: OpenAI Direct, Prod: Azure OpenAI EU)", "HTTPS/REST")
+    Rel(learnflow, openai, "LLM-Anfragen + Embedding-Anfragen<br/>(via LiteLLM, EU-Endpunkt)", "HTTPS/REST")
     Rel(learnflow, idp, "SSO-Auth, Rollen-Sync (Post-MVP)", "SAML 2.0")
 ```
 
@@ -79,7 +78,7 @@ C4Context
 | Lara | LearnFlow | Frage stellen, Antwort lesen, Feedback geben, Quiz absolvieren | HTTPS |
 | Stefan | LearnFlow | Dokumente hochladen, Korpus verwalten, Quiz freigeben, Stale-Inhalte validieren | HTTPS |
 | Admin | LearnFlow | Konfidenz- und Stale-Schwellenwerte konfigurieren | HTTPS |
-| LearnFlow | LLM-Provider (via LiteLLM) | LLM-Generierung + Embedding-Anfragen — MVP: OpenAI Direct, Prod: Azure OpenAI EU | HTTPS/REST |
+| LearnFlow | Azure OpenAI EU | LLM-Generierung + Embedding-Anfragen via LiteLLM (EU-Endpunkt) | HTTPS/REST |
 | LearnFlow | Unternehmens-IdP | SSO-Authentifizierung + Rollen-Synchronisation *(Post-MVP)* | SAML 2.0 |
 
 ---
