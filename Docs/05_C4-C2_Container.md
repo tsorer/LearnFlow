@@ -13,7 +13,7 @@ C4Container
     Person(stefan, "Stefan", "Bereichsverantwortlicher / Knowledge Owner")
     Person(admin, "Admin", "Systemadministrator")
 
-    System_Ext(openai, "Azure OpenAI EU", "LLM-Generierung (gpt-4o-mini) + Embeddings (text-embedding-3-small) via LiteLLM, EU-Datenresidenz. Dev: OpenAI Direct (keine Produktivdaten). OnPrem-Fallback: Ollama.")
+    System_Ext(openai, "LLM-Provider (via LiteLLM)", "LLM-Generierung (gpt-4o-mini) + Embeddings (text-embedding-3-small). MVP: OpenAI Direct (keine echten internen Dokumente). Produktion: Azure OpenAI EU (EU-Datenresidenz). OnPrem: Ollama.")
     System_Ext(idp, "Unternehmens-IdP", "Azure AD / SAML 2.0. SSO-Auth + Rollen-Sync. (Post-MVP)")
 
     System_Boundary(learnflow, "LearnFlow") {
@@ -31,7 +31,7 @@ C4Container
     Rel(api, db, "Lesen/Schreiben: Users, Dokumente, Config, Feedback, Quiz, Embeddings (Similarity Search)", "SQL · TCP 5432")
     Rel(api, worker, "Dokument-Job enqueuen nach Upload", "pg_notify · TCP 5432")
     Rel(worker, db, "Chunks + Embeddings schreiben, HNSW-Index aufbauen", "SQL · TCP 5432")
-    Rel(api, openai, "LLM-Prompts (Antwort-Generierung, Self-Check, Quiz-Generierung) + Embedding-Anfragen", "HTTPS/REST via LiteLLM (EU)")
+    Rel(api, openai, "LLM-Prompts (Antwort-Generierung, Self-Check, Quiz-Generierung) + Embedding-Anfragen", "HTTPS/REST via LiteLLM (MVP: OpenAI Direct, Prod: Azure EU)")
     Rel(api, idp, "SSO-Auth + Rollen-Sync (Post-MVP)", "SAML 2.0")
 
     UpdateLayoutConfig($c4ShapeInRow="2", $c4BoundaryInRow="1")
@@ -74,7 +74,7 @@ C4Container
 | API Server | Datenbank | Lesen/Schreiben: Users, Dokumente, Config, Feedback, Quiz-Fragen; Similarity Search (Embeddings) | SQL · TCP 5432 |
 | API Server | Background Worker | Dokument-Job nach Upload enqueuen (Dokument-ID, Bereich) | pg_notify · TCP 5432 |
 | Background Worker | Datenbank | Chunks + Embeddings schreiben; HNSW-Index aufbauen | SQL · TCP 5432 |
-| API Server | Azure OpenAI EU | LLM-Prompts (Antwort, Self-Check, Quiz-Generierung) + Embedding-Anfragen | HTTPS/REST via LiteLLM (EU) |
+| API Server | LLM-Provider (via LiteLLM) | LLM-Prompts (Antwort, Self-Check, Quiz-Generierung) + Embedding-Anfragen — MVP: OpenAI Direct, Prod: Azure OpenAI EU | HTTPS/REST |
 | API Server | Unternehmens-IdP | SSO-Authentifizierung + Rollen-Sync *(Post-MVP)* | SAML 2.0 |
 
 ---
@@ -91,13 +91,13 @@ Lara tippt Frage
        ▼
   [API Server]
   1. Auth prüfen (JWT)
-  2. Query-Embedding generieren  ──► [Azure OpenAI EU] text-embedding-3-small
+  2. Query-Embedding generieren  ──► [LLM-Provider via LiteLLM] text-embedding-3-small
   3. Hybrid-Retrieval (ADR-007)   ──► [Datenbank] pgvector HNSW + tsvector/GIN, RRF-Fusion
   4. Retrieval-Gate (ADR-007): Chunk über Similarity-Schwelle?
      └── nein → "Weiss ich nicht" (kein LLM-Aufruf)
   5. Retrieval-Konfidenz prüfen (ADR-008, Stufe 1)
      └── zu tief → "Weiss ich nicht"
-  6. LLM-Prompt aufbauen + senden ──► [Azure OpenAI EU] gpt-4o-mini
+  6. LLM-Prompt aufbauen + senden ──► [LLM-Provider via LiteLLM] gpt-4o-mini
   7. Grounding-/Citation-Check (ADR-008, Stufe 2)
      └── Coverage < 50 % → unterdrückt
   8. Self-Check für Grenzfälle (ADR-008, Stufe 3, optional)
@@ -131,7 +131,7 @@ Stefan lädt PDF hoch
   1. Dokument aus DB laden
   2. Text extrahieren (pypdf / python-docx)
   3. Text chunken (struktur-bewusst, ~512 Token / 64 Overlap — ADR-007)
-  4. Chunks embedden  ──► [Azure OpenAI EU] text-embedding-3-small
+  4. Chunks embedden  ──► [LLM-Provider via LiteLLM] text-embedding-3-small
   5. Embeddings + Chunks + tsvector in DB schreiben, HNSW-Index aktualisieren
   6. Dokument-Status: "verfügbar"
   → Innerhalb 5 Minuten für Dokumente ≤ 50 Seiten / 10 MB
@@ -159,7 +159,9 @@ docker-compose.yml
 
 Single Instance — kein HA-Setup. Bewusst akzeptiert für Business-Hours-Pilot mit < 30 Nutzern.
 
+**LLM-Provider im MVP:** OpenAI Direct (nur API-Key, kein Azure-Setup) — zulässig, weil im MVP keine echten internen Dokumente verarbeitet werden. Umstellung auf Azure OpenAI EU als harte Vorbedingung *vor* dem ersten echten internen Dokument (eine LiteLLM-Konfigurationszeile; vgl. ADR-004/005).
+
 ---
 
 *Quellen: 03_QualityAttributes.md · 05_C4-C1_System-Context.md · 04_ADR-001 bis 04_ADR-009*
-*Stand: v3 — 2026-05-31 · Stack-Versionen (Py 3.13, PG 17) + Azure OpenAI EU + ADR-007/008/009 (Retrieval, Konfidenz, Eval) eingearbeitet*
+*Stand: v4 — 2026-05-31 · MVP-Provider-Staffelung (OpenAI Direct → Azure OpenAI EU) eingearbeitet (ADR-004/005)*

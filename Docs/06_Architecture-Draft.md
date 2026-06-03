@@ -15,7 +15,7 @@ LearnFlow ist eine interne RAG-Lernplattform für neue Mitarbeitende. Neue Mitar
 | Rang | QA | Kernforderung |
 |---|---|---|
 | 1 | **Reliability** | Halluzinationsrate = 0 %; Out-of-Corpus-Erkennung ≥ 90 % „Weiss ich nicht"; Retrieval-Gate + mehrschichtiger Unterdrückungsmechanismus (Quellenprüfung → Konfidenz-Score → Self-Check); CI-Regressionsgate |
-| 2 | **Security** | DSGVO — Daten verlassen EU nicht (Azure OpenAI EU); JWT + bcrypt; RBAC (User / Admin); Pseudonymisierung von Feedback und Query-Logs; SSO nachrüstbar (Post-MVP) |
+| 2 | **Security** | DSGVO — bei echten internen Dokumenten bleibt die Verarbeitung in der EU (Azure OpenAI EU); im MVP keine echten internen Dokumente, daher OpenAI Direct zulässig. JWT + bcrypt; RBAC (User / Admin); Pseudonymisierung von Feedback und Query-Logs; SSO nachrüstbar (Post-MVP) |
 | 3 | **Maintainability** | Schwellenwerte in DB ohne Code-Deployment änderbar; LLM-Provider-Wechsel per Konfiguration (LiteLLM); modulare RAG-Komponenten; Budget-kritisch: 360 h total |
 
 ---
@@ -27,7 +27,7 @@ LearnFlow ist eine interne RAG-Lernplattform für neue Mitarbeitende. Neue Mitar
 | **Lara** (Lernende) | Fragen stellen, Antworten lesen, Feedback geben, Quiz absolvieren |
 | **Stefan** (Bereichsverantwortlicher) | Dokumente hochladen, Korpus verwalten, Quiz-Fragen freigeben, Stale-Inhalte validieren |
 | **Admin** | Konfidenz- und Stale-Schwellenwerte konfigurieren |
-| **Azure OpenAI EU** | LLM-Generierung (`gpt-4o-mini` Default, `gpt-4o` Upgrade) + Embeddings (`text-embedding-3-small`) via LiteLLM; Fallback: Ollama (`bge-m3`, lokal/OnPrem, DSGVO-kritische Deployments) |
+| **LLM-Provider (via LiteLLM)** | LLM-Generierung (`gpt-4o-mini` Default, `gpt-4o` Upgrade) + Embeddings (`text-embedding-3-small`). MVP: OpenAI Direct (keine echten internen Dokumente); Produktion: Azure OpenAI EU (EU-Datenresidenz); OnPrem-Fallback: Ollama (`bge-m3`, lokal) |
 | **Unternehmens-IdP** | SSO-Authentifizierung + Rollen-Sync via Azure AD / SAML 2.0 — Post-MVP |
 
 ---
@@ -46,7 +46,7 @@ LearnFlow ist eine interne RAG-Lernplattform für neue Mitarbeitende. Neue Mitar
 - API Server → Datenbank: SQL via asyncpg (TCP 5432) — synchron
 - API Server → Background Worker: pg_notify (TCP 5432) — asynchron
 - Background Worker → Datenbank: SQL (TCP 5432) — synchron
-- API Server → Azure OpenAI EU: HTTPS via LiteLLM — synchron mit Circuit Breaker
+- API Server → LLM-Provider (via LiteLLM): HTTPS — synchron mit Circuit Breaker (MVP: OpenAI Direct, Prod: Azure OpenAI EU)
 
 **Versionsphilosophie:** bewusst stabil-abgehangen statt bleeding-edge. Python 3.13 (nicht 3.14) wegen ML-Wheel-Reife; React 18 und stabile APIs wegen höchster Trainingsdaten-Dichte → zuverlässigere KI-Generierung. PostgreSQL 17 aus Lebenszyklus-/Docker-Image-Gründen (pgvector ist versionsunabhängig).
 
@@ -59,8 +59,8 @@ LearnFlow ist eine interne RAG-Lernplattform für neue Mitarbeitende. Neue Mitar
 | **ADR-001** | Architekturstil: Modularer Monolith — kein Microservices-Overhead bei < 30 Nutzern und 360 h Budget | **Accepted** *(aktualisiert nach Peer Review)* |
 | **ADR-002** | Backend/Frontend-Stack: Python 3.13 / FastAPI + React 18 / TypeScript 5 — async SSE-native, Python-KI-Ökosystem direkt verfügbar | Proposed |
 | **ADR-003** | Datenpersistenz: PostgreSQL 17 + pgvector — relationale Daten + Vektoren + Dokumente in einem Service, ein Backup, kein zweiter Service | Proposed |
-| **ADR-004** | LLM-Provider: Azure OpenAI EU + LiteLLM-Abstraktion — Provider-Wechsel (Azure EU ↔ OpenAI Direct ↔ Ollama) per Konfigurationseintrag, kein Code-Change | Proposed |
-| **ADR-005** | Embedding-Modell: `text-embedding-3-small` (Azure EU, 1536 Dim) / `bge-m3` (Ollama, 1024 Dim) — konfigurierbar via LiteLLM | Proposed |
+| **ADR-004** | LLM-Provider: LiteLLM-Abstraktion — MVP: OpenAI Direct (keine echten internen Dokumente), Produktion: Azure OpenAI EU, OnPrem: Ollama; Wechsel per Konfigurationseintrag, kein Code-Change | Proposed |
+| **ADR-005** | Embedding-Modell: `text-embedding-3-small` (1536 Dim; MVP via OpenAI Direct, Prod via Azure EU) / `bge-m3` (Ollama, 1024 Dim) — konfigurierbar via LiteLLM | Proposed |
 | **ADR-006** | Background Worker: pgqueuer statt Celery + Redis — kein separater Broker, Jobs PostgreSQL-transaktional, ein Service weniger | Accepted |
 | **ADR-007** | Retrieval: Struktur-bewusstes Chunking + Hybrid-Retrieval (Dense + Sparse, RRF) + Retrieval-Gate | Proposed |
 | **ADR-008** | Reliability: Mehrstufige Konfidenzpipeline (fail-closed) — Retrieval-Gate → Konfidenz → Grounding-/Citation-Check → LLM-Self-Check | Proposed |
@@ -102,8 +102,9 @@ Parsing (pypdf/python-docx) → **struktur-bewusstes Chunking** (Überschrift > 
 
 ## LLM- & Embedding-Integration (ADR-004, -005)
 
-- **LiteLLM** normalisiert Provider → Wechsel Azure EU ↔ OpenAI Direct ↔ Ollama ist ein `config`-Eintrag, kein Code-Change.
-- **EU-Datenresidenz als Default** (Azure OpenAI EU), da interne Dokumente verarbeitet werden — beim Indexieren geht der *gesamte* Korpus an den Provider (datenintensivste Exposition).
+- **LiteLLM** normalisiert Provider → Wechsel OpenAI Direct ↔ Azure EU ↔ Ollama ist ein `config`-Eintrag, kein Code-Change.
+- **MVP-Default: OpenAI Direct** — einfachste Anbindung (nur API-Key), zulässig, weil im MVP keine echten internen Dokumente verarbeitet werden.
+- **Produktion: Azure OpenAI EU** — sobald echte interne Dokumente indexiert werden, gilt EU-Datenresidenz (beim Indexieren geht der *gesamte* Korpus an den Provider — datenintensivste Exposition). Umstellung = eine `config`-Zeile, harte Go-Live-Vorbedingung.
 - **Modellwechsel** erzwingt vollständige Re-Indexierung (Dimensionsänderung = Schema-Migration).
 - **Provider-Portabilität** ist auch in der Eval (LLM-as-Judge) und Konfidenz (keine Logprob-Abhängigkeit) durchgehalten.
 
@@ -126,6 +127,7 @@ Parsing (pypdf/python-docx) → **struktur-bewusstes Chunking** (Überschrift > 
 | **E-Mail-Service für US-06 ungeklärt** | SMTP-Provider-Entscheid vor US-06-Implementierung — Sprint 0 | 🟠 Abhängigkeit |
 | **`bytea` vs. Large Object (`lo`)** | RAM-/WAL-Verhalten für grosse PDFs prüfen — vor Schema-Erstellung entscheiden (ADR-003) | 🔴 Blocker |
 | **Streaming ↔ Grounding-Check** | Fail-closed (ADR-008) vs. Token-Streaming (Performance-Anforderung, ≤ 10 s @ p95) auflösen: generieren-dann-streamen vs. In-Stream-Korrektur | 🟠 Architektur |
+| **Provider-Umstellung vor echten Daten** | MVP nutzt OpenAI Direct (US); vor dem ersten echten internen Dokument auf Azure OpenAI EU umstellen (LiteLLM-`config`). Go-Live-Checklist + optionaler Guard gegen Nicht-EU-Provider bei „intern/produktiv" markiertem Korpus (ADR-004/005) | 🔴 Compliance |
 
 ---
 
