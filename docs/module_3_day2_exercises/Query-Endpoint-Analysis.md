@@ -1,10 +1,44 @@
-# OpenAPI 3.0 Spec: POST /api/v1/query
+# Query Endpoint: Bedeutung und OpenAPI 3.0 Spec
 
-*Frage gestellt: 2026-06-03 · Kontext: LearnFlow MVP, US-01 + US-02*
+*Fragen gestellt: 2026-06-03 · Kontext: LearnFlow MVP, US-01 + US-02*
 
 ---
 
-## Frage
+## Frage 1
+
+> Welcher dieser 5 API Endpoints ist der wichtigste?
+
+## Antwort 1
+
+**`POST /api/v1/query`**
+
+Kein anderer Endpoint kommt auch nur annähernd heran — und zwar aus drei Gründen:
+
+**1. Er ist LearnFlow.**
+Alle anderen Endpoints sind Infrastruktur (Login, Upload, Content-Abruf, Feedback). Dieser Endpoint *ist* das Produkt. Ohne ihn gibt es keine Lernplattform, nur eine Datei-Verwaltung.
+
+**2. Er trägt allein den gesamten Reliability-Stack.**
+In einem einzigen Request stecken vier Schichten:
+```
+Retrieval-Gate       → "Weiss ich nicht" ohne LLM-Aufruf
+Konfidenz-Score      → Band HIGH / MEDIUM / LOW
+Grounding-Check      → Coverage ≥ 50% sonst unterdrückt
+LLM-Self-Check       → Grenzfälle
+```
+Das ist US-01 *und* US-02 gleichzeitig — kein anderer Endpoint bedient zwei Must-Have-Stories auf einmal.
+
+**3. Er ist der einzige, der scheitern kann auf eine gefährliche Weise.**
+- Login schlägt fehl → User sieht Fehlermeldung. Klar.
+- Upload schlägt fehl → Job bleibt in Queue. Beherrschbar.
+- **Query gibt eine halluzinierte Antwort zurück → Vertrauen in die Plattform ist dauerhaft beschädigt.**
+
+Das ist der einzige Endpoint, bei dem ein Bug nicht nur ein technisches Problem ist, sondern das zentrale Qualitätsversprechen bricht.
+
+> Wenn dieser Endpoint nicht korrekt funktioniert, hat LearnFlow kein Recht zu existieren.
+
+---
+
+## Frage 2
 
 > Schreibe eine OpenAPI 3.0 Spec für diesen Endpoint:
 > Inkludiere:
@@ -16,9 +50,7 @@
 >
 > Format: YAML
 
----
-
-## Antwort
+## Antwort 2
 
 ```yaml
 openapi: 3.0.3
