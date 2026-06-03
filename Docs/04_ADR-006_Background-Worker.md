@@ -43,7 +43,7 @@ Jobs, Dokumente, Embeddings und Konfiguration liegen alle in PostgreSQL. Ein ein
 Celery + Redis erfordert zwei zusätzliche Container, zwei separate Konfigurationen, zwei separate Health-Checks und eigenes Monitoring. Bei einem einzigen Job-Typ (Dokument verarbeiten) und < 30 Nutzern ist das nicht gerechtfertigt.
 
 **5. Ausreichende Leistung für den Pilot**
-pgqueuer via `pg_notify` reagiert in Millisekunden auf neue Jobs. Der Throughput-Engpass liegt beim Embedding-API-Call (OpenAI Rate Limit), nicht beim Queue-Mechanismus. pgqueuer ist für dieses Volumen mehr als ausreichend.
+pgqueuer via `pg_notify` reagiert in Millisekunden auf neue Jobs. Der Throughput-Engpass liegt beim Embedding-API-Call (Azure OpenAI EU Rate-Limit), nicht beim Queue-Mechanismus. pgqueuer ist für dieses Volumen mehr als ausreichend.
 
 ---
 
@@ -65,15 +65,19 @@ pgqueuer via `pg_notify` reagiert in Millisekunden auf neue Jobs. Der Throughput
 
 ---
 
-## Abgewogene Alternative
+## Abgewogene Alternativen
 
 | Alternative | Warum verworfen |
 |---|---|
 | **Celery + Redis** | Zwei zusätzliche Deployment-Artefakte widersprechen ADR-001. Redis bringt keinen Mehrwert für einen einzigen Job-Typ bei < 30 Nutzern. Job-Persistenz muss explizit konfiguriert werden. Operativer Overhead steht in keinem Verhältnis zum Nutzen. |
+| **`procrastinate`** | Gleiche Architektur wie pgqueuer (PostgreSQL + `LISTEN`/`NOTIFY`, kein Broker) und reifer/länger battle-tested — adressiert genau den einzigen pgqueuer-Nachteil (kleinere Community). Knapp zugunsten pgqueuer verworfen wegen dessen schlankerer, async-nativer API und geringerem konzeptionellen Overhead für den einen trivialen Job-Typ. Gleichwertige Rückfalloption, falls pgqueuer-Reife zum Problem wird — kein Architekturwechsel, da identisches Postgres-Queue-Muster. |
+| **Handgerollt: `SELECT … FOR UPDATE SKIP LOCKED`** | Konsequent zum eigenen Argument „der Job-Typ ist trivial": ein ~30-Zeilen-Worker ohne jede Queue-Library. Verworfen, weil pgqueuer Retry-/Scheduling-/Notify-Mechanik bereits getestet mitbringt — diese selbst korrekt (Nebenläufigkeit, Retries, Crash-Recovery) zu bauen ist mehr Risiko als Ersparnis. Bleibt die Minimal-Fallback-Variante. |
+| **FastAPI `BackgroundTasks`** | In ADR-002 bereits ausgeschlossen: nicht persistent — laufende Jobs gehen bei Container-Neustart verloren, verletzt das 5-Minuten-SLA von US-04 im Fehlerfall. Hier nur als Querverweis zur Vollständigkeit. |
+| **ARQ / Dramatiq / SAQ** | Alle benötigen Redis (oder einen anderen Broker) als zusätzlichen Service — scheitern aus demselben Grund wie Celery + Redis am Monolith-Ziel (ADR-001). |
 
 ---
 
-## Auswirkung auf Docs/04_C4_C2_Container.md
+## Auswirkung auf 05_C4-C2_Container.md
 
 Der Container-Diagram-Eintrag für den Worker ist damit konkretisiert:
 
