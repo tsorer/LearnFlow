@@ -1,0 +1,43 @@
+Input:
+
+Kontext: ADAI_Modul3_Tag2_Uebungen.md und die Dateien die Dateien im Docs-Verzeichnis. Rolle: Erfahreren Software-Architekt. Aufgabe:  Wir haben uns für 'modularen Monolithen' entschieden. Spiele jetzt den Advocatus Diaboli:<br>1. Warum ist diese Entscheidung für uns FALSCH?<br>2. Was werden wir in 6 Monaten bereuen?<br>3. Welches Pattern wäre ehrlich gesagt besser — und warum?<br>4. Was müssen wir tun damit unsere Wahl wirklich funktioniert?
+
+
+Output:
+
+
+Rolle angenommen: erfahrener Architekt, der euer ADR-001 zerlegen soll. Ich habe 04_ADR-001, den Architecture-Draft und das Übungsblatt gelesen. Kontext, mit dem ich argumentiere: 3 Devs / 360 h / < 30 Nutzer / Pilot / Deadline 30.09.2026, Reliability als QA #1.
+
+Eine Vorbemerkung, sonst ist die Kritik unehrlich: Modularer Monolith ist für euren Kontext die richtige Grundentscheidung. Bei < 30 Nutzern Microservices zu fordern wäre Beratergeschwätz. Deshalb greife ich nicht die Monolith-vs-Microservices-Achse an — die habt ihr richtig entschieden. Ich greife an, wo ihr euch selbst belügt.
+
+1. Warum die Entscheidung für euch FALSCH ist
+Nicht das „Monolith", sondern das „modular" ist die Lüge. „Modular" kostet echte Stunden: durchgesetzte Service-Interfaces, keine Cross-Modul-DB-Calls, Stateless-Design. Eure einzige Mitigation laut ADR ist „Code-Review checkt auf direkte DB-Calls". Das ist kein Mechanismus, das ist eine Hoffnung — und Hoffnung ist das Erste, was unter Deadline-Druck stirbt. In Woche 6, wenn die Konfidenz-Pipeline noch nicht 0 % Halluzination schafft, schreibt niemand mehr ein sauberes Interface. Ihr bekommt einen Big Ball of Mud mit zusätzlicher Zeremonie.
+
+Eure Modul-Grenzen sind Fiktion, weil alle Module dieselbe Datenbank teilen. Ihr habt in eine PostgreSQL-Instanz gepackt: relationale Daten + pgvector/HNSW + Volltext/GIN + bytea-Originaldokumente + pgqueuer-Job-Queue. Der einfachste Kopplungsvektor — geteilte Tabellen — ist sperrangelweit offen. Ein „modularer Monolith" ohne Schema-/Ownership-Trennung ist ein klassischer Monolith mit Vokabular. Module die sich dieselben Tabellen greifen, sind nicht entkoppelt, egal wie viele Interfaces darüberliegen.
+
+Ihr habt euren #1-Quality-Attribute an euren grössten Single Point of Failure gekettet. Reliability ist QA #1 — und dieselbe DB, die Live-Queries beantwortet, macht gleichzeitig: HNSW-Reindex, WAL-Last durch grosse PDF-bytea, Volltext-Indexierung und Job-Queue-Polling. Der Draft sagt selbst: „Single Point of Failure — kein Replica, kein Backup definiert". Ihr nennt etwas „reliability-first" und bauen es auf eine ungesicherte Einzelinstanz.
+
+2. Was ihr in 6 Monaten bereut
+„Modular" war nur ein Label. Der Embedding-Modell-Wechsel — euer Vorzeige-Maintainability-Ziel — wird vier Module anfassen statt eines, weil sich Cross-Modul-Imports und geteilte Tabellen eingeschlichen haben. Genau die Flexibilität, für die ihr Modularität gekauft habt, habt ihr nicht.
+Der erste echte Korpus-Upload wird zum Incident. Stefan lädt am Pilot-Tag 1 den ganzen Bereich hoch → pgqueuer ist single-threaded → die Queue staut stundenlang, und der Reindex drückt gleichzeitig die Query-Latenz eurer ersten Nutzer in den Keller. Erster Eindruck verbrannt.
+Backup als TODO statt als getesteter Prozess. „Täglicher pg_dump via Cron" steht als 🔴-Pflicht im Peer Review — also noch nicht da. Ein Backup, dessen Restore nie geprobt wurde, ist kein Backup. Das merkt man immer am schlechtesten Tag.
+„Stateless von Anfang an" wird sich als Behauptung entpuppen. Sobald ihr aus Last- oder Verfügbarkeitsgründen eine zweite Instanz wollt, verraten euch SSE-Verbindungen, In-Memory-Caches oder Rate-Limit-Zähler. Stateless steht im ADR, ist aber nirgends verifiziert.
+3. Welches Pattern ehrlich besser wäre
+Nicht Microservices. Die ehrlichere Alternative ist noch mehr Demut innerhalb des Monolithen — zwei Justierungen:
+
+(a) Modularität nur dort, wo sich Code ändert — nicht überall. Auth, Admin, Feedback sind stabiles CRUD; sie mit erzwungenen Service-Interfaces zu überziehen verbrennt euer knappes 360-h-Budget ohne Gegenwert. Investiert die gesparte Disziplin in die eine Naht, die sich wirklich ändern wird: die RAG-Pipeline hinter einem sauberen Interface (Chunking, Retrieval, Embedding, LLM-Provider). Den LLM-Teil habt ihr mit LiteLLM schon richtig abstrahiert — zieht das konsequent durch und lasst den Rest bewusst „nur" geschichtet (ein „Majestic Monolith").
+
+(b) Der einzige Split, der sich lohnt, ist im Daten-Tier — nicht im Service-Tier. Trennt die bytea-Blob-Last von der operativen DB (Object Storage oder zumindest separates Schema/Instanz). Dann konkurrieren PDF-WAL-Last und Reindex nicht mit euren Live-Vektor-Queries. Das ist eine wertvollere Grenze als jeder Service-Schnitt — und adressiert direkt euren SPOF und euer QA #1.
+
+Kurz: Monolith behalten, dogmatische Modul-Zeremonie bei den CRUD-Modulen streichen, die freiwerdende Disziplin in RAG-Naht + Daten-Tier-Trennung + Backup stecken.
+
+4. Was ihr tun müsst, damit eure Wahl wirklich funktioniert
+Grenzen mechanisch erzwingen, nicht per Review. import-linter / Architektur-Tests in CI: Cross-Modul-Importe und Cross-Modul-DB-Zugriffe lassen den Build brechen. Jedes Modul besitzt seine Tabellen; Fremdzugriff nur über Interface. Ohne Tooling ist „modular" Stimmung, kein Fakt.
+Backup und Restore jetzt aufsetzen und proben — nicht „vor Pilot-Start". Ein erfolgreich wiederhergestellter Dump ist das Akzeptanzkriterium, nicht der Cron-Eintrag.
+Statelessness beweisen: zwei Instanzen hinter nginx in Staging, SSE + Sessions müssen überleben. Wenn nicht: ehrlich „explizit Single-Instance" dokumentieren und aufhören, es stateless zu nennen.
+DB als SPOF entschärfen: Blobs aus der heissen DB ziehen oder PDF-Grösse hart deckeln und WAL/RAM unter realer Last testen. Für den Pilot reicht evtl. ein gemanagtes Postgres mit Replica.
+pgqueuer unter Last fahren, bevor ihr euch festlegt: paralleler Korpus-Upload, Backpressure und Max-Seiten definieren. Klären, ob single-threaded für den Korpus-Lade-Tag akzeptabel ist.
+Exit-Kriterien ins ADR schreiben. ADR-001 hat aktuell keine. Formuliert die Tripwire: „Wir überdenken, wenn Modul X eigenständig skaliert werden muss / das Team > 8 wächst / der RAG-Worker separat skaliert werden muss." Eine Architekturentscheidung ohne Revisionsbedingung ist Dogma.
+Ein Datenpunkt zum Schluss, der euch beissen wird: Übungsblatt sagt 4 Entwickler / 256 h, eure Docs sagen 3 Entwickler / 360 h. Eure ganze Pattern-Begründung hängt an Team-Grösse und Budget — und ihr seid euch über beides nicht einig. Klärt das, bevor ihr ADR-001 auf „Accepted" stehen lasst, denn genau diese Zahlen sind eure Rechtfertigung.
+
+Mein ehrliches Fazit als Advokat des Teufels: Bleibt beim modularen Monolithen — aber hört auf, „modular" und „stateless" zu behaupten, und fangt an, sie in CI zu erzwingen. Die Gefahr ist nicht das Pattern. Die Gefahr ist, dass ihr das Etikett für die Arbeit haltet.
