@@ -1,0 +1,1982 @@
+%% ============================================================
+%% LearnFlow -- Architecture Decision Records (ADR-001 bis ADR-007)
+%% Compile: pdflatex LearnFlow_ADRs.tex  (zweimal fuer korrekte Referenzen)
+%% ============================================================
+\documentclass[a4paper, 11pt, oneside]{report}
+
+%% --- Encoding & Sprache
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[ngerman]{babel}
+
+%% --- Schriften & Typographie
+\usepackage{lmodern}
+\usepackage{microtype}
+
+%% --- Seitengeometrie
+\usepackage[a4paper, top=25mm, bottom=25mm, left=28mm, right=22mm,
+            headheight=15pt]{geometry}
+
+%% --- Farben
+\usepackage{xcolor}
+\definecolor{adrblue}{RGB}{13,71,161}
+\definecolor{adrlightblue}{RGB}{232,245,255}
+\definecolor{adrline}{RGB}{100,149,237}
+\definecolor{codebg}{RGB}{250,250,250}
+\definecolor{codeframe}{RGB}{205,205,205}
+\definecolor{kw}{RGB}{0,100,180}
+\definecolor{str}{RGB}{163,21,21}
+\definecolor{cmt}{RGB}{80,120,70}
+\definecolor{statusproposed}{RGB}{240,150,0}
+\definecolor{statusaccepted}{RGB}{40,140,60}
+\definecolor{notebg}{RGB}{255,249,224}
+\definecolor{noteframe}{RGB}{200,150,0}
+\definecolor{warnbg}{RGB}{255,242,242}
+\definecolor{warnframe}{RGB}{190,50,50}
+\definecolor{tabhead}{RGB}{224,238,255}
+\definecolor{depbg}{RGB}{255,244,244}
+
+%% --- Mathe & Symbole
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{xspace}
+
+%% --- Tabellen
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{colortbl}
+\usepackage{multirow}
+\usepackage{longtable}
+
+%% --- Listings
+\usepackage{listings}
+
+\lstdefinelanguage{TypeScript}{
+  morekeywords={type,interface,class,const,let,var,async,await,return,if,
+    else,new,implements,constructor,function,export,default,import,from,as,
+    extends,private,public,protected,readonly,abstract,static,Promise,void,
+    string,number,boolean,null,undefined,true,false,switch,case,break,for,
+    of,in,throw,try,catch,finally,typeof,keyof,never,any,unknown,enum,
+    declare,namespace,React,ReactNode,NextFunction,Request,Response,Map,
+    Set,Record,Partial,Required,Pick,Omit},
+  morestring=[b]",
+  morestring=[b]',
+  morestring=[b]`,
+  morecomment=[l]{//},
+  morecomment=[s]{/*}{*/},
+  sensitive=true
+}
+
+\lstdefinelanguage{LearnSQL}{
+  morekeywords={CREATE,TABLE,INSERT,INTO,SELECT,UPDATE,DELETE,FROM,WHERE,
+    JOIN,LEFT,ON,AND,OR,NOT,NULL,IS,INDEX,PRIMARY,KEY,UNIQUE,FOREIGN,
+    REFERENCES,DEFAULT,CONSTRAINT,VALUES,SET,ALTER,DROP,CASCADE,EXTENSION,
+    IF,EXISTS,ORDER,BY,LIMIT,GROUP,DISTINCT,AS,USING,BIGSERIAL,UUID,TEXT,
+    INTEGER,BOOLEAN,TIMESTAMPTZ,VECTOR,CHECK,IN,HNSW,SERIAL,WITH,REPLACE,
+    RETURNING},
+  morestring=[b]',
+  morecomment=[l]{--},
+  sensitive=false
+}
+
+\lstset{
+  basicstyle      = \small\ttfamily,
+  backgroundcolor = \color{codebg},
+  frame           = single,
+  rulecolor       = \color{codeframe},
+  numbers         = left,
+  numberstyle     = \tiny\color{gray!55},
+  numbersep       = 10pt,
+  xleftmargin     = 18pt,
+  xrightmargin    = 4pt,
+  breaklines      = true,
+  breakatwhitespace = true,
+  showstringspaces  = false,
+  tabsize         = 2,
+  keywordstyle    = \color{kw}\bfseries,
+  stringstyle     = \color{str},
+  commentstyle    = \color{cmt}\itshape,
+  captionpos      = b,
+  aboveskip       = \smallskipamount,
+  belowskip       = \smallskipamount,
+  extendedchars   = true,
+  literate        =
+    {ä}{{\"{a}}}1  {ö}{{\"{o}}}1  {ü}{{\"{u}}}1
+    {Ä}{{\"{A}}}1  {Ö}{{\"{O}}}1  {Ü}{{\"{U}}}1
+    {ß}{{\ss}}1    {é}{{\'e}}1    {è}{{\`e}}1
+    {à}{{\`a}}1    {â}{{\^a}}1    {ê}{{\^e}}1
+    {î}{{\^i}}1    {ô}{{\^o}}1    {û}{{\^u}}1,
+}
+
+\lstdefinestyle{diagram}{
+  basicstyle      = \footnotesize\ttfamily,
+  backgroundcolor = \color{gray!7},
+  frame           = single,
+  rulecolor       = \color{gray!35},
+  numbers         = none,
+  xleftmargin     = 6pt, xrightmargin = 6pt,
+  breaklines      = false,
+  keywordstyle    = {},
+  stringstyle     = {},
+  commentstyle    = {},
+  identifierstyle = {},
+  showstringspaces = false,
+}
+
+%% --- tcolorbox
+\usepackage[breakable,skins]{tcolorbox}
+
+%% --- Kopf-/Fusszeilen
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\itshape\color{gray!65}LearnFlow --- Architecture Decision Records}
+\fancyhead[R]{\small\itshape\color{gray!65}\leftmark}
+\fancyfoot[C]{\small\color{gray!65}\thepage}
+\renewcommand{\headrulewidth}{0.35pt}
+
+%% --- Kapitel- und Abschnittsformatierung
+\usepackage{titlesec}
+
+\titleformat{\chapter}[display]
+  {\normalfont\sffamily\color{adrblue}}
+  {\large\bfseries\color{adrblue!75}%
+   ADR-\ifnum\value{chapter}<10 00\fi\arabic{chapter}}
+  {3pt}
+  {\LARGE\bfseries\color{adrblue}}
+  [\vspace{2pt}{\color{adrline}\rule{\linewidth}{1.2pt}}\vspace{-4pt}]
+
+\titlespacing*{\chapter}{0pt}{8pt}{14pt}
+
+\titleformat{\section}
+  {\normalfont\large\bfseries\color{adrblue!85!black}}
+  {\thesection}{0.6em}{}
+\titlespacing*{\section}{0pt}{11pt}{5pt}
+
+\titleformat{\subsection}
+  {\normalfont\normalsize\bfseries\color{black!80}}
+  {\thesubsection}{0.5em}{}
+\titlespacing*{\subsection}{0pt}{7pt}{3pt}
+
+%% --- Hyperref (zuletzt)
+\usepackage[colorlinks=true, linkcolor=adrblue, urlcolor=adrblue!80!black,
+  pdftitle={LearnFlow -- Architecture Decision Records},
+  pdfauthor={Christoph A. Amstutz, MD-PhD}]{hyperref}
+
+%% --- Aufzaehlungen
+\usepackage{enumitem}
+\setlist{noitemsep, topsep=3pt}
+
+%% --- Eigene Befehle
+\newcommand{\code}[1]{\texttt{\small #1}}
+\newcommand{\ra}{$\rightarrow$\xspace}
+\newcommand{\todo}{$\square$\;}
+
+\newcommand{\statusProposed}{%
+  \colorbox{statusproposed!28}{\small\bfseries\color{statusproposed!70!black}\;Proposed\;}}
+\newcommand{\statusAccepted}{%
+  \colorbox{statusaccepted!28}{\small\bfseries\color{statusaccepted!60!black}\;Accepted\;}}
+
+\newcommand{\abgelehnt}{\colorbox{depbg}{\small\bfseries\color{warnframe}Abgelehnt}\;}
+\newcommand{\zurueckgestellt}{\colorbox{notebg}{\small\bfseries\color{noteframe}Zur\"{u}ckgestellt}\;}
+\newcommand{\empfohlen}{\colorbox{statusaccepted!18}{\small\bfseries\color{statusaccepted!60!black}Empfohlen}\;}
+
+%% Spaltentypen
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+
+%% Absatzabstand
+\setlength{\parskip}{4pt plus 1pt}
+\setlength{\parindent}{0pt}
+
+%% ============================================================
+\begin{document}
+%% ============================================================
+
+%% --- Titelseite
+\begin{titlepage}
+\centering
+\vspace*{2.5cm}
+{\color{adrblue}\rule{\linewidth}{2pt}}
+\vspace{0.9cm}
+
+{\Huge\bfseries\sffamily\color{adrblue} LearnFlow}\\[0.4cm]
+{\LARGE\sffamily Architecture Decision Records}\\[0.25cm]
+{\large ADR-001 bis ADR-007}
+
+\vspace{0.8cm}
+{\color{adrblue}\rule{\linewidth}{0.5pt}}
+\vspace{0.8cm}
+
+\begin{tabular}{@{}ll@{}}
+\textbf{Version}  & 1.0 \\[4pt]
+\textbf{Datum}    & 2026-05-27 \\[4pt]
+\textbf{Autor}    & Christoph A. Amstutz, MD-PhD \\[4pt]
+\textbf{Status}   & Alle ADRs: \statusProposed \\[4pt]
+\textbf{Basis}    & \textit{LearnFlow\_Requirements\_v1.md} \\
+\end{tabular}
+
+\vspace{1.6cm}
+\begin{tcolorbox}[
+  enhanced, colback=adrlightblue, colframe=adrblue,
+  boxrule=1pt, arc=4pt, width=0.85\linewidth]
+\small Dieses Dokument enthält die Architecture Decision Records (ADRs)
+für das MVP der LearnFlow-Lernplattform.
+ADRs dokumentieren signifikante Architekturentscheidungen,
+die betrachteten Alternativen sowie die Begründung für den gewählten Ansatz.
+Alle ADRs haben den Status \textbf{Proposed} und sind zur Review freigegeben.
+\end{tcolorbox}
+
+\vfill
+{\color{adrblue!40}\rule{\linewidth}{0.5pt}}\\[4pt]
+{\small\color{gray!65} Erstellt mit Claude --- Anthropic $\cdot$ 2026-05-27}
+\end{titlepage}
+
+%% --- Inhaltsverzeichnis
+\tableofcontents
+\clearpage
+
+%%============================================================
+\chapter{Konfidenz-Scoring: Strategy Pattern mit austauschbarem Scorer}
+\label{chap:adr001}
+%%============================================================
+
+\begin{tcolorbox}[enhanced, colback=adrlightblue, colframe=adrblue,
+  boxrule=0.9pt, arc=3pt, left=8pt, right=8pt, top=6pt, bottom=6pt]
+\begin{tabular}{@{}L{3.2cm}L{11.5cm}@{}}
+\textbf{Status}     & \statusProposed \\[3pt]
+\textbf{Datum}      & 2026-05-27 \\[3pt]
+\textbf{Autor}      & Christoph A. Amstutz, MD-PhD \\[3pt]
+\textbf{Bezug}      & US-02, QA-06 (Testability), QA-04 (Reliability) \\[3pt]
+\textbf{Massnahme}  & M2 \\
+\end{tabular}
+\end{tcolorbox}
+
+\section{Kontext}
+
+US-02 schreibt eine dreistufige Unterdrückungslogik für KI-Antworten vor.
+Der Entscheid vom 2026-05-20 legt die Vorrang-Reihenfolge fest:
+
+\begin{enumerate}
+  \item \textbf{Quellenprüfung} --- kein Retrieval-Treffer \ra Antwort wird nicht angezeigt
+  \item \textbf{Konfidenz-Score} --- Score unter Schwellenwert \ra ,,Ich weiss es nicht``
+  \item \textbf{Self-Check-Anteil} --- unter 80\,\% \ra ,,Eingeschränkt belegt``;
+        unter 50\,\% \ra unterdrückt
+\end{enumerate}
+
+Risiko~2 aus dem Requirements-Dokument benennt das zentrale offene Problem:
+\textit{wie} der Self-Check-Anteil konkret berechnet wird, ist nicht definiert.
+Die zwei diskutierten Mechanismen --- semantische Ähnlichkeit zwischen
+Antwort-Sätzen und Retrieval-Chunks vs.\ LLM-Selbstevaluation --- haben
+unterschiedliche Qualitäts- und Kostenprofile. US-11 fordert zusätzlich,
+dass Schwellenwerte ohne Code-Deployment änderbar sind.
+
+\section{Entscheidung}
+
+Der Konfidenz-Scoring-Mechanismus wird als \textbf{Strategy Pattern} implementiert:
+
+\begin{itemize}
+  \item Ein \code{ConfidenceScorer}-Interface kapselt ausschliesslich die
+        Berechnung des Self-Check-Anteils.
+  \item Ein \code{ConfidenceEvaluator} enthält die unveränderliche Stufenlogik
+        und nimmt \code{ConfidenceScorer} sowie \code{ConfigService} als
+        injizierte Abhängigkeiten entgegen.
+  \item Schwellenwerte werden ausnahmslos über den \code{ConfigService} gelesen ---
+        nie als Konstanten im Code.
+\end{itemize}
+
+\subsection{Komponentenstruktur}
+
+\begin{lstlisting}[style=diagram]
+ConfidenceEvaluator
+  +-- ConfidenceScorer (Interface)
+  |     +-- SemanticSimilarityScorer   [MVP]
+  |     +-- LLMSelfEvaluationScorer    [Post-MVP]
+  |     '-- FixedRatioScorer           [Tests]
+  '-- ConfigService (Interface)
+        +-- DBConfigService            [Produktion]
+        '-- InMemoryConfigService      [Tests]
+\end{lstlisting}
+
+\subsection{Interface-Definition}
+
+\begin{lstlisting}[language=TypeScript]
+interface ConfidenceScorer {
+  /** Gibt einen Wert zwischen 0.0 und 1.0 zurueck:
+   *  Anteil der Antwort-Aussagen, die durch Retrieval-Chunks belegbar sind. */
+  computeSelfCheckRatio(
+    llmResponse:     string,
+    retrievalChunks: Chunk[]
+  ): Promise<number>
+}
+\end{lstlisting}
+
+\subsection{Stufenlogik (ConfidenceEvaluator)}
+
+\begin{lstlisting}[language=TypeScript]
+type AnswerDecision =
+  | { kind: 'NO_SOURCE'  }
+  | { kind: 'DONT_KNOW'; hint: string }
+  | { kind: 'SUPPRESSED' }
+  | { kind: 'LIMITED'    }
+  | { kind: 'OK'         }
+
+class ConfidenceEvaluator {
+  constructor(
+    private scorer: ConfidenceScorer,
+    private config: ConfigService
+  ) {}
+
+  async evaluate(hits: Chunk[], score: number, response: string)
+      : Promise<AnswerDecision> {
+    const t = await this.config.getThresholds()
+
+    if (hits.length === 0)
+      return { kind: 'NO_SOURCE' }                        // Stufe 1
+
+    if (score < t.minConfidenceScore)
+      return { kind: 'DONT_KNOW',
+               hint: 'Versuche, einen konkreten Prozess zu nennen.' }  // Stufe 2
+
+    const ratio = await this.scorer.computeSelfCheckRatio(response, hits)
+    if (ratio < t.suppressThreshold) return { kind: 'SUPPRESSED' }     // Stufe 3a
+    if (ratio < t.limitedThreshold)  return { kind: 'LIMITED'    }     // Stufe 3b
+    return { kind: 'OK' }
+  }
+}
+\end{lstlisting}
+
+\subsection{MVP-Scorer: Semantische Ähnlichkeit}
+
+Für das MVP wird \code{SemanticSimilarityScorer} implementiert:
+jeder Satz der LLM-Antwort wird vektorisiert und mit der
+Cosinus-Ähnlichkeit zu den Retrieval-Chunks verglichen.
+Überschreitet ein Satz den Ähnlichkeitsschwellenwert, gilt er als
+,,belegt``. Der Self-Check-Anteil ist der Quotient belegter Sätze
+zu Gesamtsätzen.
+
+\section{Begründung}
+
+\paragraph{Warum Strategy Pattern statt Pure Function?}
+Eine Pure Function \code{evaluateConfidence(input): AnswerDecision} wäre
+ausreichend, wenn der Self-Check-Algorithmus feststünde. Da Risiko~2 explizit
+offen ist und sich der Algorithmus nach dem Pilot voraussichtlich ändern wird,
+würde eine Pure Function einen späteren Umbau erzwingen, der die gesamte
+Stufenlogik tangiert. Das Strategy Pattern trennt die stabile Stufenlogik vom
+instabilen Algorithmus. Kosten: eine Abstraktion und ca.\ 30 Minuten Mehraufwand.
+
+\paragraph{Warum kein Chain-of-Responsibility?}
+Drei fixe, geordnete Stufen rechtfertigen kein Pipeline-Pattern.
+Der Mehraufwand für ein Context-Objekt und Handler-Verkettung übersteigt den
+Nutzen für einen Anwendungsfall dieser Grösse.
+
+\section{Betrachtete Alternativen}
+
+\subsection{Alternative~1 -- Pure Function}
+
+\begin{lstlisting}[language=TypeScript]
+function evaluateConfidence(input: ScoringInput): AnswerDecision { ... }
+\end{lstlisting}
+
+\abgelehnt weil der Self-Check-Algorithmus (Parameter \code{selfCheckRatio})
+von aussen übergeben werden müsste --- die Berechnung läge dann ungekapselt im
+aufrufenden Code. Das verlagert das Problem, löst es nicht.
+
+\subsection{Alternative~2 -- Chain of Responsibility}
+
+Jede Stufe ist ein eigenständiger Handler; ein Context-Objekt wandert durch
+die Kette.
+
+\abgelehnt Drei fixe, sequenzielle Stufen mit eindeutiger Reihenfolge sind
+kein Anwendungsfall für dieses Pattern. Erhöhter Boilerplate ohne Mehrwert.
+
+\section{Konsequenzen}
+
+\paragraph{Positiv}
+\begin{itemize}
+  \item Self-Check-Algorithmus austauschbar ohne Änderung an der Stufenlogik
+  \item \code{ConfidenceEvaluator} mit \code{FixedRatioScorer} und
+        \code{InMemoryConfigService} in unter 5 Unit-Tests vollständig abgedeckt
+  \item Schwellenwerte nie als Magic Numbers im Code --- alle Änderungen laufen
+        über \code{ConfigService} (\ra ADR-003)
+  \item Post-MVP ML-basierter Scorer als neue Implementierung einhängbar
+\end{itemize}
+
+\paragraph{Negativ / Risiken}
+\begin{itemize}
+  \item Zwei Interfaces statt einer Funktion: minimaler Erklärungsaufwand
+        beim Onboarding
+  \item \code{SemanticSimilarityScorer} benötigt Zugriff auf den
+        Embedding-Adapter (\ra Abhängigkeit auf LLM-Infrastruktur auch
+        im Scoring-Pfad)
+  \item Qualität des MVP-Scorers erst durch RAG-Evaluierungs-Harness
+        validierbar --- kein theoretischer Nachweis möglich
+\end{itemize}
+
+\section{Abhängigkeiten}
+
+\begin{table}[htb]
+\small\centering
+\begin{tabularx}{\linewidth}{L{4cm} L{3cm} X}
+\toprule
+\rowcolor{tabhead}
+\textbf{Abhängigkeit} & \textbf{Typ} & \textbf{Hinweis} \\
+\midrule
+ADR-003 (\code{ConfigService})  & Voraussetzung & Schwellenwerte kommen aus \code{ConfigService} \\
+ADR-002 (RAG-Pipeline)          & Verwendend    & \code{ConfidenceEvaluator} wird in der Pipeline aufgerufen \\
+QA-06 Testability (M3)          & Validierung   & RAG-Evaluierungs-Harness prüft die 90\,\%-,,Weiss-ich-nicht``-Rate \\
+Risiko~2                        & Offen         & Self-Check-Algorithmus muss vor Sprint~1 als Spike validiert werden \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Offen / Nächste Schritte}
+
+\begin{itemize}[label=\todo]
+  \item Spike: \code{SemanticSimilarityScorer} gegen Evaluierungs-Dataset
+        ausführen; Qualitätsschwelle festlegen (Go/No-Go für Risiko 1+2)
+  \item Konkrete Ähnlichkeitsschwelle für ,,Satz gilt als belegt`` definieren
+        (Cosinus-Score $> X$)
+  \item Entscheiden, ob \code{selfCheckRatio} im Response-Objekt für Lara
+        sichtbar ist oder nur als interne Metainfo bleibt
+\end{itemize}
+
+%%============================================================
+\chapter{Fail-Safe RAG-Pipeline: Discriminated Union als Ergebnistyp}
+\label{chap:adr002}
+%%============================================================
+
+\begin{tcolorbox}[enhanced, colback=adrlightblue, colframe=adrblue,
+  boxrule=0.9pt, arc=3pt, left=8pt, right=8pt, top=6pt, bottom=6pt]
+\begin{tabular}{@{}L{3.2cm}L{11.5cm}@{}}
+\textbf{Status}     & \statusProposed \\[3pt]
+\textbf{Datum}      & 2026-05-27 \\[3pt]
+\textbf{Autor}      & Christoph A. Amstutz, MD-PhD \\[3pt]
+\textbf{Bezug}      & US-01, US-02, QA-04 (Reliability), QA-06 (Testability) \\[3pt]
+\textbf{Massnahme}  & M5 \\
+\end{tabular}
+\end{tcolorbox}
+
+\section{Kontext}
+
+Die RAG-Pipeline ist der kritische Pfad von LearnFlow:
+
+\begin{lstlisting}[style=diagram]
+Eingabe-Validierung -> Retrieval -> Konfidenz-Check
+                    -> LLM-Call -> Self-Check -> Antwort-Assembly
+\end{lstlisting}
+
+An jedem Schritt kann ein anderer Fehler auftreten, der eine andere Reaktion erfordert:
+
+\begin{table}[htb]
+\small\centering
+\begin{tabularx}{\linewidth}{L{4cm} X X}
+\toprule
+\rowcolor{tabhead}
+\textbf{Fehlerzustand} & \textbf{Korrekte Reaktion} & \textbf{Falsche Reaktion} \\
+\midrule
+Kein Retrieval-Treffer   & ,,Keine Quelle`` anzeigen           & Antwort ohne Quelle generieren \\
+Konfidenz zu tief        & ,,Ich weiss es nicht`` + Hinweis    & Antwort mit tiefer Konfidenz ausgeben \\
+LLM-API nicht erreichbar & Klare Fehlermeldung                 & Leere oder halluzinierte Antwort \\
+LLM-Timeout              & Fehlermeldung nach 1 Retry          & Unbegrenztes Warten \\
+Self-Check $< 50\,\%$    & Antwort vollständig unterdrücken    & Unmarkierte Antwort ausgeben \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Das Requirements-Dokument formuliert: \textit{,,Eine falsch dargestellte Antwort
+ist schlimmer als gar keine.``} Das Kernproblem mit Exception-Hierarchien:
+ein vergessener \code{catch}-Branch gibt implizit \code{undefined} oder einen
+Teilzustand zurück --- der exakte Mechanismus, der halluzinierte Antworten
+bei Ausfällen ermöglicht.
+
+\section{Entscheidung}
+
+Die RAG-Pipeline gibt \textbf{immer} einen explizit typisierten
+\code{RAGResult}-Wert zurück. Der Rückgabetyp ist ein
+\textbf{Discriminated Union}: eine abgeschlossene Menge benannter
+Varianten, die alle möglichen Pipeline-Ausgaben beschreiben.
+
+\subsection{Ergebnistyp}
+
+\begin{lstlisting}[language=TypeScript]
+type RAGResult =
+  | { kind: 'answer'; content: string; sources: Source[];
+      confidence: number; label: 'ok' | 'limited' }
+  | { kind: 'dont_know';    hint: string    }
+  | { kind: 'no_source'                     }
+  | { kind: 'suppressed'                    }
+  | { kind: 'unavailable';  message: string }
+  | { kind: 'timeout'                       }
+\end{lstlisting}
+
+Jede Variante entspricht direkt einem UI-Zustand. Es gibt keine Variante,
+die eine halluzinierte oder ungeprüfte Antwort transportiert.
+
+\subsection{Pipeline-Implementierung}
+
+\begin{lstlisting}[language=TypeScript]
+async function runRAGPipeline(question: string): Promise<RAGResult> {
+  const hits = await retriever.search(question) // wirft nie -- [] = kein Treffer
+
+  const score    = computeRetrievalScore(hits)
+  const decision = await evaluator.evaluate(hits, score, '')
+  if (decision.kind === 'NO_SOURCE') return { kind: 'no_source'  }
+  if (decision.kind === 'DONT_KNOW') return { kind: 'dont_know', hint: decision.hint }
+
+  const llmResult = await llmAdapter.complete(buildPrompt(question, hits))
+  if (!llmResult.ok)
+    return llmResult.error.kind === 'timeout'
+      ? { kind: 'timeout' }
+      : { kind: 'unavailable', message: 'KI-Service nicht erreichbar.' }
+
+  const final = await evaluator.evaluate(hits, score, llmResult.value.text)
+  switch (final.kind) {
+    case 'SUPPRESSED': return { kind: 'suppressed' }
+    case 'LIMITED':    return { kind: 'answer', content: llmResult.value.text,
+                                sources: extractSources(hits),
+                                confidence: score, label: 'limited' }
+    case 'OK':         return { kind: 'answer', content: llmResult.value.text,
+                                sources: extractSources(hits),
+                                confidence: score, label: 'ok' }
+    default:           return { kind: 'unavailable', message: 'Unerwarteter Zustand.' }
+  }
+}
+\end{lstlisting}
+
+\subsection{Exhaustiveness im UI-Controller}
+
+\begin{lstlisting}[language=TypeScript]
+// Fehlender Case => TypeScript-Compilerfehler -- kein Runtime-Problem
+function renderResult(result: RAGResult): ReactNode {
+  switch (result.kind) {
+    case 'answer':      return result.label === 'limited'
+                          ? <LimitedAnswerCard {...result} />
+                          : <AnswerCard {...result} />
+    case 'dont_know':   return <DontKnowCard hint={result.hint} />
+    case 'no_source':
+    case 'suppressed':  return <NoSourceCard />
+    case 'unavailable': return <ErrorCard message={result.message} />
+    case 'timeout':     return <ErrorCard message="Zeitüberschreitung." />
+  }
+}
+\end{lstlisting}
+
+\subsection{LLM-Adapter-Interface mit Result-Typ}
+
+\begin{lstlisting}[language=TypeScript]
+type LLMError =
+  | { kind: 'timeout'   }
+  | { kind: 'api_error'; statusCode: number; detail: string }
+  | { kind: 'rate_limit' }
+
+type Result<T, E> = { ok: true; value: T } | { ok: false; error: E }
+
+interface LLMAdapter {
+  /** Gibt immer ein Result zurueck -- wirft nie. */
+  complete(prompt: string): Promise<Result<LLMResponse, LLMError>>
+  stream(prompt: string):   AsyncIterable<string>
+}
+\end{lstlisting}
+
+\subsection{Flussdiagramm}
+
+\begin{lstlisting}[style=diagram]
+question
+    |
+    v
+retriever.search()
+    +-(leer)-----------------------------------------> { kind: 'no_source' }
+    | hits
+    v
+evaluator.evaluate() [pre-LLM]
+    +-(NO_SOURCE)-----------------------------------> { kind: 'no_source' }
+    +-(DONT_KNOW)-----------------------------------> { kind: 'dont_know', hint }
+    | pass
+    v
+llmAdapter.complete()
+    +-(Err: timeout)--------------------------------> { kind: 'timeout' }
+    +-(Err: api_error / rate_limit)-----------------> { kind: 'unavailable' }
+    | Ok: llmResponse
+    v
+evaluator.evaluate() [post-LLM, mit Self-Check]
+    +-(SUPPRESSED)----------------------------------> { kind: 'suppressed' }
+    +-(LIMITED)-------------------------------------> { kind: 'answer', label:'limited' }
+    '-(OK)------------------------------------------> { kind: 'answer', label:'ok' }
+\end{lstlisting}
+
+\section{Begründung}
+
+\paragraph{Warum Discriminated Union statt Exception-Hierarchie?}
+Alle sechs \code{RAGResult}-Varianten sind \textit{erwartete} Zustände ---
+direkt aus den Akzeptanzkriterien von US-01 und US-02 ableitbar. Der
+TypeScript-Compiler erzwingt den Exhaustiveness-Check im
+\code{switch}-Statement. Ein vergessener \code{catch}-Branch kann
+nicht zu einer halluzinierten Antwort führen.
+
+\paragraph{Warum zwei \code{evaluator.evaluate()}-Aufrufe?}
+Der erste Aufruf (pre-LLM) behandelt Stufe~1 und~2 --- ohne LLM-Call prüfbar,
+spart API-Kosten bei frühen Exits. Der zweite Aufruf führt den
+Self-Check (Stufe~3) durch, der die LLM-Antwort benötigt.
+
+\section{Betrachtete Alternativen}
+
+\subsection{Alternative~1 -- Exception-Hierarchie}
+
+\begin{lstlisting}[language=TypeScript]
+class RAGException       extends Error {}
+class NoSourceException  extends RAGException {}
+class LLMUnavailableException extends RAGException {}
+\end{lstlisting}
+
+\abgelehnt Kein Compiler-Exhaustiveness-Check. Vergessener \code{catch}-Branch
+führt zu undefiniertem Verhalten. Kontrollfluss via Exceptions ist schwerer
+nachzuvollziehen und zu testen.
+
+\subsection{Alternative~2 -- Result-Monad (fp-ts / neverthrow)}
+
+\abgelehnt für MVP\textit{:} Vollwertige Monad-Komposition erhöht die
+Einstiegshürde für das Team erheblich. Der Mehrwert gegenüber einfachen
+Discriminated Unions ist für diesen Anwendungsfall gering.
+Für ein Python-Backend ist der native \code{match}-Ausdruck (ab 3.10)
+die bessere Alternative.
+
+\subsection{Alternative~3 -- Response-Objekt mit Status-Feld}
+
+\begin{lstlisting}[language=TypeScript]
+type RAGResponse = { status: 'ok' | 'error' | 'dont_know'; data?: any; error?: any }
+\end{lstlisting}
+
+\abgelehnt Optionale Felder (\code{?}) entfernen die Compiler-Garantie.
+\code{result.data} könnte \code{undefined} sein, auch wenn
+\code{status === 'ok'}.
+
+\section{Konsequenzen}
+
+\paragraph{Positiv}
+\begin{itemize}
+  \item Vollständige Abdeckung aller Fehlerpfade ist vom Compiler erzwingbar
+  \item Jede \code{RAGResult}-Variante isoliert und ohne Netzwerk testbar
+  \item UI-Komponenten direkt auf Varianten gemappt --- keine implizite
+        Null-Prüfung nötig
+  \item Neue Fehlerzustände können als neue Variante ergänzt werden;
+        der Compiler zeigt sofort alle unbehandelten Stellen
+\end{itemize}
+
+\paragraph{Negativ / Risiken}
+\begin{itemize}
+  \item In Python nicht nativ (Klassen-Hierarchie oder \code{dataclass}-Varianten
+        nötig); Exhaustiveness-Check muss manuell diszipliniert werden
+  \item Die \code{Result<T, E>}-Abstraktion am LLM-Adapter ist für Entwickler
+        ungewohnt, die ausschliesslich exception-basiert gearbeitet haben
+  \item Jede neue \code{RAGResult}-Variante erfordert Anpassung im UI-Controller
+\end{itemize}
+
+\section{Abhängigkeiten}
+
+\begin{table}[htb]
+\small\centering
+\begin{tabularx}{\linewidth}{L{4cm} L{3cm} X}
+\toprule
+\rowcolor{tabhead}
+\textbf{Abhängigkeit} & \textbf{Typ} & \textbf{Hinweis} \\
+\midrule
+ADR-001 (\code{ConfidenceEvaluator}) & Verwendet   & Pipeline ruft \code{evaluator.evaluate()} zweimal auf \\
+ADR-003 (\code{ConfigService})       & Indirekt    & Über ADR-001 --- Schwellenwerte aus Config \\
+US-01 AC: Fehlermeldung bei Ausfall  & Validierung & \code{unavailable}-Variante deckt dieses Kriterium ab \\
+US-02 AC: Unterdrückung $< 50\,\%$  & Validierung & \code{suppressed}-Variante deckt dieses Kriterium ab \\
+QA-04 Circuit Breaker (M6)           & Vorgelagert & Circuit Breaker gibt \code{Err(rate\_limit)} zurück \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Offen / Nächste Schritte}
+
+\begin{itemize}[label=\todo]
+  \item Entscheiden: TypeScript oder Python für Backend? Bestimmt die Syntax des
+        Discriminated Union
+  \item \code{Source}-Typ definieren (Dokumenttitel, Abschnitt, Upload-Datum,
+        Highlight-Offset für US-01)
+  \item Timeout-Wert für LLM-Call konfigurierbar machen (\ra ADR-003)
+  \item Retry-Logik im LLM-Adapter spezifizieren: 1 Retry mit wie viel Backoff?
+\end{itemize}
+
+%%============================================================
+\chapter{Konfigurationsservice: PostgreSQL mit In-Process-Cache und Audit-Log}
+\label{chap:adr003}
+%%============================================================
+
+\begin{tcolorbox}[enhanced, colback=adrlightblue, colframe=adrblue,
+  boxrule=0.9pt, arc=3pt, left=8pt, right=8pt, top=6pt, bottom=6pt]
+\begin{tabular}{@{}L{3.2cm}L{11.5cm}@{}}
+\textbf{Status}     & \statusProposed \\[3pt]
+\textbf{Datum}      & 2026-05-27 \\[3pt]
+\textbf{Autor}      & Christoph A. Amstutz, MD-PhD \\[3pt]
+\textbf{Bezug}      & US-02, US-06, US-11, QA-04 (Reliability), QA-05 (Maintainability) \\[3pt]
+\textbf{Massnahme}  & M7 \\
+\end{tabular}
+\end{tcolorbox}
+
+\section{Kontext}
+
+Drei User Stories setzen voraus, dass Systemparameter zur Laufzeit änderbar
+sind --- ohne Code-Deployment und ohne Applikations-Neustart:
+
+\begin{table}[htb]
+\small\centering
+\begin{tabularx}{\linewidth}{L{5cm} L{2cm} L{3cm}}
+\toprule
+\rowcolor{tabhead}
+\textbf{Parameter} & \textbf{Story} & \textbf{Standardwert} \\
+\midrule
+\code{min\_confidence\_score} & US-02 & TBD (via Spike) \\
+\code{suppress\_threshold}    & US-02 & 0.50 \\
+\code{limited\_threshold}     & US-02 & 0.80 \\
+\code{stale\_days}            & US-06 & 90 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+US-11 ergänzt: Konfigurationsänderungen werden mit Zeitstempel und
+ausführender Person protokolliert. Änderungen müssen sofort wirken.
+Das zentrale Problem mit ENV-Variablen oder Config-Files: sie erfordern
+einen Neustart.
+
+\section{Entscheidung}
+
+Konfigurationsparameter werden in der \textbf{bestehenden PostgreSQL-Datenbank}
+gespeichert. Ein zentraler \code{ConfigService} liest Werte über einen
+\textbf{In-Process-Cache mit TTL und sofortiger Invalidierung beim Schreiben}.
+Alle Schreiboperationen werden transaktionssicher in einem unveränderlichen
+\textbf{Audit-Log} protokolliert.
+
+\subsection{Datenbankschema}
+
+\begin{lstlisting}[language=LearnSQL]
+CREATE TABLE config_params (
+  key        TEXT        PRIMARY KEY,
+  value      TEXT        NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+INSERT INTO config_params (key, value) VALUES
+  ('min_confidence_score', '0.65'),
+  ('suppress_threshold',   '0.50'),
+  ('limited_threshold',    '0.80'),
+  ('stale_days',           '90');
+
+-- Unveraenderliches Audit-Log (kein DELETE/UPDATE fuer die Applikation)
+CREATE TABLE config_audit_log (
+  id         BIGSERIAL   PRIMARY KEY,
+  key        TEXT        NOT NULL,
+  old_value  TEXT,                     -- NULL bei Erstanlage
+  new_value  TEXT        NOT NULL,
+  changed_by TEXT        NOT NULL,     -- Username (kein FK)
+  changed_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+\end{lstlisting}
+
+\begin{table}[htb]
+\small\centering
+\begin{tabular}{@{}lll@{}}
+\toprule
+\rowcolor{tabhead}
+\textbf{Tabelle} & \textbf{App-Rolle} & \textbf{Admin-UI-Rolle} \\
+\midrule
+\code{config\_params}    & SELECT, UPDATE         & SELECT, UPDATE \\
+\code{config\_audit\_log} & SELECT, INSERT         & SELECT, INSERT \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Kein DELETE, kein TRUNCATE auf \code{config\_audit\_log} ---
+weder für die App noch für die Admin-UI.
+
+\subsection{Interface}
+
+\begin{lstlisting}[language=TypeScript]
+interface ConfigService {
+  get(key: string):        Promise<string>
+  getNumber(key: string):  Promise<number>
+  getThresholds():         Promise<ConfidenceThresholds>
+  set(key: string, value: string, changedBy: string): Promise<void>
+}
+
+type ConfidenceThresholds = {
+  minConfidenceScore: number   // 'min_confidence_score'
+  suppressThreshold:  number   // 'suppress_threshold'
+  limitedThreshold:   number   // 'limited_threshold'
+}
+\end{lstlisting}
+
+\subsection{Produktions-Implementierung (DBConfigService)}
+
+\begin{lstlisting}[language=TypeScript]
+class DBConfigService implements ConfigService {
+  private cache = new Map<string, { value: string; expiresAt: number }>()
+  private readonly TTL_MS = 30_000   // 30 Sekunden
+
+  constructor(private db: Database) {}
+
+  async get(key: string): Promise<string> {
+    const cached = this.cache.get(key)
+    if (cached && Date.now() < cached.expiresAt) return cached.value
+
+    const row = await this.db.queryOne<{ value: string }>(
+      'SELECT value FROM config_params WHERE key = $1', [key]
+    )
+    if (!row) throw new ConfigKeyNotFoundError(key)
+    this.cache.set(key, { value: row.value, expiresAt: Date.now() + this.TTL_MS })
+    return row.value
+  }
+
+  async set(key: string, newValue: string, changedBy: string): Promise<void> {
+    const oldValue = await this.get(key).catch(() => null)
+    await this.db.transaction(async (tx) => {
+      await tx.execute(
+        'UPDATE config_params SET value = $1, updated_at = now() WHERE key = $2',
+        [newValue, key])
+      await tx.execute(
+        'INSERT INTO config_audit_log (key, old_value, new_value, changed_by) VALUES ($1,$2,$3,$4)',
+        [key, oldValue, newValue, changedBy])
+    })
+    this.cache.delete(key)   // sofortige Invalidierung
+  }
+}
+\end{lstlisting}
+
+\subsection{Zeitachse einer Schwellenwert-Änderung}
+
+\begin{lstlisting}[style=diagram]
+t=0s  Admin setzt suppress_threshold = 0.60 (via Admin-UI)
+t=0s  ConfigService.set() -> DB UPDATE + Audit-Log INSERT (1 Transaktion)
+t=0s  cache.delete('suppress_threshold')
+t~1s  Naechste Anfrage: cache miss -> DB-Lesezugriff -> neuer Wert aktiv
+      => Keine Neustart, kein Deployment erforderlich
+
+[Single-Instance: Aenderung wirkt innerhalb ~1 Sekunde]
+[Multi-Instance (Post-MVP): bis zu 30s Inkonsistenz -> Redis-Upgrade]
+\end{lstlisting}
+
+\section{Begründung}
+
+\paragraph{Warum nicht ENV-Variablen?}
+ENV-Variablen werden beim Prozessstart eingelesen. Änderungen erfordern
+einen Neustart --- widerspricht der expliziten MUST-Anforderung aus US-11.
+
+\paragraph{Warum nicht Redis als primärer Config-Store?}
+Im MVP ist eine einzige App-Instanz geplant (20 concurrent users). Redis als
+neue Infrastrukturkomponente für ein 30-Sekunden-Propagationsproblem, das im
+Pilotbetrieb nie auftreten wird, widerspricht dem Budget-Constraint.
+Der Upgrade-Pfad ist dokumentiert und ohne Interface-Änderung nachrüstbar.
+
+\paragraph{Warum sofortige Cache-Invalidierung statt reinem TTL?}
+Rein TTL-basierter Cache bedeutet: direkt nach einer Admin-Änderung sieht
+dieselbe Instanz für bis zu 30 Sekunden den alten Wert. Sofortige
+Invalidierung bei \code{set()} kostet eine Zeile Code und eliminiert
+das Problem vollständig für Single-Instance.
+
+\paragraph{Warum kein FK von \code{changed\_by} auf \code{users}?}
+Administratoren könnten gelöscht werden (Mitarbeitendenwechsel). Ein FK würde
+den Löschvorgang blockieren oder das Audit-Log korrumpieren. Der Username
+als Text überlebt User-Löschoperationen.
+
+\section{Betrachtete Alternativen}
+
+\subsection{Alternative~1 -- ENV-Variablen / Config-File}
+
+\abgelehnt Änderungen erfordern Neustart. Verletzt MUST-Anforderung
+aus US-11 direkt.
+
+\subsection{Alternative~2 -- Redis mit Pub/Sub-Invalidierung}
+
+\begin{lstlisting}[style=diagram]
+Admin -> UPDATE config_params (PostgreSQL)
+      -> PUBLISH config:invalidate (Redis)
+Alle Instanzen -> SUBSCRIBE -> cache.delete(key)  [sofort]
+\end{lstlisting}
+
+\zurueckgestellt Korrekte Architektur für Multi-Instance-Betrieb.
+Für MVP (Single-Instance) unverhältnismässig. Interface bleibt kompatibel ---
+Upgrade ohne Business-Logik-Änderung möglich.
+\textbf{Upgrade-Trigger:} mehr als eine App-Instanz im Betrieb.
+
+\subsection{Alternative~3 -- Polling ohne Cache}
+
+\abgelehnt Der \code{ConfidenceEvaluator} ruft \code{getThresholds()} bei
+jeder Nutzeranfrage auf. Bei 20 concurrent users entstehen 60--100 DB-Queries
+pro Sekunde allein für Config-Reads.
+
+\section{Konsequenzen}
+
+\paragraph{Positiv}
+\begin{itemize}
+  \item Keine neue Infrastrukturkomponente: Config in bestehender PostgreSQL-Instanz
+  \item Audit-Log transaktionssicher: Änderung und Log gelingen oder scheitern gemeinsam
+  \item \code{InMemoryConfigService} macht alle Komponenten ohne DB testbar
+  \item Schwellenwerte nie als Magic Numbers im Code
+\end{itemize}
+
+\paragraph{Negativ / Risiken}
+\begin{itemize}
+  \item Bei zukünftigem Multi-Instance-Betrieb: bis zu 30~s Inkonsistenz
+        (akzeptabel für MVP; bei Scale-Up adressieren)
+  \item DB-Ausfall macht Config-Reads unmöglich: Fallback auf gecachte Werte
+        (bis TTL abläuft) vorhanden, aber kein expliziter Kaltstart-Fallback
+        definiert
+\end{itemize}
+
+\section{Abhängigkeiten}
+
+\begin{table}[htb]
+\small\centering
+\begin{tabularx}{\linewidth}{L{4cm} L{3cm} X}
+\toprule
+\rowcolor{tabhead}
+\textbf{Abhängigkeit} & \textbf{Typ} & \textbf{Hinweis} \\
+\midrule
+ADR-001 (\code{ConfidenceEvaluator}) & Konsument    & Liest \code{getThresholds()} bei jeder Anfrage \\
+ADR-002 (RAG-Pipeline)               & Indirekt     & Über ADR-001 \\
+US-11 Admin-Seite                    & Schreibweg   & Admin-UI ruft \code{ConfigService.set()} auf \\
+QA-03 Security                       & Voraussetzung & Admin-Seite nur für Admin-Rolle erreichbar \\
+PostgreSQL                           & Infrastruktur & Kein zusätzliches System erforderlich \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Offen / Nächste Schritte}
+
+\begin{itemize}[label=\todo]
+  \item Initiale Schwellenwerte für \code{min\_confidence\_score} nach
+        RAG-Spike festlegen und in Seed-Migration eintragen
+  \item DB-Migrationsscript für \code{config\_params} und
+        \code{config\_audit\_log} erstellen (Teil von Sprint~0)
+  \item Entscheiden: Admin-UI (US-11) zeigt Audit-Log als read-only Tabelle --- Scope für MVP?
+  \item Kaltstart-Verhalten bei leerem Cache und DB-Ausfall definieren
+        (Default-Werte im Code als letzter Fallback?)
+\end{itemize}
+
+%%============================================================
+\chapter{LLM-Provider-Wahl: Azure OpenAI Service oder Anthropic Claude API}
+\label{chap:adr004}
+%%============================================================
+
+\begin{tcolorbox}[enhanced, colback=adrlightblue, colframe=adrblue,
+  boxrule=0.9pt, arc=3pt, left=8pt, right=8pt, top=6pt, bottom=6pt]
+\begin{tabular}{@{}L{3.2cm}L{11.5cm}@{}}
+\textbf{Status}      & \statusProposed \\[3pt]
+\textbf{Datum}       & 2026-05-27 \\[3pt]
+\textbf{Autor}       & Christoph A. Amstutz, MD-PhD \\[3pt]
+\textbf{Bezug}       & US-01, US-02, QA-03 (Security), QA-04 (Reliability), Risiko~3 \\[3pt]
+\textbf{Abhängigkeit}& ADR-002 (LLMAdapter-Interface), ADR-005 (RAG-Stack) \\
+\end{tabular}
+\end{tcolorbox}
+
+\section{Kontext}
+
+LearnFlow schickt interne Unternehmensdokumente als Kontext an ein LLM.
+Das stellt die Provider-Wahl unter zwei Zwänge, die über reine
+Qualitäts- und Kostenüberlegungen hinausgehen:
+
+\textbf{Datenschutz / Datenresidenz:} Jeder Prompt enthält Ausschnitte aus
+vertraulichen internen Dokumenten. Je nach Unternehmensstandort (CH/DE/AT)
+kann die Übermittlung an einen US-amerikanischen API-Endpoint
+compliance-relevant sein.
+
+\textbf{API-Quota} (Risiko~3): Quota-Anfragen können mehrere Wochen dauern.
+Die Provider-Entscheidung muss deshalb in Sprint~0 getroffen und die
+Quota-Anfrage sofort gestellt werden.
+
+Das LLM-Adapter-Interface aus ADR-002 stellt sicher, dass der Provider
+später ohne Änderung an der Business-Logik ausgetauscht werden kann.
+
+\subsection{Bewertungskriterien}
+
+\begin{table}[htb]
+\small\centering
+\begin{tabularx}{\linewidth}{L{6cm} L{2.5cm} X}
+\toprule
+\rowcolor{tabhead}
+\textbf{Kriterium} & \textbf{Gewicht} & \textbf{Begründung} \\
+\midrule
+Datenresidenz / DSGVO-Compliance        & Hoch   & Interne Dokumente im Prompt \\
+RAG-Qualität (Long-Context, Präzision)  & Hoch   & Kernversprechen der Plattform \\
+Quota-Verfügbarkeit für MVP             & Hoch   & Risiko~3 \\
+Kosten (Token-Preis $\times$ Volumen)   & Mittel & 480h Budget, $\approx$20 User \\
+Streaming-Support                       & Mittel & $p_{95} \leq 10\,\text{s}$ (QA-01) \\
+Embedding-Verfügbarkeit beim Provider   & Mittel & Vereinfacht ADR-005 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Entscheidung}
+
+\textbf{Zweistufige Empfehlung abhängig von der Compliance-Anforderung:}
+
+\subsection{Pfad~A -- Azure OpenAI Service \textit{(wenn EU/EWR-Datenresidenz gefordert)}}
+
+Azure OpenAI bietet dieselben Modelle (GPT-4o, GPT-4o-mini) über
+Microsoft-Infrastruktur in europäischen Rechenzentren an und stellt
+einen EU-Datenverarbeitungsvertrag (DPA nach Art.~28 DSGVO) bereit.
+
+\textbf{Empfohlene Modelle:}
+\begin{itemize}
+  \item \textbf{GPT-4o-mini} --- Hauptmodell: niedrige Latenz, günstiger Token-Preis
+  \item \textbf{GPT-4o} --- Fallback für komplexe, mehrstufige Kontextfragen
+\end{itemize}
+
+\subsection{Pfad~B -- Anthropic Claude API \textit{(wenn US-Datenresidenz akzeptiert)}}
+
+Claude 3.5 Haiku / Sonnet bieten hervorragende Qualität für
+Retrieval-gestützte Antwortgenerierung mit präziser Quellenreferenzierung.
+
+\textbf{Empfohlene Modelle:}
+\begin{itemize}
+  \item \textbf{Claude 3.5 Haiku} --- Hauptmodell: $p_{50} \approx 2{-}3\,\text{s}$,
+        günstiger als Sonnet
+  \item \textbf{Claude 3.5 Sonnet} --- Fallback für komplexe Fragen
+\end{itemize}
+
+\begin{tcolorbox}[enhanced, colback=warnbg, colframe=warnframe,
+  boxrule=0.8pt, arc=2pt, left=8pt, right=8pt, fontupper=\small]
+\textbf{Entscheidungsblockierer:} Die Compliance-Frage (Datenresidenz) muss
+durch die IT-/Legal-Abteilung bis Ende Sprint~0 beantwortet werden.
+Bis dahin bleibt dieser ADR \textbf{Proposed}. Die technische Implementierung
+ist für beide Pfade identisch (LLM-Adapter-Interface, ADR-002).
+\end{tcolorbox}
+
+\subsection{Gemeinsame Konfiguration (beide Pfade)}
+
+\begin{lstlisting}[language=TypeScript]
+interface LLMAdapter {
+  complete(prompt: string, options?: CompletionOptions)
+      : Promise<Result<LLMResponse, LLMError>>
+  stream(prompt: string, options?: CompletionOptions): AsyncIterable<string>
+}
+
+type CompletionOptions = {
+  maxTokens?:   number   // Default: 1024
+  temperature?: number   // Default: 0.1 (faktische Antworten)
+  timeoutMs?:   number   // aus ConfigService
+}
+\end{lstlisting}
+
+Modellname und Timeout werden als Config-Parameter gespeichert (\ra ADR-003):
+\code{llm\_model}, \code{llm\_max\_tokens}, \code{llm\_temperature},
+\code{llm\_timeout\_ms}. Provider-Wechsel innerhalb desselben Anbieters
+erfordert nur eine DB-Änderung.
+
+\subsection{Kostenabschätzung MVP}
+
+\begin{table}[htb]
+\small\centering
+\begin{tabular}{@{}L{5.5cm} L{4cm} L{4cm}@{}}
+\toprule
+\rowcolor{tabhead}
+ & \textbf{Azure GPT-4o-mini} & \textbf{Claude 3.5 Haiku} \\
+\midrule
+Input (pro 1M Token)           & $\approx$\$0.15  & $\approx$\$0.80  \\
+Output (pro 1M Token)          & $\approx$\$0.60  & $\approx$\$4.00  \\
+Kosten/Anfrage ($\approx$3.5k Token) & $\approx$\$0.001 & $\approx$\$0.005 \\
+Kosten bei 1.000 Anfragen/Monat & $\approx$\$1.--  & $\approx$\$5.--  \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Begründung}
+
+\paragraph{Warum kein Self-Hosted-Modell?}
+GPU-Infrastruktur liegt ausserhalb des 480h-Budgets. Qualität von
+Open-Source-Modellen bei deutschen Fachdomänen-Dokumenten ist noch
+nicht auf Cloud-Niveau. Der LLM-Adapter lässt diesen Wechsel Post-MVP
+zu, ohne Business-Logik zu ändern.
+
+\paragraph{Warum nicht OpenAI direkt (ohne Azure)?}
+OpenAI API bietet keine europäische Datenresidenz-Garantie.
+Wenn Compliance irrelevant ist, wäre OpenAI direkt technisch
+gleichwertig mit Pfad~B (Anthropic) und kostengünstiger als Pfad~A.
+
+\section{Betrachtete Alternativen}
+
+\subsection{Alternative~1 -- OpenAI API direkt}
+
+\zurueckgestellt Kein EU-Datenresidenz-Angebot. Wenn Compliance keine Rolle
+spielt, technisch gleichwertig mit Pfad~B und kostengünstiger als Pfad~A.
+
+\subsection{Alternative~2 -- Self-Hosted (Ollama + Llama~3.1 70B)}
+
+\abgelehnt GPU-Infrastruktur ausserhalb des Budgets. Qualität bei deutschen
+Fachdokumenten ungesichert. Betriebsaufwand für 1-FTE-Maintenance zu hoch.
+
+\subsection{Alternative~3 -- Mistral AI (EU-Provider)}
+
+\zurueckgestellt Europäische Datenresidenz vorhanden. Mistral-Modelle bei
+deutschen Domänentexten weniger evaluiert. Kleineres Ökosystem.
+Viable Post-MVP-Alternative.
+
+\section{Konsequenzen}
+
+\paragraph{Positiv}
+\begin{itemize}
+  \item LLM-Adapter-Interface hält Provider vollständig aus Business-Logik heraus
+  \item Modell ohne Deployment wechselbar (ConfigService, ADR-003)
+  \item Streaming in beiden Pfaden verfügbar --- $p_{95} \leq 10\,\text{s}$ erreichbar
+  \item Kostenvolumen bei Pilot-Nutzung minimal
+\end{itemize}
+
+\paragraph{Negativ / Risiken}
+\begin{itemize}
+  \item \textbf{Quota-Risiko} (Risiko~3): Azure-Quota-Anfragen können 2--4~Wochen
+        dauern; Anthropic-Pläne schneller verfügbar. Quota-Anfrage sofort stellen.
+  \item API-Key darf nie in Code, Logs oder DB erscheinen (\ra QA-03, M10)
+  \item Cloud-LLMs: kein garantiertes $p_{95}$-SLA; eigener Timeout und Circuit
+        Breaker (ADR-002) als Absicherung nötig
+\end{itemize}
+
+\section{Abhängigkeiten}
+
+\begin{table}[htb]
+\small\centering
+\begin{tabularx}{\linewidth}{L{4cm} L{3cm} X}
+\toprule
+\rowcolor{tabhead}
+\textbf{Abhängigkeit} & \textbf{Typ} & \textbf{Hinweis} \\
+\midrule
+ADR-002 (LLMAdapter-Interface) & Vorausgesetzt  & Provider hinter Interface gekapselt \\
+ADR-003 (ConfigService)        & Vorausgesetzt  & Modellname, Timeout als Config-Parameter \\
+ADR-005 (RAG-Stack)            & Nachgelagert   & Embedding-Provider-Wahl hängt von LLM-Provider ab \\
+Risiko~3                       & Direkt         & Quota-Anfrage blockiert ggf.\ Sprint-1-Start \\
+Legal/IT-Abteilung             & Entscheider    & Compliance-Anforderung bis Ende Sprint~0 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Offen / Nächste Schritte}
+
+\begin{itemize}[label=\todo]
+  \item \textbf{Bis Ende Sprint~0:} Legal/IT bestätigt Datenresidenz-Anforderung
+        \ra Pfad~A (Azure) oder Pfad~B (Anthropic)
+  \item \textbf{Sofort nach Entscheid:} Quota-Anfrage beim gewählten Provider stellen
+  \item Prompt-Template für RAG-Antworten mit Quellenangabe ausarbeiten und im Spike testen
+  \item Rate-Limit-Werte des Providers dokumentieren \ra Circuit-Breaker-Konfiguration (ADR-002)
+\end{itemize}
+
+%%============================================================
+\chapter{RAG-Stack: pgvector und multilinguales Embedding-Modell}
+\label{chap:adr005}
+%%============================================================
+
+\begin{tcolorbox}[enhanced, colback=adrlightblue, colframe=adrblue,
+  boxrule=0.9pt, arc=3pt, left=8pt, right=8pt, top=6pt, bottom=6pt]
+\begin{tabular}{@{}L{3.2cm}L{11.5cm}@{}}
+\textbf{Status}      & \statusProposed \\[3pt]
+\textbf{Datum}       & 2026-05-27 \\[3pt]
+\textbf{Autor}       & Christoph A. Amstutz, MD-PhD \\[3pt]
+\textbf{Bezug}       & US-01, US-04, QA-06 (Testability), Risiko~1 \\[3pt]
+\textbf{Abhängigkeit}& ADR-001 (ConfidenceScorer), ADR-002 (RAG-Pipeline), ADR-004 (LLM-Provider) \\
+\end{tabular}
+\end{tcolorbox}
+
+\section{Kontext}
+
+Der RAG-Stack ist die technische Grundlage des Kernversprechens: verlässliche,
+quellenbelegte Antworten. Risiko~1 stuft die RAG-Qualität als existenzielles
+Go/No-Go-Risiko ein. Der Stack umfasst drei eng gekoppelte Entscheidungen:
+Vektor-Datenbank, Embedding-Modell und Chunking-Strategie.
+
+\begin{table}[htb]
+\small\centering
+\begin{tabularx}{\linewidth}{L{5cm} L{2cm} X}
+\toprule
+\rowcolor{tabhead}
+\textbf{Anforderung} & \textbf{Quelle} & \textbf{Implikation} \\
+\midrule
+Dokumente: PDF, DOCX, Markdown       & US-04 & Parser für 3 Formate nötig \\
+$\leq$50 Seiten $\rightarrow$ 5~min  & US-04 & Asynchrones Chunking + Embedding \\
+Quellenreferenz: Titel + Abschnitt   & US-01 & Chunks müssen Herkunftsmetadaten tragen \\
+Klick \ra Dokument mit Highlight     & US-01 & Chunks müssen Offset/Seitenzahl speichern \\
+Sprache: Deutsch (MVP)               & Req.  & Embedding-Modell muss Deutsch unterstützen \\
+Out-of-Corpus ,,Weiss nicht`` $\geq 90\,\%$ & US-02 & Retrieval-Score als Konfidenz-Signal \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Entscheidung}
+
+\subsection{Komponente~1 -- Vektor-Datenbank: pgvector}
+
+Für das MVP wird \textbf{pgvector} als Vektor-Datenbank eingesetzt ---
+als Extension der bereits vorhandenen PostgreSQL-Instanz.
+
+\begin{lstlisting}[language=LearnSQL]
+CREATE EXTENSION IF NOT EXISTS vector;
+
+CREATE TABLE document_chunks (
+  id           BIGSERIAL    PRIMARY KEY,
+  document_id  UUID         NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+  chunk_index  INTEGER      NOT NULL,
+  content      TEXT         NOT NULL,
+  embedding    vector(1024) NOT NULL,
+  page_number  INTEGER,                  -- fuer PDF-Highlight (US-01)
+  char_offset  INTEGER,
+  token_count  INTEGER      NOT NULL,
+  created_at   TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+
+-- HNSW-Index fuer schnelle Aehnlichkeitssuche
+CREATE INDEX ON document_chunks
+  USING hnsw (embedding vector_cosine_ops)
+  WITH (m = 16, ef_construction = 64);
+\end{lstlisting}
+
+\begin{lstlisting}[language=LearnSQL]
+-- Aehnlichkeitssuche mit Score und Bereichsisolation (US-04)
+SELECT dc.content, dc.page_number, dc.char_offset,
+       d.title AS document_title, d.uploaded_at,
+       1 - (dc.embedding <=> $1::vector) AS cosine_similarity
+FROM   document_chunks dc
+JOIN   documents d ON d.id = dc.document_id
+WHERE  d.area_id = $2
+ORDER  BY dc.embedding <=> $1::vector
+LIMIT  $3;
+\end{lstlisting}
+
+\subsection{Komponente~2 -- Embedding-Modell: multilingual-e5-large-instruct}
+
+\begin{table}[htb]
+\small\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\rowcolor{tabhead}
+\textbf{Eigenschaft} & \textbf{Wert} \\
+\midrule
+Modell              & \code{intfloat/multilingual-e5-large-instruct} \\
+Embedding-Dimension & 1\,024 \\
+Max.\ Input-Token   & 512 \\
+Sprachen            & 100+, inkl.\ Deutsch \\
+Modellgrösse        & $\approx$560~MB \\
+CPU-Inferenz        & $\approx$150--300~ms / 512~Token \\
+Lizenz              & MIT \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{lstlisting}[language=Python]
+class EmbeddingAdapter:
+    def embed_query(self, query: str) -> list[float]:
+        # E5-Modelle: unterschiedliche Prefixes fuer Query vs. Passage
+        return self.model.encode(f"query: {query}").tolist()
+
+    def embed_document(self, text: str) -> list[float]:
+        return self.model.encode(f"passage: {text}").tolist()
+\end{lstlisting}
+
+\subsection{Komponente~3 -- Chunking-Strategie}
+
+\begin{table}[htb]
+\small\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\rowcolor{tabhead}
+\textbf{Parameter} & \textbf{Wert} \\
+\midrule
+Strategie       & Rekursiver Splitter (Hierarchie: \textbackslash n\textbackslash n $\to$ \textbackslash n $\to$ Satz $\to$ Wort) \\
+Chunk-Grösse    & 400~Token \\
+Overlap         & 50~Token \\
+Mindestgrösse   & 50~Token (filtert Artefakte) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Gesamt-Architektur}
+
+\begin{lstlisting}[style=diagram]
+Dokument-Upload (US-04)
+        |
+        v
++------------------------------------+
+|  DocumentParser                    |
+|  PDF  -> pdfplumber / pypdf         |
+|  DOCX -> python-docx                |
+|  MD   -> direkt                    |
++----------------+-------------------+
+                 |
+                 v
++------------------------------------+
+|  ChunkingService                   |
+|  Rekursiver Splitter               |
+|  400 Token / 50 Overlap            |
++----------------+-------------------+
+                 |
+                 v
++------------------------------------+
+|  EmbeddingAdapter                  |
+|  multilingual-e5-large-instruct    |
++----------------+-------------------+
+                 |
+                 v
++------------------------------------+
+|  VectorStore (pgvector)            |
+|  INSERT document_chunks            |
+|  HNSW-Index automatisch aktuell    |
++------------------------------------+
+
+
+Suchanfrage (US-01)
+        |
+        v EmbeddingAdapter.embed_query()
+        v
++------------------------------------+
+|  Retriever                         |
+|  SELECT ... ORDER BY cosine dist   |
+|  WHERE area_id = {bereich}         |
+|  LIMIT top_k (Default: 5)          |
++------------------------------------+
+        |
+        v --> RAG-Pipeline (ADR-002)
+\end{lstlisting}
+
+\subsection{Retriever-Interface}
+
+\begin{lstlisting}[language=TypeScript]
+interface Retriever {
+  search(query: string, areaId: string, topK?: number): Promise<RetrievedChunk[]>
+}
+
+type RetrievedChunk = {
+  content:       string
+  similarity:    number        // 0.0 -- 1.0
+  documentTitle: string
+  uploadedAt:    Date
+  pageNumber:    number | null
+  charOffset:    number
+  documentId:    string
+}
+
+class InMemoryRetriever implements Retriever {
+  constructor(private fixtures: RetrievedChunk[]) {}
+  async search(): Promise<RetrievedChunk[]> { return this.fixtures }
+}
+\end{lstlisting}
+
+\section{Begründung}
+
+\paragraph{Warum pgvector statt dedizierter Vektor-DB (Qdrant, Chroma)?}
+pgvector nutzt die bereits vorhandene PostgreSQL-Instanz --- keine neue
+Infrastruktur, kein zusätzliches Betriebswissen. Der HNSW-Index ist für
+500~Dokumente und 20 concurrent users performant genug. Der
+Retriever-Interface-Layer erlaubt den Wechsel zu Qdrant transparent.
+
+\paragraph{Warum lokales Embedding-Modell statt API?}
+(1)~Kein zweiter externer Service = keine zweite Quota-Abhängigkeit (Risiko~3).
+(2)~Keine Embedding-Kosten beim Re-Indexieren.
+(3)~Dokumenteninhalt verlässt das System nicht --- konsistente Datenresidenz
+wenn ADR-004 auf Azure OpenAI zeigt.
+
+\paragraph{Warum multilingual-e5-large und nicht kleiner?}
+\code{multilingual-e5-large} übertrifft \code{e5-small} bei deutschen
+Domänentexten deutlich (MTEB-Benchmark). 560~MB Modellgrösse sind bei
+Server-Deployment kein Problem. \code{multilingual-e5-base} ist Fallback
+wenn CPU-Inferenzzeit zu hoch.
+
+\section{Betrachtete Alternativen}
+
+\subsection{Alternative~1 -- Qdrant (dediziert, self-hosted)}
+
+\zurueckgestellt Für MVP-Corpus (500~Dokumente, 1~Bereich) Overkill.
+Neuer Infrastruktur-Container, Betriebsaufwand. Upgrade-Pfad via Interface.
+
+\subsection{Alternative~2 -- Chroma (lokal)}
+
+\abgelehnt Kein SQL-Join möglich (Bereichsisolation). Transaktionssicherheit
+schlechter als PostgreSQL. Filesystem-Persistenz problematisch bei Backups.
+
+\subsection{Alternative~3 -- OpenAI text-embedding-3-small (API)}
+
+\zurueckgestellt Zweite externe API-Abhängigkeit (Risiko~3).
+Datenschutzinkonsistenz wenn LLM-Provider Azure ist, Embeddings aber
+zu OpenAI~US gehen. Viable wenn lokale Compute-Infrastruktur Problem ist.
+
+\section{Konsequenzen}
+
+\paragraph{Positiv}
+\begin{itemize}
+  \item Keine neue Infrastrukturkomponente für MVP
+  \item Bereichsisolation nativ in SQL (\code{WHERE area\_id = ?})
+  \item Lokales Embedding: keine API-Kosten, keine externen Daten beim Upload
+  \item \code{InMemoryRetriever} macht alle Tests ohne DB und Embedding-Modell ausführbar
+\end{itemize}
+
+\paragraph{Negativ / Risiken}
+\begin{itemize}
+  \item pgvector HNSW: bei $> 1\,\text{M}$ Chunks degradiert Performance.
+        Mitigation: Upgrade auf Qdrant via Interface
+  \item Lokales Modell: $\approx$560~MB auf dem Server; beim Start laden
+        (kein Cold-Start pro Request)
+  \item \textbf{Go/No-Go-Risiko (Risiko~1):} Retrieval-Qualität auf echten
+        Dokumenten muss im Spike vor Sprint~1 validiert werden
+\end{itemize}
+
+\section{Abhängigkeiten}
+
+\begin{table}[htb]
+\small\centering
+\begin{tabularx}{\linewidth}{L{4cm} L{3cm} X}
+\toprule
+\rowcolor{tabhead}
+\textbf{Abhängigkeit} & \textbf{Typ} & \textbf{Hinweis} \\
+\midrule
+ADR-002 (RAG-Pipeline)    & Konsument     & \code{Retriever.search()} ist erster Pipeline-Schritt \\
+ADR-001 (ConfidenceScorer)& Konsument     & \code{SemanticSimilarityScorer} nutzt denselben \code{EmbeddingAdapter} \\
+ADR-004 (LLM-Provider)    & Koordiniert   & Datenresidenz für Embeddings muss konsistent sein \\
+ADR-003 (ConfigService)   & Konsument     & \code{top\_k}, Ähnlichkeitsschwelle als Config-Parameter \\
+Risiko~1                  & Go/No-Go      & Spike mit Evaluierungs-Harness vor Sprint~1 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Offen / Nächste Schritte}
+
+\begin{itemize}[label=\todo]
+  \item \textbf{Sprint~0 Spike:} multilingual-e5-large mit echten Pilotdokumenten
+        und Evaluierungs-Dataset testen; Source-Hit-Rate, Out-of-Corpus-Rate,
+        $p_{95}$-Latenz messen
+  \item Chunk-Grösse variieren (256 / 400 / 512~Token) und optimalen Wert messen
+  \item PDF-Tabellenextraktion evaluieren: pdfplumber vs.\ pymupdf für Layoutqualität
+  \item Re-Indexierung bei Dokumenten-Update (gleicher Dateiname, US-04):
+        alte Chunks löschen, neue insertieren --- in einer Transaktion
+  \item \code{top\_k} und Ähnlichkeitsschwellenwert in \code{config\_params}
+        eintragen (\ra ADR-003)
+\end{itemize}
+
+%%============================================================
+\chapter{Authentifizierungs-Strategie: JWT mit HTTP-only Cookie und SSO-Ready-Middleware}
+\label{chap:adr006}
+%%============================================================
+
+\begin{tcolorbox}[enhanced, colback=adrlightblue, colframe=adrblue,
+  boxrule=0.9pt, arc=3pt, left=8pt, right=8pt, top=6pt, bottom=6pt]
+\begin{tabular}{@{}L{3.2cm}L{11.5cm}@{}}
+\textbf{Status}      & \statusProposed \\[3pt]
+\textbf{Datum}       & 2026-05-27 \\[3pt]
+\textbf{Autor}       & Christoph A. Amstutz, MD-PhD \\[3pt]
+\textbf{Bezug}       & US-05, QA-03 (Security), QA-05 (Maintainability) \\[3pt]
+\textbf{Abhängigkeit}& ADR-007 (Frontend-Framework) \\
+\end{tabular}
+\end{tcolorbox}
+
+\section{Kontext}
+
+US-05 definiert die MVP-Authentifizierungsanforderungen:
+\begin{itemize}
+  \item Username/Passwort (lokal), Accounts per DB-Script
+  \item Keine Self-Service-Registrierung
+  \item Drei Rollen: \code{Lernende} / \code{Bereichsverantwortlicher} / \code{Admin}
+  \item Nicht authentifizierte Requests \ra Redirect auf Login-Seite
+  \item \textbf{Post-MVP:} SSO via Azure AD / SAML~2.0 oder OIDC
+\end{itemize}
+
+Die Post-MVP-SSO-Anforderung ist der entscheidende Architektur-Treiber: die
+Auth-Strategie muss so gebaut werden, dass der Wechsel zu SSO kein Refactoring
+der Business-Logik, der RBAC-Middleware oder der geschützten Endpunkte erfordert.
+
+\section{Entscheidung}
+
+\textbf{JWT-basierte Authentifizierung} mit kurzlebigem Access-Token (15~min)
+und langlebigem Refresh-Token (7~Tage), beide als \textbf{HTTP-only Cookies}.
+Die gesamte Auth-Logik lebt in einer \code{AuthMiddleware}-Schicht hinter einem
+Interface. RBAC ist in einer separaten \code{RBACMiddleware} gekapselt.
+
+\subsection{Token-Strategie}
+
+\begin{table}[htb]
+\small\centering
+\begin{tabular}{@{}L{2.8cm} L{2.5cm} L{2cm} L{3cm} L{3.5cm}@{}}
+\toprule
+\rowcolor{tabhead}
+\textbf{Token} & \textbf{Typ} & \textbf{Dauer} & \textbf{Transport} & \textbf{Inhalt} \\
+\midrule
+Access-Token  & JWT (HS256) & 15 min  & HTTP-only Cookie & \code{userId}, \code{role}, \code{areaId}, \code{exp} \\
+Refresh-Token & Opaque (UUID) & 7 Tage & HTTP-only Cookie & in DB gespeichert \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{lstlisting}[language=TypeScript]
+type AccessTokenPayload = {
+  sub:    string   // userId (UUID)
+  role:   Role     // 'learner' | 'area_manager' | 'admin'
+  areaId: string
+  exp:    number   // Unix Timestamp (now + 15 min)
+}
+type Role = 'learner' | 'area_manager' | 'admin'
+\end{lstlisting}
+
+\subsection{Request-Flow}
+
+\begin{lstlisting}[style=diagram]
+Request
+    |
+    v
++-----------------------------------------------------+
+|  AuthMiddleware (Interface)                         |
+|                                                     |
+|  MVP: JWT aus HTTP-only Cookie validieren           |
+|       -> request.user = { id, role, areaId }        |
+|                                                     |
+|  Post-MVP SSO: OIDC/SAML-Token validieren           |
+|       -> request.user setzen (gleiche Schnittstelle)|
++----------------------+------------------------------+
+                       | request.user gesetzt
+                       v
++-----------------------------------------------------+
+|  RBACMiddleware (unveraendert beim SSO-Wechsel)     |
+|  pruefte: request.user.role in allowed_roles        |
+|  -> 403 Forbidden wenn nicht berechtigt             |
++----------------------+------------------------------+
+                       |
+                       v
+               Business Handler
+\end{lstlisting}
+
+\subsection{AuthMiddleware-Interface}
+
+\begin{lstlisting}[language=TypeScript]
+interface AuthMiddleware {
+  authenticate(req: Request, res: Response, next: NextFunction): Promise<void>
+}
+
+class LocalJWTAuthMiddleware  implements AuthMiddleware { ... }  // MVP
+class OIDCAuthMiddleware      implements AuthMiddleware { ... }  // Post-MVP
+
+class MockAuthMiddleware implements AuthMiddleware {
+  constructor(private user: AuthUser) {}
+  async authenticate(req: any, res: any, next: NextFunction) {
+    req.user = this.user; next()
+  }
+}
+\end{lstlisting}
+
+\subsection{RBAC-Deklaration pro Route}
+
+\begin{lstlisting}[language=TypeScript]
+router.post('/api/documents/upload',
+  rbac(['area_manager', 'admin']), uploadHandler)
+
+router.get('/api/admin/config',
+  rbac(['admin']), configHandler)
+
+function rbac(allowedRoles: Role[]): RequestHandler {
+  return (req, res, next) => {
+    if (!allowedRoles.includes((req as any).user?.role))
+      return res.status(403).json({ error: 'Forbidden' })
+    next()
+  }
+}
+\end{lstlisting}
+
+\subsection{Passwort-Hashing (Argon2id)}
+
+\begin{lstlisting}[language=TypeScript]
+import argon2 from 'argon2'
+
+const OPTIONS = { type: argon2.argon2id, memoryCost: 65536,
+                  timeCost: 3, parallelism: 4 }
+
+async function hashPassword(plain: string):   Promise<string>  {
+  return argon2.hash(plain, OPTIONS)
+}
+async function verifyPassword(hash: string, plain: string): Promise<boolean> {
+  return argon2.verify(hash, plain)
+}
+\end{lstlisting}
+
+\subsection{Datenbankschema}
+
+\begin{lstlisting}[language=LearnSQL]
+CREATE TABLE users (
+  id            UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
+  username      TEXT    NOT NULL UNIQUE,
+  password_hash TEXT    NOT NULL,
+  role          TEXT    NOT NULL CHECK (role IN ('learner','area_manager','admin')),
+  area_id       TEXT    NOT NULL,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  is_active     BOOLEAN NOT NULL DEFAULT true
+);
+
+CREATE TABLE refresh_tokens (
+  id         UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    UUID    NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash TEXT    NOT NULL UNIQUE,   -- SHA-256 des Tokens
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  revoked_at TIMESTAMPTZ              -- NULL = aktiv
+);
+\end{lstlisting}
+
+\section{Begründung}
+
+\paragraph{Warum JWT + HTTP-only Cookie statt Server-Side Session?}
+JWT-Access-Tokens sind zustandslos --- Validierung ohne DB in $< 1\,\text{ms}$.
+Der Refresh-Token in der DB ermöglicht trotzdem Server-seitige Invalidierung
+bei Logout oder Sicherheitsvorfällen.
+
+\paragraph{Warum HTTP-only Cookie statt Authorization-Header?}
+HTTP-only Cookies sind für JavaScript nicht lesbar --- XSS-Angriffe können den
+Token nicht stehlen. Für ein internes Tool ohne öffentliche API ist dieser
+Trade-off optimal.
+
+\paragraph{Warum Argon2id statt Bcrypt?}
+Argon2id ist der aktuelle OWASP-Standard (2024) und resistent gegen
+GPU-basierte Brute-Force-Angriffe durch Memory-Hardness. Kosten: eine
+npm-Library.
+
+\paragraph{Warum Refresh-Token-Rotation?}
+Bei Rotation wird nach jedem Refresh der alte Token invalidiert und ein neuer
+ausgestellt. Ein gestohlener Refresh-Token wird beim nächsten legitimen Refresh
+erkannt (Collision \ra beide Sessions invalidieren).
+
+\paragraph{Warum \code{AuthMiddleware} als Interface?}
+Die Post-MVP-SSO-Anforderung ist kein Nice-to-Have. Ohne Interface zieht sich
+SAML/OIDC-Logik durch alle geschützten Endpunkte. Das Interface kapselt die
+Auth-Logik an genau einem Ort.
+
+\section{Betrachtete Alternativen}
+
+\subsection{Alternative~1 -- Auth.js (NextAuth.js)}
+
+\zurueckgestellt Auth.js bietet native Next.js-Integration mit eingebautem
+OIDC/SAML-Support. Wenn ADR-007 Next.js wählt, sollte Auth.js als primäre
+Auth-Integration evaluiert werden --- weniger Eigenimplementierung,
+dafür weniger Kontrolle über Token-Format.
+\textbf{Empfehlung:} Auth.js bevorzugen wenn Next.js als Framework gewählt.
+
+\subsection{Alternative~2 -- Server-Side Session (express-session)}
+
+\abgelehnt DB-Lookup bei jedem Request. Horizontal schwerer skalierbar.
+SSO-Readiness erfordert dasselbe Interface-Konzept.
+
+\subsection{Alternative~3 -- Keycloak (Self-Hosted IdP)}
+
+\abgelehnt Separater Server, erheblicher Setup- und Betriebsaufwand für
+480h-MVP-Budget. Sinnvoll wenn das Unternehmen bereits einen zentralen IdP betreibt.
+
+\section{Konsequenzen}
+
+\paragraph{Positiv}
+\begin{itemize}
+  \item SSO-Wechsel (Post-MVP) erfordert ausschliesslich neue
+        \code{AuthMiddleware}-Implementierung
+  \item \code{MockAuthMiddleware} macht alle geschützten Endpunkte ohne
+        Login-Flow testbar
+  \item HTTP-only Cookies verhindern XSS-Token-Diebstahl
+  \item Argon2id: state-of-the-art Passwortschutz
+  \item Token-Rotation erkennt gestohlene Refresh-Tokens
+\end{itemize}
+
+\paragraph{Negativ / Risiken}
+\begin{itemize}
+  \item JWT-Invalidierung vor Ablauf nicht möglich ohne DB-Lookup.
+        Mitigation: Refresh-Token revoken \ra nächste Rotation schlägt fehl
+  \item \code{HS256} (symmetrisch): JWT-Secret muss sicher im Secrets Manager
+        liegen, nie in Code. Bei Multi-Instance wäre \code{RS256} besser ---
+        für MVP-Single-Instance akzeptabel
+  \item Argon2id-Hashing dauert $\approx$100--300~ms (gewollt als
+        Brute-Force-Schutz) --- Login-Latenz entsprechend
+\end{itemize}
+
+\section{Abhängigkeiten}
+
+\begin{table}[htb]
+\small\centering
+\begin{tabularx}{\linewidth}{L{4cm} L{3cm} X}
+\toprule
+\rowcolor{tabhead}
+\textbf{Abhängigkeit} & \textbf{Typ} & \textbf{Hinweis} \\
+\midrule
+ADR-007 (Frontend-Framework)  & Koordiniert   & Wenn Next.js \ra Auth.js-Alternative bevorzugen \\
+US-05                         & Direkt        & Alle ACs von US-05 werden abgedeckt \\
+QA-03 Security (M8, M9)       & Validierung   & RBAC server-side setzt diese Auth-Schicht voraus \\
+ADR-003 (ConfigService)       & Optional      & JWT-Secret-Lebensdauer als Config-Parameter möglich \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Offen / Nächste Schritte}
+
+\begin{itemize}[label=\todo]
+  \item ADR-007 abschliessen: wenn Next.js \ra Auth.js-Alternative evaluieren
+  \item JWT-Secret-Management definieren: Vault, Docker Secret oder ENV-Variable?
+  \item DB-Script für erste Admin- und Testaccounts schreiben (Argon2id-Hashes)
+  \item SSO-Provider-Typ (SAML~2.0 vs.\ OIDC) für Post-MVP-Planung klären
+\end{itemize}
+
+%%============================================================
+\chapter{Frontend-Framework: Next.js mit TypeScript und App Router}
+\label{chap:adr007}
+%%============================================================
+
+\begin{tcolorbox}[enhanced, colback=adrlightblue, colframe=adrblue,
+  boxrule=0.9pt, arc=3pt, left=8pt, right=8pt, top=6pt, bottom=6pt]
+\begin{tabular}{@{}L{3.2cm}L{11.5cm}@{}}
+\textbf{Status}      & \statusProposed \\[3pt]
+\textbf{Datum}       & 2026-05-27 \\[3pt]
+\textbf{Autor}       & Christoph A. Amstutz, MD-PhD \\[3pt]
+\textbf{Bezug}       & US-01, US-03, US-07--09, US-11, QA-05 (Maintainability) \\[3pt]
+\textbf{Abhängigkeit}& ADR-002 (Discriminated Union / TypeScript), ADR-006 (Auth-Strategie) \\
+\end{tabular}
+\end{tcolorbox}
+
+\section{Kontext}
+
+LearnFlow benötigt vier funktional unterschiedliche UI-Bereiche:
+
+\begin{table}[htb]
+\small\centering
+\begin{tabularx}{\linewidth}{L{3.5cm} X L{3.5cm}}
+\toprule
+\rowcolor{tabhead}
+\textbf{Bereich} & \textbf{Hauptfunktionen} & \textbf{Besonderheiten} \\
+\midrule
+Chat-Interface (Lara) & Frage stellen, Antwort + Quellenlinks, Feedback, Folgefragen & LLM-Streaming \\
+Lern-Interface (Lara) & Quiz absolvieren, Ergebnis & --- \\
+Dashboard (Stefan)    & Dokumente verwalten, Quiz-Freigabe, Wissenslücken & Upload, Review \\
+Admin-Seite           & Schwellenwerte, Audit-Log & Formular-getrieben \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Aus ADR-002 ergibt sich eine technische Vorentscheidung: der
+Discriminated-Union-Exhaustiveness-Check ist nativ und vollständig
+typsicher nur in \textbf{TypeScript} umsetzbar. Das Framework muss
+TypeScript unterstützen.
+
+\textbf{Scope: Desktop-Browser, kein Mobile als MVP-Anforderung.}
+
+\section{Entscheidung}
+
+\textbf{Next.js~15 (App Router) mit TypeScript} als Full-Stack-Framework.
+Next.js übernimmt sowohl das Frontend (React-Komponenten) als auch
+das Backend (API-Routes) --- kein separater API-Server für das MVP nötig.
+
+\subsection{Architektur-Übersicht}
+
+\begin{lstlisting}[style=diagram]
+Browser
+    | HTTPS
+    v
++--------------------------------------------------+
+|  Next.js 15 (App Router, TypeScript)             |
+|                                                  |
+|  app/                                            |
+|    (auth)/login/          -> Login (public)      |
+|    (learner)/chat/        -> Chat (Lara)         |
+|    (learner)/quiz/        -> Quiz (Lara)         |
+|    (manager)/documents/   -> Dokumente (Stefan)  |
+|    (manager)/quiz-review/ -> Quiz-Freigabe       |
+|    (manager)/gaps/        -> Wissensluecken      |
+|    (admin)/config/        -> Admin-Seite         |
+|                                                  |
+|  app/api/                 -> API-Routes          |
+|    auth/{login,refresh,logout}                   |
+|    questions/             -> RAG-Pipeline        |
+|    documents/             -> Corpus-Verwaltung   |
+|    quiz/, admin/config/                          |
++----------------------+---------------------------+
+                       | HTTP (interner Aufruf)
+                       v
+           +-------------------------+
+           |  Python Backend         |
+           |  RAG-Engine, Embedding  |
+           |  Chunking, pgvector     |
+           +-------------------------+
+\end{lstlisting}
+
+Die Python-Backend-Service-Grenze trennt das ML-Ökosystem
+(\code{sentence-transformers}, \code{pdfplumber}, \code{python-docx})
+vom TypeScript-Frontend. Das ist die einzige Service-Grenze im MVP.
+
+\subsection{TypeScript als Pflicht (Verbindung zu ADR-002)}
+
+\begin{lstlisting}[language=TypeScript]
+// Compiler-Fehler wenn ein RAGResult-Variant nicht behandelt wird
+function renderResult(result: RAGResult): React.ReactNode {
+  switch (result.kind) {
+    case 'answer':      return result.label === 'limited'
+                          ? <LimitedAnswerCard {...result} />
+                          : <AnswerCard {...result} />
+    case 'dont_know':   return <DontKnowCard hint={result.hint} />
+    case 'no_source':
+    case 'suppressed':  return <NoSourceCard />
+    case 'unavailable': return <ErrorCard message={result.message} />
+    case 'timeout':     return <ErrorCard message="Zeitüberschreitung." />
+    // Fehlender Case => TypeScript-Compilerfehler
+  }
+}
+\end{lstlisting}
+
+\subsection{LLM-Streaming im Chat-Interface (App Router)}
+
+\begin{lstlisting}[language=TypeScript]
+// app/api/questions/route.ts
+export async function POST(req: Request) {
+  const { question, history } = await req.json()
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      const ragResult = await runRAGPipeline(question, history)
+      if (ragResult.kind !== 'answer') {
+        controller.enqueue(JSON.stringify(ragResult))
+        controller.close(); return
+      }
+      for await (const chunk of llmAdapter.stream(ragResult.prompt))
+        controller.enqueue(chunk)
+      controller.close()
+    }
+  })
+  return new Response(stream, { headers: { 'Content-Type': 'text/event-stream' }})
+}
+\end{lstlisting}
+
+\subsection{Auth.js-Integration für Post-MVP SSO}
+
+\begin{lstlisting}[language=TypeScript]
+// auth.ts (wenn Auth.js gewaehlt -- Alternative 1 aus ADR-006)
+import NextAuth from 'next-auth'
+import Credentials from 'next-auth/providers/credentials'
+
+export const { handlers, auth, signIn, signOut } = NextAuth({
+  providers: [
+    Credentials({
+      async authorize({ username, password }) {
+        return await verifyUser(username as string, password as string) ?? null
+      }
+    })
+    // Post-MVP: SAML/OIDC-Provider hier ergaenzen -- kein Code unterhalb aendert sich
+  ],
+  callbacks: {
+    jwt({ token, user }) {
+      if (user) { token.role = user.role; token.areaId = user.areaId }
+      return token
+    }
+  }
+})
+\end{lstlisting}
+
+\subsection{Verzeichnisstruktur}
+
+\begin{lstlisting}[style=diagram]
+learnflow/
+  app/
+    (auth)/login/page.tsx
+    (learner)/chat/page.tsx
+    (learner)/quiz/page.tsx
+    (manager)/documents/
+    (manager)/quiz-review/
+    (admin)/config/
+    api/{auth,questions,documents,quiz,admin}/
+  components/
+    chat/{AnswerCard,LimitedAnswerCard,DontKnowCard,NoSourceCard,ErrorCard}.tsx
+    shared/
+  lib/
+    rag/          -- RAGResult-Typen, Pipeline-Client
+    auth/         -- AuthMiddleware-Interface + Implementierung
+    config/       -- ConfigService-Client
+  types/rag.ts    -- RAGResult Discriminated Union (ADR-002)
+  middleware.ts   -- Auth-Schutz aller Routen
+\end{lstlisting}
+
+\section{Begründung}
+
+\paragraph{Warum Next.js statt React SPA + Express?}
+Zwei separate Services zu deployen und zu betreiben erhöht den Aufwand für
+ein 1-FTE-Maintenance-Team erheblich. Next.js (ein Deployment, kein CORS,
+ein Dev-Server) ist die ökonomischere Wahl. API-Routes sind vollwertige
+Node.js-Handler --- kein Funktionalitätsverlust.
+
+\paragraph{Warum App Router statt Pages Router?}
+App Router bietet native Streaming-Unterstützung via React~18 Suspense und
+\code{ReadableStream}. Das ist für die LLM-Streaming-Anforderung
+($p_{95} \leq 10\,\text{s}$, US-09) der entscheidende Vorteil.
+
+\paragraph{Warum nicht SvelteKit?}
+Svelte ist schneller und leichtgewichtiger. Der Hauptgrund dagegen:
+der Discriminated-Union-Exhaustiveness-Check (ADR-002) ist in Svelte-Templates
+nicht compiler-erzwingbar. TypeScript-Sicherheit ist hier keine optionale
+Verbesserung, sondern eine Kernanforderung.
+
+\paragraph{Warum Python für Backend-Services?}
+Das ML-Ökosystem für Embedding (\code{sentence-transformers}), PDF-Parsing
+(\code{pdfplumber}) und zukünftige Scoring-Modelle ist in Python deutlich
+reifer. Eine einzelne Service-Grenze hält diese Stärke nutzbar ohne die
+Frontend-Entwicklung auf Python zu zwingen.
+
+\section{Betrachtete Alternativen}
+
+\subsection{Alternative~1 -- SvelteKit + TypeScript}
+
+\abgelehnt Exhaustiveness-Check für Discriminated Unions in Svelte-Templates
+nicht erzwingbar. Kleineres Ökosystem für Auth (Post-MVP SSO).
+
+\subsection{Alternative~2 -- React SPA (Vite) + Express.js}
+
+\abgelehnt Zwei separate Services. CORS-Konfiguration. Kein natives Streaming
+ohne manuelle SSE-Implementierung. Kein Mehrwert gegenüber Next.js.
+
+\subsection{Alternative~3 -- Vue~3 + Nuxt}
+
+\abgelehnt Kein technischer Vorteil gegenüber Next.js. Auth.js-Integration
+für Nuxt schwächer als für Next.js.
+
+\section{Konsequenzen}
+
+\paragraph{Positiv}
+\begin{itemize}
+  \item Ein einziges Deployment für Frontend und BFF-API
+  \item TypeScript end-to-end: Discriminated Unions aus ADR-002 voll typsicher
+  \item Natives Streaming für LLM-Antworten (App Router + React~18)
+  \item Auth.js deckt Post-MVP SSO ohne Refactoring
+  \item Route-Groups (\code{(admin)}, \code{(learner)}) isolieren RBAC
+\end{itemize}
+
+\paragraph{Negativ / Risiken}
+\begin{itemize}
+  \item App Router jünger als Pages Router --- mehr API-Instabilität in edge cases
+  \item Python-Backend als zweiter Service: eine Service-Grenze; Mitigation:
+        Docker~Compose für lokale Entwicklung
+  \item Server~Components vs.\ Client~Components: erhöhter Erklärungsaufwand
+        beim Onboarding
+\end{itemize}
+
+\section{Abhängigkeiten}
+
+\begin{table}[htb]
+\small\centering
+\begin{tabularx}{\linewidth}{L{4cm} L{3cm} X}
+\toprule
+\rowcolor{tabhead}
+\textbf{Abhängigkeit} & \textbf{Typ} & \textbf{Hinweis} \\
+\midrule
+ADR-002 (Discriminated Union) & Voraussetzung & TypeScript ist Pflicht --- Next.js erfüllt das \\
+ADR-006 (Auth-Strategie)      & Koordiniert   & Auth.js als bevorzugte MVP-Auth \\
+ADR-005 (RAG-Stack / Python)  & Nachgelagert  & Next.js API-Routes kommunizieren via HTTP mit Python-Backend \\
+US-09 (Folgefragen)           & Feature       & Konversationshistorie (max.\ 3 Paare) im Client-State \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Offen / Nächste Schritte}
+
+\begin{itemize}[label=\todo]
+  \item ADR-006 aktualisieren: Auth.js als primäre Auth-Integration bestätigen
+  \item Python-Backend-Interface definieren: OpenAPI-Spec oder TypeScript-Types
+        für den HTTP-Kontrakt
+  \item Docker-Compose-Setup: Next.js + Python-Backend + PostgreSQL (mit pgvector)
+  \item Styling-Strategie entscheiden: shadcn/ui oder Tailwind CSS direkt
+  \item Streaming-Implementierung prototypisch testen ---
+        $p_{95}$-Messung mit Mock-LLM und realem Netzwerk
+\end{itemize}
+
+%%============================================================
+\end{document}
