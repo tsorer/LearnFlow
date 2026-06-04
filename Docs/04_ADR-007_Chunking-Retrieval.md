@@ -4,7 +4,7 @@
 |---|---|
 | **Status** | Proposed |
 | **Datum** | 2026-05-31 |
-| **Verfasser** | LearnFlow-Team (Frank, Niklaus, Reto) |
+| **Verfasser** | LearnFlow-Team (Frank, Niklaus, Reto, Christoph) |
 
 ---
 

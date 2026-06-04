@@ -1,5 +1,5 @@
 # Architecture Draft — Finalisiert nach Peer Review
-*LearnFlow · Modul 3 Tag 1 · LearnFlow-Team (Frank, Niklaus, Reto) · 2026-05-31*
+*LearnFlow · Modul 3 Tag 1 · LearnFlow-Team (Frank, Niklaus, Reto, Christoph) · 2026-05-31*
 *Basis: ADR-001 bis ADR-009 · Angereichert mit Peer-Review-Erkenntnissen*
 
 ---

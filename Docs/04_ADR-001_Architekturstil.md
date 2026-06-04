@@ -1,10 +1,10 @@
 # ADR-001: Architekturstil — Modularer Monolith
 
-| Feld | Inhalt |
-|---|---|
-| **Status** | Proposed |
-| **Datum** | 2026-05-27 |
-| **Verfasser** | LearnFlow-Team (Frank, Niklaus, Reto) |
+| Feld          | Inhalt                                                   |
+| ------------- | -------------------------------------------------------- |
+| **Status**    | Proposed                                                 |
+| **Datum**     | 2026-05-27                                               |
+| **Verfasser** | LearnFlow-Team (Frank, Niklaus, Reto, Christoph) |
 
 ---
 
@@ -39,11 +39,5 @@ Wir bauen LearnFlow als **modularen Monolithen**: alle Module (RAG-Pipeline, Aut
 
 ## Abgewogene Alternativen
 
-| Alternative | Warum verworfen |
-|---|---|
-| **Microservices** | Netzwerk-Mesh, Service Discovery, separate CI/CD-Pipelines: geschätzt +80–120 h reiner Infrastruktur-Overhead. Für < 30 Nutzer nicht rechtfertigbar. |
-| **Klassischer Monolith (ohne Modul-Grenzen)** | Kein Refactoring-Schutz. Austausch einer RAG-Komponente (z. B. Embedding-Modell) würde Seiteneffekte in anderen Modulen riskieren — widerspricht der Maintainability-NFA. |
-
----
-
-*Abhängigkeiten: keine · Nächste ADRs: ADR-002 (Stack), ADR-003 (Persistenz), ADR-004 (LLM), ADR-005 (Embedding)*
+| Alternative                                   | Warum verworfen                                                                                                                                                           |
+| --------------------------------------------- | -----------------------------------------------------------------------------
