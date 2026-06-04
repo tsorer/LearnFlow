@@ -5,7 +5,7 @@
 | **Status** | Proposed |
 | **Datum** | 2026-05-27 |
 | **Aktualisiert** | 2026-05-31 — MVP-Prämisse (keine echten internen Dokumente) eingearbeitet |
-| **Verfasser** | LearnFlow-Team (Frank, Niklaus, Reto) |
+| **Verfasser** | LearnFlow-Team (Frank, Niklaus, Reto, Christoph) |
 
 ---
 
