@@ -1,9 +1,9 @@
 # ADR-007: Chunking- & Retrieval-Strategie — Struktur-bewusstes Chunking + Hybrid-Retrieval mit Schwellenwert-Gate
 
-| Feld | Inhalt |
-|---|---|
-| **Status** | Proposed |
-| **Datum** | 2026-05-31 |
+| Feld          | Inhalt                                           |
+| ------------- | ------------------------------------------------ |
+| **Status**    | Proposed                                         |
+| **Datum**     | 2026-05-31                                       |
 | **Verfasser** | LearnFlow-Team (Frank, Niklaus, Reto, Christoph) |
 
 ---
@@ -15,6 +15,7 @@ Die zentrale Reliability-NFA von LearnFlow (Halluzinationsrate = 0 %, bei Out-of
 Diese Entscheidung war bisher in keinem ADR dokumentiert, obwohl sie im Tech-Spike (Woche 1) getroffen werden muss und **teuer zu revidieren** ist: Jede Änderung an Chunking-Parametern oder Embedding erfordert eine vollständige Re-Indexierung aller Dokumente (vgl. ADR-003, ADR-005).
 
 Randbedingungen:
+
 - **Korpus:** deutschsprachige Fachtexte, Pilotgrösse < 500 Dokumente / < 10 000 Chunks.
 - **Persistenz:** PostgreSQL 17 + pgvector (HNSW), Postgres-Volltextsuche (`tsvector`) verfügbar — beides ohne zusätzlichen Service (ADR-003).
 - **Embedding:** `text-embedding-3-small` (1536 Dim) produktiv, `bge-m3` (1024) lokal (ADR-005).
@@ -32,12 +33,12 @@ Dokumente werden **struktur-bewusst** zerlegt: Die Pipeline respektiert zuerst n
 
 **Startwerte (im Spike empirisch zu kalibrieren):**
 
-| Parameter | Startwert | Im Spike zu variieren |
-|---|---|---|
-| Chunk-Grösse | **512 Token** | 256 / 512 / 1024 |
-| Overlap | **64 Token (~12,5 %)** | 0 % / 10 % / 20 % |
-| Splitting-Einheit | Token (tiktoken-kompatibel zum Embedding-Modell) | — |
-| Grenzen-Priorität | Überschrift > Absatz > Satz | — |
+| Parameter         | Startwert                                        | Im Spike zu variieren |
+| ----------------- | ------------------------------------------------ | --------------------- |
+| Chunk-Grösse      | **512 Token**                                    | 256 / 512 / 1024      |
+| Overlap           | **64 Token (~12,5 %)**                           | 0 % / 10 % / 20 %     |
+| Splitting-Einheit | Token (tiktoken-kompatibel zum Embedding-Modell) | —                     |
+| Grenzen-Priorität | Überschrift > Absatz > Satz                      | —                     |
 
 Pro Chunk werden **Metadaten** mitgespeichert (Dokument-ID, Bereich, Quell-Überschrift/Seite, Position) — Grundlage für die spätere Quellenanzeige (US-01) und Metadata-Filterung.
 
@@ -91,14 +92,14 @@ Ein Cross-Encoder-Re-Ranker ist der stärkste zusätzliche Präzisionshebel, wü
 
 ## Abgewogene Alternativen
 
-| Alternative | Warum verworfen |
-|---|---|
-| **Fixed-size Chunking (naiv, ohne Struktur)** | Einfacher, aber schneidet mitten in Sätzen/Tabellen → zerrissener Kontext, schlechtere Embeddings und unbrauchbare Quellenausschnitte. Kein nennenswerter Implementierungsvorteil gegenüber struktur-bewusstem Splitting (beide via Standard-Splitter verfügbar). |
-| **Semantic Chunking (Embedding-basierte Grenzen)** | Theoretisch präzisere Grenzen, aber teuer (zusätzliche Embedding-Aufrufe schon beim Chunking) und schwerer reproduzierbar/debugbar. Für den MVP zu viel Aufwand; als Spike-Vergleichsoption nicht ausgeschlossen. |
-| **Dense-only Retrieval (kein Sparse/RRF)** | Einfacher, ein Index. Verworfen, weil reine Vektorsuche exakte deutsche Fachbegriffe/Akronyme häufiger verfehlt — genau die Fälle, in denen Präzision für die Reliability-NFA zählt. Sparse ist in PostgreSQL ohnehin „gratis" verfügbar. |
-| **Externes Hybrid-/Rerank-Framework (z. B. dedizierter Vector Store mit Built-in-Hybrid)** | Würde einen zweiten Service einführen (Widerspruch zu ADR-001/003). Kein Vorteil bei < 10 000 Chunks. |
-| **Cross-Encoder-Re-Ranking im MVP** | Stärkster Präzisionshebel, aber bringt PyTorch ins Backend zurück (gegen ADR-005) oder einen weiteren Provider. Bewusst auf Post-MVP verschoben, Schnittstelle bleibt vorbereitet. |
-| **Kein Schwellenwert-Gate (immer Top-n an LLM, LLM entscheidet „weiss nicht")** | Verlagert die gesamte Halluzinations-Abwehr ins LLM — unzuverlässig und teuer (LLM-Aufruf auch bei Out-of-Corpus). Das Gate ist der deterministische, prüfbare Schutz. |
+| Alternative                                                                                | Warum verworfen                                                                                                                                                                                                                                                   |
+| ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Fixed-size Chunking (naiv, ohne Struktur)**                                              | Einfacher, aber schneidet mitten in Sätzen/Tabellen → zerrissener Kontext, schlechtere Embeddings und unbrauchbare Quellenausschnitte. Kein nennenswerter Implementierungsvorteil gegenüber struktur-bewusstem Splitting (beide via Standard-Splitter verfügbar). |
+| **Semantic Chunking (Embedding-basierte Grenzen)**                                         | Theoretisch präzisere Grenzen, aber teuer (zusätzliche Embedding-Aufrufe schon beim Chunking) und schwerer reproduzierbar/debugbar. Für den MVP zu viel Aufwand; als Spike-Vergleichsoption nicht ausgeschlossen.                                                 |
+| **Dense-only Retrieval (kein Sparse/RRF)**                                                 | Einfacher, ein Index. Verworfen, weil reine Vektorsuche exakte deutsche Fachbegriffe/Akronyme häufiger verfehlt — genau die Fälle, in denen Präzision für die Reliability-NFA zählt. Sparse ist in PostgreSQL ohnehin „gratis" verfügbar.                         |
+| **Externes Hybrid-/Rerank-Framework (z. B. dedizierter Vector Store mit Built-in-Hybrid)** | Würde einen zweiten Service einführen (Widerspruch zu ADR-001/003). Kein Vorteil bei < 10 000 Chunks.                                                                                                                                                             |
+| **Cross-Encoder-Re-Ranking im MVP**                                                        | Stärkster Präzisionshebel, aber bringt PyTorch ins Backend zurück (gegen ADR-005) oder einen weiteren Provider. Bewusst auf Post-MVP verschoben, Schnittstelle bleibt vorbereitet.                                                                                |
+| **Kein Schwellenwert-Gate (immer Top-n an LLM, LLM entscheidet „weiss nicht")**            | Verlagert die gesamte Halluzinations-Abwehr ins LLM — unzuverlässig und teuer (LLM-Aufruf auch bei Out-of-Corpus). Das Gate ist der deterministische, prüfbare Schutz.                                                                                            |
 
 ---
 

@@ -2,8 +2,8 @@
 
 | Feld          | Inhalt                                                   |
 | ------------- | -------------------------------------------------------- |
-| **Status**    | Proposed                                                 |
-| **Datum**     | 2026-05-27                                               |
+| **Status**    | Accepted                                                 |
+| **Datum**     | 2026-05-27 · aktualisiert 2026-06-03                     |
 | **Verfasser** | LearnFlow-Team (Frank, Niklaus, Reto, Christoph) |
 
 ---
@@ -24,7 +24,7 @@ Wir bauen LearnFlow als **modularen Monolithen**: alle Module (RAG-Pipeline, Aut
 
 ### Positive Konsequenzen
 
-- **+** Ein Deployment-Artefakt: kein Netzwerk-Overhead zwischen Modulen, einfacheres lokales Debugging für alle drei Personen.
+- **+** Ein Deployment-Artefakt: kein Netzwerk-Overhead zwischen Modulen, einfacheres lokales Debugging für alle vier Personen.
 - **+** Kein Ops-Overhead durch Service Discovery, Load Balancer oder verteiltes Tracing — eingesparte Zeit fliesst in RAG-Qualität.
 - **+** Stateless-Design + klare Service-Interfaces halten die Tür für einen späteren Ausbau offen, ohne dass heute Microservice-Infrastruktur gebaut werden muss.
 - **+** Einfacheres Onboarding: neue Teammitglieder starten mit einem einzigen `docker compose up`.
@@ -40,4 +40,4 @@ Wir bauen LearnFlow als **modularen Monolithen**: alle Module (RAG-Pipeline, Aut
 ## Abgewogene Alternativen
 
 | Alternative                                   | Warum verworfen                                                                                                                                                           |
-| --------------------------------------------- | -----------------------------------------------------------------------------
+| --------------------------------------------- | ----------------------------------------------------------------------------
