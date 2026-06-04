@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LearnFlow — Architektur-Pitch</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #dce3ec;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  .deck {
+    width: min(96vw, calc(96vh * 16 / 9));
+    aspect-ratio: 16 / 9;
+    position: relative;
+    box-shadow: 0 30px 90px rgba(0,0,0,0.28);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  /* ── SLIDE BASE ── */
+  .slide {
+    position: absolute;
+    inset: 0;
+    background: #ffffff;
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .slide.active { display: flex; }
+
+  /* header stripe */
+  .slide-header {
+    background: #1e3a5f;
+    color: #fff;
+    padding: 0 3.2% 0 3.2%;
+    height: 11%;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    gap: 10px;
+  }
+  .slide-header h1 {
+    font-size: clamp(13px, 2.1vw, 22px);
+    font-weight: 700;
+    letter-spacing: .01em;
+    flex: 1;
+  }
+  .slide-header .badge {
+    font-size: clamp(9px, 1.1vw, 12px);
+    background: rgba(255,255,255,0.18);
+    border-radius: 3px;
+    padding: 2px 8px;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+
+  /* body */
+  .slide-body {
+    flex: 1;
+    padding: 2.2% 3.2% 1.2% 3.2%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* footer */
+  .slide-footer {
+    height: 7%;
+    background: #f8fafc;
+    border-top: 1px solid #e5eaf0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 3.2%;
+    flex-shrink: 0;
+  }
+  .slide-footer .org { font-size: clamp(8px, 1vw, 11px); color: #94a3b8; }
+  .counter { font-size: clamp(9px, 1.1vw, 12px); color: #64748b; font-weight: 600; }
+  .counter.backup { color: #b45309; }
+  .nav-btns { display: flex; gap: 6px; }
+  .nav-btns button {
+    background: #1e3a5f;
+    color: #fff;
+    border: none;
+    border-radius: 3px;
+    padding: 3px 10px;
+    font-size: clamp(9px, 1vw, 11px);
+    cursor: pointer;
+    transition: background .15s;
+    font-family: inherit;
+  }
+  .nav-btns button:hover { background: #2563eb; }
+  .nav-btns button:disabled { background: #cbd5e1; cursor: default; }
+
+  /* ── TYPOGRAPHY ── */
+  .label { font-size: clamp(8px,.9vw,10px); font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:#64748b; margin-bottom:4px; }
+  .lead { font-size: clamp(11px,1.55vw,17px); line-height:1.55; color:#1e293b; }
+  .lead strong { color:#1e3a5f; }
+  h2 { font-size:clamp(12px,1.55vw,17px); font-weight:700; color:#1e3a5f; margin-bottom:5px; }
+  p { font-size:clamp(10px,1.25vw,13.5px); line-height:1.5; color:#374151; }
+
+  /* ── TITLE SLIDE ── */
+  .slide-cover {
+    background: linear-gradient(145deg, #1e3a5f 0%, #1d4ed8 55%, #2563eb 100%);
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: white;
+    gap: 0;
+  }
+  .cover-tag { font-size:clamp(9px,1vw,11px); letter-spacing:.12em; text-transform:uppercase; opacity:.7; margin-bottom:10px; }
+  .cover-title { font-size:clamp(28px,5.5vw,60px); font-weight:800; letter-spacing:-.02em; line-height:1; }
+  .cover-subtitle { font-size:clamp(11px,1.6vw,18px); opacity:.85; margin-top:10px; font-weight:400; }
+  .cover-team { font-size:clamp(9px,1.1vw,12px); opacity:.65; margin-top:18px; letter-spacing:.02em; }
+  .cover-footer-bar {
+    position:absolute; bottom:0; left:0; right:0; height:9%;
+    background:rgba(0,0,0,.18);
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 0 3.2%;
+  }
+  .cover-footer-bar span { font-size:clamp(8px,1vw,11px); color:rgba(255,255,255,.6); }
+  .cover-nav { display:flex; gap:6px; }
+  .cover-nav button {
+    background:rgba(255,255,255,.2); color:#fff; border:none; border-radius:3px;
+    padding:3px 10px; font-size:clamp(9px,1vw,11px); cursor:pointer; font-family:inherit;
+    transition:background .15s;
+  }
+  .cover-nav button:hover { background:rgba(255,255,255,.35); }
+
+  /* ── GRID HELPERS ── */
+  .cols2 { display:grid; grid-template-columns:1fr 1fr; gap:2.5%; flex:1; overflow:hidden; }
+  .cols3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:2%; flex:1; overflow:hidden; }
+
+  /* ── CARDS ── */
+  .card {
+    background:#f8fafc; border:1px solid #e2e8f0;
+    border-radius:5px; padding:3.5% 4%;
+    display:flex; flex-direction:column; gap:5px;
+    overflow:hidden;
+  }
+  .card.blue { border-left:3px solid #2563eb; }
+  .card.green { border-left:3px solid #059669; }
+  .card.amber { border-left:3px solid #d97706; }
+  .card.red { border-left:3px solid #dc2626; }
+  .card h3 { font-size:clamp(10px,1.25vw,13.5px); font-weight:700; color:#1e3a5f; }
+  .card p, .card li { font-size:clamp(8.5px,1.05vw,11.5px); color:#374151; line-height:1.45; }
+  .card ul { padding-left:14px; }
+
+  /* ── PERSONA PILLS ── */
+  .persona-row { display:flex; gap:8px; margin-top:6px; flex-wrap:wrap; }
+  .persona {
+    display:flex; align-items:center; gap:6px;
+    background:#eff6ff; border:1px solid #bfdbfe; border-radius:20px;
+    padding:4px 12px 4px 8px;
+    font-size:clamp(8.5px,1vw,11px); color:#1e40af;
+  }
+  .persona-icon {
+    width:clamp(14px,1.6vw,18px); height:clamp(14px,1.6vw,18px);
+    background:#2563eb; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    color:#fff; font-size:clamp(7px,.8vw,9px); font-weight:700;
+  }
+
+  /* ── CONSTRAINT PILLS ── */
+  .pill-row { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
+  .pill {
+    background:#f1f5f9; border:1px solid #cbd5e1; border-radius:4px;
+    padding:3px 9px; font-size:clamp(8px,.9vw,10px); color:#334155; font-weight:600;
+  }
+
+  /* ── TABLE ── */
+  .tbl-wrap { flex:1; overflow:auto; margin-top:4px; }
+  table { width:100%; border-collapse:collapse; font-size:clamp(8px,1vw,11px); }
+  th {
+    background:#1e3a5f; color:#fff; text-align:left;
+    padding:5px 8px; font-weight:600; font-size:clamp(7.5px,.9vw,10px);
+    letter-spacing:.04em; text-transform:uppercase;
+  }
+  td { padding:4px 8px; border-bottom:1px solid #f1f5f9; vertical-align:top; color:#374151; }
+  tr:nth-child(even) td { background:#f8fafc; }
+  .tag {
+    display:inline-block; border-radius:3px; padding:1px 6px;
+    font-size:clamp(7px,.8vw,9px); font-weight:700; letter-spacing:.04em; text-transform:uppercase;
+  }
+  .tag-accepted { background:#dcfce7; color:#15803d; }
+  .tag-proposed { background:#fef9c3; color:#a16207; }
+
+  /* ── PIPELINE ── */
+  .pipeline { display:flex; align-items:center; gap:0; flex:1; }
+  .pipe-step {
+    flex:1; background:#eff6ff; border:1.5px solid #93c5fd; border-radius:5px;
+    padding:5% 3%; text-align:center;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
+    font-size:clamp(8px,1vw,11px); color:#1e3a5f; height:100%;
+  }
+  .pipe-step .ps-num {
+    width:clamp(16px,1.8vw,20px); height:clamp(16px,1.8vw,20px);
+    background:#1d4ed8; border-radius:50%; color:#fff;
+    display:flex; align-items:center; justify-content:center;
+    font-weight:700; font-size:clamp(7px,.85vw,9.5px);
+    flex-shrink:0;
+  }
+  .pipe-step .ps-label { font-weight:700; font-size:clamp(8.5px,1.05vw,11.5px); }
+  .pipe-step .ps-sub { font-size:clamp(7px,.85vw,9px); color:#374151; line-height:1.35; }
+  .pipe-step.fail { background:#fef2f2; border-color:#fca5a5; }
+  .pipe-step.fail .ps-num { background:#dc2626; }
+  .pipe-arrow {
+    font-size:clamp(10px,1.4vw,16px); color:#94a3b8; flex-shrink:0; padding:0 4px;
+  }
+
+  /* ── ADR DETAIL CARDS ── */
+  .adr-grid { display:grid; grid-template-columns:1fr 1fr; gap:2%; flex:1; overflow:hidden; }
+  .adr-card {
+    background:#f8fafc; border-radius:5px; border:1px solid #e2e8f0;
+    padding:3% 3.5%; display:flex; flex-direction:column; gap:4px; overflow:hidden;
+  }
+  .adr-card .adr-num { font-size:clamp(7px,.85vw,9.5px); font-weight:700; color:#2563eb; text-transform:uppercase; letter-spacing:.06em; }
+  .adr-card h3 { font-size:clamp(9.5px,1.15vw,12.5px); font-weight:700; color:#1e3a5f; }
+  .adr-card .adr-decision { font-size:clamp(9px,1.05vw,11.5px); color:#374151; line-height:1.4; }
+  .adr-card .adr-why { font-size:clamp(8px,.95vw,10.5px); color:#64748b; line-height:1.4; margin-top:3px; }
+  .adr-card .adr-tag { margin-top:auto; }
+
+  /* ── COMPARISON TABLE (PATTERN SLIDE) ── */
+  .vs-table { width:100%; border-collapse:collapse; flex:1; }
+  .vs-table th { background:#1e3a5f; color:#fff; padding:5px 10px; font-size:clamp(8px,.95vw,10.5px); text-align:left; }
+  .vs-table td { padding:4px 10px; border-bottom:1px solid #f1f5f9; font-size:clamp(8px,.95vw,10.5px); vertical-align:middle; }
+  .vs-table tr:nth-child(even) td { background:#f8fafc; }
+  .check { color:#15803d; font-weight:700; }
+  .cross { color:#dc2626; }
+
+  /* ── BACKUP SLIDE INDICATOR ── */
+  .backup-banner {
+    background:linear-gradient(90deg,#92400e,#d97706);
+    color:#fff; font-size:clamp(8px,.9vw,10px);
+    font-weight:700; letter-spacing:.1em; text-transform:uppercase;
+    padding:3px 10px; text-align:center; flex-shrink:0;
+  }
+  .slide-header.backup-header { background:#92400e; }
+
+  /* ── SPOF / RISK ITEMS ── */
+  .risk-item {
+    display:flex; align-items:flex-start; gap:8px;
+    background:#f8fafc; border-radius:4px; border:1px solid #e2e8f0;
+    padding:2.5% 3%; margin-bottom:1.5%;
+  }
+  .risk-dot {
+    width:clamp(8px,1vw,11px); height:clamp(8px,1vw,11px);
+    border-radius:50%; flex-shrink:0; margin-top:3px;
+  }
+  .risk-item p { font-size:clamp(8px,.95vw,10.5px); color:#374151; }
+  .risk-item p strong { color:#1e3a5f; font-weight:700; }
+
+  /* ── OPEN QUESTIONS ── */
+  .oq-row { display:grid; grid-template-columns:1fr 1fr; gap:2%; flex:1; overflow:hidden; }
+  .oq-col h2 { margin-bottom:5px; }
+  .oq-item {
+    display:flex; gap:7px; margin-bottom:4px;
+    font-size:clamp(8px,.95vw,10.5px); color:#374151; line-height:1.4;
+    align-items:flex-start;
+  }
+  .oq-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; margin-top:3px; }
+
+</style>
+</head>
+<body>
+<div class="deck" id="deck">
+
+  <!-- ══════════════════════════════════════════
+       SLIDE 1 · TITEL
+  ══════════════════════════════════════════ -->
+  <div class="slide slide-cover active" data-idx="1" data-type="main">
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:0;padding-bottom:9%;">
+      <div class="cover-tag">BFH CAS ADAI 2026 · Modul 3 · Architektur-Pitch</div>
+      <div class="cover-title">LearnFlow</div>
+      <div class="cover-subtitle">KI-gestützte Lernplattform für neue Mitarbeitende</div>
+      <div class="cover-team">Frank · Niklaus · Reto · Christoph &nbsp;|&nbsp; Juni 2026</div>
+    </div>
+    <div class="cover-footer-bar">
+      <span>BFH Biel · Ilja Rasin</span>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span id="cover-counter" style="font-size:clamp(8px,1vw,11px);color:rgba(255,255,255,.55);font-weight:600;">1 / 9</span>
+        <div class="cover-nav">
+          <button onclick="go(-1)" id="btn-prev-cover">◀</button>
+          <button onclick="go(1)" id="btn-next-cover">▶</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       SLIDE 2 · DAS SYSTEM
+  ══════════════════════════════════════════ -->
+  <div class="slide" data-idx="2" data-type="main">
+    <div class="slide-header"><h1>Das System</h1></div>
+    <div class="slide-body" style="gap:3%;">
+
+      <div style="background:#eff6ff;border-left:4px solid #2563eb;border-radius:4px;padding:2.5% 3%;flex-shrink:0;">
+        <p class="label" style="margin-bottom:3px;">In einem Satz</p>
+        <p class="lead"><strong>LearnFlow</strong> macht internes Unternehmenswissen für neue Mitarbeitende sofort zugänglich — durch quellenbelegte KI-Antworten aus einem kuratierten Lernkorpus.</p>
+      </div>
+
+      <div class="cols2" style="flex:1;gap:2.5%;">
+        <div style="display:flex;flex-direction:column;gap:2.5%;">
+          <div class="card blue" style="flex:1;">
+            <h3>Problem</h3>
+            <p>Onboarding-Wissen ist in PDFs, Wikis und Köpfen verstreut. Neue Mitarbeitende verlieren Wochen mit Suchen statt Lernen.</p>
+          </div>
+          <div class="card green" style="flex:1;">
+            <h3>Personas</h3>
+            <div class="persona-row">
+              <div class="persona"><div class="persona-icon">L</div>Lara — Lernende</div>
+              <div class="persona"><div class="persona-icon">S</div>Stefan — Bereichsverantw.</div>
+              <div class="persona"><div class="persona-icon">A</div>Admin</div>
+            </div>
+          </div>
+        </div>
+        <div class="card" style="flex:1;">
+          <h3>MVP-Constraints</h3>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px;">
+            <div style="background:#f1f5f9;border-radius:4px;padding:6px 8px;">
+              <div class="label">Bereiche</div>
+              <p style="font-size:clamp(9px,1.1vw,12px);font-weight:700;color:#1e3a5f;">1 Pilot-Bereich</p>
+            </div>
+            <div style="background:#f1f5f9;border-radius:4px;padding:6px 8px;">
+              <div class="label">Nutzer</div>
+              <p style="font-size:clamp(9px,1.1vw,12px);font-weight:700;color:#1e3a5f;">&lt; 30 Personen</p>
+            </div>
+            <div style="background:#f1f5f9;border-radius:4px;padding:6px 8px;">
+              <div class="label">Budget</div>
+              <p style="font-size:clamp(9px,1.1vw,12px);font-weight:700;color:#1e3a5f;">360 Personenstunden</p>
+            </div>
+            <div style="background:#f1f5f9;border-radius:4px;padding:6px 8px;">
+              <div class="label">Deadline</div>
+              <p style="font-size:clamp(9px,1.1vw,12px);font-weight:700;color:#1e3a5f;">30. September 2026</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div class="slide-footer">
+      <span class="org">BFH CAS ADAI 2026 · LearnFlow</span>
+      <span class="counter" id="counter-2">2 / 9</span>
+      <div class="nav-btns"><button onclick="go(-1)">◀</button><button onclick="go(1)">▶</button></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       SLIDE 3 · C2 CONTAINER DIAGRAM
+  ══════════════════════════════════════════ -->
+  <div class="slide" data-idx="3" data-type="main">
+    <div class="slide-header"><h1>C2 Container Diagram</h1><span class="badge">C4 Level 2</span></div>
+    <div class="slide-body" style="padding-top:1%;padding-bottom:0;">
+      <svg viewBox="0 0 880 390" width="100%" height="100%" style="display:block;" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="arr" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="#64748b"/>
+          </marker>
+          <marker id="arr-post" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="#94a3b8"/>
+          </marker>
+        </defs>
+
+        <!-- ── PERSONS ── -->
+        <!-- Lara -->
+        <rect x="40" y="4" width="150" height="64" rx="4" fill="#eff6ff" stroke="#93c5fd" stroke-width="1.5"/>
+        <circle cx="115" cy="22" r="9" fill="#2563eb"/>
+        <line x1="115" y1="31" x2="115" y2="46" stroke="#2563eb" stroke-width="2.5"/>
+        <line x1="103" y1="37" x2="127" y2="37" stroke="#2563eb" stroke-width="2"/>
+        <line x1="115" y1="46" x2="106" y2="58" stroke="#2563eb" stroke-width="2"/>
+        <line x1="115" y1="46" x2="124" y2="58" stroke="#2563eb" stroke-width="2"/>
+        <text x="115" y="54" text-anchor="middle" fill="#1e40af" font-size="10" font-weight="700" font-family="system-ui,sans-serif">Lara</text>
+        <text x="115" y="64" text-anchor="middle" fill="#64748b" font-size="8" font-family="system-ui,sans-serif">Lernende</text>
+
+        <!-- Stefan -->
+        <rect x="360" y="4" width="160" height="64" rx="4" fill="#eff6ff" stroke="#93c5fd" stroke-width="1.5"/>
+        <circle cx="440" cy="22" r="9" fill="#2563eb"/>
+        <line x1="440" y1="31" x2="440" y2="46" stroke="#2563eb" stroke-width="2.5"/>
+        <line x1="428" y1="37" x2="452" y2="37" stroke="#2563eb" stroke-width="2"/>
+        <line x1="440" y1="46" x2="431" y2="58" stroke="#2563eb" stroke-width="2"/>
+        <line x1="440" y1="46" x2="449" y2="58" stroke="#2563eb" stroke-width="2"/>
+        <text x="440" y="54" text-anchor="middle" fill="#1e40af" font-size="10" font-weight="700" font-family="system-ui,sans-serif">Stefan</text>
+        <text x="440" y="64" text-anchor="middle" fill="#64748b" font-size="8" font-family="system-ui,sans-serif">Bereichsverantwortlicher</text>
+
+        <!-- Admin -->
+        <rect x="690" y="4" width="130" height="64" rx="4" fill="#eff6ff" stroke="#93c5fd" stroke-width="1.5"/>
+        <circle cx="755" cy="22" r="9" fill="#2563eb"/>
+        <line x1="755" y1="31" x2="755" y2="46" stroke="#2563eb" stroke-width="2.5"/>
+        <line x1="743" y1="37" x2="767" y2="37" stroke="#2563eb" stroke-width="2"/>
+        <line x1="755" y1="46" x2="746" y2="58" stroke="#2563eb" stroke-width="2"/>
+        <line x1="755" y1="46" x2="764" y2="58" stroke="#2563eb" stroke-width="2"/>
+        <text x="755" y="54" text-anchor="middle" fill="#1e40af" font-size="10" font-weight="700" font-family="system-ui,sans-serif">Admin</text>
+        <text x="755" y="64" text-anchor="middle" fill="#64748b" font-size="8" font-family="system-ui,sans-serif">Systemkonfiguration</text>
+
+        <!-- ── SYSTEM BOUNDARY ── -->
+        <rect x="14" y="80" width="856" height="228" rx="6" fill="none" stroke="#1d4ed8" stroke-width="1.5" stroke-dasharray="7,4"/>
+        <rect x="14" y="72" width="108" height="16" rx="3" fill="#1d4ed8"/>
+        <text x="68" y="83" text-anchor="middle" fill="#fff" font-size="9" font-weight="700" font-family="system-ui,sans-serif">LearnFlow</text>
+
+        <!-- ── CONTAINERS ── -->
+        <!-- Web App -->
+        <rect x="28" y="95" width="190" height="110" rx="4" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+        <rect x="28" y="95" width="190" height="26" rx="4" fill="#1d4ed8"/>
+        <rect x="28" y="108" width="190" height="13" fill="#1d4ed8"/>
+        <text x="123" y="113" text-anchor="middle" fill="#fff" font-size="10" font-weight="700" font-family="system-ui,sans-serif">Web App</text>
+        <text x="123" y="133" text-anchor="middle" fill="#1e40af" font-size="8" font-family="system-ui,sans-serif">[React 18 / TypeScript 5 · Nginx]</text>
+        <text x="123" y="149" text-anchor="middle" fill="#374151" font-size="8" font-family="system-ui,sans-serif">SPA: Q&amp;A, Upload, Quiz</text>
+        <text x="123" y="161" text-anchor="middle" fill="#374151" font-size="8" font-family="system-ui,sans-serif">Feedback, Admin-Seite</text>
+        <text x="123" y="173" text-anchor="middle" fill="#374151" font-size="8" font-family="system-ui,sans-serif">Batch-Response (JSON)</text>
+        <text x="123" y="185" text-anchor="middle" fill="#374151" font-size="7.5" font-family="system-ui,sans-serif">Quellenreferenz: Link + Seitenangabe</text>
+
+        <!-- API Server -->
+        <rect x="340" y="95" width="200" height="110" rx="4" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+        <rect x="340" y="95" width="200" height="26" rx="4" fill="#1d4ed8"/>
+        <rect x="340" y="108" width="200" height="13" fill="#1d4ed8"/>
+        <text x="440" y="113" text-anchor="middle" fill="#fff" font-size="10" font-weight="700" font-family="system-ui,sans-serif">API Server</text>
+        <text x="440" y="133" text-anchor="middle" fill="#1e40af" font-size="8" font-family="system-ui,sans-serif">[Python 3.13 / FastAPI (ASGI)]</text>
+        <text x="440" y="149" text-anchor="middle" fill="#374151" font-size="8" font-family="system-ui,sans-serif">RAG-Pipeline · RBAC (JWT)</text>
+        <text x="440" y="161" text-anchor="middle" fill="#374151" font-size="8" font-family="system-ui,sans-serif">Hybrid-Retrieval (ADR-007)</text>
+        <text x="440" y="173" text-anchor="middle" fill="#374151" font-size="8" font-family="system-ui,sans-serif">Konfidenz-Pipeline (ADR-008)</text>
+        <text x="440" y="185" text-anchor="middle" fill="#374151" font-size="8" font-family="system-ui,sans-serif">LiteLLM-Integration</text>
+
+        <!-- Background Worker -->
+        <rect x="340" y="225" width="200" height="75" rx="4" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+        <rect x="340" y="225" width="200" height="24" rx="4" fill="#1d4ed8"/>
+        <rect x="340" y="237" width="200" height="12" fill="#1d4ed8"/>
+        <text x="440" y="241" text-anchor="middle" fill="#fff" font-size="10" font-weight="700" font-family="system-ui,sans-serif">Background Worker</text>
+        <text x="440" y="260" text-anchor="middle" fill="#1e40af" font-size="8" font-family="system-ui,sans-serif">[pgqueuer]</text>
+        <text x="440" y="273" text-anchor="middle" fill="#374151" font-size="8" font-family="system-ui,sans-serif">Parsing → Chunking → Embedding</text>
+        <text x="440" y="285" text-anchor="middle" fill="#374151" font-size="8" font-family="system-ui,sans-serif">→ pgvector-Indexierung</text>
+
+        <!-- Datenbank (cylinder style) -->
+        <rect x="650" y="95" width="196" height="210" rx="4" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+        <rect x="650" y="95" width="196" height="26" rx="4" fill="#1d4ed8"/>
+        <rect x="650" y="108" width="196" height="13" fill="#1d4ed8"/>
+        <text x="748" y="113" text-anchor="middle" fill="#fff" font-size="10" font-weight="700" font-family="system-ui,sans-serif">Datenbank</text>
+        <!-- cylinder icon -->
+        <ellipse cx="748" cy="143" rx="28" ry="8" fill="none" stroke="#1d4ed8" stroke-width="1.5"/>
+        <ellipse cx="748" cy="168" rx="28" ry="8" fill="none" stroke="#1d4ed8" stroke-width="1.5"/>
+        <line x1="720" y1="143" x2="720" y2="168" stroke="#1d4ed8" stroke-width="1.5"/>
+        <line x1="776" y1="143" x2="776" y2="168" stroke="#1d4ed8" stroke-width="1.5"/>
+        <text x="748" y="188" text-anchor="middle" fill="#1e40af" font-size="8" font-family="system-ui,sans-serif">[PostgreSQL 17 + pgvector]</text>
+        <text x="748" y="201" text-anchor="middle" fill="#374151" font-size="7.5" font-family="system-ui,sans-serif">Relational · Vektor (HNSW)</text>
+        <text x="748" y="213" text-anchor="middle" fill="#374151" font-size="7.5" font-family="system-ui,sans-serif">Volltext (tsvector/GIN)</text>
+        <text x="748" y="225" text-anchor="middle" fill="#374151" font-size="7.5" font-family="system-ui,sans-serif">Dokumente (bytea, max 10 MB)</text>
+        <text x="748" y="237" text-anchor="middle" fill="#374151" font-size="7.5" font-family="system-ui,sans-serif">config-Tabelle (Schwellenwerte)</text>
+        <text x="748" y="249" text-anchor="middle" fill="#374151" font-size="7.5" font-family="system-ui,sans-serif">pgqueuer (Job-Queue)</text>
+        <text x="748" y="261" text-anchor="middle" fill="#374151" font-size="7.5" font-family="system-ui,sans-serif">users · documents · feedback</text>
+        <text x="748" y="274" text-anchor="middle" fill="#374151" font-size="7.5" font-family="system-ui,sans-serif">quiz_questions</text>
+
+        <!-- ── EXTERNAL SYSTEMS ── -->
+        <!-- LLM Provider -->
+        <rect x="60" y="325" width="230" height="58" rx="4" fill="#f9fafb" stroke="#9ca3af" stroke-width="1.5"/>
+        <rect x="60" y="325" width="230" height="22" rx="4" fill="#6b7280"/>
+        <rect x="60" y="338" width="230" height="9" fill="#6b7280"/>
+        <text x="175" y="340" text-anchor="middle" fill="#fff" font-size="9.5" font-weight="700" font-family="system-ui,sans-serif">LLM-Provider (via LiteLLM)</text>
+        <text x="175" y="360" text-anchor="middle" fill="#374151" font-size="8" font-family="system-ui,sans-serif">gpt-4o-mini · text-embedding-3-small</text>
+        <text x="175" y="372" text-anchor="middle" fill="#374151" font-size="7.5" font-family="system-ui,sans-serif">MVP: OpenAI Direct · Prod: Azure OpenAI EU</text>
+
+        <!-- IdP (Post-MVP) -->
+        <rect x="590" y="325" width="200" height="58" rx="4" fill="#fafafa" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="5,3"/>
+        <rect x="590" y="325" width="200" height="22" rx="4" fill="#94a3b8"/>
+        <rect x="590" y="338" width="200" height="9" fill="#94a3b8"/>
+        <text x="690" y="340" text-anchor="middle" fill="#fff" font-size="9.5" font-weight="700" font-family="system-ui,sans-serif">Unternehmens-IdP</text>
+        <text x="690" y="360" text-anchor="middle" fill="#6b7280" font-size="8" font-family="system-ui,sans-serif">Azure AD / SAML 2.0</text>
+        <text x="690" y="372" text-anchor="middle" fill="#94a3b8" font-size="7.5" font-style="italic" font-family="system-ui,sans-serif">Post-MVP</text>
+
+        <!-- ── ARROWS ── -->
+        <!-- Lara → Web App -->
+        <line x1="115" y1="68" x2="115" y2="93" stroke="#64748b" stroke-width="1.2" marker-end="url(#arr)"/>
+        <!-- Stefan → API Server -->
+        <line x1="440" y1="68" x2="440" y2="93" stroke="#64748b" stroke-width="1.2" marker-end="url(#arr)"/>
+        <!-- Admin → API Server (diagonal) -->
+        <line x1="740" y1="68" x2="530" y2="93" stroke="#64748b" stroke-width="1.2" marker-end="url(#arr)"/>
+
+        <!-- Web App → API Server -->
+        <line x1="218" y1="148" x2="338" y2="148" stroke="#2563eb" stroke-width="1.5" marker-end="url(#arr)"/>
+        <rect x="243" y="136" width="72" height="12" rx="2" fill="#fff" stroke="none"/>
+        <text x="279" y="146" text-anchor="middle" fill="#2563eb" font-size="7.5" font-weight="600" font-family="system-ui,sans-serif">REST / HTTPS</text>
+
+        <!-- API Server → Datenbank -->
+        <line x1="540" y1="148" x2="648" y2="148" stroke="#2563eb" stroke-width="1.5" marker-end="url(#arr)"/>
+        <rect x="560" y="136" width="66" height="12" rx="2" fill="#fff" stroke="none"/>
+        <text x="593" y="146" text-anchor="middle" fill="#2563eb" font-size="7.5" font-weight="600" font-family="system-ui,sans-serif">SQL · TCP 5432</text>
+
+        <!-- API Server → Background Worker -->
+        <line x1="440" y1="205" x2="440" y2="223" stroke="#2563eb" stroke-width="1.5" marker-end="url(#arr)"/>
+        <rect x="446" y="211" width="56" height="12" rx="2" fill="#fff" stroke="none"/>
+        <text x="474" y="221" text-anchor="middle" fill="#2563eb" font-size="7.5" font-weight="600" font-family="system-ui,sans-serif">pg_notify</text>
+
+        <!-- Background Worker → Datenbank -->
+        <line x1="540" y1="262" x2="648" y2="234" stroke="#2563eb" stroke-width="1.5" marker-end="url(#arr)"/>
+        <rect x="558" y="246" width="60" height="12" rx="2" fill="#fff" stroke="none"/>
+        <text x="588" y="256" text-anchor="middle" fill="#2563eb" font-size="7.5" font-weight="600" font-family="system-ui,sans-serif">SQL · TCP 5432</text>
+
+        <!-- API Server → LLM Provider -->
+        <line x1="390" y1="205" x2="245" y2="323" stroke="#6b7280" stroke-width="1.3" marker-end="url(#arr)"/>
+        <rect x="278" y="259" width="82" height="12" rx="2" fill="#fff" stroke="none"/>
+        <text x="319" y="269" text-anchor="middle" fill="#6b7280" font-size="7" font-family="system-ui,sans-serif">HTTPS · LiteLLM</text>
+
+        <!-- API Server → IdP (dashed, post-MVP) -->
+        <line x1="510" y1="205" x2="660" y2="323" stroke="#94a3b8" stroke-width="1.2" stroke-dasharray="5,3" marker-end="url(#arr-post)"/>
+        <rect x="545" y="260" width="74" height="12" rx="2" fill="#fff" stroke="none"/>
+        <text x="582" y="270" text-anchor="middle" fill="#94a3b8" font-size="7" font-style="italic" font-family="system-ui,sans-serif">SAML · Post-MVP</text>
+      </svg>
+    </div>
+    <div class="slide-footer">
+      <span class="org">BFH CAS ADAI 2026 · LearnFlow</span>
+      <span class="counter">3 / 9</span>
+      <div class="nav-btns"><button onclick="go(-1)">◀</button><button onclick="go(1)">▶</button></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       SLIDE 4 · CONTAINER ERKLÄRT
+  ══════════════════════════════════════════ -->
+  <div class="slide" data-idx="4" data-type="main">
+    <div class="slide-header"><h1>Container — Übersicht</h1></div>
+    <div class="slide-body">
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:17%">Container</th>
+              <th style="width:24%">Technologie</th>
+              <th>Aufgabe (ein Satz)</th>
+              <th style="width:10%">MVP?</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Web App</strong></td>
+              <td>React 18 / TypeScript 5 · Vite · Nginx</td>
+              <td>SPA mit Q&amp;A-Interface, Dokument-Upload, Quiz, Feedback und Admin-Seite — Batch-Response JSON ohne SSE.</td>
+              <td><span class="tag tag-accepted">✓ MVP</span></td>
+            </tr>
+            <tr>
+              <td><strong>API Server</strong></td>
+              <td>Python 3.13 / FastAPI (ASGI)</td>
+              <td>Orchestriert RAG-Pipeline, RBAC (JWT), Hybrid-Retrieval und Konfidenz-Scoring; LiteLLM-Abstraktion für LLM + Embeddings.</td>
+              <td><span class="tag tag-accepted">✓ MVP</span></td>
+            </tr>
+            <tr>
+              <td><strong>Background Worker</strong></td>
+              <td>pgqueuer (PostgreSQL-nativer Job-Queue)</td>
+              <td>Asynchrones Dokument-Processing: Parsing → Chunking → Embedding-Generierung → HNSW-Indexierung. SLA: ≤ 5 Min / 50 Seiten.</td>
+              <td><span class="tag tag-accepted">✓ MVP</span></td>
+            </tr>
+            <tr>
+              <td><strong>Datenbank</strong></td>
+              <td>PostgreSQL 17 + pgvector</td>
+              <td>Ein einziger Service für relationale Daten, Vektor-Embeddings (HNSW), Volltext-Index (GIN) und Original-Dokumente (bytea ≤ 10 MB).</td>
+              <td><span class="tag tag-accepted">✓ MVP</span></td>
+            </tr>
+            <tr>
+              <td><strong>LLM-Provider</strong></td>
+              <td>LiteLLM → OpenAI / Azure EU / Ollama</td>
+              <td>LLM-Generierung (gpt-4o-mini) + Embeddings (text-embedding-3-small). MVP: OpenAI Direct — Prod mit echten Daten: Azure OpenAI EU.</td>
+              <td><span class="tag tag-accepted">Extern</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="slide-footer">
+      <span class="org">BFH CAS ADAI 2026 · LearnFlow</span>
+      <span class="counter">4 / 9</span>
+      <div class="nav-btns"><button onclick="go(-1)">◀</button><button onclick="go(1)">▶</button></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       SLIDE 5 · ADR-ÜBERSICHT
+  ══════════════════════════════════════════ -->
+  <div class="slide" data-idx="5" data-type="main">
+    <div class="slide-header"><h1>Architecture Decision Records — Übersicht</h1></div>
+    <div class="slide-body">
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:8%">ADR</th>
+              <th style="width:22%">Titel</th>
+              <th>Entscheid in einem Satz</th>
+              <th style="width:11%">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>ADR-001</strong></td>
+              <td>Architekturstil</td>
+              <td>Modularer Monolith — ein Deployment-Artefakt, klare Modul-Grenzen, kein Microservice-Overhead.</td>
+              <td><span class="tag tag-accepted">Accepted</span></td>
+            </tr>
+            <tr>
+              <td><strong>ADR-002</strong></td>
+              <td>Backend / Frontend Stack</td>
+              <td>Python 3.13 / FastAPI + React 18 / TypeScript 5 — KI-Ökosystem direkt verfügbar, Batch-Response JSON (kein SSE).</td>
+              <td><span class="tag tag-accepted">Accepted</span></td>
+            </tr>
+            <tr>
+              <td><strong>ADR-003</strong></td>
+              <td>Datenpersistenz</td>
+              <td>PostgreSQL 17 + pgvector — ein Service für relationale Daten, Vektoren und Dokumente.</td>
+              <td><span class="tag tag-proposed">Proposed</span></td>
+            </tr>
+            <tr>
+              <td><strong>ADR-004</strong></td>
+              <td>LLM-Provider</td>
+              <td>LiteLLM-Abstraktion — Provider-Wechsel (OpenAI / Azure EU / Ollama) per Config-Eintrag, kein Code-Change.</td>
+              <td><span class="tag tag-proposed">Proposed</span></td>
+            </tr>
+            <tr>
+              <td><strong>ADR-005</strong></td>
+              <td>Embedding-Modell</td>
+              <td>text-embedding-3-small als Startwert — endgültige Wahl nach Tech-Spike-Eval (auch bge-m3 für Ollama).</td>
+              <td><span class="tag tag-proposed">Proposed</span></td>
+            </tr>
+            <tr>
+              <td><strong>ADR-006</strong></td>
+              <td>Background Worker</td>
+              <td>pgqueuer statt Celery + Redis — kein separater Broker, Jobs PostgreSQL-transaktional.</td>
+              <td><span class="tag tag-accepted">Accepted</span></td>
+            </tr>
+            <tr>
+              <td><strong>ADR-007</strong></td>
+              <td>Chunking &amp; Retrieval</td>
+              <td>Hybrid-Retrieval: Dense (pgvector/HNSW) + Sparse (tsvector/GIN) → Reciprocal Rank Fusion (RRF).</td>
+              <td><span class="tag tag-proposed">Proposed</span></td>
+            </tr>
+            <tr>
+              <td><strong>ADR-008</strong></td>
+              <td>Konfidenz-Pipeline</td>
+              <td>Mehrstufige Defense-in-Depth, fail-closed: Retrieval-Gate → Komposit-Score → LLM-Self-Check.</td>
+              <td><span class="tag tag-accepted">Accepted</span></td>
+            </tr>
+            <tr>
+              <td><strong>ADR-009</strong></td>
+              <td>Eval-Strategie</td>
+              <td>LLM-as-Judge auf manuellem Eval-Dataset — CI-Gate blockiert bei Regression.</td>
+              <td><span class="tag tag-proposed">Proposed</span></td>
+            </tr>
+            <tr>
+              <td><strong>ADR-010</strong></td>
+              <td>API-First</td>
+              <td>openapi.yaml als Single Source of Truth — Spec wird vor Implementierung geschrieben.</td>
+              <td><span class="tag tag-accepted">Accepted</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="font-size:clamp(7.5px,.9vw,10px);color:#94a3b8;margin-top:4px;">Proposed = wartet auf Tech-Spike-Ergebnis (Sprint 0) &nbsp;|&nbsp; Accepted = entschieden, bindend</p>
+    </div>
+    <div class="slide-footer">
+      <span class="org">BFH CAS ADAI 2026 · LearnFlow</span>
+      <span class="counter">5 / 9</span>
+      <div class="nav-btns"><button onclick="go(-1)">◀</button><button onclick="go(1)">▶</button></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       SLIDE 6 · WICHTIGSTE ADRs IM DETAIL
+  ══════════════════════════════════════════ -->
+  <div class="slide" data-idx="6" data-type="main">
+    <div class="slide-header"><h1>Wichtigste ADRs im Detail</h1></div>
+    <div class="slide-body">
+      <div class="adr-grid">
+        <div class="adr-card">
+          <div class="adr-num">ADR-001 · Accepted</div>
+          <h3>Modularer Monolith</h3>
+          <p class="adr-decision"><strong>Entscheid:</strong> Ein Deployment-Artefakt. Module mit expliziten Service-Interfaces — kein shared State, kein direkter DB-Zugriff über Modulgrenzen.</p>
+          <p class="adr-why"><strong>Warum:</strong> 4 Devs, 360 h Budget, 3 Monate — Microservice-Overhead (Service Discovery, verteiltes Tracing, separate Pipelines) ist schlicht nicht gerechtfertigt. Stateless-Design hält die Tür für spätere Extraktion offen.</p>
+        </div>
+        <div class="adr-card">
+          <div class="adr-num">ADR-002 · Accepted</div>
+          <h3>Python / FastAPI + React 18</h3>
+          <p class="adr-decision"><strong>Entscheid:</strong> Backend Python 3.13/FastAPI (ASGI), Batch-Response JSON. Frontend React 18/TypeScript 5. Kein SSE-Streaming.</p>
+          <p class="adr-why"><strong>Warum:</strong> Das gesamte KI-Ökosystem (LiteLLM, pypdf, python-docx) ist in Python native verfügbar. Batch-Response ermöglicht die fail-closed Konfidenz-Pipeline (ADR-008) — SSE hätte sie unmöglich gemacht.</p>
+        </div>
+        <div class="adr-card">
+          <div class="adr-num">ADR-008 · Accepted</div>
+          <h3>Fail-Closed Konfidenz-Pipeline</h3>
+          <p class="adr-decision"><strong>Entscheid:</strong> Mehrstufige Defense-in-Depth im API Server. Jede Stufe kann unterdrücken. Antwort nur wenn alle Stufen passieren.</p>
+          <p class="adr-why"><strong>Warum:</strong> Halluzinationsrate = 0% ist das zentrale Produktversprechen. Eine falsch unterdrückte Antwort ist akzeptabel — eine ausgelieferte Halluzination nicht. Schwellen in DB, kalibrierbar ohne Deployment.</p>
+        </div>
+        <div class="adr-card">
+          <div class="adr-num">ADR-010 · Accepted</div>
+          <h3>API-First mit OpenAPI 3.0</h3>
+          <p class="adr-decision"><strong>Entscheid:</strong> openapi.yaml wird vor der Implementierung geschrieben — verbindlicher Schnittstellenvertrag. FastAPI Auto-Spec bewusst deaktiviert.</p>
+          <p class="adr-why"><strong>Warum:</strong> Paralleles Arbeiten von Frontend und Backend von Tag 1. Der Spec ist auch Kontext für Claude Code — ohne formalen Vertrag fehlt der KI die Grundlage für konsistente Typen und Fehlerformate.</p>
+        </div>
+      </div>
+    </div>
+    <div class="slide-footer">
+      <span class="org">BFH CAS ADAI 2026 · LearnFlow</span>
+      <span class="counter">6 / 9</span>
+      <div class="nav-btns"><button onclick="go(-1)">◀</button><button onclick="go(1)">▶</button></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       SLIDE 7 · ARCHITEKTURMUSTER
+  ══════════════════════════════════════════ -->
+  <div class="slide" data-idx="7" data-type="main">
+    <div class="slide-header"><h1>Architekturmuster</h1></div>
+    <div class="slide-body" style="gap:2.5%;">
+      <div class="cols2" style="flex:1;gap:2.5%;">
+        <div style="display:flex;flex-direction:column;gap:2.5%;">
+          <div class="card blue" style="flex:1;">
+            <h3>Modularer Monolith — Warum nicht Microservices?</h3>
+            <table class="vs-table" style="margin-top:4px;">
+              <thead>
+                <tr><th>Kriterium</th><th>Modularer Monolith</th><th>Microservices</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Team (4 Devs)</td><td class="check">✓ Passend</td><td class="cross">✗ Zu viel Koordination</td></tr>
+                <tr><td>Budget (360 h)</td><td class="check">✓ Kein Ops-Overhead</td><td class="cross">✗ Service Discovery, Tracing</td></tr>
+                <tr><td>Deployment</td><td class="check">✓ Ein Artefakt</td><td class="cross">✗ N Pipelines</td></tr>
+                <tr><td>Erweiterbar</td><td class="check">✓ Interfaces vorbereitet</td><td class="check">✓ Nativ</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:2.5%;">
+          <div class="card green" style="flex:0 0 auto;">
+            <h3>API-First (ADR-010)</h3>
+            <p><strong>openapi.yaml</strong> ist der Vertrag — geschrieben vor der Implementierung. Frontend und Backend können parallel arbeiten. Auch Kontext für Claude Code.</p>
+          </div>
+          <div class="card amber" style="flex:1;">
+            <h3>Was wir bewusst NICHT tun</h3>
+            <ul style="padding-left:14px;margin-top:4px;">
+              <li style="font-size:clamp(8.5px,1.05vw,11.5px);color:#374151;margin-bottom:3px;">Kein CQRS — zu komplex für MVP-Scope</li>
+              <li style="font-size:clamp(8.5px,1.05vw,11.5px);color:#374151;margin-bottom:3px;">Kein Event-Driven — kein Kafka/RabbitMQ im Stack</li>
+              <li style="font-size:clamp(8.5px,1.05vw,11.5px);color:#374151;margin-bottom:3px;">Kein SSE-Streaming — ADR-008 (fail-closed) erfordert Batch</li>
+              <li style="font-size:clamp(8.5px,1.05vw,11.5px);color:#374151;">Kein separater Vektor-Store — pgvector genügt für &lt; 10'000 Chunks</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="slide-footer">
+      <span class="org">BFH CAS ADAI 2026 · LearnFlow</span>
+      <span class="counter">7 / 9</span>
+      <div class="nav-btns"><button onclick="go(-1)">◀</button><button onclick="go(1)">▶</button></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       SLIDE 8 · RAG & KONFIDENZ-PIPELINE
+  ══════════════════════════════════════════ -->
+  <div class="slide" data-idx="8" data-type="main">
+    <div class="slide-header"><h1>RAG- &amp; Konfidenz-Pipeline</h1></div>
+    <div class="slide-body" style="gap:3%;">
+
+      <div>
+        <p class="label">RAG-Request-Flow (Happy Path)</p>
+        <div style="display:flex;align-items:center;gap:0;height:clamp(55px,9vw,80px);">
+          <div class="pipe-step" style="flex:1.2;height:100%;">
+            <div class="ps-num">1</div>
+            <div class="ps-label">Query</div>
+            <div class="ps-sub">Lara stellt Frage</div>
+          </div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-step" style="flex:1.4;height:100%;">
+            <div class="ps-num">2</div>
+            <div class="ps-label">Embedding</div>
+            <div class="ps-sub">text-embedding-3-small via LiteLLM</div>
+          </div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-step" style="flex:1.6;height:100%;">
+            <div class="ps-num">3</div>
+            <div class="ps-label">Hybrid-Retrieval</div>
+            <div class="ps-sub">Dense (HNSW) + Sparse (GIN) → RRF-Fusion k=20</div>
+          </div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-step" style="flex:1.4;height:100%;">
+            <div class="ps-num">4</div>
+            <div class="ps-label">Konfidenz-Pipeline</div>
+            <div class="ps-sub">3-stufig, fail-closed ↓</div>
+          </div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-step" style="flex:1.4;height:100%;">
+            <div class="ps-num">5</div>
+            <div class="ps-label">LLM-Antwort</div>
+            <div class="ps-sub">gpt-4o-mini + Quellangaben</div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <p class="label">Konfidenz-Pipeline — mehrstufig, fail-closed (ADR-008)</p>
+        <div style="display:flex;align-items:stretch;gap:0;height:clamp(70px,11vw,95px);">
+          <div class="pipe-step" style="flex:1;height:100%;">
+            <div class="ps-num" style="background:#1d4ed8;">1</div>
+            <div class="ps-label">Retrieval-Gate</div>
+            <div class="ps-sub">Similarity unter Schwelle → sofort «Weiss ich nicht»</div>
+          </div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-step" style="flex:1;height:100%;">
+            <div class="ps-num" style="background:#1d4ed8;">2</div>
+            <div class="ps-label">Komposit-Score</div>
+            <div class="ps-sub">Dense + Sparse → Hoch / Mittel / Niedrig-Anzeige</div>
+          </div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-step" style="flex:1;height:100%;">
+            <div class="ps-num" style="background:#1d4ed8;">3</div>
+            <div class="ps-label">LLM-Self-Check</div>
+            <div class="ps-sub">Grounding-Prompt zwingt LLM nur aus Kontext zu antworten</div>
+          </div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-step" style="flex:0.9;background:#dcfce7;border-color:#86efac;height:100%;">
+            <div class="ps-num" style="background:#15803d;">✓</div>
+            <div class="ps-label" style="color:#15803d;">Antwort</div>
+            <div class="ps-sub">+ Quellenlink + Seitenangabe</div>
+          </div>
+          <div class="pipe-arrow">|</div>
+          <div class="pipe-step fail" style="flex:0.9;height:100%;">
+            <div class="ps-num">✗</div>
+            <div class="ps-label" style="color:#dc2626;">Unterdrückt</div>
+            <div class="ps-sub">«Weiss ich nicht» bei jeder Stufe</div>
+          </div>
+        </div>
+      </div>
+
+      <p style="font-size:clamp(8px,.95vw,10.5px);color:#64748b;">Alle Schwellenwerte in der <code style="background:#f1f5f9;padding:1px 4px;border-radius:2px;">config</code>-Tabelle — kalibrierbar ohne Deployment. Ziel: Halluzinationsrate = 0%, Out-of-Corpus-Erkennung ≥ 90%.</p>
+    </div>
+    <div class="slide-footer">
+      <span class="org">BFH CAS ADAI 2026 · LearnFlow</span>
+      <span class="counter">8 / 9</span>
+      <div class="nav-btns"><button onclick="go(-1)">◀</button><button onclick="go(1)">▶</button></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       SLIDE 9 · OFFENE FRAGEN & TECH SPIKE
+  ══════════════════════════════════════════ -->
+  <div class="slide" data-idx="9" data-type="main">
+    <div class="slide-header"><h1>Offene Fragen &amp; Nächste Schritte</h1></div>
+    <div class="slide-body" style="gap:2.5%;">
+      <div class="oq-row" style="flex:1;">
+        <div class="oq-col">
+          <h2>Tech Spike — Sprint 0</h2>
+          <div style="margin-top:4px;display:flex;flex-direction:column;gap:3px;">
+            <div class="oq-item"><div class="oq-dot" style="background:#d97706;"></div><span><strong>ADR-003/004/005/007/009</strong> alle «Proposed» — warten auf Spike-Ergebnis</span></div>
+            <div class="oq-item"><div class="oq-dot" style="background:#d97706;"></div><span><strong>Embedding-Modell:</strong> text-embedding-3-small vs. bge-m3 — Eval für dt. Fachtexte steht aus</span></div>
+            <div class="oq-item"><div class="oq-dot" style="background:#d97706;"></div><span><strong>Chunk-Grösse &amp; Similarity-Schwelle:</strong> Startwerte ~512 Token / 0.75 — empirisch zu validieren</span></div>
+            <div class="oq-item"><div class="oq-dot" style="background:#d97706;"></div><span><strong>Go/No-Go-Kriterien:</strong> werden im Spike-Kick-off gemeinsam definiert (20–30 Testfragen)</span></div>
+          </div>
+          <h2 style="margin-top:8px;">Vor Pilotstart (Ops-Checkliste)</h2>
+          <div style="margin-top:4px;display:flex;flex-direction:column;gap:3px;">
+            <div class="oq-item"><div class="oq-dot" style="background:#dc2626;"></div><span><strong>Provider-Umstellung:</strong> Azure OpenAI EU vor erstem echten internen Dokument</span></div>
+            <div class="oq-item"><div class="oq-dot" style="background:#dc2626;"></div><span><strong>Backup:</strong> täglicher pg_dump-Cron in Docker Compose</span></div>
+          </div>
+        </div>
+        <div class="oq-col">
+          <h2>Roadmap nach Spike</h2>
+          <div style="margin-top:4px;display:flex;flex-direction:column;gap:3px;">
+            <div class="oq-item"><div class="oq-dot" style="background:#2563eb;"></div><span><strong>Sprint 0:</strong> Tech Spike → Go/No-Go-Entscheid</span></div>
+            <div class="oq-item"><div class="oq-dot" style="background:#2563eb;"></div><span><strong>Sprint 1–3:</strong> MVP-Kern — API + DB + Worker + Auth</span></div>
+            <div class="oq-item"><div class="oq-dot" style="background:#2563eb;"></div><span><strong>Sprint 4–6:</strong> Frontend + Quiz + Feedback + Admin-Seite</span></div>
+            <div class="oq-item"><div class="oq-dot" style="background:#059669;"></div><span><strong>30. Sept. 2026:</strong> Pilot-Go-Live (1 Bereich, &lt; 30 Nutzer)</span></div>
+          </div>
+          <h2 style="margin-top:8px;">Post-MVP (bewusst ausgeklammert)</h2>
+          <div style="margin-top:4px;display:flex;flex-direction:column;gap:3px;">
+            <div class="oq-item"><div class="oq-dot" style="background:#94a3b8;"></div><span>SSO / Azure AD · PDF.js-Highlighting · Stale-Content-Erkennung (US-06) · DSGVO-Löschworkflow · Prompt-Injection-Hardening</span></div>
+          </div>
+        </div>
+      </div>
+      <div style="background:#eff6ff;border-radius:4px;padding:6px 10px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;">
+        <p style="font-size:clamp(8.5px,1vw,11px);color:#1e40af;font-style:italic;">«Ein vereinfachter Draft, der wirklich gebaut werden kann, ist besser als ein perfekter Draft, der scheitert.»</p>
+        <p style="font-size:clamp(7.5px,.85vw,9.5px);color:#64748b;white-space:nowrap;margin-left:12px;">→ Backup-Folien verfügbar</p>
+      </div>
+    </div>
+    <div class="slide-footer">
+      <span class="org">BFH CAS ADAI 2026 · LearnFlow</span>
+      <span class="counter" style="color:#059669;font-weight:800;">9 / 9</span>
+      <div class="nav-btns"><button onclick="go(-1)">◀</button><button onclick="go(1)">▶</button></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       BACKUP SLIDES (10–15)
+  ══════════════════════════════════════════ -->
+
+  <!-- SLIDE 10 · SINGLE POINT OF FAILURE? -->
+  <div class="slide" data-idx="10" data-type="backup">
+    <div class="backup-banner">Backup-Folie · Bei Bedarf</div>
+    <div class="slide-header backup-header"><h1>Single Point of Failure?</h1></div>
+    <div class="slide-body" style="gap:2%;">
+      <div class="risk-item">
+        <div class="risk-dot" style="background:#dc2626;"></div>
+        <div><p><strong>PostgreSQL als SPOF</strong> — kein Replica, kein Read-Replica, kein Cluster. Bei DB-Ausfall ist LearnFlow vollständig unavailable.</p>
+        <p style="margin-top:3px;font-size:clamp(8px,.9vw,10px);color:#64748b;">Mitigation: täglicher <code style="background:#f1f5f9;padding:1px 3px;border-radius:2px;">pg_dump</code>-Cron in Docker Compose. Akzeptiertes Risiko für Pilot (&lt; 30 Nutzer, Business Hours).</p></div>
+      </div>
+      <div class="risk-item">
+        <div class="risk-dot" style="background:#d97706;"></div>
+        <div><p><strong>LLM-Provider-Abhängigkeit</strong> — bei OpenAI-Ausfall keine Antworten möglich.</p>
+        <p style="margin-top:3px;font-size:clamp(8px,.9vw,10px);color:#64748b;">Mitigation: LiteLLM-Abstraktion (ADR-004) ermöglicht schnellen Wechsel auf Azure EU oder Ollama per Config-Änderung. Circuit Breaker im API Server.</p></div>
+      </div>
+      <div class="risk-item">
+        <div class="risk-dot" style="background:#2563eb;"></div>
+        <div><p><strong>Single-Instance-Deployment</strong> — kein Load Balancer, kein Horizontal Scaling.</p>
+        <p style="margin-top:3px;font-size:clamp(8px,.9vw,10px);color:#64748b;">Bewusste Entscheidung für MVP. Stateless API-Design (ADR-001) ermöglicht späteres Scaling ohne Architektur-Umbau.</p></div>
+      </div>
+      <div class="risk-item">
+        <div class="risk-dot" style="background:#059669;"></div>
+        <div><p><strong>Background Worker — Single-Threaded</strong> — parallele Uploads können Queue stauen.</p>
+        <p style="margin-top:3px;font-size:clamp(8px,.9vw,10px);color:#64748b;">SLA: ≤ 5 Min für 50 Seiten. Bei &lt; 30 Nutzern und gelegentlichen Uploads kein Problem. pgqueuer skaliert horizontal mit mehreren Worker-Instanzen (Post-MVP).</p></div>
+      </div>
+    </div>
+    <div class="slide-footer">
+      <span class="org">BFH CAS ADAI 2026 · LearnFlow</span>
+      <span class="counter backup">Backup 1 / 6</span>
+      <div class="nav-btns"><button onclick="go(-1)">◀</button><button onclick="go(1)">▶</button></div>
+    </div>
+  </div>
+
+  <!-- SLIDE 11 · WARUM DIESE TECHNOLOGIE? -->
+  <div class="slide" data-idx="11" data-type="backup">
+    <div class="backup-banner">Backup-Folie · Bei Bedarf</div>
+    <div class="slide-header backup-header"><h1>Warum diese Technologie?</h1></div>
+    <div class="slide-body">
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th style="width:18%">Entscheid</th><th style="width:22%">Gewählt</th><th style="width:22%">Alternative</th><th>Warum so?</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Backend</strong></td><td>Python 3.13 / FastAPI</td><td>Node.js / Express, Go</td><td>KI-Ökosystem (LiteLLM, pypdf, python-docx) direkt verfügbar — kein Adapter-Layer. Async-native (ASGI).</td></tr>
+            <tr><td><strong>Frontend</strong></td><td>React 18 / TypeScript 5</td><td>HTMX, Vue</td><td>Quiz-UI, Feedback-Komponenten und Quellenhervorhebung zu komplex für HTMX. React-Ökosystem passt zur KI-Code-Generierung.</td></tr>
+            <tr><td><strong>Vektorspeicher</strong></td><td>pgvector (PostgreSQL)</td><td>Pinecone, Weaviate, Qdrant</td><td>Kein Extra-Service, ein Backup, ein Connection-String. Bis &lt; 100k Chunks ausreichend performant (HNSW).</td></tr>
+            <tr><td><strong>Job-Queue</strong></td><td>pgqueuer</td><td>Celery + Redis, BullMQ</td><td>Kein separater Broker. Jobs PostgreSQL-transaktional — kein Datenverlust bei Crash. Ein Service weniger zu betreiben.</td></tr>
+            <tr><td><strong>LLM-Abstraktion</strong></td><td>LiteLLM</td><td>LangChain, direktes SDK</td><td>Provider-Wechsel per Config-Eintrag ohne Code-Change. Keine Logprob-Abhängigkeit — Konfidenz-Pipeline funktioniert mit jedem Modell.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="slide-footer">
+      <span class="org">BFH CAS ADAI 2026 · LearnFlow</span>
+      <span class="counter backup">Backup 2 / 6</span>
+      <div class="nav-btns"><button onclick="go(-1)">◀</button><button onclick="go(1)">▶</button></div>
+    </div>
+  </div>
+
+  <!-- SLIDE 12 · PASST DAS PATTERN WIRKLICH? -->
+  <div class="slide" data-idx="12" data-type="backup">
+    <div class="backup-banner">Backup-Folie · Bei Bedarf</div>
+    <div class="slide-header backup-header"><h1>Passt das Pattern wirklich?</h1></div>
+    <div class="slide-body" style="gap:2.5%;">
+      <div class="cols2" style="flex:1;gap:2.5%;">
+        <div style="display:flex;flex-direction:column;gap:2.5%;">
+          <div class="card blue" style="flex:1;">
+            <h3>Modularer Monolith ✓</h3>
+            <p>4 Container mit klaren Grenzen (Web App, API, Worker, DB) — das <em>sieht</em> nach Microservices aus, ist aber kein verteiltes System. Alles kommuniziert direkt über TCP 5432 (DB) oder HTTPS. Kein Service Mesh, kein Netzwerk-Mesh.</p>
+            <p style="margin-top:5px;">Modul-Grenzen sind durch Service-Interfaces im Code durchgesetzt — nicht durch Netzwerk-Isolation.</p>
+          </div>
+          <div class="card green" style="flex:1;">
+            <h3>API-First ✓</h3>
+            <p>openapi.yaml wird geschrieben, bevor eine Zeile Backend-Code entsteht. Frontend mockt gegen die Spec. Das ist <em>echter</em> API-First — nicht «wir dokumentieren die fertige API».</p>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:2.5%;">
+          <div class="card amber" style="flex:1;">
+            <h3>Was wir bewusst nicht sind</h3>
+            <ul style="padding-left:14px;margin-top:4px;display:flex;flex-direction:column;gap:4px;">
+              <li style="font-size:clamp(8.5px,1.05vw,11.5px);color:#374151;">Kein <strong>CQRS</strong> — Read-Model = Write-Model; für MVP ausreichend</li>
+              <li style="font-size:clamp(8.5px,1.05vw,11.5px);color:#374151;">Kein <strong>Event-Driven</strong> — pg_notify ist kein Event-Bus, nur ein Job-Trigger</li>
+              <li style="font-size:clamp(8.5px,1.05vw,11.5px);color:#374151;">Kein <strong>Hexagonal Architecture</strong> — aber ADR-001-Interfaces sind ein Schritt dahin</li>
+            </ul>
+          </div>
+          <div class="card" style="flex:1;border-left:3px solid #15803d;">
+            <h3>Fazit</h3>
+            <p>Das C2-Diagram zeigt klare Container-Grenzen. Das Pattern passt zum Team, Budget und Pilotscope. Die Architektur ist ehrlich — kein Wunschdenken.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="slide-footer">
+      <span class="org">BFH CAS ADAI 2026 · LearnFlow</span>
+      <span class="counter backup">Backup 3 / 6</span>
+      <div class="nav-btns"><button onclick="go(-1)">◀</button><button onclick="go(1)">▶</button></div>
+    </div>
+  </div>
+
+  <!-- SLIDE 13 · MVP-CRITICAL PATH -->
+  <div class="slide" data-idx="13" data-type="backup">
+    <div class="backup-banner">Backup-Folie · Bei Bedarf</div>
+    <div class="slide-header backup-header"><h1>Was ist euer MVP-Critical Path?</h1></div>
+    <div class="slide-body" style="gap:3%;">
+      <p style="font-size:clamp(9px,1.1vw,12px);color:#374151;">Welche 3 Container müssen als erstes stehen, damit wir den ersten echten Test machen können?</p>
+      <div class="pipeline" style="flex:1;gap:0;align-items:stretch;">
+        <div class="pipe-step" style="flex:1;height:100%;background:#dcfce7;border-color:#86efac;">
+          <div class="ps-num" style="background:#15803d;">1</div>
+          <div class="ps-label" style="color:#15803d;">Datenbank</div>
+          <div class="ps-sub">Schema + pgvector + config-Tabelle. Fundament — alles andere hängt davon ab. Erster Meilenstein: <code>docker compose up db</code> läuft.</div>
+        </div>
+        <div class="pipe-arrow" style="font-size:20px;">→</div>
+        <div class="pipe-step" style="flex:1;height:100%;background:#dcfce7;border-color:#86efac;">
+          <div class="ps-num" style="background:#15803d;">2</div>
+          <div class="ps-label" style="color:#15803d;">API Server</div>
+          <div class="ps-sub">Auth + RAG-Pipeline + Konfidenz-Pipeline. Erster echter Smoke-Test: Frage stellen → Antwort mit Quellenangabe erhalten.</div>
+        </div>
+        <div class="pipe-arrow" style="font-size:20px;">→</div>
+        <div class="pipe-step" style="flex:1;height:100%;background:#dcfce7;border-color:#86efac;">
+          <div class="ps-num" style="background:#15803d;">3</div>
+          <div class="ps-label" style="color:#15803d;">Web App</div>
+          <div class="ps-sub">Minimales Q&amp;A-Interface. Erster echter Nutzertest mit Stefan möglich — ohne perfektes UI.</div>
+        </div>
+        <div class="pipe-arrow" style="font-size:20px;">→</div>
+        <div class="pipe-step" style="flex:1;height:100%;background:#fef9c3;border-color:#fcd34d;">
+          <div class="ps-num" style="background:#d97706;">4</div>
+          <div class="ps-label" style="color:#d97706;">Background Worker</div>
+          <div class="ps-sub">Direkt danach: Upload-Flow komplett. Ohne Worker kann Stefan noch keine Dokumente hochladen.</div>
+        </div>
+      </div>
+      <p style="font-size:clamp(8px,.95vw,10.5px);color:#64748b;">Schritte 1–3 sind der «vertikale Schnitt» — ein kompletter Q&amp;A-Flow vom Browser bis zur DB. Erst danach werden Breite und weitere Features gebaut.</p>
+    </div>
+    <div class="slide-footer">
+      <span class="org">BFH CAS ADAI 2026 · LearnFlow</span>
+      <span class="counter backup">Backup 4 / 6</span>
+      <div class="nav-btns"><button onclick="go(-1)">◀</button><button onclick="go(1)">▶</button></div>
+    </div>
+  </div>
+
+  <!-- SLIDE 14 · WIE TESTET IHR DAS? -->
+  <div class="slide" data-idx="14" data-type="backup">
+    <div class="backup-banner">Backup-Folie · Bei Bedarf</div>
+    <div class="slide-header backup-header"><h1>Wie testet ihr das?</h1></div>
+    <div class="slide-body" style="gap:2.5%;">
+      <div class="cols2" style="flex:1;gap:2.5%;">
+        <div style="display:flex;flex-direction:column;gap:2.5%;">
+          <div class="card blue" style="flex:1;">
+            <h3>Unit Tests — RAG-Komponenten</h3>
+            <p>Chunking, Embedding, Retrieval, Scoring — jede Komponente isoliert testbar. Modulare RAG-Pipeline (ADR-001) macht das möglich: kein monolithischer God-Class-Code.</p>
+          </div>
+          <div class="card green" style="flex:1;">
+            <h3>Eval-Dataset + CI-Gate (ADR-009)</h3>
+            <p>20–30 Testfragen aus Pilot-Dokumenten, manuell erstellt im Spike-Kick-off. LLM-as-Judge bewertet Antworten. CI-Pipeline blockiert bei Regression — kein Merge ohne grünes Eval.</p>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:2.5%;">
+          <div class="card amber" style="flex:1;">
+            <h3>Was ist schwer testbar?</h3>
+            <ul style="padding-left:14px;margin-top:4px;display:flex;flex-direction:column;gap:4px;">
+              <li style="font-size:clamp(8.5px,1.05vw,11.5px);color:#374151;"><strong>LLM-Outputs sind non-deterministisch</strong> — mehrere Runs, statistische Schwellen statt Exact-Match</li>
+              <li style="font-size:clamp(8.5px,1.05vw,11.5px);color:#374151;"><strong>Retrieval-Qualität</strong> hängt von Chunk-Qualität ab — Eval zeigt erst nach echten Pilot-Dokumenten valide Werte</li>
+              <li style="font-size:clamp(8.5px,1.05vw,11.5px);color:#374151;"><strong>Konfidenz-Kalibrierung</strong> — Schwellenwerte sind Hypothesen bis Pilot-Erfahrung vorliegt</li>
+            </ul>
+          </div>
+          <div class="card" style="flex:1;border-left:3px solid #15803d;">
+            <h3>E2E-Pflichtszenarien</h3>
+            <ul style="padding-left:14px;margin-top:4px;display:flex;flex-direction:column;gap:3px;">
+              <li style="font-size:clamp(8.5px,1.05vw,11.5px);color:#374151;">Happy Path: Frage → Antwort + Quellenlink + Seitenangabe</li>
+              <li style="font-size:clamp(8.5px,1.05vw,11.5px);color:#374151;">«Weiss ich nicht»-Case: Frage ausserhalb Korpus → keine Halluzination</li>
+              <li style="font-size:clamp(8.5px,1.05vw,11.5px);color:#374151;">Upload-Flow: Dokument hochladen → in ≤ 5 Min abfragbar</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="slide-footer">
+      <span class="org">BFH CAS ADAI 2026 · LearnFlow</span>
+      <span class="counter backup">Backup 5 / 6</span>
+      <div class="nav-btns"><button onclick="go(-1)">◀</button><button onclick="go(1)">▶</button></div>
+    </div>
+  </div>
+
+  <!-- SLIDE 15 · WAS WÜRDET IHR HEUTE ANDERS MACHEN? -->
+  <div class="slide" data-idx="15" data-type="backup">
+    <div class="backup-banner">Backup-Folie · Bei Bedarf</div>
+    <div class="slide-header backup-header"><h1>Was würdet ihr heute anders machen?</h1></div>
+    <div class="slide-body" style="gap:2.5%;">
+      <div style="display:flex;flex-direction:column;gap:2%;">
+        <div class="risk-item">
+          <div class="risk-dot" style="background:#dc2626;"></div>
+          <div><p><strong>Backup-Strategie von Anfang an</strong> — war ein Peer-Review-Finding, hätte von Beginn weg im Architecture Draft stehen sollen. Kein Betrieb ohne funktionierenden pg_dump.</p></div>
+        </div>
+        <div class="risk-item">
+          <div class="risk-dot" style="background:#d97706;"></div>
+          <div><p><strong>US-06 (Stale-Content) direkt als Post-MVP</strong> — der SMTP-Provider-Entscheid blockierte Sprint 0 unnötig. Klare Post-MVP-Abgrenzung spart Scope-Diskussionen.</p></div>
+        </div>
+        <div class="risk-item">
+          <div class="risk-dot" style="background:#d97706;"></div>
+          <div><p><strong>Team-Grösse von Anfang an korrekt</strong> — ADRs sagten «3 Devs», das Team hat 4 Personen (Frank, Niklaus, Reto, Christoph). Falsche Constraints in ADR-Kontext erzeugen falsche Entscheide.</p></div>
+        </div>
+        <div class="risk-item">
+          <div class="risk-dot" style="background:#2563eb;"></div>
+          <div><p><strong>ADR-Status-Disziplin</strong> — ADR-001 stand monatelang als «Proposed» in der Datei, obwohl er im Architecture Draft bereits «Accepted» war. ADR-Status ist kein Formalismus — er steuert, was als bindend gilt.</p></div>
+        </div>
+        <div class="risk-item">
+          <div class="risk-dot" style="background:#059669;"></div>
+          <div><p><strong>SSE vs. Batch-Response früher entscheiden</strong> — der Konflikt zwischen Streaming und Fail-Closed-Pipeline (ADR-002 vs. ADR-008) war lange offen. Batch-Response wäre von Anfang an die richtige Wahl gewesen.</p></div>
+        </div>
+      </div>
+    </div>
+    <div class="slide-footer">
+      <span class="org">BFH CAS ADAI 2026 · LearnFlow</span>
+      <span class="counter backup">Backup 6 / 6</span>
+      <div class="nav-btns"><button onclick="go(-1)">◀</button><button onclick="go(1)">▶</button></div>
+    </div>
+  </div>
+
+</div><!-- /deck -->
+
+<script>
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  let cur = 0;
+
+  function show(idx) {
+    if (idx < 0 || idx >= slides.length) return;
+    slides[cur].classList.remove('active');
+    cur = idx;
+    slides[cur].classList.add('active');
+  }
+
+  function go(dir) { show(cur + dir); }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); go(1); }
+    if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')                    { e.preventDefault(); go(-1); }
+    if (e.key === 'Home') { e.preventDefault(); show(0); }
+    if (e.key === 'End')  { e.preventDefault(); show(slides.length - 1); }
+  });
+
+  // Click right half to advance, left half to go back
+  document.getElementById('deck').addEventListener('click', e => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    if (x > rect.width * 0.5) go(1); else go(-1);
+  });
+</script>
+</body>
+</html>
