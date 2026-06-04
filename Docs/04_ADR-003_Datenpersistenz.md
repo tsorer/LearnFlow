@@ -1,9 +1,9 @@
 # ADR-003: Datenpersistenz — PostgreSQL 17 + pgvector
 
-| Feld | Inhalt |
-|---|---|
-| **Status** | Proposed |
-| **Datum** | 2026-05-27 |
+| Feld          | Inhalt                                           |
+| ------------- | ------------------------------------------------ |
+| **Status**    | Proposed                                         |
+| **Datum**     | 2026-05-27                                       |
 | **Verfasser** | LearnFlow-Team (Frank, Niklaus, Reto, Christoph) |
 
 ---
@@ -30,7 +30,7 @@ Wir verwenden **PostgreSQL 17 mit pgvector-Extension** als einzigen Persistenz-S
 - **+** SQL-Joins zwischen Vektor-Ergebnissen und relationalen Daten (z. B. Chunk → Dokument-Metadaten → Upload-Datum) sind in einer einzigen Query möglich — kein Application-Level-Join über zwei Services.
 - **+** Original-Dokumente als `bytea` in PostgreSQL: ein einziger Backup deckt Metadaten, Embeddings und Originaldateien ab — keine separate Backup-Strategie für einen Datei-Storage.
 - **+** HNSW-Index in pgvector liefert für < 10 000 Chunks Sub-100-ms-Latenz bei Similarity-Suche — ausreichend für die Performance-NFA (≤ 10 s @ p95 gesamt).
-- **+** Alembic-Migrationen versionieren das Schema in Git — bei drei parallelen Entwicklern keine manuellen Schema-Sync-Konflikte.
+- **+** Alembic-Migrationen versionieren das Schema in Git — bei vier parallelen Entwicklern keine manuellen Schema-Sync-Konflikte.
 
 ### Negative Konsequenzen
 
@@ -44,14 +44,14 @@ Wir verwenden **PostgreSQL 17 mit pgvector-Extension** als einzigen Persistenz-S
 
 ## Abgewogene Alternativen
 
-| Alternative | Warum verworfen |
-|---|---|
-| **Chroma (lokal, embedded)** | Kein SQL für relationale Daten; zweite Persistenzschicht nötig. Chroma ist für Prototypen praktisch, aber ohne Transaktionen und ohne Migrations-Tooling nicht produktionstauglich. |
-| **Qdrant (dedizierter Vector Store)** | Exzellente Skalierung und Metadata-Filter — aber separater Service bedeutet eigenes Backup, eigene Verbindungsverwaltung und eigenes Monitoring. Kein Vorteil für < 10 000 Chunks. |
-| **Supabase** | Würde PostgreSQL + pgvector + Auth + File Storage out-of-the-box liefern. Supabase ist Open Source und *grundsätzlich* self-hostbar (Docker) — der frühere Hinweis auf eine „fehlende On-Prem-Option" war unzutreffend. Verworfen wird es trotzdem: Self-hosted Supabase ist betrieblich schwergewichtig (viele Container — GoTrue, PostgREST, Realtime, Storage, Kong, Studio …), was bei 360 h Budget den Ops-Aufwand gegenüber einem einzelnen PostgreSQL-Container nicht rechtfertigt. Die verwaltete Cloud-Variante scheidet zusätzlich wegen Cloud-Lock-in und eingeschränkter DSGVO-/Regions-Kontrolle aus. |
-| **SQLite + ChromaDB** | Minimaler Overhead, keine Serverinstallation. Verworfen weil SQLite keine echte Concurrent-Write-Fähigkeit hat und ChromaDB eine zweite Persistenzschicht erzwingt. Valide nur für lokales Dev-Testing. |
-| **PostgreSQL 18 (neueste)** | Vertretbar — pgvector unterstützt 18, und ein späteres Major-Upgrade entfiele länger. Verworfen zugunsten 17: am wenigsten abgehangen, und die neuen 18-Features (async I/O u. a.) bringen bei der Pilotgrösse < 10 000 Chunks keinen messbaren Vorteil. Re-Evaluierung bei Post-MVP-Skalierung. |
-| **MinIO / S3-kompatibler Object Storage (für Originaldateien)** | Betrifft nur die Datei-Ablage, nicht die DB-Wahl: Originaldokumente in Object Storage statt als `bytea` würde WAL-Bloat und Backup-Last vermeiden — die sauberere Lösung bei vielen/grossen Dateien. Für den MVP zurückgestellt: bei < 500 Pilot-Dokumenten × max. 10 MB ist der WAL-/Grössen-Effekt beherrschbar, kein zweiter Service nötig. Erste Migrationsoption sobald Datenmenge oder Redundanz-Anforderungen steigen. |
+| Alternative                                                     | Warum verworfen                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Chroma (lokal, embedded)**                                    | Kein SQL für relationale Daten; zweite Persistenzschicht nötig. Chroma ist für Prototypen praktisch, aber ohne Transaktionen und ohne Migrations-Tooling nicht produktionstauglich.                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| **Qdrant (dedizierter Vector Store)**                           | Exzellente Skalierung und Metadata-Filter — aber separater Service bedeutet eigenes Backup, eigene Verbindungsverwaltung und eigenes Monitoring. Kein Vorteil für < 10 000 Chunks.                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| **Supabase**                                                    | Würde PostgreSQL + pgvector + Auth + File Storage out-of-the-box liefern. Supabase ist Open Source und *grundsätzlich* self-hostbar (Docker) — der frühere Hinweis auf eine „fehlende On-Prem-Option" war unzutreffend. Verworfen wird es trotzdem: Self-hosted Supabase ist betrieblich schwergewichtig (viele Container — GoTrue, PostgREST, Realtime, Storage, Kong, Studio …), was bei 360 h Budget den Ops-Aufwand gegenüber einem einzelnen PostgreSQL-Container nicht rechtfertigt. Die verwaltete Cloud-Variante scheidet zusätzlich wegen Cloud-Lock-in und eingeschränkter DSGVO-/Regions-Kontrolle aus. |
+| **SQLite + ChromaDB**                                           | Minimaler Overhead, keine Serverinstallation. Verworfen weil SQLite keine echte Concurrent-Write-Fähigkeit hat und ChromaDB eine zweite Persistenzschicht erzwingt. Valide nur für lokales Dev-Testing.                                                                                                                                                                                                                                                                                                                                                                                                            |
+| **PostgreSQL 18 (neueste)**                                     | Vertretbar — pgvector unterstützt 18, und ein späteres Major-Upgrade entfiele länger. Verworfen zugunsten 17: am wenigsten abgehangen, und die neuen 18-Features (async I/O u. a.) bringen bei der Pilotgrösse < 10 000 Chunks keinen messbaren Vorteil. Re-Evaluierung bei Post-MVP-Skalierung.                                                                                                                                                                                                                                                                                                                   |
+| **MinIO / S3-kompatibler Object Storage (für Originaldateien)** | Betrifft nur die Datei-Ablage, nicht die DB-Wahl: Originaldokumente in Object Storage statt als `bytea` würde WAL-Bloat und Backup-Last vermeiden — die sauberere Lösung bei vielen/grossen Dateien. Für den MVP zurückgestellt: bei < 500 Pilot-Dokumenten × max. 10 MB ist der WAL-/Grössen-Effekt beherrschbar, kein zweiter Service nötig. Erste Migrationsoption sobald Datenmenge oder Redundanz-Anforderungen steigen.                                                                                                                                                                                      |
 
 ---
 

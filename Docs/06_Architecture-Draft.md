@@ -15,7 +15,7 @@ LearnFlow ist eine interne RAG-Lernplattform für neue Mitarbeitende. Neue Mitar
 | Rang | QA | Kernforderung |
 |---|---|---|
 | 1 | **Reliability** | Halluzinationsrate = 0 %; Out-of-Corpus-Erkennung ≥ 90 % „Weiss ich nicht"; Retrieval-Gate + mehrschichtiger Unterdrückungsmechanismus (Quellenprüfung → Konfidenz-Score → Self-Check); CI-Regressionsgate |
-| 2 | **Security** | DSGVO — bei echten internen Dokumenten bleibt die Verarbeitung in der EU (Azure OpenAI EU); im MVP keine echten internen Dokumente, daher OpenAI Direct zulässig. JWT + bcrypt; RBAC (User / Admin); Pseudonymisierung von Feedback und Query-Logs; SSO nachrüstbar (Post-MVP) |
+| 2 | **Security** | DSGVO — bei echten internen Dokumenten bleibt die Verarbeitung in der EU (Azure OpenAI EU); im MVP keine echten internen Dokumente, daher OpenAI Direct zulässig. JWT + bcrypt; RBAC (User / Admin); Pseudonymisierung von Feedback und Query-Logs; SSO nachrüstbar (Post-MVP). **DSGVO-Löschantrag-Workflow und Aufbewahrungsfristen → Post-MVP** (Entscheid 2026-06-04; Pilot < 30 interne Nutzer, kein produktiver Betrieb). |
 | 3 | **Maintainability** | Schwellenwerte in DB ohne Code-Deployment änderbar; LLM-Provider-Wechsel per Konfiguration (LiteLLM); modulare RAG-Komponenten; Budget-kritisch: 360 h total |
 
 ---
@@ -36,8 +36,8 @@ LearnFlow ist eine interne RAG-Lernplattform für neue Mitarbeitende. Neue Mitar
 
 | Container | Technologie | Begründung | Grösstes Risiko |
 |---|---|---|---|
-| **Web App** | React 18 / TypeScript 5 · Vite · Nginx | SPA mit Batch-Response-Integration (JSON), Quiz und Quellenhervorhebung | Quellenhervorhebung in PDFs (PDF.js) unterschätzt → **MVP-Scope noch zu klären** |
-| **API Server** | Python 3.13 / FastAPI (ASGI) | Async Batch-Response (JSON), Python-KI-Ökosystem, RBAC als Dependency Injection | Konfidenz-Scoring definiert (ADR-008 Accepted); **Prompt-Injection nicht adressiert** *(Peer Review)* |
+| **Web App** | React 18 / TypeScript 5 · Vite · Nginx | SPA mit Batch-Response-Integration (JSON), Quiz und Quellenhervorhebung | **MVP: Link auf Dokument + Seitenangabe** statt inline PDF.js-Highlighting (2026-06-03) — PDF.js Post-MVP |
+| **API Server** | Python 3.13 / FastAPI (ASGI) | Async Batch-Response (JSON), Python-KI-Ökosystem, RBAC als Dependency Injection | Konfidenz-Scoring definiert (ADR-008 Accepted); **Prompt-Injection → Post-MVP** *(Peer Review; Grounding-Prompt als erste Mitigation)* |
 | **Background Worker** | pgqueuer (PostgreSQL-nativer Job-Queue) | Asynchrones Dokument-Processing ohne Redis; Jobs transaktional, kein Datenverlust bei Crash | Kleine Community; Single-Threaded: parallele Uploads stauen Queue |
 | **Datenbank** | PostgreSQL 17 + pgvector | Relationale Daten + Vektoren (HNSW) + Volltext (`tsvector`/GIN, deutsch) + Original-Dokumente in einem Service | **Single Point of Failure — kein Replica, kein Backup definiert** *(verschärft: Peer Review)* |
 
@@ -52,7 +52,7 @@ LearnFlow ist eine interne RAG-Lernplattform für neue Mitarbeitende. Neue Mitar
 
 ---
 
-## ADRs Übersicht (9 Entscheide)
+## ADRs Übersicht (10 Entscheide)
 
 | ADR | Entscheid | Status |
 |---|---|---|
@@ -65,8 +65,9 @@ LearnFlow ist eine interne RAG-Lernplattform für neue Mitarbeitende. Neue Mitar
 | **ADR-007** | Retrieval: Struktur-bewusstes Chunking + Hybrid-Retrieval (Dense + Sparse, RRF) + Retrieval-Gate | Proposed |
 | **ADR-008** | Reliability: Mehrstufige Konfidenzpipeline (fail-closed) — Retrieval-Gate → Konfidenz → Grounding-/Citation-Check → LLM-Self-Check | **Accepted** *(aktualisiert 2026-06-03)* |
 | **ADR-009** | Eval-Strategie: Gold-Dataset (In-/Out-of-Corpus/Adversarial) + RAGAS + CI-Regressionsgate (Build bricht bei Halluzination > 0 %) | Proposed |
+| **ADR-010** | API-Design-Ansatz: API-First mit OpenAPI 3.0 — `openapi.yaml` als Single Source of Truth; FastAPI Auto-Spec bewusst deaktiviert | **Accepted** *(2026-06-03)* |
 
-> **Hinweis:** ADR-001 (Peer Review), ADR-002 (kein SSE, Batch-Response), ADR-006 (pgqueuer) und ADR-008 (Konfidenzpipeline) sind «Accepted». Alle weiteren ADRs bleiben «Proposed» bis Tech Spike abgeschlossen.
+> **Hinweis:** ADR-001, ADR-002, ADR-006, ADR-008 und ADR-010 sind «Accepted». Alle weiteren ADRs bleiben «Proposed» bis Tech Spike abgeschlossen.
 
 ---
 
@@ -121,10 +122,11 @@ Parsing (pypdf/python-docx) → **struktur-bewusstes Chunking** (Überschrift > 
 | Befund | Massnahme | Priorität |
 |---|---|---|
 | **Backup-Strategie fehlt** | Täglicher `pg_dump` via Cron in Docker Compose — vor Pilot-Start implementieren | 🔴 Pflicht |
-| **Prompt-Injection nicht adressiert** | Input-Sanitizing und Prompt-Boundaries im API Server definieren — Sprint 1 | 🟠 Security |
-| **Onboarding-Prozess undefiniert** | Wer legt Stefans Account per DB-Script an? Pilot-Start-Checkliste erstellen | 🟠 Prozess |
-| **Go/No-Go-Kriterien für Tech Spike fehlen** | Evaluationsdataset + Mindest-Scores definieren bevor Spike startet | 🔴 Blocker |
-| **E-Mail-Service für US-06 ungeklärt** | SMTP-Provider-Entscheid vor US-06-Implementierung — Sprint 0 | 🟠 Abhängigkeit |
+| **Prompt-Injection** | Bewusst als Post-MVP eingestuft (2026-06-03). Grounding-Prompt (ADR-007) und Fail-Closed-Pipeline (ADR-008) sind erste Mitigation. Vollständiges Input-Sanitizing und Prompt-Boundaries im API Server → Post-MVP. | ⏸ Post-MVP |
+| ~~**Onboarding-Prozess undefiniert**~~ | ✅ **Gelöst (2026-06-04):** Pilotstart-Checkliste erstellt (`Ops/07_Pilotstart-Checkliste.md`) — DB-Script-Template, Account-Anlage, Provider-Umstellung, Backup-Verifikation und Smoke-Tests dokumentiert. | ✅ Erledigt |
+| **Observability** | ✅ **Entscheid (2026-06-04):** Kein externer Service im MVP. Strukturiertes JSON-Logging (stdout → Docker-Log) + `GET /health`-Endpoint am API Server. Metriken über Eval-Runs (ADR-009). Post-MVP: Prometheus/Grafana oder Sentry. | ✅ Erledigt |
+| **Go/No-Go-Kriterien für Tech Spike** | **Prozess (Entscheid 2026-06-04):** Team definiert Eval-Dataset und Mindest-Scores gemeinsam **vor** dem ersten Spike-Tag. Pflicht-Agenda-Punkt im Spike-Kick-off: (1) 20–30 Testfragen aus Pilot-Dokumenten manuell erstellen, (2) Mindest-Scores für Similarity-Threshold, Out-of-Corpus-Quote und Citation-Coverage gemeinsam festlegen, (3) Go/No-Go-Entscheid nach Spike dokumentieren. | 🟠 Prozess |
+| ~~**E-Mail-Service für US-06 ungeklärt**~~ | ✅ **Gelöst (2026-06-04):** US-06 (Stale-Content-Erkennung + E-Mail-Report) als Post-MVP eingestuft. SMTP-Provider-Entscheid entfällt als MVP-Blocker. | ✅ Erledigt |
 | ~~**`bytea` vs. Large Object (`lo`)**~~ | ✅ **Gelöst (2026-06-03):** `bytea` für MVP mit hartem 10 MB Limit (serverseitig, US-04 konform). `lo`-Evaluation entfällt. MinIO/S3 als Post-MVP-Option offen (ADR-003). | ✅ Erledigt |
 | ~~**Streaming ↔ Grounding-Check**~~ | ✅ **Gelöst (2026-06-03):** Batch-Response — kein SSE-Streaming. Gesamte Konfidenzpipeline (ADR-008) läuft durch bevor Antwort ausgeliefert wird. ADR-002 aktualisiert. | ✅ Erledigt |
 | **Provider-Umstellung vor echten Daten** | MVP nutzt OpenAI Direct (US); vor dem ersten echten internen Dokument auf Azure OpenAI EU umstellen (LiteLLM-`config`). Go-Live-Checklist + optionaler Guard gegen Nicht-EU-Provider bei „intern/produktiv" markiertem Korpus (ADR-004/005) | 🔴 Compliance |

@@ -1,4 +1,5 @@
 # C4 — Level 1: System Context Diagram
+
 ## LearnFlow · Interne RAG-Lernplattform
 
 *BFH CAS ADAI 2026 · Modul 3 Tag 1 · Übung 3*
@@ -74,22 +75,30 @@ C4Context
 
 ## Interaktions-Übersicht
 
-| Von | Nach | Interaktion | Protokoll |
-|---|---|---|---|
-| Lara | LearnFlow | Frage stellen, Antwort lesen, Feedback geben, Quiz absolvieren | HTTPS |
-| Stefan | LearnFlow | Dokumente hochladen, Korpus verwalten, Quiz freigeben, Stale-Inhalte validieren | HTTPS |
-| Admin | LearnFlow | Konfidenz- und Stale-Schwellenwerte konfigurieren | HTTPS |
+| Von       | Nach                       | Interaktion                                                                      | Protokoll  |
+| --------- | -------------------------- | -------------------------------------------------------------------------------- | ---------- |
+| Lara      | LearnFlow                  | Frage stellen, Antwort lesen, Feedback geben, Quiz absolvieren                   | HTTPS      |
+| Stefan    | LearnFlow                  | Dokumente hochladen, Korpus verwalten, Quiz freigeben, Stale-Inhalte validieren  | HTTPS      |
+| Admin     | LearnFlow                  | Konfidenz- und Stale-Schwellenwerte konfigurieren                                | HTTPS      |
 | LearnFlow | LLM-Provider (via LiteLLM) | LLM-Generierung + Embedding-Anfragen — MVP: OpenAI Direct, Prod: Azure OpenAI EU | HTTPS/REST |
-| LearnFlow | Unternehmens-IdP | SSO-Authentifizierung + Rollen-Synchronisation *(Post-MVP)* | SAML 2.0 |
+| LearnFlow | Unternehmens-IdP           | SSO-Authentifizierung + Rollen-Synchronisation *(Post-MVP)*                      | SAML 2.0   |
 
 ---
 
 ## Was haben wir vergessen?
 
-### 1. Kein Monitoring / Alerting-System
-Die Reliability-NFA (Halluzinationsrate messbar, Out-of-Corpus-Rate trackbar) braucht Observability. Kein externer Service dafür definiert. Für einen Piloten mit < 30 Nutzern reicht strukturiertes Logging ins Container-Log — aber es fehlt im Systemkontext als explizite Entscheidung.
+### 1. ~~Kein Monitoring / Alerting-System~~
+
+**Entscheid (2026-06-04):** Für den MVP kein externer Monitoring-Service. Strategie:
+
+- **Strukturiertes Logging** (JSON, stdout) → Docker-Log (`docker compose logs`)
+- **`GET /health`-Endpoint** am API Server — prüft DB-Verbindung und gibt Status zurück
+- Kein externer Log-Aggregator, kein Alerting im MVP
+
+Für die Reliability-NFA (Halluzinationsrate, Out-of-Corpus-Rate) werden die Metriken in den Eval-Runs (ADR-009) gemessen, nicht im Live-Betrieb. Post-MVP: Prometheus/Grafana oder Sentry falls Pilot skaliert.
 
 ### 2. Ollama (lokaler Dev-Fallback — kein Produktions-System)
+
 Ollama (ADR-004, ADR-005) ist der lokale Fallback für LLM und Embeddings. Im Produktions-Systemkontext korrekt nicht gezeigt. Im Entwicklungs-Systemkontext wäre es ein zusätzlicher externer Knoten.
 
 ---

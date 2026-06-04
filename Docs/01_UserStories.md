@@ -10,6 +10,7 @@
 - MVP-Constraint: genau **ein Bereich** (Pilot-Bereich, hartcodiert).
 - User-Management: kein Admin-UI — Accounts werden per **DB-Script** angelegt (Felder: username, passwort, Rolle: User / Admin). US-11 entfällt als Abhängigkeit für US-05.
 - US-11: auf reine Systemkonfiguration reduziert (Konfidenz- und Stale-Schwellenwert); kein User-Management mehr im Scope.
+- US-06: **Post-MVP** — Stale-Content-Erkennung inkl. E-Mail-Report wird nicht im MVP umgesetzt. SMTP-Provider-Entscheid entfällt damit als Blocker. US-11-Abhängigkeit (Stale-Schwellenwert) bleibt erhalten, da der Wert künftig benötigt wird.
 
 ---
 
@@ -114,7 +115,9 @@
 
 ## SHOULD – Sollte umgesetzt werden
 
-### US-06 · Veraltete Inhalte erkennen und re-validieren
+### US-06 · Veraltete Inhalte erkennen und re-validieren *(Post-MVP)*
+
+> **Entscheid (2026-06-04):** US-06 wird nicht im MVP umgesetzt. E-Mail-Report erfordert SMTP-Provider, der im MVP-Zeitrahmen nicht eingeplant ist. Die Dashboard-Ansicht für Stale-Dokumente und der E-Mail-Report kommen nach dem Pilot.
 
 **Persona:** Stefan – Bereichsverantwortlicher
 
