@@ -16,7 +16,7 @@ LearnFlow ist eine interne RAG-Lernplattform für neue Mitarbeitende. Neue Mitar
 |---|---|---|
 | 1 | **Reliability** | Halluzinationsrate = 0 %; Out-of-Corpus-Erkennung ≥ 90 % „Weiss ich nicht"; Retrieval-Gate + mehrschichtiger Unterdrückungsmechanismus (Quellenprüfung → Konfidenz-Score → Self-Check); CI-Regressionsgate |
 | 2 | **Security** | DSGVO — bei echten internen Dokumenten bleibt die Verarbeitung in der EU (Azure OpenAI EU); im MVP keine echten internen Dokumente, daher OpenAI Direct zulässig. JWT + bcrypt; RBAC (3 Rollen: `learner` / `knowledge_owner` / `admin`); Pseudonymisierung von Feedback und Query-Logs; SSO nachrüstbar (Post-MVP). **POC: Fixer Userkreis (4–6 Personen), kein Registration-Flow, kein Password-Reset-UI.** User-Anlage via `seed_users.py` — schreibt bcrypt-Hashes direkt in die `users`-Tabelle; Passwort-Änderung = neuer Seed-Lauf. **DSGVO-Löschantrag-Workflow und Aufbewahrungsfristen → Post-MVP** (Entscheid 2026-06-04; Pilot < 30 interne Nutzer, kein produktiver Betrieb). |
-| 3 | **Maintainability** | Schwellenwerte in DB ohne Code-Deployment änderbar; LLM-Provider-Wechsel per Konfiguration (LiteLLM); modulare RAG-Komponenten; Budget-kritisch: 360 h total |
+| 3 | **Maintainability** | Schwellenwerte in DB ohne Code-Deployment änderbar; LLM-Provider-Wechsel per Konfiguration (LiteLLM); modulare RAG-Komponenten; Budget-kritisch: **360 h Umsetzung** (480 h gesamt) |
 
 ---
 
@@ -57,7 +57,7 @@ LearnFlow ist eine interne RAG-Lernplattform für neue Mitarbeitende. Neue Mitar
 
 | ADR | Entscheid | Status |
 |---|---|---|
-| **ADR-001** | Architekturstil: Modularer Monolith — kein Microservices-Overhead bei < 30 Nutzern und 360 h Budget | **Accepted** *(aktualisiert nach Peer Review)* |
+| **ADR-001** | Architekturstil: Modularer Monolith — kein Microservices-Overhead bei < 30 Nutzern und 360 h Umsetzungsbudget | **Accepted** *(aktualisiert nach Peer Review)* |
 | **ADR-002** | Backend/Frontend-Stack: Python 3.13 / FastAPI + React 18 / TypeScript 5 — Batch-Response JSON, Python-KI-Ökosystem direkt verfügbar | **Accepted** *(aktualisiert 2026-06-03: kein SSE-Streaming)* |
 | **ADR-003** | Datenpersistenz: PostgreSQL 17 + pgvector — relationale Daten + Vektoren + Dokumente in einem Service, ein Backup, kein zweiter Service | Proposed |
 | **ADR-004** | LLM-Provider: LiteLLM-Abstraktion — MVP: OpenAI Direct (keine echten internen Dokumente), Produktion: Azure OpenAI EU, OnPrem: Ollama; Wechsel per Konfigurationseintrag, kein Code-Change | Proposed |

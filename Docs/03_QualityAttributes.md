@@ -11,7 +11,7 @@
 | **Scalability** | Maximale Gleichzeitigkeit im MVP: < 30 Nutzer, 1 Pilot-Bereich hartcodiert · Architektur muss Multi-Bereich-Ausbau ermöglichen ohne Redesign (stateless Services, kein shared State) | Kein Skalierungsdruck heute — aber eine zustandsbehaftete Architektur würde den Post-MVP-Ausbau auf mehrere Bereiche zu einem vollständigen Umbau machen. |
 | **Security** | Kein Systemzugriff ohne gültige Authentifizierung · Jede Ressource erfordert rollenbasierte Autorisierung (Lernende / Bereichsverantwortlicher / Admin) · Personenbezogene Daten verlassen die EU nicht (DSGVO) · Feedback und Query-Logs werden pseudonymisiert gespeichert · Cluster < 5 Fragen werden nicht angezeigt (Re-Identifikationsschutz) · Auth-Basis SSO-nachrüstbar ohne Umbau | Interne Unternehmensdokumente und Fachprozesse sind schützenswert. DSGVO-Compliance ist im Schweizer Enterprise-Umfeld nicht verhandelbar. Eine einmalige Datenpanne beendet den Piloten. |
 | **Reliability** | Halluzinationsrate = 0 %: Das System darf niemals eine Antwort ohne valide, belegbare Quellenreferenz ausgeben · Ausfall des LLM-Service darf nie zu einer generierten Fallback-Antwort führen — kontrollierte Degradation (Fehlermeldung) ist Pflicht · Out-of-Corpus-Erkennungsrate: ≥ 90 % „Weiss ich nicht" · MVP bewusst: kein HA-Setup, Single-Instance, Business-Hours-Nutzung | Eine halluzinierte Antwort mit echter Quellenangabe ist unsichtbar — Lara merkt es nicht, handelt falsch, verliert Vertrauen erst Wochen später. Das ist existenziell für den Pilot, unabhängig von der Nutzerzahl. |
-| **Maintainability** | Alle Konfigurationsparameter (Konfidenz-Schwellenwert, Stale-Schwellenwert, Cluster-Mindestgrösse) müssen ohne Code-Deployment und ohne Systemstart geändert werden können · LLM-Provider wechselbar durch Konfiguration — kein Code-Change (LiteLLM-Abstraktion) · Jede RAG-Komponente austauschbar ohne Seiteneffekte auf andere Module | 320–480 h Gesamtbudget. Jede Stunde für operative Anpassungen fehlt bei der Kernentwicklung. Provider-Wechsel (Cloud vs. OnPrem) muss ohne Entwickler-Eingriff möglich sein. |
+| **Maintainability** | Alle Konfigurationsparameter (Konfidenz-Schwellenwert, Stale-Schwellenwert, Cluster-Mindestgrösse) müssen ohne Code-Deployment und ohne Systemstart geändert werden können · LLM-Provider wechselbar durch Konfiguration — kein Code-Change (LiteLLM-Abstraktion) · Jede RAG-Komponente austauschbar ohne Seiteneffekte auf andere Module | 360 h Umsetzung (480 h gesamt). Jede Stunde für operative Anpassungen fehlt bei der Kernentwicklung. Provider-Wechsel (Cloud vs. OnPrem) muss ohne Entwickler-Eingriff möglich sein. |
 | **Testability** | Out-of-Corpus-Erkennungsrate ≥ 90 % „Weiss ich nicht" als messbares Akzeptanzkriterium · Halluzinationsrate messbar und regressionsfähig bevor die Implementierung startet (Tech Spike als Go/No-Go) · Jede RAG-Komponente (Chunking, Embedding, Retrieval, Generierung) einzeln isolierbar und testbar · Konfidenz-Scoring-Mechanismus muss formal definiert sein, bevor er testbar ist | RAG-Qualität ist ein empirisches Phänomen — nicht durch Code-Review validierbar. Ohne Testability weiss das Team nie, ob Reliability (Halluzinationsrate = 0 %) tatsächlich erreicht ist. |
 
 ---
@@ -22,7 +22,7 @@
 |---|---|---|
 | 1 | **Reliability** | Stärkste und existenziellste NFA: Halluzinationsrate = 0 %, Out-of-Corpus ≥ 90 % „Weiss ich nicht". Eine halluzinierte Antwort mit echter Quellenangabe bricht das Vertrauen — irreparabel und unabhängig von der Nutzerzahl. |
 | 2 | **Security** | Regulatorische NFA: DSGVO — personenbezogene Daten verlassen die EU nicht. Binär: entweder erfüllt oder nicht. Interne Dokumente machen unbefugten Zugriff zu einem Business-Stopper. |
-| 3 | **Maintainability** | Budget-getriebene NFA: 320–480 h total. Schwellenwerte müssen ohne Entwickler-Einsatz änderbar sein. LLM-Provider-Wechsel (Cloud vs. OnPrem) muss per Konfigurationseintrag erfolgen — sonst ist es ein Vertriebshindernis. |
+| 3 | **Maintainability** | Budget-getriebene NFA: **360 h Umsetzung** (480 h gesamt). Schwellenwerte müssen ohne Entwickler-Einsatz änderbar sein. LLM-Provider-Wechsel (Cloud vs. OnPrem) muss per Konfigurationseintrag erfolgen — sonst ist es ein Vertriebshindernis. |
 
 ---
 
@@ -71,7 +71,7 @@ Interne Fachprozesse und Dokumente sind öffentlich zugänglich. DSGVO-Verletzun
 ### #3 · Maintainability
 
 **Warum budget-kritisch:**
-320–480 h total — jede Stunde für operative Anpassungen fehlt bei der Kernentwicklung. Gleichzeitig muss der LLM-Provider für unterschiedliche Deployments (Cloud vs. OnPrem) konfigurierbar bleiben.
+360 h Umsetzung (480 h gesamt) — jede Stunde für operative Anpassungen fehlt bei der Kernentwicklung. Gleichzeitig muss der LLM-Provider für unterschiedliche Deployments (Cloud vs. OnPrem) konfigurierbar bleiben.
 
 **Architektonische Massnahmen:**
 

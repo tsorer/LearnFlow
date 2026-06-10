@@ -5,6 +5,7 @@ Aktuelles C2: Docs/06_Architecture-Draft.md (Abschnitt "C2: Container-Entscheidu
 Änderungen die wir einarbeiten wollen: [LISTE DER ÄNDERUNGEN AUS L1 EINFÜGEN]
 
 Erstelle das finale C2 mit:
+
 - Allen Containern (Name, Technologie, Kurzbeschreibung, Begründung)
 - Kommunikationspfeilen (sync/async, Protokoll, Port)
 - Markierung: welche Container sind MVP-kritisch?

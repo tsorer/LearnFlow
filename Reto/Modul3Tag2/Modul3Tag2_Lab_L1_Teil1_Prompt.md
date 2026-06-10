@@ -4,7 +4,7 @@ Hier ist unser Architecture Draft:
 - ADR-001 (Architekturstil — Modularer Monolith): Docs/04_ADR-001_Architekturstil.md
 - ADR-002 (Backend/Frontend-Stack — FastAPI + React): Docs/04_ADR-002_Backend-Frontend-Stack.md
 - ADR-003 bis ADR-009: Docs/04_ADR-003_Datenpersistenz.md ff.
-- Pattern-Entscheidungen aus Ü3: [EINFÜGEN nach Ü3]
+- Pattern-Entscheidungen aus Ü3: API-First (ADR-010: Docs/04_ADR-010_API-First.md)
 
 Prüfe auf Konsistenz:
 

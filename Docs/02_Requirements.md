@@ -37,7 +37,7 @@ LearnFlow ist eine interne Lernplattform, die neuen Mitarbeitenden erlaubt, Frag
 | User-Management | DB-Script — kein Admin-UI; Felder: username, passwort, Rolle |
 | Authentifizierung | Username / Passwort (lokal); post-MVP SSO via IdP |
 | Rollen | Lernende / Bereichsverantwortlicher / Admin |
-| Budget | 4 Personen × 15 Wochen × 1 Tag/Woche = 480 Stunden |
+| Budget | 480 h gesamt (4 Personen × 15 Wochen × 1 Tag/Woche), davon **360 h Umsetzung** und ~120 h Planung/Analyse/Architektur |
 | Deadline | 30. September 2026 |
 
 ---
@@ -104,7 +104,7 @@ LearnFlow ist eine interne Lernplattform, die neuen Mitarbeitenden erlaubt, Frag
 **Akzeptanzkriterien:**
 - ✓ Upload in den Formaten PDF, Word (.docx) und Markdown.
 - ✓ Dokumente bis 50 Seiten / 10 MB sind nach maximal 5 Minuten als Quelle verfügbar.
-- ✓ Maximale Dateigrösse: 100 MB; Dateien über 100 MB werden mit einer Fehlermeldung abgewiesen.
+- ✓ Maximale Dateigrösse: **10 MB** (hartes Limit, serverseitig); Dateien über 10 MB werden mit einer Fehlermeldung abgewiesen. *(Entscheid 2026-06-10, konsistent mit ADR-003: `bytea`-Ablage; grössere Dateien sind kein MVP-Scope.)*
 - ✓ Alle hochgeladenen Dokumente zeigen eine Fortschrittsanzeige während der Verarbeitung.
 - ✓ Eine neue Version (gleicher Dateiname) ersetzt automatisch das bestehende Dokument.
 - ✓ Stefan kann ein Dokument jederzeit löschen.

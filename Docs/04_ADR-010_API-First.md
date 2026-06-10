@@ -10,7 +10,7 @@
 
 ## Kontext
 
-LearnFlow hat ein klar getrenntes Frontend (React/TypeScript) und Backend (FastAPI). Mit nur 4 Devs und 360 h Gesamtbudget ist paralleles Arbeiten an Frontend und Backend entscheidend — jede Wartezeit auf eine fertige Implementierung kostet Budget. Zudem wird der Code überwiegend KI-gestützt mit Claude Code generiert: ohne einen formalen Vertrag (Spec) fehlt der KI der Kontext um konsistente Typen, Fehlerformate und Endpointstrukturen zu generieren. Die OpenAPI Spec als maschinenlesbare Single Source of Truth löst beide Probleme gleichzeitig.
+LearnFlow hat ein klar getrenntes Frontend (React/TypeScript) und Backend (FastAPI). Mit nur 4 Devs und 360 h Umsetzungsbudget ist paralleles Arbeiten an Frontend und Backend entscheidend — jede Wartezeit auf eine fertige Implementierung kostet Budget. Zudem wird der Code überwiegend KI-gestützt mit Claude Code generiert: ohne einen formalen Vertrag (Spec) fehlt der KI der Kontext um konsistente Typen, Fehlerformate und Endpointstrukturen zu generieren. Die OpenAPI Spec als maschinenlesbare Single Source of Truth löst beide Probleme gleichzeitig.
 
 ---
 

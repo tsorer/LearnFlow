@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LearnFlow — Architecture Pitch</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #0f1117;
+    color: #e8eaf0;
+    height: 100vh;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  .deck {
+    width: 100vw;
+    height: 100vh;
+    position: relative;
+  }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    display: none;
+    flex-direction: column;
+    padding: 64px 80px;
+  }
+
+  .slide.active { display: flex; }
+
+  /* Slide types */
+  .slide-cover { background: linear-gradient(135deg, #1a1f2e 0%, #0f1117 60%); justify-content: center; }
+  .slide-content { background: #13151f; }
+  .slide-c2 { background: #13151f; }
+  .slide-risk { background: #1a130f; }
+  .slide-close { background: linear-gradient(135deg, #0f1a13 0%, #0f1117 60%); justify-content: center; }
+
+  /* Cover */
+  .cover-tag {
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #4ade80;
+    margin-bottom: 24px;
+    font-weight: 600;
+  }
+  .cover-title {
+    font-size: 52px;
+    font-weight: 700;
+    line-height: 1.1;
+    color: #fff;
+    margin-bottom: 20px;
+  }
+  .cover-title span { color: #4ade80; }
+  .cover-sub {
+    font-size: 18px;
+    color: #8892a4;
+    max-width: 620px;
+    line-height: 1.6;
+    margin-bottom: 48px;
+  }
+  .cover-meta {
+    display: flex;
+    gap: 32px;
+  }
+  .meta-item {
+    font-size: 13px;
+    color: #4a5568;
+  }
+  .meta-item strong { color: #8892a4; display: block; margin-bottom: 2px; }
+
+  /* Slide header */
+  .slide-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 40px;
+  }
+  .slide-num {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: #4ade80;
+    color: #0f1117;
+    font-size: 14px;
+    font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .slide-num.orange { background: #fb923c; }
+  .slide-num.blue { background: #60a5fa; }
+  .slide-num.red { background: #f87171; }
+  .slide-num.purple { background: #a78bfa; }
+
+  .slide-title {
+    font-size: 28px;
+    font-weight: 700;
+    color: #fff;
+  }
+  .slide-minute {
+    margin-left: auto;
+    font-size: 12px;
+    color: #4a5568;
+    background: #1e2230;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-weight: 600;
+    letter-spacing: 1px;
+  }
+
+  /* One-liner box */
+  .oneliner {
+    background: #1e2230;
+    border-left: 4px solid #4ade80;
+    border-radius: 8px;
+    padding: 28px 32px;
+    font-size: 22px;
+    line-height: 1.5;
+    color: #e8eaf0;
+    font-style: italic;
+    margin-bottom: 32px;
+  }
+  .oneliner strong { color: #4ade80; font-style: normal; }
+
+  .sub-note {
+    font-size: 14px;
+    color: #4a5568;
+    line-height: 1.6;
+  }
+
+  /* QA rows */
+  .qa-list { display: flex; flex-direction: column; gap: 20px; }
+  .qa-item {
+    background: #1e2230;
+    border-radius: 10px;
+    padding: 20px 24px;
+    border-left: 3px solid #60a5fa;
+  }
+  .qa-q {
+    font-size: 13px;
+    font-weight: 700;
+    color: #60a5fa;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+  }
+  .qa-a {
+    font-size: 15px;
+    color: #c8d0dc;
+    line-height: 1.55;
+  }
+
+  /* C2 diagram */
+  .c2-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .c2-card {
+    background: #1e2230;
+    border-radius: 10px;
+    padding: 18px 20px;
+    border-top: 3px solid #4ade80;
+  }
+  .c2-card.worker { border-top-color: #fb923c; }
+  .c2-card.db { border-top-color: #60a5fa; grid-column: span 2; }
+
+  .c2-name { font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+  .c2-tech { font-size: 12px; color: #4ade80; margin-bottom: 8px; font-family: monospace; }
+  .c2-tech.orange { color: #fb923c; }
+  .c2-tech.blue { color: #60a5fa; }
+  .c2-desc { font-size: 13px; color: #8892a4; line-height: 1.45; }
+
+  .c2-flow {
+    background: #1e2230;
+    border-radius: 8px;
+    padding: 14px 20px;
+    font-size: 13px;
+    color: #8892a4;
+    font-family: monospace;
+    line-height: 1.8;
+  }
+  .c2-flow span { color: #4ade80; }
+
+  /* ADR highlight */
+  .adr-box {
+    background: #1e2230;
+    border-radius: 10px;
+    padding: 24px 28px;
+    margin-bottom: 20px;
+  }
+  .adr-label {
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #fb923c;
+    font-weight: 700;
+    margin-bottom: 10px;
+  }
+  .adr-decision {
+    font-size: 20px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 12px;
+    line-height: 1.3;
+  }
+  .adr-why {
+    font-size: 14px;
+    color: #8892a4;
+    line-height: 1.6;
+  }
+  .adr-why strong { color: #fb923c; }
+
+  .counter-box {
+    background: #221a10;
+    border-radius: 10px;
+    padding: 20px 24px;
+    border-left: 3px solid #fb923c;
+  }
+  .counter-label {
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #fb923c;
+    margin-bottom: 8px;
+    font-weight: 700;
+  }
+  .counter-text {
+    font-size: 15px;
+    color: #c8d0dc;
+    line-height: 1.6;
+    font-style: italic;
+  }
+
+  /* Risk */
+  .risk-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .risk-card {
+    background: #1e1510;
+    border-radius: 10px;
+    padding: 20px;
+    border-left: 3px solid #f87171;
+  }
+  .risk-card.mitigated { border-left-color: #4ade80; background: #101a12; }
+  .risk-label {
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .risk-label.red { color: #f87171; }
+  .risk-label.green { color: #4ade80; }
+  .risk-title { font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 6px; }
+  .risk-text { font-size: 13px; color: #8892a4; line-height: 1.5; }
+
+  .open-list { list-style: none; display: flex; flex-direction: column; gap: 12px; margin-top: 8px; }
+  .open-item {
+    display: flex; align-items: flex-start; gap: 12px;
+    font-size: 15px; color: #c8d0dc; line-height: 1.5;
+  }
+  .open-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #a78bfa;
+    flex-shrink: 0;
+    margin-top: 7px;
+  }
+
+  /* Close */
+  .close-title {
+    font-size: 42px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 16px;
+  }
+  .close-title span { color: #4ade80; }
+  .close-sub { font-size: 18px; color: #8892a4; margin-bottom: 48px; }
+
+  .badges { display: flex; gap: 12px; flex-wrap: wrap; }
+  .badge {
+    background: #1e2230;
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-size: 13px;
+    color: #8892a4;
+    font-family: monospace;
+  }
+  .badge.green { background: #0f2a15; color: #4ade80; }
+
+  /* Navigation */
+  .nav {
+    position: fixed;
+    bottom: 32px;
+    left: 0; right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    z-index: 100;
+  }
+  .nav-btn {
+    background: #1e2230;
+    border: 1px solid #2a3045;
+    color: #8892a4;
+    padding: 10px 24px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.15s;
+  }
+  .nav-btn:hover { background: #2a3045; color: #fff; }
+  .nav-btn:disabled { opacity: 0.3; cursor: default; }
+
+  .progress-dots {
+    display: flex; gap: 8px; align-items: center;
+  }
+  .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #2a3045;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .dot.active { background: #4ade80; width: 24px; border-radius: 4px; }
+
+  /* Keyboard hint */
+  .key-hint {
+    position: fixed;
+    top: 20px; right: 24px;
+    font-size: 11px;
+    color: #2a3045;
+  }
+</style>
+</head>
+<body>
+
+<div class="deck">
+
+  <!-- SLIDE 1: COVER -->
+  <div class="slide slide-cover active">
+    <div class="cover-tag">Architecture Pitch · 5 Minuten</div>
+    <div class="cover-title">Learn<span>Flow</span></div>
+    <div class="cover-sub">
+      Neue Mitarbeitende erhalten quellenbelegte Antworten auf Fachfragen — sofort, ohne jemanden zu unterbrechen.
+    </div>
+    <div class="cover-meta">
+      <div class="meta-item"><strong>Team</strong>Frank · Niklaus · Reto</div>
+      <div class="meta-item"><strong>MVP</strong>30. September 2026</div>
+      <div class="meta-item"><strong>Budget</strong>~360 h · 3 Monate</div>
+      <div class="meta-item"><strong>Nutzer</strong>&lt; 30 · Single Instance</div>
+    </div>
+  </div>
+
+  <!-- SLIDE 2: DAS SYSTEM -->
+  <div class="slide slide-content">
+    <div class="slide-header">
+      <div class="slide-num">1</div>
+      <div class="slide-title">Das System</div>
+      <div class="slide-minute">MIN 1</div>
+    </div>
+    <div class="oneliner">
+      LearnFlow ersetzt das <strong>«Frag mal Stefan»-Problem</strong>: neue Mitarbeitende erhalten quellenbelegte Antworten auf Fachfragen — sofort, ohne jemanden zu unterbrechen.
+    </div>
+    <div class="qa-list">
+      <div class="qa-item">
+        <div class="qa-q">PROBLEM</div>
+        <div class="qa-a">Neues Personal unterbricht erfahrene Kolleg:innen ständig mit Fachfragen — oder macht Fehler mangels Wissen. Wissen liegt in PDFs und Dokumenten die niemand findet.</div>
+      </div>
+      <div class="qa-item">
+        <div class="qa-q">LÖSUNG</div>
+        <div class="qa-a">RAG-Lernplattform: Lara fragt in natürlicher Sprache. LearnFlow durchsucht den kuratierten Wissenskorpus und gibt eine quellenbelegte Antwort zurück — oder «Weiss ich nicht».</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 3: C2 DIAGRAM -->
+  <div class="slide slide-c2">
+    <div class="slide-header">
+      <div class="slide-num blue">2</div>
+      <div class="slide-title">C2 Container Diagram</div>
+      <div class="slide-minute">MIN 2</div>
+    </div>
+    <div class="c2-grid">
+      <div class="c2-card">
+        <div class="c2-name">Web App</div>
+        <div class="c2-tech">React 18 · TypeScript · Nginx</div>
+        <div class="c2-desc">SPA: Q&A-Interface, Dokument-Upload, Feedback. Empfängt Batch-Response JSON.</div>
+      </div>
+      <div class="c2-card">
+        <div class="c2-name">API Server</div>
+        <div class="c2-tech">Python 3.13 · FastAPI (ASGI)</div>
+        <div class="c2-desc">RAG-Pipeline, Auth (JWT/RBAC), Konfidenz-Pipeline (ADR-008), LiteLLM.</div>
+      </div>
+      <div class="c2-card worker">
+        <div class="c2-name">Background Worker</div>
+        <div class="c2-tech orange">pgqueuer · kein Redis</div>
+        <div class="c2-desc">Dokument-Processing: Parsing → Chunking → Embedding → pgvector. 5-Min-SLA.</div>
+      </div>
+      <div class="c2-card db">
+        <div class="c2-name">Datenbank</div>
+        <div class="c2-tech blue">PostgreSQL 17 · pgvector · ein Backup · ein Service</div>
+        <div class="c2-desc">Relationale Daten + Vektor-Embeddings (HNSW) + Volltext (GIN) + Original-Dokumente (bytea, max. 10 MB). Alles in einem Service — ein Backup deckt alles ab.</div>
+      </div>
+    </div>
+    <div class="c2-flow">
+      Lara → <span>Web App</span> → REST/HTTPS → <span>API Server</span> → SQL → <span>PostgreSQL</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↕ pg_notify<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span>Background Worker</span> → Dokument indexieren
+    </div>
+  </div>
+
+  <!-- SLIDE 4: WICHTIGSTES ADR -->
+  <div class="slide slide-content">
+    <div class="slide-header">
+      <div class="slide-num orange">3</div>
+      <div class="slide-title">Wichtigstes ADR — Modularer Monolith</div>
+      <div class="slide-minute">MIN 3</div>
+    </div>
+    <div class="adr-box">
+      <div class="adr-label">ADR-001 · Accepted</div>
+      <div class="adr-decision">Modularer Monolith — kein Microservices-Overhead</div>
+      <div class="adr-why">
+        <strong>3 Devs · 360 h · &lt; 30 Nutzer.</strong> Microservices kosten +80–120 h reine Infrastruktur (Service Discovery, separate CI/CD, verteiltes Tracing). Dieses Budget stecken wir in RAG-Qualität.<br><br>
+        Modul-Grenzen werden technisch durchgesetzt: <strong>import-linter als CI-Gate</strong> — kein direkter DB-Aufruf über Modul-Grenzen. Stateless-Design hält die Tür für Post-MVP-Scaling offen.
+      </div>
+    </div>
+    <div class="counter-box">
+      <div class="counter-label">Auf «Warum nicht Microservices?»</div>
+      <div class="counter-text">«Netflix und Uber haben auch als Monolith angefangen. Microservices kommen wenn der Schmerz gross genug ist — nicht vorbeugend bei 30 Nutzern.»</div>
+    </div>
+  </div>
+
+  <!-- SLIDE 5: RISIKEN + OFFENE FRAGEN -->
+  <div class="slide slide-risk">
+    <div class="slide-header">
+      <div class="slide-num red">4</div>
+      <div class="slide-title">Grösstes Risiko + Offene Fragen</div>
+      <div class="slide-minute">MIN 4–5</div>
+    </div>
+    <div class="risk-grid" style="margin-bottom: 20px;">
+      <div class="risk-card">
+        <div class="risk-label red">Grösstes Risiko</div>
+        <div class="risk-title">PostgreSQL — Single Point of Failure</div>
+        <div class="risk-text">Kein Replica, kein Backup-Prozess definiert. Bewusst benannt. Backup vor Pilot-Start ist harte Voraussetzung — nicht Post-MVP.</div>
+      </div>
+      <div class="risk-card">
+        <div class="risk-label red">Zweites Risiko</div>
+        <div class="risk-title">Prompt-Injection nicht adressiert</div>
+        <div class="risk-text">Bekannte Lücke (Peer Review). Input-Sanitization und Grounding-Check (ADR-008) sind erste Mitigation — vollständige Lösung Post-MVP.</div>
+      </div>
+    </div>
+    <div style="margin-bottom: 8px; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: #a78bfa; font-weight: 700;">Was wir in Modul 4 & 5 klären</div>
+    <ul class="open-list">
+      <li class="open-item"><div class="open-dot"></div>Tech Spike: Halluzinationsrate = 0 % mit unserem Stack erreichbar? (Go/No-Go vor Sprint 1)</li>
+      <li class="open-item"><div class="open-dot"></div>Chunking-Parameter kalibrieren (Chunk-Grösse, Overlap, Similarity-Schwelle)</li>
+      <li class="open-item"><div class="open-dot"></div>PostgreSQL Backup-Strategie + nächtliche Snapshots definieren</li>
+    </ul>
+  </div>
+
+  <!-- SLIDE 6: CLOSE -->
+  <div class="slide slide-close">
+    <div class="cover-tag">LearnFlow · Architecture Pitch</div>
+    <div class="close-title">Fragen?<br><span>Wir verteidigen.</span></div>
+    <div class="close-sub">Entscheidungen — nicht Optionen.</div>
+    <div class="badges">
+      <div class="badge green">ADR-001 Modularer Monolith ✓</div>
+      <div class="badge green">ADR-002 FastAPI + React ✓</div>
+      <div class="badge green">ADR-006 pgqueuer ✓</div>
+      <div class="badge green">ADR-008 Konfidenz-Pipeline ✓</div>
+      <div class="badge green">ADR-010 API-First ✓</div>
+      <div class="badge">ADR-003–007, 009 → Tech Spike</div>
+    </div>
+  </div>
+
+</div><!-- /deck -->
+
+<!-- Navigation -->
+<div class="nav">
+  <button class="nav-btn" id="prev" onclick="go(-1)" disabled>← Zurück</button>
+  <div class="progress-dots" id="dots"></div>
+  <button class="nav-btn" id="next" onclick="go(1)">Weiter →</button>
+</div>
+
+<div class="key-hint">← → Pfeiltasten</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const dotsEl = document.getElementById('dots');
+  let cur = 0;
+
+  // Build dots
+  slides.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i === 0 ? ' active' : '');
+    d.onclick = () => goTo(i);
+    dotsEl.appendChild(d);
+  });
+
+  function goTo(n) {
+    slides[cur].classList.remove('active');
+    dotsEl.children[cur].classList.remove('active');
+    cur = Math.max(0, Math.min(n, slides.length - 1));
+    slides[cur].classList.add('active');
+    dotsEl.children[cur].classList.add('active');
+    document.getElementById('prev').disabled = cur === 0;
+    document.getElementById('next').disabled = cur === slides.length - 1;
+  }
+
+  function go(d) { goTo(cur + d); }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'Space') go(1);
+    if (e.key === 'ArrowLeft') go(-1);
+  });
+</script>
+</body>
+</html>

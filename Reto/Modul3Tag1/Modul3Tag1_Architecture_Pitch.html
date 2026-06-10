@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LearnFlow — Architecture Pitch</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #0f1117;
+    color: #e8eaf0;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .deck { width: 100%; height: 100vh; }
+
+  .slide {
+    display: none;
+    width: 100%;
+    height: 100vh;
+    padding: 60px 80px;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .slide.active { display: flex; }
+
+  /* ── Typography ── */
+  h1 { font-size: 3rem; font-weight: 700; color: #fff; line-height: 1.1; }
+  h2 { font-size: 1.6rem; font-weight: 600; color: #7eb8f7; margin-bottom: 32px; text-transform: uppercase; letter-spacing: .08em; }
+  h3 { font-size: 1.1rem; font-weight: 600; color: #fff; margin-bottom: 6px; }
+  p  { font-size: 1.05rem; line-height: 1.65; color: #c8cdd8; }
+  .sub { font-size: 1.1rem; color: #7eb8f7; margin-top: 14px; }
+  .meta { font-size: .85rem; color: #555e72; margin-top: 10px; }
+
+  /* ── Tags ── */
+  .tag {
+    display: inline-block;
+    padding: 3px 12px;
+    border-radius: 20px;
+    font-size: .8rem;
+    font-weight: 600;
+    margin-right: 8px;
+  }
+  .tag-blue   { background: #1a3a5c; color: #7eb8f7; }
+  .tag-green  { background: #1a3d2b; color: #5ecf8a; }
+  .tag-yellow { background: #3d2e10; color: #f5c842; }
+  .tag-red    { background: #3d1a1a; color: #f07878; }
+
+  /* ── Grid layouts ── */
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+
+  /* ── Cards ── */
+  .card {
+    background: #1a1f2e;
+    border: 1px solid #252c3f;
+    border-radius: 10px;
+    padding: 22px 24px;
+  }
+  .card.accent-blue  { border-left: 4px solid #7eb8f7; }
+  .card.accent-green { border-left: 4px solid #5ecf8a; }
+  .card.accent-amber { border-left: 4px solid #f5c842; }
+  .card p { font-size: .95rem; margin-top: 6px; }
+
+  /* ── Table ── */
+  table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+  th { text-align: left; padding: 10px 14px; background: #1a1f2e; color: #7eb8f7; font-weight: 600; font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; }
+  td { padding: 10px 14px; border-bottom: 1px solid #1e2438; color: #c8cdd8; vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  td strong { color: #e8eaf0; }
+
+  /* ── Slide 1 (title) ── */
+  #s1 { background: linear-gradient(135deg, #0f1117 60%, #0d2240); }
+  #s1 .eyebrow { font-size: .9rem; color: #7eb8f7; text-transform: uppercase; letter-spacing: .12em; margin-bottom: 18px; }
+  #s1 h1 span { color: #7eb8f7; }
+  #s1 .divider { width: 60px; height: 4px; background: #7eb8f7; border-radius: 2px; margin: 24px 0; }
+
+  /* ── Open questions ── */
+  .oq { display: flex; gap: 16px; margin-bottom: 16px; align-items: flex-start; }
+  .oq-num { font-size: 1.8rem; font-weight: 700; color: #252c3f; min-width: 44px; line-height: 1; }
+  .oq-body h3 { color: #f5c842; margin-bottom: 4px; }
+  .oq-body p  { font-size: .92rem; }
+
+  /* ── Nav ── */
+  nav {
+    position: fixed;
+    bottom: 28px;
+    right: 40px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .nav-btn {
+    background: #1a1f2e;
+    border: 1px solid #252c3f;
+    color: #7eb8f7;
+    padding: 8px 20px;
+    border-radius: 6px;
+    font-size: .85rem;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .nav-btn:hover { background: #252c3f; }
+  #counter { font-size: .8rem; color: #555e72; }
+
+  /* ── Peer review badge ── */
+  .pr-badge {
+    font-size: .72rem;
+    background: #2d1f3d;
+    color: #b07af5;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+</style>
+</head>
+<body>
+
+<div class="deck">
+
+  <!-- ══ SLIDE 1 · TITEL ══ -->
+  <section class="slide active" id="s1">
+    <div class="eyebrow">Architecture Pitch · Modul 3 Tag 1 · 2026-05-31</div>
+    <h1>Learn<span>Flow</span></h1>
+    <div class="divider"></div>
+    <p style="max-width:620px; font-size:1.1rem;">
+      Interne RAG-Lernplattform — neue Mitarbeitende stellen Fragen in natürlicher Sprache
+      und erhalten quellenbelegte Antworten aus einem kuratierten Wissenskorpus.
+    </p>
+    <p class="sub">MVP · 1 Pilot-Bereich · &lt; 30 Nutzer · Single Instance · Deadline 30. September 2026</p>
+    <p class="meta" style="margin-top:32px;">Reto Stucki · 3 Devs · 360–480 h</p>
+  </section>
+
+  <!-- ══ SLIDE 2 · TOP-3 QAs ══ -->
+  <section class="slide" id="s2">
+    <h2>Top-3 Quality Attributes</h2>
+    <div class="grid-3">
+      <div class="card accent-blue">
+        <span class="tag tag-blue">#1</span>
+        <h3 style="margin-top:12px;">Reliability</h3>
+        <p>Halluzinationsrate = 0 %<br>
+           Out-of-Corpus ≥ 90 % „Weiss ich nicht"<br>
+           Circuit Breaker für LLM-Aufrufe<br>
+           Mehrschichtiger Unterdrückungsmechanismus</p>
+      </div>
+      <div class="card accent-green">
+        <span class="tag tag-green">#2</span>
+        <h3 style="margin-top:12px;">Security</h3>
+        <p>DSGVO — Daten verlassen EU nicht<br>
+           JWT + bcrypt · RBAC (User / Admin)<br>
+           Pseudonymisierung Query-Logs &amp; Feedback<br>
+           SSO nachrüstbar (Post-MVP)</p>
+      </div>
+      <div class="card accent-amber">
+        <span class="tag tag-yellow">#3</span>
+        <h3 style="margin-top:12px;">Maintainability</h3>
+        <p>Schwellenwerte in DB — kein Code-Deployment<br>
+           LLM-Provider-Wechsel per Konfiguration<br>
+           LiteLLM-Abstraktion (OpenAI ↔ Ollama)<br>
+           Modulare RAG-Komponenten</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ SLIDE 3 · C2 CONTAINER ══ -->
+  <section class="slide" id="s3">
+    <h2>C2 Container Diagram</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Container</th>
+          <th>Technologie</th>
+          <th>Begründung</th>
+          <th>Grösstes Risiko</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Web App</strong></td>
+          <td>React 18 / TS 5 · Nginx</td>
+          <td>SSE-native SPA; Token-by-Token Q&amp;A, Quiz, Quellenhervorhebung</td>
+          <td>PDF-Highlighting (PDF.js) — MVP-Scope noch offen</td>
+        </tr>
+        <tr>
+          <td><strong>API Server</strong></td>
+          <td>Python 3.12 / FastAPI</td>
+          <td>Async SSE, Python-KI-Ökosystem, RBAC als Dependency Injection</td>
+          <td>Konfidenz-Scoring undefiniert · Prompt-Injection <span class="pr-badge">Peer Review</span></td>
+        </tr>
+        <tr>
+          <td><strong>Background Worker</strong></td>
+          <td>pgqueuer</td>
+          <td>Async Dokument-Processing ohne Redis; Jobs PostgreSQL-transaktional</td>
+          <td>Single-Threaded; kleine Community</td>
+        </tr>
+        <tr>
+          <td><strong>Datenbank</strong></td>
+          <td>PostgreSQL 16 + pgvector</td>
+          <td>Relationale Daten + Vektoren + Dokumente in einem Service</td>
+          <td>Single Point of Failure — kein Replica, Backup Pflicht <span class="pr-badge">Peer Review</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ══ SLIDE 4 · ADRs ══ -->
+  <section class="slide" id="s4">
+    <h2>Architecture Decision Records — 6 Entscheide</h2>
+    <table>
+      <thead>
+        <tr><th>ADR</th><th>Entscheid</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>ADR-001</strong></td>
+          <td>Modularer Monolith — kein Microservices-Overhead bei &lt; 30 Nutzern / 360 h Budget</td>
+          <td><span class="tag tag-green">Accepted</span></td>
+        </tr>
+        <tr>
+          <td><strong>ADR-002</strong></td>
+          <td>Stack: Python 3.12 / FastAPI + React 18 / TypeScript 5 — async SSE-native</td>
+          <td><span class="tag tag-yellow">Proposed</span></td>
+        </tr>
+        <tr>
+          <td><strong>ADR-003</strong></td>
+          <td>PostgreSQL 16 + pgvector — ein Service für relationale Daten, Vektoren &amp; Dokumente</td>
+          <td><span class="tag tag-yellow">Proposed</span></td>
+        </tr>
+        <tr>
+          <td><strong>ADR-004</strong></td>
+          <td>LLM: OpenAI API + LiteLLM — Provider-Wechsel per Konfig (OpenAI ↔ Ollama)</td>
+          <td><span class="tag tag-yellow">Proposed</span></td>
+        </tr>
+        <tr>
+          <td><strong>ADR-005</strong></td>
+          <td>Embedding: text-embedding-3-small / nomic-embed-text — konfigurierbar via LiteLLM</td>
+          <td><span class="tag tag-yellow">Proposed</span></td>
+        </tr>
+        <tr>
+          <td><strong>ADR-006</strong></td>
+          <td>Background Worker: pgqueuer statt Celery + Redis — kein separater Broker</td>
+          <td><span class="tag tag-green">Accepted</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ══ SLIDE 5 · OFFENE FRAGEN ══ -->
+  <section class="slide" id="s5">
+    <h2>Offene Fragen für Tag 2</h2>
+    <div class="oq">
+      <div class="oq-num">01</div>
+      <div class="oq-body">
+        <h3>Konfidenz-Scoring-Mechanismus festlegen</h3>
+        <p>Self-Check: LLM-Selbstevaluation oder semantische Ähnlichkeit? Vorrang-Reihenfolge der drei Unterdrückungsmechanismen definieren. <span class="tag tag-red">Blocker US-02</span></p>
+      </div>
+    </div>
+    <div class="oq">
+      <div class="oq-num">02</div>
+      <div class="oq-body">
+        <h3>Chunking-Strategie entscheiden</h3>
+        <p>Fixed-Size vs. Sentence-Based vs. Semantic Chunking — beeinflusst Retrieval-Qualität direkt. Muss durch Tech Spike vor Sprint 1 beantwortet sein. <span class="tag tag-red">Blocker Tech Spike</span></p>
+      </div>
+    </div>
+    <div class="oq">
+      <div class="oq-num">03</div>
+      <div class="oq-body">
+        <h3>Quellenhervorhebung scope-en</h3>
+        <p>PDF.js im Browser oder reduzierter MVP-Scope («Link öffnet Dokument, kein Highlighting»)? Entscheidung beeinflusst Frontend-Aufwand um 2–3 Wochen. <span class="tag tag-yellow">Risiko MVP-Scope</span></p>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- ── Navigation ── -->
+<nav>
+  <button class="nav-btn" onclick="move(-1)">← Zurück</button>
+  <span id="counter">1 / 5</span>
+  <button class="nav-btn" onclick="move(1)">Weiter →</button>
+</nav>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  let cur = 0;
+
+  function show(n) {
+    slides[cur].classList.remove('active');
+    cur = (n + slides.length) % slides.length;
+    slides[cur].classList.add('active');
+    document.getElementById('counter').textContent = (cur + 1) + ' / ' + slides.length;
+  }
+
+  function move(dir) { show(cur + dir); }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') move(1);
+    if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')                     move(-1);
+  });
+</script>
+</body>
+</html>
