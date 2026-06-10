@@ -90,7 +90,7 @@ Drei Gruppen, abgeleitet aus den NFAs (Schwellen als Spike-kalibrierte Startwert
 |---|---|
 | **Keine formale Eval (nur manuelles Stichproben-Testing)** | Günstig, aber nicht reproduzierbar, nicht CI-fähig und nicht NFA-belegend. Macht die Reliability-NFA unprüfbar — inakzeptabel für das Kernversprechen. |
 | **Reines LLM-as-Judge ohne deterministische Gates** | Bequem, aber die projektkritische 0 %-Halluzinationsmessung würde von Judge-Schwankungen abhängen. Deterministische Citation-/Grounding-Checks sind verlässlicher für das harte Gate. |
-| **Vollständig eigenes Eval-Framework statt RAGAS** | Maximale Kontrolle, aber unnötiger Aufwand bei 360 h Budget — RAGAS deckt die Standard-RAG-Metriken bereits ab. Nur die projektspezifischen Gates werden selbst gebaut. |
+| **Vollständig eigenes Eval-Framework statt RAGAS** | Maximale Kontrolle, aber unnötiger Aufwand bei 360 h Umsetzungsbudget — RAGAS deckt die Standard-RAG-Metriken bereits ab. Nur die projektspezifischen Gates werden selbst gebaut. |
 | **DeepEval / promptfoo / TruLens** | Valide Alternativen mit ähnlichem Funktionsumfang. RAGAS gewählt wegen Fokus auf RAG-Faithfulness-Metriken und guter Python/LiteLLM-Integration; Wechsel bliebe ohne Architekturfolgen möglich. |
 | **Nur Offline-Eval, kein CI-Gate** | Würde Kalibrierung erlauben, aber spätere Regressionen nicht verhindern. Das CI-Gate ist der eigentliche Schutz über die Projektlaufzeit. |
 

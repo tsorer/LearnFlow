@@ -37,7 +37,7 @@ LearnFlow ist eine interne Lernplattform, die neuen Mitarbeitenden erlaubt, Frag
 | User-Management | DB-Script — kein Admin-UI; Felder: username, passwort, Rolle |
 | Authentifizierung | Username / Passwort (lokal); post-MVP SSO via IdP |
 | Rollen | Lernende / Bereichsverantwortlicher / Admin |
-| Budget | 4 Personen × 15 Wochen × 1 Tag/Woche = 480 Stunden |
+| Budget | 480 h gesamt (4 Personen × 15 Wochen × 1 Tag/Woche), davon **360 h Umsetzung** und ~120 h Planung/Analyse/Architektur |
 | Deadline | 30. September 2026 |
 
 ---
