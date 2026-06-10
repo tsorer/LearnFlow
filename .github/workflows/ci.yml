@@ -1,0 +1,43 @@
+name: CI
+
+# Laeuft bei jedem Push auf main und bei jedem Pull Request.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install -r requirements-dev.txt
+      - run: ruff check .
+      - name: mypy (uebersprungen, solange keine .py-Dateien existieren)
+        run: |
+          if find . -name '*.py' | grep -q .; then
+            mypy .
+          else
+            echo "Keine .py-Dateien — mypy uebersprungen."
+          fi
+      - name: pytest (toleriert 'keine Tests')
+        run: pytest || [ $? -eq 5 ]
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm ci
+      - run: npm run check

@@ -1,0 +1,41 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --navy: #0d1f3c;
+  --blue: #2157d3;
+  --blue-lt: #dde8fb;
+  --green: #0d7a55;
+  --green-lt: #d3f2e7;
+  --amber: #b45309;
+  --amber-lt: #fef0d6;
+  --red: #c0392b;
+  --red-lt: #fde8e6;
+  --bg: #ede9e1;
+  --card: #f9f7f3;
+  --border: #e0dbd0;
+  --muted: #8a8278;
+  --text: #1c1a17;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+}
+
+body { font-family: var(--sans); background: var(--bg); color: var(--text); font-size: 14px; }
+
+button {
+  cursor: pointer; border: none; border-radius: 6px;
+  padding: 6px 14px; font-family: var(--sans); font-size: 13px; font-weight: 600;
+  transition: background 0.12s;
+}
+button.primary { background: var(--blue); color: #fff; }
+button.primary:hover { background: #1a46b0; }
+button.secondary { background: var(--card); color: var(--navy); border: 1px solid var(--border); }
+button.secondary:hover { background: var(--blue-lt); }
+button.danger { background: var(--red-lt); color: var(--red); border: 1px solid #fca5a5; }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+input, textarea, select {
+  font-family: var(--sans); font-size: 13px;
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: 7px 10px; background: #fff; color: var(--text); width: 100%;
+  outline: none;
+}
+input:focus, textarea:focus { border-color: var(--blue); box-shadow: 0 0 0 2px var(--blue-lt); }
