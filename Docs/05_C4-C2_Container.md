@@ -28,10 +28,11 @@ C4Container
     Rel(admin, webapp, "Konfidenz- und Stale-Schwellenwerte konfigurieren", "HTTPS")
 
     Rel(webapp, api, "REST-Calls (Q&A als Batch-Response JSON, Login, Upload, Feedback, Quiz)", "HTTPS")
-    Rel(api, db, "Lesen/Schreiben: Users, Dokumente, Config, Feedback, Quiz, Embeddings (Similarity Search)", "SQL · TCP 5432")
-    Rel(api, worker, "Dokument-Job enqueuen nach Upload", "pg_notify · TCP 5432")
+    Rel(api, db, "Lesen/Schreiben: Users, Dokumente, Config, Feedback, Quiz, Embeddings (Similarity Search) + Job-Zeile schreiben", "SQL · TCP 5432")
+    Rel(db, worker, "NOTIFY: Job verfügbar (pgqueuer LISTEN-Verbindung)", "pg_notify · TCP 5432")
     Rel(worker, db, "Chunks + Embeddings schreiben, HNSW-Index aufbauen", "SQL · TCP 5432")
     Rel(api, openai, "LLM-Prompts (Antwort-Generierung, Self-Check, Quiz-Generierung) + Embedding-Anfragen", "HTTPS/REST via LiteLLM (MVP: OpenAI Direct, Prod: Azure EU)")
+    Rel(worker, openai, "Embedding-Anfragen (Dokument-Chunks beim Processing)", "HTTPS/REST via LiteLLM")
     Rel(api, idp, "SSO-Auth + Rollen-Sync (Post-MVP)", "SAML 2.0")
 
     UpdateLayoutConfig($c4ShapeInRow="2", $c4BoundaryInRow="1")
@@ -72,9 +73,11 @@ C4Container
 | Browser (Lara/Stefan/Admin) | Web App | HTML/JS/CSS ausliefern | HTTPS |
 | Web App | API Server | REST-Calls (Q&A Batch-Response JSON, Login, Upload, Feedback, Quiz) | HTTPS |
 | API Server | Datenbank | Lesen/Schreiben: Users, Dokumente, Config, Feedback, Quiz-Fragen; Similarity Search (Embeddings) | SQL · TCP 5432 |
-| API Server | Background Worker | Dokument-Job nach Upload enqueuen (Dokument-ID, Bereich) | pg_notify · TCP 5432 |
+| API Server | Datenbank | Job-Zeile schreiben + pg_notify auslösen (nach Upload) | SQL · TCP 5432 |
+| Datenbank | Background Worker | NOTIFY: Job verfügbar — PostgreSQL liefert an pgqueuer LISTEN-Verbindung | pg_notify · TCP 5432 |
 | Background Worker | Datenbank | Chunks + Embeddings schreiben; HNSW-Index aufbauen | SQL · TCP 5432 |
 | API Server | LLM-Provider (via LiteLLM) | LLM-Prompts (Antwort, Self-Check, Quiz-Generierung) + Embedding-Anfragen — MVP: OpenAI Direct, Prod: Azure OpenAI EU | HTTPS/REST |
+| Background Worker | LLM-Provider (via LiteLLM) | Embedding-Anfragen für Dokument-Chunks beim Processing | HTTPS/REST |
 | API Server | Unternehmens-IdP | SSO-Authentifizierung + Rollen-Sync *(Post-MVP)* | SAML 2.0 |
 
 ---

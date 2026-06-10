@@ -15,7 +15,7 @@ LearnFlow ist eine interne RAG-Lernplattform für neue Mitarbeitende. Neue Mitar
 | Rang | QA | Kernforderung |
 |---|---|---|
 | 1 | **Reliability** | Halluzinationsrate = 0 %; Out-of-Corpus-Erkennung ≥ 90 % „Weiss ich nicht"; Retrieval-Gate + mehrschichtiger Unterdrückungsmechanismus (Quellenprüfung → Konfidenz-Score → Self-Check); CI-Regressionsgate |
-| 2 | **Security** | DSGVO — bei echten internen Dokumenten bleibt die Verarbeitung in der EU (Azure OpenAI EU); im MVP keine echten internen Dokumente, daher OpenAI Direct zulässig. JWT + bcrypt; RBAC (User / Admin); Pseudonymisierung von Feedback und Query-Logs; SSO nachrüstbar (Post-MVP). **DSGVO-Löschantrag-Workflow und Aufbewahrungsfristen → Post-MVP** (Entscheid 2026-06-04; Pilot < 30 interne Nutzer, kein produktiver Betrieb). |
+| 2 | **Security** | DSGVO — bei echten internen Dokumenten bleibt die Verarbeitung in der EU (Azure OpenAI EU); im MVP keine echten internen Dokumente, daher OpenAI Direct zulässig. JWT + bcrypt; RBAC (3 Rollen: `learner` / `knowledge_owner` / `admin`); Pseudonymisierung von Feedback und Query-Logs; SSO nachrüstbar (Post-MVP). **POC: Fixer Userkreis (4–6 Personen), kein Registration-Flow, kein Password-Reset-UI.** User-Anlage via `seed_users.py` — schreibt bcrypt-Hashes direkt in die `users`-Tabelle; Passwort-Änderung = neuer Seed-Lauf. **DSGVO-Löschantrag-Workflow und Aufbewahrungsfristen → Post-MVP** (Entscheid 2026-06-04; Pilot < 30 interne Nutzer, kein produktiver Betrieb). |
 | 3 | **Maintainability** | Schwellenwerte in DB ohne Code-Deployment änderbar; LLM-Provider-Wechsel per Konfiguration (LiteLLM); modulare RAG-Komponenten; Budget-kritisch: 360 h total |
 
 ---
@@ -44,7 +44,8 @@ LearnFlow ist eine interne RAG-Lernplattform für neue Mitarbeitende. Neue Mitar
 **Kommunikation:**
 - Web App → API Server: REST (HTTPS, Batch-Response JSON) — synchron
 - API Server → Datenbank: SQL via asyncpg (TCP 5432) — synchron
-- API Server → Background Worker: pg_notify (TCP 5432) — asynchron
+- API Server → Datenbank: SQL INSERT Job-Zeile + pg_notify auslösen (TCP 5432) — synchron
+- Datenbank → Background Worker: pg_notify NOTIFY-Delivery an pgqueuer LISTEN-Verbindung — asynchron
 - Background Worker → Datenbank: SQL (TCP 5432) — synchron
 - API Server → LLM-Provider (via LiteLLM): HTTPS — synchron mit Circuit Breaker (MVP: OpenAI Direct, Prod: Azure OpenAI EU)
 
@@ -139,7 +140,7 @@ Parsing (pypdf/python-docx) → **struktur-bewusstes Chunking** (Überschrift > 
 
 2. **Chunking- und Retrieval-Parameter entscheiden** — Chunk-Grösse (256/512/1024), Overlap, Similarity-Schwelle, Citation-Coverage, Top-`k`/`n`, RRF-`k` sind Hypothesen (ADR-007/008) und müssen vor Sprint 1 durch Tech Spike kalibriert werden.
 
-3. **Quellenhervorhebung scope-en** — PDF.js im Browser oder reduzierter MVP-Scope («Link öffnet Dokument, kein Highlighting»)? Entscheidung beeinflusst Frontend-Aufwand um 2–3 Wochen.
+3. ~~**Quellenhervorhebung scope-en**~~ — ✅ **Gelöst (2026-06-03):** MVP: Link auf Dokument + Seitenangabe. PDF.js-Highlighting → Post-MVP. Frontend-Aufwand entsprechend reduziert.
 
 4. **Produktions-Embedding-Modell bestätigen** — `text-embedding-3-small` vs. `-large` vs. dediziert multilingual auf echten deutschen Fachtexten messen (inkl. HNSW-2000-Dim-Constraint, ADR-005).
 

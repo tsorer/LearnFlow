@@ -1,0 +1,28 @@
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+
+# Database
+asyncpg>=0.29.0
+sqlalchemy[asyncio]>=2.0.0
+alembic>=1.13.0
+pgvector>=0.3.0
+
+# Auth
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+python-multipart>=0.0.9
+
+# LLM / Embeddings
+litellm>=1.40.0
+openai>=1.40.0
+
+# Background worker
+pgqueuer>=0.14.0
+
+# Document parsing
+pypdf>=4.0.0
+python-docx>=1.0.0
+
+# Config
+pydantic-settings>=2.3.0
+python-dotenv>=1.0.0
