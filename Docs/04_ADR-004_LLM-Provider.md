@@ -50,7 +50,7 @@ Wir verwenden **LiteLLM** als Abstraktions-Layer und stufen den Provider nach Da
 
 - **−** **Zwingende Umstellung vor Produktivdaten:** OpenAI Direct verarbeitet Daten auf US-Servern. Wird die Umstellung auf Azure OpenAI EU vor dem ersten echten internen Dokument vergessen, entsteht ein Compliance-Verstoss. **Mitigation:** harte Vorbedingung im Go-Live-Checklist; optional ein Guard, der bei als „intern/produktiv" markiertem Korpus einen Nicht-EU-Provider ablehnt.
 - **−** Der Azure-Setup-Aufwand (Subscription, Modell-Deployment, ggf. Quota-Genehmigung, Grössenordnung 2–4 Wochen) verschiebt sich nur — er muss rechtzeitig **vor** dem Produktivbetrieb mit echten Daten eingeplant werden, nicht erst bei Bedarf.
-- **−** Laufende API-Kosten pro Anfrage. Für < 30 Pilotnutzer überschaubar, aber nicht im 360 h Personalbudget enthalten.
+- **−** Laufende API-Kosten pro Anfrage. Für < 30 Pilotnutzer überschaubar, aber nicht im 360 h Umsetzungsbudget enthalten.
 - **−** Bei Provider-Ausfall kein automatisches Failover. Mitigation: LiteLLM-Fallback (z. B. auf Ollama) konfigurierbar; für den Pilot reicht eine kontrollierte Fehlermeldung (Reliability-NFA).
 
 ---

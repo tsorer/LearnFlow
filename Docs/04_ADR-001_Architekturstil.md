@@ -10,7 +10,7 @@
 
 ## Kontext
 
-LearnFlow ist ein interner Pilot für einen einzigen Bereich mit maximal 30 gleichzeitigen Nutzern und einem Gesamtbudget von 360 Personenstunden. Microservices erfordern Service Discovery, Netzwerk-Mesh und separate Deployment-Pipelines pro Service — ein Overhead, der bei diesem Budget und dieser Nutzerzahl nicht zu rechtfertigen ist. Die Maintainability-NFA verlangt klare Modul-Grenzen (Konfiguration ohne Code-Deployment, austauschbare RAG-Komponenten), ohne dass dafür ein verteiltes System nötig wäre.
+LearnFlow ist ein interner Pilot für einen einzigen Bereich mit maximal 30 gleichzeitigen Nutzern und einem Umsetzungsbudget von 360 Personenstunden (von 480 h gesamt; ~120 h für Planung/Analyse/Architektur). Microservices erfordern Service Discovery, Netzwerk-Mesh und separate Deployment-Pipelines pro Service — ein Overhead, der bei diesem Budget und dieser Nutzerzahl nicht zu rechtfertigen ist. Die Maintainability-NFA verlangt klare Modul-Grenzen (Konfiguration ohne Code-Deployment, austauschbare RAG-Komponenten), ohne dass dafür ein verteiltes System nötig wäre.
 
 ---
 

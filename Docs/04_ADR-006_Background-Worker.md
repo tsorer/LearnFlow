@@ -14,7 +14,7 @@ US-04 verlangt, dass Dokumente nach dem Upload innerhalb von 5 Minuten als Quell
 
 ADR-001 hat einen modularen Monolithen mit einem einzigen Deployment-Artefakt als Ziel definiert. ADR-002 nannte Celery + Redis als Mitigation für persistente Jobs — ohne diesen Widerspruch zu ADR-001 explizit aufzulösen. Der ADR-Review hat diesen Konflikt als offene Entscheidung mit hoher Priorität markiert.
 
-LearnFlow hat genau **einen Job-Typ**: ein Dokument verarbeiten. Das Volumen ist gering (< 30 Pilotnutzer, 1 Bereich). Betriebskomplexität ist teuer bei 360 h Gesamtbudget.
+LearnFlow hat genau **einen Job-Typ**: ein Dokument verarbeiten. Das Volumen ist gering (< 30 Pilotnutzer, 1 Bereich). Betriebskomplexität ist teuer bei 360 h Umsetzungsbudget.
 
 ---
 

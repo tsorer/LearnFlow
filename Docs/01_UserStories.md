@@ -6,9 +6,13 @@
 - US-04: Dokumente werden sofort mit dem Upload aktiv – kein separater Freigabeschritt.
 - US-11: Neue Story «Minimale Adminverwaltung» (SHOULD) – schliesst die Lücken User-Management und Systemkonfiguration aus US-02, US-05 und US-06.
 
+**Änderungen (Entscheide 2026-06-10):**
+- **Rollenmodell: drei Rollen** — Lernende (Lara) und Bereichsverantwortlicher (Stefan) als Anwender plus Administrator (arbeitet im Hintergrund: Systemkonfiguration). Hebt die frühere Zusammenfassung zu „User/Admin" auf.
+- **Budget:** 360 h stehen für die **Umsetzung** zur Verfügung (von 480 h gesamt; die übrigen ~120 h für Planung/Analyse/Architektur).
+
 **Änderungen gegenüber v3 (Entscheide 2026-05-20):**
 - MVP-Constraint: genau **ein Bereich** (Pilot-Bereich, hartcodiert).
-- User-Management: kein Admin-UI — Accounts werden per **DB-Script** angelegt (Felder: username, passwort, Rolle: User / Admin). US-11 entfällt als Abhängigkeit für US-05.
+- User-Management: kein Admin-UI — Accounts werden per **DB-Script** angelegt (Felder: username, passwort, Rolle: Lernende / Bereichsverantwortlicher / Admin). US-11 entfällt als Abhängigkeit für US-05.
 - US-11: auf reine Systemkonfiguration reduziert (Konfidenz- und Stale-Schwellenwert); kein User-Management mehr im Scope.
 - US-06: **Post-MVP** — Stale-Content-Erkennung inkl. E-Mail-Report wird nicht im MVP umgesetzt. SMTP-Provider-Entscheid entfällt damit als Blocker. US-11-Abhängigkeit (Stale-Schwellenwert) bleibt erhalten, da der Wert künftig benötigt wird.
 
@@ -19,10 +23,10 @@
 | Constraint | Wert |
 |---|---|
 | Anzahl Bereiche | **1** (Pilot-Bereich, hartcodiert) |
-| User-Management | **DB-Script** — kein Admin-UI; Felder: username, passwort, Rolle (User / Admin) |
+| User-Management | **DB-Script** — kein Admin-UI; Felder: username, passwort, Rolle (Lernende / Bereichsverantwortlicher / Admin) |
 | Systemkonfiguration | **DB-Script** — Konfidenz- und Stale-Schwellenwert direkt in DB änderbar; alternativ via Admin-Seite (US-11) |
 | Authentifizierung | Username / Passwort (lokal); post-MVP SSO via IdP |
-| Rollen | User (Lernende + Bereichsverantwortliche zusammengefasst) / Admin |
+| Rollen | **Lernende** (Anwender: fragen, Feedback, Quiz) / **Bereichsverantwortlicher** (Anwender + Dokumente & Quiz verwalten) / **Admin** (Systemkonfiguration im Hintergrund) |
 
 ---
 
@@ -89,7 +93,8 @@
 
 **Akzeptanzkriterien:**
 - ✓ Stefan kann Dokumente in den Formaten PDF, Word (.docx) und Markdown hochladen.
-- ✓ Dokumente bis 50 Seiten / 10 MB sind nach maximal 5 Minuten als Quelle verfügbar; grössere Dokumente erhalten eine Fortschrittsanzeige.
+- ✓ Maximale Dateigrösse **10 MB** (hartes Limit, serverseitig durchgesetzt); grössere Dateien werden mit einem verständlichen Hinweis abgewiesen.
+- ✓ Dokumente bis 50 Seiten / 10 MB sind nach maximal 5 Minuten als Quelle verfügbar; während der Verarbeitung wird eine Fortschrittsanzeige gezeigt.
 - ✓ Eine neue Version (gleicher Dateiname) ersetzt automatisch das bestehende Dokument.
 - ✓ Stefan kann ein Dokument jederzeit löschen.
 - ✓ Hochgeladene Dokumente erhalten einen Zeitstempel, der für Lara sichtbar ist.
@@ -105,11 +110,11 @@
 *Als Plattformnutzerin möchte ich mich sicher anmelden können und automatisch den Bereich sehen, dem ich zugeordnet bin, damit nur autorisierte Mitarbeitende Zugang zur Plattform und zu den relevanten Inhalten haben.*
 
 **Akzeptanzkriterien:**
-- ✓ MVP: Authentifizierung per Username/Passwort; Accounts werden per DB-Script angelegt (Felder: username, passwort, Rolle: User / Admin) – keine Self-Service-Registrierung.
+- ✓ MVP: Authentifizierung per Username/Passwort; Accounts werden per DB-Script angelegt (Felder: username, passwort, Rolle: Lernende / Bereichsverantwortlicher / Admin) – keine Self-Service-Registrierung.
 - ✓ Post-MVP: SSO-Anbindung via Unternehmens-IdP (z. B. Azure AD / SAML 2.0) geplant.
 - ✓ Nicht authentifizierte Nutzer werden auf die Login-Seite weitergeleitet.
 - ✓ MVP: Nach dem Login sieht jede Person den Pilot-Bereich (genau ein Bereich, hartcodiert).
-- ✓ Rollen (User / Admin) werden beim Account-Anlegen im DB-Script gesetzt; post-MVP aus dem IdP übernommen.
+- ✓ Rollen (Lernende / Bereichsverantwortlicher / Admin) werden beim Account-Anlegen im DB-Script gesetzt; post-MVP aus dem IdP übernommen.
 
 ---
 
