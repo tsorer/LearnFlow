@@ -93,7 +93,8 @@
 
 **Akzeptanzkriterien:**
 - ✓ Stefan kann Dokumente in den Formaten PDF, Word (.docx) und Markdown hochladen.
-- ✓ Dokumente bis 50 Seiten / 10 MB sind nach maximal 5 Minuten als Quelle verfügbar; grössere Dokumente erhalten eine Fortschrittsanzeige.
+- ✓ Maximale Dateigrösse **10 MB** (hartes Limit, serverseitig durchgesetzt); grössere Dateien werden mit einem verständlichen Hinweis abgewiesen.
+- ✓ Dokumente bis 50 Seiten / 10 MB sind nach maximal 5 Minuten als Quelle verfügbar; während der Verarbeitung wird eine Fortschrittsanzeige gezeigt.
 - ✓ Eine neue Version (gleicher Dateiname) ersetzt automatisch das bestehende Dokument.
 - ✓ Stefan kann ein Dokument jederzeit löschen.
 - ✓ Hochgeladene Dokumente erhalten einen Zeitstempel, der für Lara sichtbar ist.
