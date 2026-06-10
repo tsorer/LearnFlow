@@ -64,7 +64,7 @@ Antwort mit echter Quellenangabe ist unsichtbar und bricht das Vertrauen irrepar
 
 ### 5. Akzeptanzkriterien erfüllt und einmal manuell durchgespielt
 
-**Überprüfbar:** AKs der Story aus `Docs/07_Backlog.md` abgehakt; Feature einmal im
+**Überprüfbar:** Alle Akzeptanzkriterien der Story abgehakt; Feature einmal im
 laufenden System ausgeführt.
 
 **Warum:** Grüne Tests heißen nicht „macht das Richtige". Ein manueller Durchlauf des
