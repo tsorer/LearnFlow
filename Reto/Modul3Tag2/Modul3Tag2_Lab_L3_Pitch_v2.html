@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LearnFlow — Architecture Pitch v2</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #0f1117;
+    color: #e8eaf0;
+    height: 100vh;
+    overflow: hidden;
+    user-select: none;
+  }
+  .deck { width: 100vw; height: 100vh; position: relative; }
+  .slide {
+    position: absolute; inset: 0;
+    display: none; flex-direction: column;
+    padding: 52px 72px 80px;
+  }
+  .slide.active { display: flex; }
+
+  /* ── Slide themes ── */
+  .s-cover  { background: linear-gradient(140deg,#141929 0%,#0f1117 55%); justify-content: center; }
+  .s-plain  { background: #13151f; }
+  .s-risk   { background: #140f0f; }
+  .s-close  { background: linear-gradient(140deg,#0d1a10 0%,#0f1117 55%); justify-content: center; }
+
+  /* ── Cover ── */
+  .tag { font-size:11px; letter-spacing:3px; text-transform:uppercase; color:#4ade80; margin-bottom:20px; font-weight:700; }
+  .cover-h { font-size:58px; font-weight:800; color:#fff; line-height:1.05; margin-bottom:18px; }
+  .cover-h span { color:#4ade80; }
+  .cover-sub { font-size:18px; color:#6b7a96; max-width:600px; line-height:1.65; margin-bottom:44px; }
+  .meta-row { display:flex; gap:32px; }
+  .meta { font-size:13px; color:#3d4a60; }
+  .meta strong { color:#6b7a96; display:block; margin-bottom:2px; }
+
+  /* ── Slide header ── */
+  .sh { display:flex; align-items:center; gap:14px; margin-bottom:32px; }
+  .snum {
+    width:34px; height:34px; border-radius:50%;
+    background:#4ade80; color:#0f1117;
+    font-size:13px; font-weight:800;
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  }
+  .snum.b { background:#60a5fa; }
+  .snum.o { background:#fb923c; }
+  .snum.r { background:#f87171; }
+  .snum.p { background:#a78bfa; }
+  .stitle { font-size:26px; font-weight:700; color:#fff; }
+  .smin { margin-left:auto; font-size:11px; color:#3d4a60; background:#1a1d2a; padding:4px 12px; border-radius:20px; font-weight:700; letter-spacing:1px; }
+
+  /* ── System slide ── */
+  .oneliner {
+    background:#1a1d2a; border-left:4px solid #4ade80; border-radius:8px;
+    padding:24px 28px; font-size:21px; line-height:1.55; color:#e8eaf0;
+    font-style:italic; margin-bottom:24px;
+  }
+  .oneliner strong { color:#4ade80; font-style:normal; }
+  .row2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .box { background:#1a1d2a; border-radius:10px; padding:20px 22px; }
+  .box-label { font-size:10px; letter-spacing:2px; text-transform:uppercase; color:#4ade80; font-weight:700; margin-bottom:8px; }
+  .box-text { font-size:14px; color:#9aa3b8; line-height:1.6; }
+
+  /* ── C2 Diagram ── */
+  .diagram-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .diagram-wrap svg { max-width:100%; max-height:100%; }
+
+  /* ── ADR slide ── */
+  .adr-main {
+    background:#1a1d2a; border-radius:10px; padding:22px 26px; margin-bottom:18px;
+  }
+  .adr-chip { font-size:10px; letter-spacing:2px; text-transform:uppercase; color:#fb923c; font-weight:700; margin-bottom:10px; }
+  .adr-h { font-size:21px; font-weight:700; color:#fff; margin-bottom:10px; line-height:1.3; }
+  .adr-body { font-size:14px; color:#9aa3b8; line-height:1.65; }
+  .adr-body strong { color:#fb923c; }
+  .quote-box {
+    background:#1e1610; border-left:3px solid #fb923c; border-radius:8px;
+    padding:18px 22px;
+  }
+  .quote-label { font-size:10px; letter-spacing:2px; text-transform:uppercase; color:#fb923c; font-weight:700; margin-bottom:8px; }
+  .quote-text { font-size:15px; color:#c8d0dc; font-style:italic; line-height:1.6; }
+
+  /* ── Risk slide ── */
+  .risk-top { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:16px; }
+  .risk-card {
+    border-radius:10px; padding:18px 20px;
+  }
+  .rc-red  { background:#1e1212; border-left:3px solid #f87171; }
+  .rc-ora  { background:#1e1510; border-left:3px solid #fb923c; }
+  .rc-grn  { background:#101a12; border-left:3px solid #4ade80; }
+  .rc-label { font-size:10px; letter-spacing:2px; text-transform:uppercase; font-weight:700; margin-bottom:6px; }
+  .lbl-red { color:#f87171; }
+  .lbl-ora { color:#fb923c; }
+  .lbl-grn { color:#4ade80; }
+  .rc-title { font-size:14px; font-weight:700; color:#fff; margin-bottom:5px; }
+  .rc-text { font-size:13px; color:#7a8494; line-height:1.5; }
+
+  .open-section { margin-top:4px; }
+  .open-label { font-size:10px; letter-spacing:2px; text-transform:uppercase; color:#a78bfa; font-weight:700; margin-bottom:10px; }
+  .open-row { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+  .open-item {
+    background:#16131e; border-radius:8px; padding:12px 14px;
+    border-top:2px solid #a78bfa; font-size:13px; color:#9aa3b8; line-height:1.45;
+  }
+
+  /* ── Close ── */
+  .close-h { font-size:44px; font-weight:800; color:#fff; margin-bottom:12px; }
+  .close-h span { color:#4ade80; }
+  .close-sub { font-size:17px; color:#6b7a96; margin-bottom:40px; }
+  .badges { display:flex; gap:10px; flex-wrap:wrap; }
+  .badge { background:#1a1d2a; border-radius:6px; padding:8px 14px; font-size:12px; color:#6b7a96; font-family:monospace; }
+  .badge.g { background:#0d1f10; color:#4ade80; }
+
+  /* ── Nav ── */
+  .nav {
+    position:fixed; bottom:24px; left:0; right:0;
+    display:flex; align-items:center; justify-content:center; gap:20px; z-index:100;
+  }
+  .nbtn {
+    background:#1a1d2a; border:1px solid #252a3a; color:#6b7a96;
+    padding:9px 22px; border-radius:8px; cursor:pointer; font-size:13px; transition:.15s;
+  }
+  .nbtn:hover { background:#252a3a; color:#fff; }
+  .nbtn:disabled { opacity:.3; cursor:default; }
+  .dots { display:flex; gap:7px; align-items:center; }
+  .dot { width:7px; height:7px; border-radius:50%; background:#252a3a; cursor:pointer; transition:.2s; }
+  .dot.active { background:#4ade80; width:22px; border-radius:4px; }
+  .hint { position:fixed; top:18px; right:22px; font-size:11px; color:#252a3a; }
+</style>
+</head>
+<body>
+<div class="deck">
+
+<!-- ─── SLIDE 1: COVER ─── -->
+<div class="slide s-cover active">
+  <div class="tag">Architecture Pitch · 5 Minuten · Modul 3 Tag 2</div>
+  <div class="cover-h">Learn<span>Flow</span></div>
+  <div class="cover-sub">Neue Mitarbeitende erhalten quellenbelegte Antworten auf Fachfragen — sofort, ohne jemanden zu unterbrechen.</div>
+  <div class="meta-row">
+    <div class="meta"><strong>Team</strong>Frank · Niklaus · Reto</div>
+    <div class="meta"><strong>MVP-Deadline</strong>30. September 2026</div>
+    <div class="meta"><strong>Budget</strong>~360 h · 3 Monate</div>
+    <div class="meta"><strong>Pilot</strong>&lt; 30 Nutzer · Single Instance</div>
+  </div>
+</div>
+
+<!-- ─── SLIDE 2: DAS SYSTEM ─── -->
+<div class="slide s-plain">
+  <div class="sh">
+    <div class="snum">1</div>
+    <div class="stitle">Das System</div>
+    <div class="smin">MIN 1</div>
+  </div>
+  <div class="oneliner">
+    LearnFlow ersetzt das <strong>«Frag mal Stefan»-Problem</strong>: neue Mitarbeitende erhalten quellenbelegte Antworten auf Fachfragen — sofort, ohne jemanden zu unterbrechen.
+  </div>
+  <div class="row2">
+    <div class="box">
+      <div class="box-label">Problem</div>
+      <div class="box-text">Neues Personal unterbricht erfahrene Kolleg:innen ständig — oder macht Fehler mangels Wissen. Fachprozesse liegen in PDFs die niemand findet.</div>
+    </div>
+    <div class="box">
+      <div class="box-label">Lösung</div>
+      <div class="box-text">RAG-Plattform: Lara fragt in natürlicher Sprache. LearnFlow durchsucht den kuratierten Wissenskorpus und antwortet quellenbelegt — oder «Weiss ich nicht».</div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── SLIDE 3: C2 DIAGRAM ─── -->
+<div class="slide s-plain">
+  <div class="sh">
+    <div class="snum b">2</div>
+    <div class="stitle">C2 Container Diagram</div>
+    <div class="smin">MIN 2</div>
+  </div>
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 860 420" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;">
+      <defs>
+        <marker id="arr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <polygon points="0 0,8 3,0 6" fill="#3d4a60"/>
+        </marker>
+        <marker id="arr-g" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <polygon points="0 0,8 3,0 6" fill="#4ade80"/>
+        </marker>
+        <marker id="arr-o" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <polygon points="0 0,8 3,0 6" fill="#fb923c"/>
+        </marker>
+      </defs>
+
+      <!-- ── Personas (left) ── -->
+      <!-- Lara -->
+      <circle cx="60" cy="110" r="22" fill="none" stroke="#4ade80" stroke-width="1.5"/>
+      <text x="60" y="114" text-anchor="middle" fill="#4ade80" font-size="18">👤</text>
+      <text x="60" y="148" text-anchor="middle" fill="#4ade80" font-size="11" font-weight="700">Lara</text>
+      <text x="60" y="162" text-anchor="middle" fill="#3d4a60" font-size="9">Lernende</text>
+
+      <!-- Stefan -->
+      <circle cx="60" cy="240" r="22" fill="none" stroke="#60a5fa" stroke-width="1.5"/>
+      <text x="60" y="244" text-anchor="middle" fill="#60a5fa" font-size="18">👤</text>
+      <text x="60" y="278" text-anchor="middle" fill="#60a5fa" font-size="11" font-weight="700">Stefan</text>
+      <text x="60" y="292" text-anchor="middle" fill="#3d4a60" font-size="9">Bereichsverantw.</text>
+
+      <!-- Admin -->
+      <circle cx="60" cy="360" r="22" fill="none" stroke="#a78bfa" stroke-width="1.5"/>
+      <text x="60" y="364" text-anchor="middle" fill="#a78bfa" font-size="18">👤</text>
+      <text x="60" y="398" text-anchor="middle" fill="#a78bfa" font-size="11" font-weight="700">Admin</text>
+
+      <!-- ── LearnFlow boundary ── -->
+      <rect x="130" y="20" width="580" height="380" rx="12" fill="none" stroke="#252a3a" stroke-width="1.5" stroke-dasharray="6,4"/>
+      <text x="150" y="44" fill="#3d4a60" font-size="10" letter-spacing="2">LEARNFLOW</text>
+
+      <!-- ── Web App ── -->
+      <rect x="155" y="60" width="160" height="90" rx="8" fill="#1a1d2a" stroke="#4ade80" stroke-width="1.5"/>
+      <text x="235" y="88" text-anchor="middle" fill="#4ade80" font-size="12" font-weight="700">Web App</text>
+      <text x="235" y="104" text-anchor="middle" fill="#6b7a96" font-size="10">React 18 / TypeScript</text>
+      <text x="235" y="118" text-anchor="middle" fill="#6b7a96" font-size="10">Vite · Nginx</text>
+      <text x="235" y="134" text-anchor="middle" fill="#3d4a60" font-size="9">SPA · Batch-Response JSON</text>
+
+      <!-- ── API Server ── -->
+      <rect x="360" y="60" width="180" height="110" rx="8" fill="#1a1d2a" stroke="#60a5fa" stroke-width="1.5"/>
+      <text x="450" y="88" text-anchor="middle" fill="#60a5fa" font-size="12" font-weight="700">API Server</text>
+      <text x="450" y="104" text-anchor="middle" fill="#6b7a96" font-size="10">Python 3.13 / FastAPI</text>
+      <text x="450" y="118" text-anchor="middle" fill="#6b7a96" font-size="10">ASGI · JWT/RBAC</text>
+      <text x="450" y="132" text-anchor="middle" fill="#3d4a60" font-size="9">RAG-Pipeline · ADR-008</text>
+      <text x="450" y="145" text-anchor="middle" fill="#3d4a60" font-size="9">LiteLLM · Konfidenz-Check</text>
+
+      <!-- ── Background Worker ── -->
+      <rect x="360" y="220" width="180" height="90" rx="8" fill="#1a1d2a" stroke="#fb923c" stroke-width="1.5"/>
+      <text x="450" y="248" text-anchor="middle" fill="#fb923c" font-size="12" font-weight="700">Background Worker</text>
+      <text x="450" y="264" text-anchor="middle" fill="#6b7a96" font-size="10">pgqueuer</text>
+      <text x="450" y="278" text-anchor="middle" fill="#3d4a60" font-size="9">Parsing → Chunking</text>
+      <text x="450" y="292" text-anchor="middle" fill="#3d4a60" font-size="9">Embedding → pgvector</text>
+
+      <!-- ── Datenbank ── -->
+      <rect x="600" y="130" width="180" height="130" rx="8" fill="#1a1d2a" stroke="#a78bfa" stroke-width="1.5"/>
+      <text x="690" y="158" text-anchor="middle" fill="#a78bfa" font-size="12" font-weight="700">Datenbank</text>
+      <text x="690" y="175" text-anchor="middle" fill="#6b7a96" font-size="10">PostgreSQL 17 + pgvector</text>
+      <text x="690" y="192" text-anchor="middle" fill="#3d4a60" font-size="9">Relational · Vektor (HNSW)</text>
+      <text x="690" y="206" text-anchor="middle" fill="#3d4a60" font-size="9">Volltext (GIN) · bytea</text>
+      <text x="690" y="220" text-anchor="middle" fill="#3d4a60" font-size="9">max. 10 MB · config-Tabelle</text>
+      <text x="690" y="236" text-anchor="middle" fill="#3d4a60" font-size="9">Ein Backup · Ein Service</text>
+      <text x="690" y="250" text-anchor="middle" fill="#f87171" font-size="9">⚠ kein Replica (MVP)</text>
+
+      <!-- ── LLM extern ── -->
+      <rect x="600" y="300" width="180" height="80" rx="8" fill="#111420" stroke="#3d4a60" stroke-width="1.5" stroke-dasharray="5,3"/>
+      <text x="690" y="328" text-anchor="middle" fill="#6b7a96" font-size="12" font-weight="700">LLM Provider</text>
+      <text x="690" y="344" text-anchor="middle" fill="#3d4a60" font-size="9">MVP: OpenAI Direct</text>
+      <text x="690" y="358" text-anchor="middle" fill="#3d4a60" font-size="9">Prod: Azure OpenAI EU</text>
+      <text x="690" y="372" text-anchor="middle" fill="#3d4a60" font-size="9">via LiteLLM</text>
+
+      <!-- ── Arrows: Personas → Web App ── -->
+      <line x1="82" y1="110" x2="150" y2="110" stroke="#4ade80" stroke-width="1.2" marker-end="url(#arr-g)"/>
+      <line x1="82" y1="248" x2="150" y2="130" stroke="#60a5fa" stroke-width="1.2" marker-end="url(#arr)"/>
+      <line x1="82" y1="360" x2="150" y2="145" stroke="#a78bfa" stroke-width="1.2" marker-end="url(#arr)"/>
+
+      <!-- ── Web App → API Server ── -->
+      <line x1="315" y1="105" x2="355" y2="105" stroke="#4ade80" stroke-width="1.5" marker-end="url(#arr-g)"/>
+      <text x="335" y="97" text-anchor="middle" fill="#3d4a60" font-size="9">REST HTTPS</text>
+      <!-- return arrow -->
+      <line x1="355" y1="120" x2="315" y2="120" stroke="#3d4a60" stroke-width="1" marker-end="url(#arr)"/>
+      <text x="335" y="135" text-anchor="middle" fill="#3d4a60" font-size="9">Batch JSON</text>
+
+      <!-- ── API Server → DB ── -->
+      <line x1="540" y1="115" x2="598" y2="175" stroke="#a78bfa" stroke-width="1.2" marker-end="url(#arr)"/>
+      <text x="578" y="140" fill="#3d4a60" font-size="9">SQL asyncpg</text>
+
+      <!-- ── API Server → Worker (pg_notify) ── -->
+      <line x1="450" y1="170" x2="450" y2="218" stroke="#fb923c" stroke-width="1.2" stroke-dasharray="5,3" marker-end="url(#arr-o)"/>
+      <text x="460" y="200" fill="#3d4a60" font-size="9">pg_notify</text>
+
+      <!-- ── Worker → DB ── -->
+      <line x1="540" y1="265" x2="598" y2="230" stroke="#a78bfa" stroke-width="1.2" marker-end="url(#arr)"/>
+      <text x="582" y="258" fill="#3d4a60" font-size="9">SQL</text>
+
+      <!-- ── API Server → LLM ── -->
+      <line x1="540" y1="150" x2="598" y2="330" stroke="#3d4a60" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arr)"/>
+      <text x="600" y="290" fill="#3d4a60" font-size="9">HTTPS</text>
+    </svg>
+  </div>
+</div>
+
+<!-- ─── SLIDE 4: WICHTIGSTES ADR ─── -->
+<div class="slide s-plain">
+  <div class="sh">
+    <div class="snum o">3</div>
+    <div class="stitle">Wichtigstes ADR — Modularer Monolith</div>
+    <div class="smin">MIN 3</div>
+  </div>
+  <div class="adr-main">
+    <div class="adr-chip">ADR-001 · Accepted</div>
+    <div class="adr-h">Modularer Monolith statt Microservices</div>
+    <div class="adr-body">
+      <strong>3 Devs · 360 h · &lt; 30 Nutzer.</strong> Microservices kosten +80–120 h reine Infrastruktur (Service Discovery, separate CI/CD, verteiltes Tracing) — Budget das wir in RAG-Qualität stecken.<br><br>
+      Modul-Grenzen technisch durchgesetzt: <strong>import-linter als CI-Gate</strong> — kein direkter DB-Aufruf über Modul-Grenzen. Stateless-Design hält Post-MVP-Scaling offen.
+    </div>
+  </div>
+  <div class="quote-box">
+    <div class="quote-label">Auf «Warum nicht Microservices?»</div>
+    <div class="quote-text">«Netflix und Uber haben auch als Monolith angefangen. Microservices kommen wenn der Schmerz gross genug ist — nicht vorbeugend bei 30 Nutzern und 360 h Budget.»</div>
+  </div>
+</div>
+
+<!-- ─── SLIDE 5: RISIKEN ─── -->
+<div class="slide s-risk">
+  <div class="sh">
+    <div class="snum r">4</div>
+    <div class="stitle">Grösstes Risiko — Umsetzungssicht</div>
+    <div class="smin">MIN 4</div>
+  </div>
+  <div class="risk-top">
+    <div class="risk-card rc-red">
+      <div class="rc-label lbl-red">🔴 Grösstes Umsetzungsrisiko</div>
+      <div class="rc-title">Tech Spike schlägt fehl</div>
+      <div class="rc-text">Wir wissen nicht ob Halluzinationsrate = 0 % mit unserem Stack erreichbar ist. Alle Schwellenwerte (Konfidenz, Citation-Coverage) sind Hypothesen. Schlägt der Spike fehl, hat der MVP keine belastbare Grundlage.</div>
+    </div>
+    <div class="risk-card rc-ora">
+      <div class="rc-label lbl-ora">🟠 Zweites Risiko</div>
+      <div class="rc-title">Scope zu gross für 360 h</div>
+      <div class="rc-text">RAG + Konfidenz-Pipeline + Eval + Quiz + Admin in 360 h ist ambitioniert. Ohne explizite MVP-Stufung (Kern-Q&A zuerst) besteht das Risiko, am 30. September nichts Fertiges zu haben.</div>
+    </div>
+    <div class="risk-card rc-ora" style="border-left-color:#f87171; background:#1e1212;">
+      <div class="rc-label lbl-red">🔴 Infrastruktur</div>
+      <div class="rc-title">PostgreSQL — Single Point of Failure</div>
+      <div class="rc-text">Kein Replica, kein Backup-Prozess definiert. Bekannt und benannt. Mitigation: Backup vor Pilot-Start als harte Voraussetzung.</div>
+    </div>
+    <div class="risk-card rc-ora">
+      <div class="rc-label lbl-ora">🟠 Security</div>
+      <div class="rc-title">Prompt-Injection nicht adressiert</div>
+      <div class="rc-text">Input-Sanitization fehlt architektonisch. Grounding-Check (ADR-008) ist erste Mitigation. Vollständige Lösung Post-MVP.</div>
+    </div>
+  </div>
+  <div class="open-section">
+    <div class="open-label">Was wir in Modul 4 &amp; 5 klären</div>
+    <div class="open-row">
+      <div class="open-item">Tech Spike Go/No-Go: Halluzinationsrate = 0 % messbar mit unserem Stack?</div>
+      <div class="open-item">MVP-Stufung: Kern-Q&A → Eval → Quiz. Explizite Scope-Entscheidung vor Sprint 1.</div>
+      <div class="open-item">PostgreSQL Backup + nächtliche Snapshots vor erstem Pilot-User.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── SLIDE 6: CLOSE ─── -->
+<div class="slide s-close">
+  <div class="tag">LearnFlow · Architecture Pitch</div>
+  <div class="close-h">Fragen?<br><span>Wir verteidigen.</span></div>
+  <div class="close-sub">Entscheidungen — nicht Optionen.</div>
+  <div class="badges">
+    <div class="badge g">ADR-001 Modularer Monolith ✓</div>
+    <div class="badge g">ADR-002 FastAPI + React ✓</div>
+    <div class="badge g">ADR-006 pgqueuer ✓</div>
+    <div class="badge g">ADR-008 Konfidenz-Pipeline ✓</div>
+    <div class="badge g">ADR-010 API-First ✓</div>
+    <div class="badge">ADR-003–007, 009 → Tech Spike</div>
+  </div>
+</div>
+
+</div><!-- /deck -->
+
+<div class="nav">
+  <button class="nbtn" id="prev" onclick="go(-1)" disabled>← Zurück</button>
+  <div class="dots" id="dots"></div>
+  <button class="nbtn" id="next" onclick="go(1)">Weiter →</button>
+</div>
+<div class="hint">← → Pfeiltasten</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const dotsEl = document.getElementById('dots');
+  let cur = 0;
+  slides.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i === 0 ? ' active' : '');
+    d.onclick = () => goTo(i);
+    dotsEl.appendChild(d);
+  });
+  function goTo(n) {
+    slides[cur].classList.remove('active');
+    dotsEl.children[cur].classList.remove('active');
+    cur = Math.max(0, Math.min(n, slides.length - 1));
+    slides[cur].classList.add('active');
+    dotsEl.children[cur].classList.add('active');
+    document.getElementById('prev').disabled = cur === 0;
+    document.getElementById('next').disabled = cur === slides.length - 1;
+  }
+  function go(d) { goTo(cur + d); }
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === ' ') go(1);
+    if (e.key === 'ArrowLeft') go(-1);
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LearnFlow – Architektur Sprint 0</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', Calibri, Arial, sans-serif;
+    background: #111827;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 1rem;
+  }
+
+  .deck {
+    width: 100%;
+    max-width: 960px;
+  }
+
+  .slide {
+    display: none;
+    width: 100%;
+    aspect-ratio: 16/9;
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+  }
+  .slide.active { display: flex; flex-direction: column; }
+
+  /* ── NAV ── */
+  .nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5rem;
+    margin-top: 1rem;
+    color: #9ca3af;
+    font-size: 0.9rem;
+    user-select: none;
+  }
+  .nav button {
+    background: #1f2937;
+    border: 1px solid #374151;
+    color: #e5e7eb;
+    padding: 0.4rem 1.2rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background 0.15s;
+  }
+  .nav button:hover { background: #374151; }
+  .nav button:disabled { opacity: 0.3; cursor: default; }
+  .pip-row { display: flex; gap: 6px; }
+  .pip {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #374151; transition: background 0.2s;
+    cursor: pointer;
+  }
+  .pip.active { background: #00B4D8; }
+
+  /* ── COMMON ── */
+  .tag {
+    display: inline-block;
+    background: rgba(255,255,255,0.12);
+    color: #CAF0F8;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+  }
+
+  /* ── SLIDE 1 · TITLE ── */
+  #s1 {
+    background: #03045E;
+    padding: 7% 8%;
+    justify-content: center;
+  }
+  #s1 h1 {
+    font-size: clamp(2.5rem, 7vw, 4.2rem);
+    font-weight: 800;
+    color: #fff;
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+  #s1 .accent-bar {
+    width: 200px; height: 4px;
+    background: #00B4D8;
+    margin: 1rem 0 1.2rem;
+    border-radius: 2px;
+  }
+  #s1 .subtitle {
+    font-size: clamp(1rem, 2.5vw, 1.4rem);
+    color: #00B4D8;
+    font-weight: 400;
+    margin-bottom: 0.6rem;
+  }
+  #s1 .team {
+    position: absolute;
+    bottom: 6%;
+    left: 8%;
+    font-size: 0.75rem;
+    color: #90CAF9;
+    letter-spacing: 0.04em;
+  }
+  #s1 .deco1 {
+    position: absolute;
+    right: 6%; top: 5%;
+    width: 130px; height: 130px;
+    border-radius: 50%;
+    background: rgba(0,180,216,0.08);
+    border: 1.5px solid rgba(0,180,216,0.2);
+  }
+  #s1 .deco2 {
+    position: absolute;
+    right: 14%; bottom: 12%;
+    width: 70px; height: 70px;
+    border-radius: 50%;
+    background: rgba(0,119,182,0.12);
+    border: 1px solid rgba(0,119,182,0.25);
+  }
+
+  /* ── SLIDE 2 · C1 ── */
+  #s2 {
+    background: #fff;
+    padding: 4% 5%;
+  }
+  #s2 h2 {
+    font-size: clamp(0.9rem, 2vw, 1.2rem);
+    font-weight: 700;
+    color: #03045E;
+    margin-bottom: 0.8rem;
+  }
+  .c1-grid {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 0.6rem;
+    align-items: center;
+    flex: 1;
+  }
+  .c1-col { display: flex; flex-direction: column; gap: 0.35rem; }
+  .c1-col-title {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 0.1rem;
+    padding: 3px 0;
+  }
+  .user-card {
+    background: #F0F9FF;
+    border: 1px solid #0096C7;
+    border-radius: 5px;
+    padding: 4px 8px;
+  }
+  .user-card .name { font-size: 0.72rem; font-weight: 600; color: #03045E; }
+  .user-card .role { font-size: 0.6rem; color: #64748b; }
+  .ext-card {
+    background: #FFF7F0;
+    border: 1px solid #F97316;
+    border-radius: 5px;
+    padding: 4px 8px;
+  }
+  .ext-card .name { font-size: 0.72rem; font-weight: 600; color: #03045E; }
+  .ext-card .detail { font-size: 0.6rem; color: #64748b; }
+  .lf-center {
+    background: #0077B6;
+    border-radius: 8px;
+    padding: 8% 6%;
+    text-align: center;
+    color: #fff;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+  }
+  .lf-center .lf-name { font-size: 0.85rem; font-weight: 800; letter-spacing: 0.02em; }
+  .lf-center .lf-sub  { font-size: 0.58rem; color: #CAF0F8; margin-top: 3px; }
+  .arrows { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; }
+  .arrow-row { font-size: 0.9rem; color: #94a3b8; line-height: 1; }
+
+  /* ── SLIDE 3 · C2 ── */
+  #s3 {
+    background: #fff;
+    padding: 4% 5%;
+  }
+  #s3 h2 {
+    font-size: clamp(0.9rem, 2vw, 1.2rem);
+    font-weight: 700;
+    color: #03045E;
+    margin-bottom: 0.8rem;
+  }
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.5rem;
+    flex: 1;
+  }
+  .c-card {
+    border-radius: 8px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+  .c-card-top {
+    padding: 8px 6px 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  .c-card-top .c-name { font-size: 0.72rem; font-weight: 800; color: #fff; line-height: 1.2; }
+  .c-card-body {
+    background: #f8fafc;
+    padding: 6px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    align-items: center;
+    text-align: center;
+  }
+  .c-card-body .c-tech { font-size: 0.65rem; color: #1e2d3d; font-weight: 600; }
+  .c-card-body .c-note { font-size: 0.58rem; color: #64748b; font-style: italic; }
+
+  /* ── SLIDE 4 · ADR ── */
+  #s4 {
+    background: #fff;
+    padding: 4% 5%;
+  }
+  #s4 h2 {
+    font-size: clamp(0.9rem, 2vw, 1.2rem);
+    font-weight: 700;
+    color: #03045E;
+    margin-bottom: 0.6rem;
+  }
+  .decision-banner {
+    background: #03045E;
+    color: #fff;
+    text-align: center;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    margin-bottom: 0.7rem;
+    letter-spacing: 0.01em;
+  }
+  .adr-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; flex: 1; }
+  .adr-col { display: flex; flex-direction: column; }
+  .adr-col-head {
+    border-radius: 6px 6px 0 0;
+    padding: 6px 10px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #fff;
+    text-align: center;
+  }
+  .adr-col-body {
+    background: #f8fafc;
+    border-radius: 0 0 6px 6px;
+    padding: 10px 12px;
+    flex: 1;
+    border: 1px solid #e2e8f0;
+    border-top: none;
+  }
+  .adr-col-body li {
+    font-size: 0.72rem;
+    color: #1e2d3d;
+    margin-bottom: 7px;
+    list-style: none;
+    padding-left: 1.1em;
+    position: relative;
+    line-height: 1.4;
+  }
+  .adr-col-body li::before {
+    content: "→";
+    position: absolute;
+    left: 0;
+    color: #94a3b8;
+  }
+
+  /* ── SLIDE 5 · SURPRISE ── */
+  #s5 {
+    background: #03045E;
+    padding: 4% 5%;
+  }
+  #s5 h2 {
+    font-size: clamp(1rem, 2.5vw, 1.5rem);
+    font-weight: 800;
+    color: #fff;
+    margin-bottom: 0.2rem;
+  }
+  #s5 .sub {
+    font-size: 0.72rem;
+    color: #CAF0F8;
+    font-style: italic;
+    margin-bottom: 0.8rem;
+  }
+  .surprise-cols { display: grid; grid-template-columns: 1fr auto 1fr; gap: 0.8rem; align-items: center; flex: 1; }
+  .surprise-box {
+    border-radius: 8px;
+    overflow: hidden;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+  .surprise-box-head {
+    padding: 7px 10px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-align: center;
+  }
+  .surprise-box-body {
+    background: #0A1F44;
+    padding: 10px 12px;
+    flex: 1;
+  }
+  .surprise-box-body li {
+    font-size: 0.7rem;
+    color: #CAF0F8;
+    margin-bottom: 8px;
+    list-style: none;
+    padding-left: 1.1em;
+    position: relative;
+    line-height: 1.4;
+  }
+  .surprise-box-body li::before { content: "·"; position: absolute; left: 0; color: #00B4D8; font-weight: 900; }
+  .arrow-mid { font-size: 1.5rem; color: #00B4D8; text-align: center; flex-shrink: 0; }
+  .s5-footer {
+    text-align: center;
+    font-size: 0.65rem;
+    color: #90CAF9;
+    margin-top: 0.5rem;
+  }
+</style>
+</head>
+<body>
+
+<div class="deck">
+
+  <!-- SLIDE 1 -->
+  <div class="slide active" id="s1">
+    <div class="deco1"></div>
+    <div class="deco2"></div>
+    <span class="tag">BFH CAS ADAI 2026 · Sprint 0</span>
+    <h1>LearnFlow</h1>
+    <div class="accent-bar"></div>
+    <p class="subtitle">Architektur · Sprint 0 Pitch</p>
+    <p class="team">Team: Frank · Niklaus · Reto</p>
+  </div>
+
+  <!-- SLIDE 2 -->
+  <div class="slide" id="s2">
+    <h2>C1 · Wer interagiert mit LearnFlow?</h2>
+    <div class="c1-grid">
+      <!-- Left: Users -->
+      <div class="c1-col">
+        <div class="c1-col-title" style="color:#0096C7;">Nutzertypen</div>
+        <div class="user-card"><div class="name">Neue Entwickler:in</div><div class="role">Lernende</div></div>
+        <div class="user-card"><div class="name">Requirements-Engineer</div><div class="role">Lernende</div></div>
+        <div class="user-card"><div class="name">Tester:in</div><div class="role">Lernende</div></div>
+        <div class="user-card"><div class="name">Fachbereich / Kuration</div><div class="role">Inhalts-Verantwortliche:r</div></div>
+        <div class="user-card"><div class="name">Admin</div><div class="role">Betrieb</div></div>
+      </div>
+      <!-- Center -->
+      <div style="display:flex;flex-direction:column;align-items:center;gap:0.3rem;">
+        <div class="arrow-row">→</div>
+        <div class="lf-center">
+          <div class="lf-name">LearnFlow</div>
+          <div class="lf-sub">Lernplattform</div>
+        </div>
+        <div class="arrow-row">→</div>
+      </div>
+      <!-- Right: External systems -->
+      <div class="c1-col">
+        <div class="c1-col-title" style="color:#F97316;">Externe Systeme</div>
+        <div class="ext-card"><div class="name">LLM / KI-API</div><div class="detail">OpenAI / Ollama via LiteLLM</div></div>
+        <div class="ext-card"><div class="name">Dokumentenspeicher</div><div class="detail">SharePoint / Confluence</div></div>
+        <div class="ext-card"><div class="name">SSO / Identity Provider</div><div class="detail">Azure AD / Entra ID</div></div>
+        <div class="ext-card"><div class="name">Benachrichtigung</div><div class="detail">Teams Webhook</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 3 -->
+  <div class="slide" id="s3">
+    <h2>C2 · Container &amp; Technologie-Entscheidungen</h2>
+    <div class="cards-grid">
+      <div class="c-card">
+        <div class="c-card-top" style="background:#0EA5E9;">
+          <div class="c-name">Web App</div>
+        </div>
+        <div class="c-card-body">
+          <div class="c-tech">React 18 · TypeScript 5 · Vite</div>
+          <div class="c-note">SPA + SSE-Stream</div>
+        </div>
+      </div>
+      <div class="c-card">
+        <div class="c-card-top" style="background:#0077B6;">
+          <div class="c-name">Backend API</div>
+        </div>
+        <div class="c-card-body">
+          <div class="c-tech">Python 3.12 · FastAPI (ASGI)</div>
+          <div class="c-note">Modularer Monolith · RAG · Auth · Quiz</div>
+        </div>
+      </div>
+      <div class="c-card">
+        <div class="c-card-top" style="background:#7C3AED;">
+          <div class="c-name">Background Worker</div>
+        </div>
+        <div class="c-card-body">
+          <div class="c-tech">Python · Celery</div>
+          <div class="c-note">Async Chunking · Embedding · Indexing</div>
+        </div>
+      </div>
+      <div class="c-card">
+        <div class="c-card-top" style="background:#059669;">
+          <div class="c-name">PostgreSQL + pgvector</div>
+        </div>
+        <div class="c-card-body">
+          <div class="c-tech">PostgreSQL 16 · pgvector · Alembic</div>
+          <div class="c-note">Relational + Vektoren + Config</div>
+        </div>
+      </div>
+      <div class="c-card">
+        <div class="c-card-top" style="background:#DC2626;">
+          <div class="c-name">Redis</div>
+        </div>
+        <div class="c-card-body">
+          <div class="c-tech">Redis 7</div>
+          <div class="c-note">Nur Celery-Broker — kein Cache</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 4 -->
+  <div class="slide" id="s4">
+    <h2>ADR-001 · Entscheid: Modularer Monolith</h2>
+    <div class="decision-banner">
+      Alle Module in einem Deployment-Artefakt &nbsp;·&nbsp; stateless &nbsp;·&nbsp; explizite Service-Interfaces
+    </div>
+    <div class="adr-cols">
+      <div class="adr-col">
+        <div class="adr-col-head" style="background:#0096C7;">Warum?</div>
+        <div class="adr-col-body">
+          <ul>
+            <li>360 h Budget — Microservices kosten +80–120 h reinen Infra-Overhead</li>
+            <li>Max. 30 gleichzeitige Nutzer — kein Skalierungsdruck im MVP</li>
+            <li>Stateless-Design hält Ausbau-Option offen — ohne Microservice-Komplexität heute</li>
+          </ul>
+        </div>
+      </div>
+      <div class="adr-col">
+        <div class="adr-col-head" style="background:#059669;">Was wir gewinnen</div>
+        <div class="adr-col-body">
+          <ul>
+            <li><code>docker compose up</code> — Onboarding in Minuten, alle 3 Devs sofort produktiv</li>
+            <li>Kein Netzwerk-Overhead zwischen Modulen, einfaches lokales Debugging</li>
+            <li>Modul-Grenzen per Code-Review — kein Big-Ball-of-Mud-Risiko</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 5 -->
+  <div class="slide" id="s5">
+    <h2>Die Überraschung</h2>
+    <p class="sub">Was hat AI gefunden — und was haben wir bewusst anders entschieden?</p>
+    <div class="surprise-cols">
+      <div class="surprise-box">
+        <div class="surprise-box-head" style="background:#0A3D62;color:#00B4D8;">AI empfahl</div>
+        <div class="surprise-box-body">
+          <ul>
+            <li>Dedizierte Vektordatenbank (Qdrant / Chroma)</li>
+            <li>Redis als Query-Cache</li>
+            <li>Microservices pro Modul</li>
+            <li>Separater Blob-Storage (S3 / Azure Blob)</li>
+          </ul>
+        </div>
+      </div>
+      <div class="arrow-mid">→</div>
+      <div class="surprise-box">
+        <div class="surprise-box-head" style="background:#0A3D62;color:#00B4D8;">Wir entschieden</div>
+        <div class="surprise-box-body">
+          <ul>
+            <li>pgvector: 1 DB · 1 Backup · SQL-Joins direkt</li>
+            <li>Redis nur als Celery-Broker — kein Cache nötig</li>
+            <li>Modularer Monolith spart 80–120 h Infra</li>
+            <li>Dokument-Binaries als <code>bytea</code> in PostgreSQL</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <p class="s5-footer">Treiber: 360 h Budget · Maintainability-NFA · pgvector reicht für &lt; 10 000 Chunks</p>
+  </div>
+
+</div><!-- .deck -->
+
+<!-- NAV -->
+<div class="nav">
+  <button id="prevBtn" onclick="go(-1)" disabled>← Zurück</button>
+  <div class="pip-row" id="pips"></div>
+  <span id="counter">1 / 5</span>
+  <button id="nextBtn" onclick="go(1)">Weiter →</button>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const pipsEl = document.getElementById('pips');
+  let cur = 0;
+
+  // build pips
+  slides.forEach((_, i) => {
+    const p = document.createElement('div');
+    p.className = 'pip' + (i === 0 ? ' active' : '');
+    p.onclick = () => show(i);
+    pipsEl.appendChild(p);
+  });
+
+  function show(n) {
+    slides[cur].classList.remove('active');
+    document.querySelectorAll('.pip')[cur].classList.remove('active');
+    cur = n;
+    slides[cur].classList.add('active');
+    document.querySelectorAll('.pip')[cur].classList.add('active');
+    document.getElementById('counter').textContent = (cur + 1) + ' / ' + slides.length;
+    document.getElementById('prevBtn').disabled = cur === 0;
+    document.getElementById('nextBtn').disabled = cur === slides.length - 1;
+  }
+
+  function go(d) { if (cur + d >= 0 && cur + d < slides.length) show(cur + d); }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') go(1);
+    if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   go(-1);
+  });
+</script>
+</body>
+</html>
