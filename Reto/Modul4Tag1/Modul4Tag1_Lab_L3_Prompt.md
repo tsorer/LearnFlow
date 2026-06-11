@@ -1,6 +1,7 @@
 Erstelle ein GitHub Issue-Template für unsere Tasks.
 
 Es soll enthalten:
+
 - Task-Beschreibung
 - Acceptance Criteria (Checkliste)
 - Definition of Done (Checkliste)
@@ -10,4 +11,4 @@ Es soll enthalten:
 
 Format: Markdown für .github/ISSUE_TEMPLATE/task.md
 
-Projekt: LearnFlow — RAG-Lernplattform (FastAPI + React 18 + PostgreSQL 17 + pgvector).
+Projekt: LearnFlow — Tech-Stack und DoD siehe Docs/05_C4-C2_Container.md und Docs/07_Definition-of-Done.md.
