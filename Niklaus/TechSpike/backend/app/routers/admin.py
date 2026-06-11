@@ -35,7 +35,11 @@ async def update_config(
 ):
     for key, value in body.config.items():
         await db.execute(
-            text("UPDATE config SET value = :value, updated_at = now() WHERE key = :key"),
+            text("""
+                INSERT INTO config (key, value, updated_at)
+                VALUES (:key, :value, now())
+                ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()
+            """),
             {"key": key, "value": str(value)},
         )
     await db.commit()

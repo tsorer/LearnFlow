@@ -7,6 +7,7 @@ from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
+from app.config import settings
 from app.database import get_db
 from app.models.tables import Answer, QuerySession, User
 from app.services.rag import process_query
@@ -29,10 +30,55 @@ class CitationOut(BaseModel):
 
 
 class ConfidenceInfo(BaseModel):
-    band: str
     score: float
     retrieval_score: float
     citation_coverage: float
+
+
+class ChunkDebugOut(BaseModel):
+    filename: str
+    page: int | None
+    heading: str | None
+    score: float
+    above_threshold: bool
+    in_top_n: bool
+    dense_rank: int
+    content: str
+
+
+class StageInfo(BaseModel):
+    id: str
+    name: str
+    ran: bool
+    passed: bool
+    value: Any
+    threshold: float | int | None
+    detail: str
+
+
+class LLMCallOut(BaseModel):
+    step: str
+    label: str
+    prompt: str
+    response: str
+
+
+class DebugInfo(BaseModel):
+    chunks: list[ChunkDebugOut]
+    stages: list[StageInfo]
+    llm_calls: list[LLMCallOut]
+    similarity_threshold: float
+    min_retrieval_confidence: float
+    min_citation_coverage: float
+    self_check_ran: bool
+    self_check_verdict: str | None
+    retrieval_detail: dict
+    params_used: dict
+    dense_above_threshold: int
+    total_dense_retrieved: int
+    sparse_count: int
+    top_n_used: int
+    formula_breakdown: str
 
 
 class QueryResponse(BaseModel):
@@ -44,6 +90,7 @@ class QueryResponse(BaseModel):
     refinement_hint: str | None = None
     citations: list[CitationOut] = []
     confidence: ConfidenceInfo | None = None
+    debug: DebugInfo | None = None
 
 
 async def _load_config(db: AsyncSession) -> dict:
@@ -85,7 +132,6 @@ async def query(
         suppressed=result.suppressed,
         suppression_reason=result.suppression_reason,
         confidence_score=result.confidence_score,
-        confidence_band=result.confidence_band,
         retrieval_score=result.retrieval_score,
         citation_coverage=result.citation_coverage,
         citations=[
@@ -97,23 +143,54 @@ async def query(
     db.add(answer)
     await db.commit()
 
+    min_ret_conf = float(cfg.get("min_retrieval_confidence", settings.min_retrieval_confidence))
+    min_cit_cov = float(cfg.get("min_citation_coverage", settings.min_citation_coverage))
+
     return QueryResponse(
         session_id=str(session.id),
         answer_id=str(answer.id),
         suppressed=result.suppressed,
         suppression_reason=result.suppression_reason,
-        message=result.answer if not result.suppressed else "Ich weiss es nicht.",
+        message=result.answer,
         refinement_hint=result.refinement_hint,
         citations=[
             CitationOut(**{k: getattr(c, k) for k in CitationOut.model_fields})
             for c in result.citations
         ],
         confidence=ConfidenceInfo(
-            band=result.confidence_band or "low",
             score=result.confidence_score or 0.0,
             retrieval_score=result.retrieval_score or 0.0,
             citation_coverage=result.citation_coverage or 0.0,
-        ) if not result.suppressed else None,
+        ),
+        debug=DebugInfo(
+            chunks=[
+                ChunkDebugOut(
+                    filename=c.filename, page=c.page, heading=c.heading,
+                    score=c.score, above_threshold=c.above_threshold,
+                    in_top_n=c.in_top_n, dense_rank=c.dense_rank,
+                    content=c.content,
+                )
+                for c in result.debug_chunks
+            ],
+            stages=[StageInfo(**s) for s in result.stages],
+            llm_calls=[LLMCallOut(**c) for c in result.llm_calls],
+            similarity_threshold=result.similarity_threshold,
+            min_retrieval_confidence=min_ret_conf,
+            min_citation_coverage=min_cit_cov,
+            self_check_ran=result.self_check_ran,
+            self_check_verdict=result.self_check_verdict,
+            retrieval_detail=result.retrieval_detail,
+            params_used=result.params_used,
+            dense_above_threshold=result.dense_above_threshold,
+            total_dense_retrieved=result.total_dense_retrieved,
+            sparse_count=result.sparse_count,
+            top_n_used=result.top_n_used,
+            formula_breakdown=(
+                f"0.6 × Retrieval({round((result.retrieval_score or 0) * 100)}%) "
+                f"+ 0.4 × Citation({round((result.citation_coverage or 0) * 100)}%) "
+                f"= {round((result.confidence_score or 0) * 100)}%"
+            ),
+        ),
     )
 
 

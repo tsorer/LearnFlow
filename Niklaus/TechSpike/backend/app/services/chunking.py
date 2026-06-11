@@ -107,7 +107,7 @@ def extract_docx_chunks(content: bytes, chunk_size: int = 512, overlap: int = 64
     for para in doc.paragraphs:
         if not para.text.strip():
             continue
-        if para.style.name.startswith("Heading"):
+        if para.style and para.style.name and para.style.name.startswith("Heading"):
             current_heading = para.text.strip()
         full_text_parts.append((para.text.strip(), current_heading))
 

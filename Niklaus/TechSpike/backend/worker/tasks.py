@@ -1,6 +1,7 @@
 """Document processing task — Parsing → Chunking → Embedding → pgvector indexing."""
 
 import logging
+import traceback
 import uuid
 
 from sqlalchemy import text, update
@@ -40,11 +41,12 @@ async def process_document(document_id: str) -> None:
         try:
             await _process(db, doc)
         except Exception as exc:
+            error_details = traceback.format_exc()
             log.exception("Failed to process document %s: %s", document_id, exc)
             await db.execute(
                 update(Document)
                 .where(Document.id == doc.id)
-                .values(status=DocumentStatus.failed)
+                .values(status=DocumentStatus.failed, error_message=error_details)
             )
             await db.commit()
 

@@ -22,6 +22,7 @@ class DocumentOut(BaseModel):
     status: str
     area: str
     chunk_count: int
+    error_message: str | None = None
     created_at: str
 
 
@@ -35,6 +36,7 @@ async def list_documents(
         DocumentOut(
             id=str(d.id), filename=d.filename, status=d.status,
             area=d.area, chunk_count=d.chunk_count,
+            error_message=d.error_message,
             created_at=d.created_at.isoformat(),
         )
         for d in rows.scalars()
@@ -72,6 +74,7 @@ async def upload_document(
     return DocumentOut(
         id=str(doc.id), filename=doc.filename, status=doc.status,
         area=doc.area, chunk_count=doc.chunk_count,
+        error_message=None,
         created_at=doc.created_at.isoformat(),
     )
 
@@ -88,6 +91,7 @@ async def get_document(
     return DocumentOut(
         id=str(doc.id), filename=doc.filename, status=doc.status,
         area=doc.area, chunk_count=doc.chunk_count,
+        error_message=doc.error_message,
         created_at=doc.created_at.isoformat(),
     )
 

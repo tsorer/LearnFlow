@@ -11,6 +11,7 @@ export default function Upload({ user, onClose }: Props) {
   const [docs, setDocs] = useState<Document[]>([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   const load = () => api.listDocuments(user.token).then(setDocs).catch(() => {});
   useEffect(() => { load(); }, []);
@@ -83,26 +84,48 @@ export default function Upload({ user, onClose }: Props) {
           )}
           {docs.map(d => (
             <div key={d.id} style={{
-              background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8,
-              padding: "10px 14px", display: "flex", alignItems: "center", gap: 12,
+              background: "var(--card)", border: `1px solid ${d.status === "failed" ? "var(--red)" : "var(--border)"}`,
+              borderRadius: 8, padding: "10px 14px",
             }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 600, fontSize: 14 }}>{d.filename}</div>
-                <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>
-                  {d.chunk_count} Chunks · Bereich: {d.area}
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14 }}>{d.filename}</div>
+                  <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>
+                    {d.chunk_count} Chunks · Bereich: {d.area}
+                  </div>
                 </div>
+                <span style={{
+                  fontSize: 11, fontWeight: 700, color: statusColor[d.status],
+                  background: d.status === "available" ? "var(--green-lt)" : d.status === "failed" ? "var(--red-lt)" : "transparent",
+                  borderRadius: 30, padding: "2px 8px",
+                }}>
+                  {statusLabel[d.status]}
+                </span>
+                {d.status === "failed" && d.error_message && (
+                  <button
+                    className="secondary"
+                    style={{ fontSize: 11, padding: "3px 8px" }}
+                    onClick={() => setExpanded(prev => ({ ...prev, [d.id]: !prev[d.id] }))}
+                  >
+                    {expanded[d.id] ? "▲ Details" : "▼ Details"}
+                  </button>
+                )}
+                <button className="danger" style={{ fontSize: 12, padding: "4px 10px" }}
+                  onClick={() => handleDelete(d.id)}>
+                  Löschen
+                </button>
               </div>
-              <span style={{
-                fontSize: 11, fontWeight: 700, color: statusColor[d.status],
-                background: d.status === "available" ? "var(--green-lt)" : "transparent",
-                borderRadius: 30, padding: "2px 8px",
-              }}>
-                {statusLabel[d.status]}
-              </span>
-              <button className="danger" style={{ fontSize: 12, padding: "4px 10px" }}
-                onClick={() => handleDelete(d.id)}>
-                Löschen
-              </button>
+              {d.status === "failed" && d.error_message && expanded[d.id] && (
+                <pre style={{
+                  marginTop: 10, padding: "10px 12px",
+                  background: "var(--red-lt)", color: "var(--red)",
+                  borderRadius: 6, fontSize: 11, lineHeight: 1.5,
+                  overflowX: "auto", whiteSpace: "pre-wrap", wordBreak: "break-all",
+                  maxHeight: 300, overflowY: "auto",
+                }}>
+                  {d.error_message}
+                </pre>
+              )}
             </div>
           ))}
         </div>
