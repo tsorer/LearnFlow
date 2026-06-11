@@ -252,9 +252,13 @@ US-02 enthält zwei verschiedene Unterdrückungsmechanismen (Konfidenz-Score vs.
 
 ### Risiko 3 · Externe Abhängigkeiten blockieren zum falschen Zeitpunkt
 
-Zwei ungelöste externe Abhängigkeiten können den Zeitplan gefährden: (a) LLM-API-Quota — Quota-Anfragen können Wochen dauern, Stack-Entscheidung ist noch offen; (b) E-Mail-Service für US-06 — kein Mail-Provider definiert, SMTP-Konfiguration ist eine separate Abhängigkeit. Beide müssen früh in Sprint 0 angestossen werden, nicht erst wenn die Story implementiert werden soll.
+~~Zwei ungelöste externe Abhängigkeiten~~ — **Stand Sprint 0 (2026-05-27): beide Punkte entschieden.**
 
-**Was zu klären ist:** LLM-Provider und Quota bis Ende Sprint 0 bestätigt; Mail-Service-Entscheidung vor US-06-Implementierung.
+**(a) LLM-API-Quota — ✅ entschieden:** Stack ist OpenAI API (api.openai.com). Kein Quota-Genehmigungsprozess nötig — sofort verfügbar mit API-Key. Lokaler Fallback via Ollama für datenschutzkritische Umgebungen (ADR-004).
+
+**(b) E-Mail-Service für US-06 — ✅ entschieden:** E-Mail ist nicht im Scope. US-06 (Stale-Content-Erkennung) bleibt im Dashboard; kein automatischer E-Mail-Report.
+
+> Risiko 3 ist damit aufgelöst. Verbleibende externe Abhängigkeit: Unternehmens-IdP für Post-MVP SSO — nicht zeitkritisch für Sprint 1.
 
 ---
 
