@@ -1,0 +1,125 @@
+# LearnFlow — Quality Attributes v1
+*Modul 3 Tag 1 · Mai 2026*
+
+---
+
+## Teil 1 · Quality Attributes identifizieren
+
+| Quality Attribute | Konkretes Requirement aus LearnFlow | Warum wichtig für uns? |
+|---|---|---|
+| **Performance** | US-01: Antwortzeit P95 ≤ 10 Sekunden. US-04: Dokumente ≤ 50 Seiten/10 MB nach max. 5 Minuten als Quelle verfügbar. | Die RAG-Pipeline (Retrieval + Embedding + LLM-Generierung) ist inhärent langsam. Überschreitet die Wartezeit eine Schwelle, bricht Lara ab und fragt wieder bei Stefan nach — das Kernversprechen ist nicht einlösbar. |
+| **Scalability** | MVP-Constraint: 1 Pilot-Bereich, hartcodiert. Multi-Bereich ist explizit Post-MVP (Out of Scope). | Bewusst kein Thema im MVP — die Last ist minimal. Trotzdem soll die Architektur Wachstum nicht blockieren, damit ein späteres Multi-Bereich-Ausbau kein Redesign erzwingt. |
+| **Security** | US-05: Authentifizierung Username/Passwort, kein Self-Service, Rollenkonzept (Lernende / Bereichsverantwortlicher / Admin). US-11: Admin-Seite nur für Admin-Rolle erreichbar. US-03: Feedback pseudonymisiert. US-10: Cluster < 5 Fragen nicht angezeigt (Datenschutz). | Interne Unternehmensdokumente dürfen nicht öffentlich zugänglich sein. Query-Logs und Feedback-Freitext sind personennahe Daten — DSGVO-konformes Handling ist Grundvoraussetzung für einen Unternehmenseinsatz. |
+| **Reliability** | US-01: Ist der LLM-Service nicht erreichbar → klare Fehlermeldung, keine erfundene Antwort. US-02: Halluzinationen werden durch Konfidenz-Mechanismen aktiv unterdrückt. Risiko 3: LLM-API-Quota als externe Abhängigkeit. | Eine halluzinierte Antwort mit echter Quellenangabe ist schlimmer als eine Fehlermeldung. Das Vertrauen von Lara in die Plattform hängt direkt daran, dass das System lieber „Ich weiss es nicht" sagt als eine falsche Antwort zu liefern. |
+| **Maintainability** | US-02/US-06/US-11: Konfidenz- und Stale-Schwellenwerte per DB-Script oder Admin-UI änderbar — kein Code-Deployment erforderlich. US-11: Änderungen wirken sofort ohne Neustart. LLM-Provider muss austauschbar sein ohne Code-Änderung (Architekturentscheid LiteLLM). | Das Team besteht aus 4 Personen mit je 1 Tag/Woche (480 h total). Operative Anpassungen müssen ohne Entwickler-Einsatz möglich sein. Gleichzeitig muss der LLM-Provider für unterschiedliche Deployments (Cloud vs. OnPrem) konfigurierbar bleiben. |
+| **Testability** | Risiko 1: Evaluationsdataset definieren, Qualitätsschwelle festlegen, Tech Spike als Go/No-Go-Entscheid. US-02: Messbares Kriterium — System muss bei Out-of-Corpus-Testfragen in ≥ 90 % „Weiss ich nicht" zurückgeben. Risiko 2: Konfidenz-Scoring-Mechanismus muss klar definiert sein, bevor er testbar ist. | Das Kernversprechen — quellenbelegte Antworten ohne Halluzinationen — lässt sich nicht durch Code-Review validieren, nur durch systematische Tests mit echten Dokumenten und definierten Testfragen. RAG-Qualität muss messbar sein, bevor die Implementierung startet. |
+
+---
+
+## Teil 2 · Top 3 Quality Attributes — Tiefenanalyse
+
+### Ranking
+
+| Rang | QA | Begründung |
+|---|---|---|
+| 1 | **Reliability** | Das Kernversprechen von LearnFlow ist Vertrauen — eine einzige halluzinierte Antwort kann den Piloten kippen |
+| 2 | **Testability** | Reliability kann nur durch systematische Tests nachgewiesen werden — ohne Testability weiss man nie ob #1 erreicht ist |
+| 3 | **Maintainability** | 480 h Gesamtbudget, LLM-Provider-Flexibilität und operative Konfiguration ohne Entwickler-Einsatz sind harte Constraints |
+
+---
+
+### #1 · Reliability
+
+#### Warum ist dieser QA für LearnFlow besonders wichtig?
+
+LearnFlow hat ein einziges Qualitätsversprechen: *Verlass dich auf die Antwort.* Das Requirements-Dokument formuliert es explizit — „Eine falsch dargestellte Antwort ist schlimmer als gar keine" (MoSCoW-Begründung US-02). Das bedeutet: das System muss im Zweifel schweigen, nicht raten.
+
+Das ist fundamental anders als eine typische Webanwendung. Ein Fehler in einer CRUD-App ist sichtbar und korrigierbar. Eine halluzinierte Antwort mit echter Quellenangabe ist unsichtbar — Lara merkt es nicht, handelt danach, und verliert das Vertrauen erst Wochen später. Dann ist es zu spät für den Piloten.
+
+Dazu kommt Risiko 3: LearnFlow ist von einem externen LLM-Service abhängig. Wenn dieser ausfällt oder zu langsam antwortet, muss das System kontrolliert degradieren — nie eine Antwort erfinden.
+
+#### Konkrete architektonische Massnahmen
+
+**1. Mehrschichtiger Unterdrückungsmechanismus (US-01/US-02)**
+Die drei Prüfstufen aus dem RE-Dok müssen als Pipeline implementiert werden — jede Stufe kann die Antwort stoppen:
+```
+Quellenprüfung → Konfidenz-Score → Self-Check-Anteil
+     ↓ keine Quelle       ↓ Score < Schwelle    ↓ < 50%
+  "Keine Antwort"      "Weiss nicht"         Unterdrückt
+```
+Keine Stufe darf übersprungen werden. Die Reihenfolge ist durch den RE-Entscheid vom 2026-05-20 festgelegt.
+
+**2. Circuit Breaker für LLM-Aufrufe**
+Ist der LLM-Service nicht erreichbar (Timeout, HTTP 5xx, Quota erschöpft), muss eine Fehlermeldung erscheinen — niemals ein generierter Fallback-Text. Der Circuit Breaker verhindert ausserdem Kaskadenausfälle bei Quota-Überschreitung (Risiko 3).
+
+**3. Fail-Safe als Designprinzip**
+Jede Komponente der RAG-Pipeline hat einen definierten Fehlerzustand: *keine Antwort* ist immer besser als eine unsichere Antwort. Das muss in Code-Reviews aktiv geprüft werden.
+
+**4. Konfidenz-Schwellenwerte in der DB, nicht im Code**
+Damit Schwellenwerte in Produktion angepasst werden können ohne Deployment (US-02, US-11) — und damit der Wert nach dem Tech Spike empirisch kalibriert werden kann.
+
+#### Was passiert wenn wir Reliability ignorieren?
+
+Lara stellt eine Frage zu einem Fachprozess. Die RAG-Pipeline liefert einen plausiblen, aber falschen Chunk. Das LLM generiert eine überzeugend klingende Antwort mit einer echten Quellenangabe. Lara vertraut der Antwort — das System hat ja eine Quelle genannt. Sie handelt falsch. Wochen später stellt sich heraus, dass die Information nicht stimmte.
+
+Resultat: Stefan hört davon. Er vertraut der Plattform nicht mehr. Der Pilot-Bereich wird eingestellt. LearnFlow wird nie ausgerollt — nicht weil die Technik versagte, sondern weil Vertrauen einmal gebrochen ist.
+
+---
+
+### #2 · Testability
+
+#### Warum ist dieser QA für LearnFlow besonders wichtig?
+
+Bei LearnFlow kann man nicht in den Code schauen und sagen „das ist korrekt". RAG-Qualität ist ein empirisches Phänomen — sie hängt von Chunking-Strategie, Embedding-Modell, Retrieval-Konfiguration und Prompt-Design ab, und all das interagiert nicht-linear. Risiko 1 im RE-Dok macht das zur Projektbedingung: der Tech Spike ist ein Go/No-Go-Entscheid, kein optionales Experiment.
+
+Ausserdem liefert US-02 ein konkretes, messbares Kriterium: ≥ 90 % „Weiss ich nicht" bei Out-of-Corpus-Fragen. Das ist kein subjektives Urteil — das ist eine Zahl, die man messen kann und muss.
+
+#### Konkrete architektonische Massnahmen
+
+**1. Evaluationsdataset vor der Implementierung**
+Vor Sprint 1 muss ein Testset existieren: echte Dokumente aus dem Pilot-Bereich, echte Fragen (In-Corpus + Out-of-Corpus), erwartete Antworten und Quellen. Dieses Dataset ist die Messlatte für den Tech Spike und bleibt die Regressionsbasis für alle späteren Änderungen.
+
+**2. Modulare RAG-Pipeline**
+Chunking, Embedding, Retrieval und Generierung als klar getrennte Komponenten — jede einzeln testbar und austauschbar. Das ermöglicht gezielte Experimente: „Verbessert Chunk-Overlap von 50 auf 100 Tokens die Retrieval-Qualität?"
+
+**3. LiteLLM als Abstraktionsschicht**
+Direkt abgeleitet aus der heutigen Architekturdiskussion: ein einheitliches Interface zu Claude und Ollama ermöglicht A/B-Tests zwischen Providern mit identischer RAG-Pipeline. Ergebnis des Tech Spikes kann direkt Risiko 3 (Provider-Entscheid) adressieren.
+
+**4. Automatisiertes Scoring im CI**
+Das Evaluationsdataset läuft bei jedem Merge durch die Pipeline. Fällt die „Weiss-nicht"-Rate unter 90 % oder die Antwortqualität unter die definierte Schwelle, schlägt der Build an. RAG-Qualität wird damit wie funktionale Korrektheit behandelt.
+
+#### Was passiert wenn wir Testability ignorieren?
+
+Der Tech Spike produziert subjektive Eindrücke statt Zahlen. Das Team entscheidet sich für „fühlt sich gut an" und startet mit der Implementierung. Nach 10 Wochen — kurz vor der Deadline — stellt sich beim Benutzerakzeptanztest heraus, dass das System bei 30 % der Fragen halluziniert. Die RAG-Pipeline muss grundlegend überarbeitet werden. 10 Wochen Implementierungsarbeit sind auf einem instabilen Fundament gebaut. Die Deadline 30. September 2026 ist nicht mehr haltbar.
+
+---
+
+### #3 · Maintainability
+
+#### Warum ist dieser QA für LearnFlow besonders wichtig?
+
+Das Team hat 480 Stunden total — 4 Personen, 1 Tag pro Woche, 15 Wochen. Das ist knapp. Jede Stunde, die für operative Anpassungen (Schwellenwert-Tuning, Provider-Wechsel, Konfigurationsänderungen) aufgewendet wird, fehlt bei der Kernentwicklung.
+
+Dazu kommt die LLM-Provider-Flexibilität: ein Unternehmen will Claude (beste Qualität), ein anderes muss OnPrem mit Ollama betreiben (Datenschutz). Wenn ein Provider-Wechsel Code-Änderungen erfordert, ist das ein Vertriebshindernis — und ein operatives Risiko.
+
+#### Konkrete architektonische Massnahmen
+
+**1. LiteLLM als Provider-Abstraktion**
+Ein einziger Konfigurationseintrag (`LLM_PROVIDER=claude` vs. `LLM_PROVIDER=ollama/llama3.2`) steuert den aktiven Provider. Kein Code-Change, kein Deployment. Direkt relevant für Cloud-vs-OnPrem-Deployments.
+
+**2. Alle Schwellenwerte in der Datenbank**
+Konfidenz-Schwellenwert (US-02), Stale-Schwellenwert (US-06), Cluster-Mindestgrösse (US-10) — alle in einer `config`-Tabelle. Die Admin-UI (US-11) ist lediglich ein Frontend darauf. Änderungen wirken sofort ohne Neustart.
+
+**3. Klare Modul-Grenzen**
+RAG-Pipeline, Dokumentverwaltung, Quiz, Authentifizierung als eigenständige Module mit definierten Interfaces. Wenn das Embedding-Modell gewechselt wird, ist nur das RAG-Modul betroffen — kein Ripple-Effect durch die gesamte Codebase.
+
+**4. Dependency Injection für den LLM-Client**
+Der LLM-Client wird injiziert, nicht instanziiert. Ermöglicht sowohl Provider-Swap in Produktion als auch Mock-Objekte in Tests — Maintainability und Testability verstärken sich gegenseitig.
+
+#### Was passiert wenn wir Maintainability ignorieren?
+
+Der Konfidenz-Schwellenwert ist zu hoch kalibriert — das System sagt zu oft „Weiss ich nicht". Stefan meldet das. Ein Entwickler muss verfügbar sein, den Wert im Code anpassen, einen Branch erstellen, testen, deployen. Mit 1 Tag/Woche dauert das realistisch 2 Wochen. Stefan verliert die Geduld. Gleichzeitig kommt ein potenzieller Pilot-Kunde und fragt nach OnPrem-Betrieb. Die Antwort ist: „Das erfordert einen Umbau, 3 Wochen Aufwand." Der Kunde entscheidet sich für eine andere Lösung.
+
+---
+
+*Quelle: LearnFlow_Requirements_v1.md · Stand v1 — 2026-05-27*
