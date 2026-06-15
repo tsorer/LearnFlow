@@ -1,0 +1,49 @@
+name: CI — Niklaus/src
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Niklaus/src/**"
+      - ".github/workflows/ci-niklaus.yml"
+  pull_request:
+    paths:
+      - "Niklaus/src/**"
+      - ".github/workflows/ci-niklaus.yml"
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Niklaus/src/backend
+    env:
+      DATABASE_URL: postgresql://learnflow:test@localhost:5432/learnflow
+      JWT_SECRET: ci-secret
+      OPENAI_API_KEY: sk-ci-dummy
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install -r requirements.txt
+      - run: ruff check .
+      - run: mypy app worker
+      - run: pytest
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Niklaus/src/frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: Niklaus/src/frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test
