@@ -52,6 +52,12 @@ export default function Login({ onLogin }: Props) {
         <button type="submit" className="primary" disabled={busy} style={{ marginTop: 8, padding: "10px 14px" }}>
           {busy ? "Anmelden…" : "Anmelden"}
         </button>
+        <div style={{ textAlign: "center", fontSize: 11, color: "var(--muted)", marginTop: 4 }}>
+          Build {new Date(__BUILD_TIME__).toLocaleString("de-CH", {
+            day: "2-digit", month: "2-digit", year: "numeric",
+            hour: "2-digit", minute: "2-digit",
+          })}
+        </div>
       </form>
     </div>
   );
