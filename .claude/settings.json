@@ -1,0 +1,23 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "input=$(cat); case \"$input\" in *\"git commit\"*) if [ \"$(git branch --show-current 2>/dev/null)\" = \"main\" ]; then printf '%s' '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Commit auf main ist nicht erlaubt (CLAUDE.md: Feature-Branch + PR). Nutze: git switch -c <branch>\"}}'; elif [ -n \"$(git diff --cached --name-only 2>/dev/null | grep -E '(^|/)\\.env(\\.[^/]*)?$' | grep -v '\\.env\\.example$')\" ]; then printf '%s' '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\".env-/Secret-Dateien sind gestaged. Nicht committen - entfernen mit: git restore --staged <datei>\"}}'; fi ;; esac; exit 0",
+            "statusMessage": "Branch-/Secret-Schutz (commit)..."
+          },
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "input=$(cat); case \"$input\" in *\"git push\"*) [ \"$(git branch --show-current 2>/dev/null)\" = \"main\" ] && printf '%s' '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Push von main ist nicht erlaubt (CLAUDE.md: Feature-Branch + PR).\"}}' ;; esac; exit 0",
+            "statusMessage": "Branch-Schutz (push)..."
+          }
+        ]
+      }
+    ]
+  }
+}
