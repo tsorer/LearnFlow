@@ -39,6 +39,17 @@ Frank/ Christoph/
 
 Details: `Docs/04_ADR-00X_*.md`, `Docs/05_C4-*`, `Docs/06_Architecture-Draft.md`.
 
+## Arbeitsweise (vor dem Coden)
+
+- **Erst denken:** Annahmen explizit nennen; bei Mehrdeutigkeit Optionen aufzeigen
+  statt still zu wählen; bei Unklarheit nachfragen.
+- **Minimal:** kleinster Code, der das Problem löst — nichts Spekulatives, keine
+  Über-Abstraktion, keine ungefragten Features.
+- **Chirurgisch:** nur ändern, was die Aufgabe erfordert; bestehenden Stil übernehmen;
+  angrenzenden Code nicht „mitverbessern".
+- **Zielgetrieben:** Aufgabe in testbare Kriterien + kurzen Plan überführen, dann gegen
+  diese Kriterien verifizieren (→ Definition of Done).
+
 ## Konventionen (Tests, Branches, PRs)
 
 - **Definition of Done:** Vor „fertig" die Akzeptanzkriterien des Issues benennen,
