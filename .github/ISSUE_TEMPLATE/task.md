@@ -34,7 +34,8 @@ assignees: ""
 
 | Feld | Wert |
 |---|---|
-| **Story Points** | <!-- 1 / 2 / 3 / 5 / 8 --> |
 | **Bereich** | <!-- Backend / Frontend / DB / DevOps --> |
 | **Abhängig von** | <!-- T-XX, T-YY oder — --> |
 | **Zugehörige Story** | <!-- US-XX --> |
+
+<!-- Story Points im GitHub Project Board setzen (1 / 2 / 3 / 5 / 8) -->
