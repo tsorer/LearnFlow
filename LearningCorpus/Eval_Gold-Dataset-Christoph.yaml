@@ -1,0 +1,348 @@
+# SAMW-Leitfaden "Forschung mit Menschen" — Gold-Eval-Dataset (Seed)
+# Stand: 2026-06-17 · Domäne: Forschung mit Menschen (Schweiz) · Bezug: ADR-009, EVAL-1
+# Korpus: SAMW (Hrsg.). Forschung mit Menschen — Ein Leitfaden für die Praxis.
+#         2., überarbeitete Auflage, 2015 (122 Seiten, DE).
+# Verteilung: 26 Fragen — 15 in_corpus / 7 out_of_corpus / 4 adversarial (~60/25/15).
+
+# ── IN CORPUS ────────────────────────────────────────────────────────────────
+# Fragen 1:1 aus dem SAMW-Leitfaden beantwortbar.
+
+- id: SAMW-RICHTLINIEN-01
+  category: in_corpus
+  question: "In welchem Jahr veröffentlichte die SAMW erstmals Richtlinien für „Forschungsuntersuchungen am Menschen”?"
+  expected_refusal: false
+  reference_answer: >
+    Im Jahr 1970. Diese Richtlinien wurden 2008 zurückgezogen, als sich eine
+    umfassende Rechtssetzung (Verfassungsartikel und Gesetz) abzeichnete; an ihre
+    Stelle trat ab 2009 der Leitfaden „Forschung mit Menschen".
+  expected_source: "Vorwort, Seite 7"
+  expected_source_id: TBD
+  version_sensitive: false
+  notes: "Historisches Datum."
+
+- id: BELMONT-01
+  category: in_corpus
+  question: "Auf welche drei zentralen Prinzipien stützt sich der Belmont-Report?"
+  expected_refusal: false
+  reference_answer: >
+    Drei Prinzipien stehen im Zentrum: Autonomie von Personen (Autonomy),
+    Wohltun (Beneficence) und Gerechtigkeit (Justice).
+  expected_source: "Kapitel 2.1 – Prinzipien der Forschungsethik, Seite 14"
+  expected_source_id: TBD
+  version_sensitive: false
+  notes: "Genau drei Prinzipien; Belmont-Report 1979."
+
+- id: EMANUEL-01
+  category: in_corpus
+  question: "Wie viele Anforderungen an ethisch vertretbare klinische Forschung haben Emanuel et al. herausgearbeitet, und welche sind das?"
+  expected_refusal: false
+  reference_answer: >
+    Sieben Anforderungen: (1) gesellschaftlicher Wert der Studie, (2) Erfüllung
+    wissenschaftlicher Methodik, (3) faire Auswahl der Teilnehmenden, (4) günstiges
+    Risiko-Nutzen-Verhältnis, (5) unabhängige Begutachtung, (6) freie und informierte
+    Einwilligung, (7) Respekt vor den Teilnehmenden während und nach der Studie.
+  expected_source: "Kapitel 2.2 – Ethische Anforderungen, Seite 16"
+  expected_source_id: TBD
+  version_sensitive: false
+  notes: "Sieben Kriterien; die informierte Einwilligung allein genügt nicht."
+
+- id: HFG-INKRAFT-01
+  category: in_corpus
+  question: "Wann ist das Humanforschungsgesetz (HFG) in Kraft getreten und welche drei Ausführungsverordnungen konkretisieren es?"
+  expected_refusal: false
+  reference_answer: >
+    Das HFG ist Anfang 2014 in Kraft getreten, zusammen mit drei ausführenden
+    Verordnungen: der Verordnung über klinische Versuche (KlinV), der
+    Humanforschungsverordnung (HFV) und der Organisationsverordnung HFG (OV-HFG).
+  expected_source: "Kapitel 3.2 – Schweiz, Seite 22"
+  expected_source_id: TBD
+  version_sensitive: false
+  notes: "Alle drei Verordnungen müssen genannt sein."
+
+- id: HFG-ZIELE-01
+  category: in_corpus
+  question: "Welche drei Ziele verfolgt der Gesetzgeber mit dem HFG?"
+  expected_refusal: false
+  reference_answer: >
+    (a) Schutz von Würde, Persönlichkeit und Gesundheit der in die Forschung
+    einbezogenen Personen; (b) Schaffung günstiger Rahmenbedingungen für die
+    Forschung; (c) Gewährleistung von Qualität und Transparenz der Forschung
+    mit Menschen.
+  expected_source: "Kapitel 3.3 – HFG: Zweck und Geltungsbereich, Seite 23"
+  expected_source_id: TBD
+  version_sensitive: false
+  notes: "Alle drei Ziele (a)–(c) müssen genannt sein."
+
+- id: RISIKOKAT-01
+  category: in_corpus
+  question: "In welche Risikokategorien werden Forschungsvorhaben nach HFG eingeteilt, und welche weist das geringste Risiko auf?"
+  expected_refusal: false
+  reference_answer: >
+    Klinische Versuche bzw. Forschungsvorhaben mit Personen werden in die
+    Kategorien A, B und C unterteilt, wobei A das geringste und C das höchste
+    Risikopotential aufweist. Eine Kategorisierung ist nur bei Forschungsprojekten
+    mit Personen vorgesehen (nicht z. B. bei bereits vorhandenem biologischem Material).
+  expected_source: "Kapitel 6.4 – Risikokategorisierung nach HFG, Seite 55"
+  expected_source_id: TBD
+  version_sensitive: true
+  notes: "Kategorisierungssystem nach HFG/KlinV — gegen aktuelle Rechtslage prüfen."
+
+- id: SUBSIDIARITAET-01
+  category: in_corpus
+  question: "Was besagt das „Prinzip der Subsidiarität” bei Forschung mit besonders vulnerablen Personen?"
+  expected_refusal: false
+  reference_answer: >
+    Besonders vulnerable Personen dürfen nur dann in ein Forschungsprojekt
+    einbezogen werden, wenn gleichwertige Erkenntnisse anders nicht gewonnen
+    werden können (Art. 11 Abs. 2 HFG). Es soll verhindern, dass die Verletzlichkeit
+    einer Gruppe ausgenutzt wird, um sie einfacher einzubeziehen.
+  expected_source: "Kapitel 5.1 – Konzept der Vulnerabilität, Seite 38"
+  expected_source_id: TBD
+  version_sensitive: false
+  notes: "Bezug Art. 11 Abs. 2 HFG."
+
+- id: JUGENDLICHE-01
+  category: in_corpus
+  question: "Ab welchem Alter gelten Kinder im Sinne des HFG als Jugendliche?"
+  expected_refusal: false
+  reference_answer: >
+    Als Jugendliche gelten Kinder ab Vollendung des 14. Lebensjahres. Der Leitfaden
+    führt sie unter den vom HFG als besonders vulnerabel bezeichneten Personengruppen auf.
+  expected_source: "Kapitel 5.1 – Konzept der Vulnerabilität, Seite 40"
+  expected_source_id: TBD
+  version_sensitive: true
+  notes: "Altersgrenze ist gesetzlich definiert — gegen aktuelle Rechtslage prüfen."
+
+- id: NUERNBERG-01
+  category: in_corpus
+  question: "Was forderte der Nürnberger Kodex unter anderem für ethisch gerechtfertigte Humanversuche?"
+  expected_refusal: false
+  reference_answer: >
+    Unter anderem den sogenannten Informed Consent: die vollständige Aufklärung
+    über Ziele, Verfahren, potentiellen Nutzen und Schaden des Versuchs sowie die
+    freiwillige Zustimmung der Probandinnen und Probanden. Der Kodex umfasste zehn
+    wesentliche Punkte und entstand im Nürnberger Kriegsverbrechertribunal 1946/47.
+  expected_source: "Kapitel 1 – Geschichte der Forschung mit Menschen, Seite 11"
+  expected_source_id: TBD
+  version_sensitive: false
+  notes: "Historischer Kontext; Nürnberger Kodex, nicht WHO."
+
+- id: ANONYM-01
+  category: in_corpus
+  question: "Welche drei Grade der Anonymisierung unterscheidet das Humanforschungsrecht?"
+  expected_refusal: false
+  reference_answer: >
+    Drei Grade: (1) anonymisiert — die betroffene Person lässt sich nur mit
+    unverhältnismässigem Aufwand eruieren; (2) pseudonymisiert (verschlüsselt) —
+    identifizierende Attribute sind durch ein Pseudonym ersetzt, der Schlüssel wird
+    sicher und getrennt aufbewahrt; (3) identifizierend (unverschlüsselt) — die Person
+    ist bestimmt oder bestimmbar.
+  expected_source: "Kapitel 12.3 – Anonymisierung und Re-Identifikation, Seite 93"
+  expected_source_id: TBD
+  version_sensitive: true
+  notes: "Bezug Art. 25/26 HFV — gegen aktuelle Rechtslage prüfen."
+
+- id: GENERALKONSENT-01
+  category: in_corpus
+  question: "Was versteht der Leitfaden unter einem „Generalkonsent”?"
+  expected_refusal: false
+  reference_answer: >
+    Eine spezielle Form der Einwilligung, bei der der Spender in die
+    Weiterverwendung von Material und Daten für Forschungsprojekte einwilligt, die
+    zum Zeitpunkt der Einwilligung erst in Zukunft definiert werden. Die Zustimmung
+    muss freiwillig sein, ein Widerruf jederzeit möglich, und der Spender muss
+    verstehen, worin er einwilligt.
+  expected_source: "Kapitel 8.8 – Generalkonsent, Seite 74"
+  expected_source_id: TBD
+  version_sensitive: false
+  notes: ""
+
+- id: SAETTIGUNG-01
+  category: in_corpus
+  question: "Welches Kriterium beendet den Erhebungsprozess in der qualitativen Forschung?"
+  expected_refusal: false
+  reference_answer: >
+    Die theoretische Sättigung: Der Erhebungsprozess wird beendet, wenn trotz
+    maximal kontrastierender Fälle keine neuen theoretischen Erkenntnisse mehr
+    generiert werden können und die Heterogenität des Feldes umfassend abgebildet ist.
+  expected_source: "Kapitel 14.1 – Methodisches Vorgehen, Seite 110"
+  expected_source_id: TBD
+  version_sensitive: false
+  notes: ""
+
+- id: QUALI-ERHEBUNG-01
+  category: in_corpus
+  question: "Welche zwei grundsätzlichen Formen der Datenerhebung unterscheidet die qualitative Forschung?"
+  expected_refusal: false
+  reference_answer: >
+    Die Erhebung von Beobachtungsdaten und von Interviewdaten. Beobachtung kann
+    teilnehmend oder nicht teilnehmend sowie offen oder verdeckt erfolgen; Interviews
+    unterscheiden sich in Strukturierung und Offenheit des Gesprächsverlaufs.
+  expected_source: "Kapitel 14.2 – Formen der Datenerhebung, Seite 111"
+  expected_source_id: TBD
+  version_sensitive: false
+  notes: ""
+
+- id: SWISSMEDIC-01
+  category: in_corpus
+  question: "Welche zusätzliche Bewilligung ist neben jener der Ethikkommission für klinische Versuche mit Heilmitteln grundsätzlich erforderlich?"
+  expected_refusal: false
+  reference_answer: >
+    Neben der Bewilligung der Ethikkommission ist grundsätzlich auch eine Bewilligung
+    von Swissmedic erforderlich (gestützt auf das Heilmittelgesetz). Klinische Versuche
+    der Kategorie A sind von der Swissmedic-Bewilligungspflicht ausgenommen (Art. 30 KlinV).
+  expected_source: "Kapitel 3.2 – Schweiz, Seite 22"
+  expected_source_id: TBD
+  version_sensitive: true
+  notes: "Bewilligungspflichten nach Heilmittelrecht/KlinV — gegen aktuelle Rechtslage prüfen."
+
+- id: BV118B-01
+  category: in_corpus
+  question: "Wann wurde der Verfassungsartikel 118b BV über die Forschung am Menschen von Volk und Ständen angenommen?"
+  expected_refusal: false
+  reference_answer: >
+    Am 7. März 2010. Art. 118b BV erteilt dem Bund die umfassende Zuständigkeit
+    zur Regelung der Forschung am Menschen, soweit diese Menschenwürde und
+    Persönlichkeitsrechte potentiell gefährden könnte.
+  expected_source: "Kapitel 3 – Rechtliche Rahmenbedingungen, Seite 21"
+  expected_source_id: TBD
+  version_sensitive: false
+  notes: "Historisches Abstimmungsdatum."
+
+# ── OUT OF CORPUS ─────────────────────────────────────────────────────────────
+# Themen, die nicht im SAMW-Leitfaden stehen — System soll "Weiss ich nicht" antworten.
+
+- id: OOC-01
+  category: out_of_corpus
+  question: "Wie hoch sind die Gebühren der kantonalen Ethikkommissionen für die Prüfung eines Forschungsgesuchs?"
+  expected_refusal: true
+  reference_answer: null
+  expected_source: null
+  expected_source_id: TBD
+  version_sensitive: false
+  notes: "Gebührentarife sind nicht Gegenstand des Leitfadens → Weiss ich nicht."
+
+- id: OOC-02
+  category: out_of_corpus
+  question: "Welche konkreten Strafmasse (Bussen, Freiheitsstrafen) sieht das HFG bei der Durchführung von Forschung ohne Bewilligung vor?"
+  expected_refusal: true
+  reference_answer: null
+  expected_source: null
+  expected_source_id: TBD
+  version_sensitive: false
+  notes: >
+    Der Leitfaden verweist allgemein auf Strafrecht, nennt aber keine konkreten
+    Strafbestimmungen des HFG → Weiss ich nicht.
+
+- id: OOC-03
+  category: out_of_corpus
+  question: "Innert welcher Frist müssen schwerwiegende unerwünschte Ereignisse (SUSAR) der Ethikkommission gemeldet werden?"
+  expected_refusal: true
+  reference_answer: null
+  expected_source: null
+  expected_source_id: TBD
+  version_sensitive: false
+  notes: "Konkrete Meldefristen sind nicht im Leitfaden enthalten → Weiss ich nicht."
+
+- id: OOC-04
+  category: out_of_corpus
+  question: "Welche Mindestversicherungssumme muss ein Sponsor für die Probandenversicherung abschliessen?"
+  expected_refusal: true
+  reference_answer: null
+  expected_source: null
+  expected_source_id: TBD
+  version_sensitive: false
+  notes: >
+    Der Leitfaden behandelt Haftung für Schäden konzeptionell, nennt aber keine
+    Versicherungssummen → Weiss ich nicht.
+
+- id: OOC-05
+  category: out_of_corpus
+  question: "Wie viele klinische Versuche werden in der Schweiz pro Jahr bei Swissmedic angemeldet?"
+  expected_refusal: true
+  reference_answer: null
+  expected_source: null
+  expected_source_id: TBD
+  version_sensitive: false
+  notes: "Statistik ist nicht Gegenstand des Leitfadens → Weiss ich nicht."
+
+- id: OOC-06
+  category: out_of_corpus
+  question: "Welche Detailanforderungen stellt die ICH-GCP-Leitlinie an das Monitoring klinischer Studien?"
+  expected_refusal: true
+  reference_answer: null
+  expected_source: null
+  expected_source_id: TBD
+  version_sensitive: false
+  notes: >
+    Der Leitfaden erwähnt die ICH-Leitlinie, führt ihre Monitoring-Detailanforderungen
+    aber nicht aus → Weiss ich nicht.
+
+- id: OOC-07
+  category: out_of_corpus
+  question: "Wie ist die finanzielle Entschädigung gesunder Probanden in Phase-I-Studien betragsmässig geregelt?"
+  expected_refusal: true
+  reference_answer: null
+  expected_source: null
+  expected_source_id: TBD
+  version_sensitive: false
+  notes: >
+    Der Leitfaden nennt Vergütung von Auslagen als Aufklärungsinhalt, aber keine
+    betragsmässige Regelung → Weiss ich nicht.
+
+# ── ADVERSARIAL ───────────────────────────────────────────────────────────────
+# Fragen mit falschen Annahmen oder die Halluzinationen provozieren sollen.
+
+- id: ADV-01
+  category: adversarial
+  question: "Auf welcher Seite formuliert der Leitfaden das absolute Verbot „Fremdnützige Forschung an Nichteinwilligungsfähigen ist verboten”?"
+  expected_refusal: false
+  reference_answer: >
+    Ein solches Verbot steht nicht im Leitfaden. Dieser Satz wird in Kapitel 2.2
+    ausdrücklich nur als Gegenbeispiel genannt — als Typ einer absoluten Verbotsnorm,
+    die die sieben ethischen Anforderungen gerade NICHT aufstellen. Der Leitfaden
+    setzt stattdessen auf eine „Kultur der Reflexion" statt auf absolute Grenzen.
+  expected_source: "Kapitel 2.2 – Ethische Anforderungen, Seite 16"
+  expected_source_id: TBD
+  version_sensitive: false
+  notes: "Testet Halluzinationsabwehr bei falscher Prämisse (Verbot existiert nicht)."
+
+- id: ADV-02
+  category: adversarial
+  question: "Der Belmont-Report nennt fünf zentrale forschungsethische Prinzipien — wie lauten alle fünf?"
+  expected_refusal: false
+  reference_answer: >
+    Die Annahme ist falsch. Laut Leitfaden stehen im Belmont-Report DREI Prinzipien
+    im Zentrum: Autonomie (Autonomy), Wohltun (Beneficence) und Gerechtigkeit (Justice).
+    Ein viertes oder fünftes Prinzip wird nicht genannt.
+  expected_source: "Kapitel 2.1 – Prinzipien der Forschungsethik, Seite 14"
+  expected_source_id: TBD
+  version_sensitive: false
+  notes: "Testet ob das System die falsche Anzahl korrigiert statt Prinzipien zu erfinden."
+
+- id: ADV-03
+  category: adversarial
+  question: "Welchen Höchstbetrag für finanzielle Anreize an Studienteilnehmende schreibt das HFG laut Leitfaden vor?"
+  expected_refusal: false
+  reference_answer: >
+    Der Leitfaden nennt keinen Höchstbetrag. Er thematisiert in Kapitel 8.5, dass
+    (finanzielle) Anreize die Studienteilnahme beeinflussen können, legt aber keine
+    konkrete Obergrenze fest. Die Frage unterstellt fälschlich, dass ein solcher
+    Betrag existiert.
+  expected_source: "Kapitel 8.5 – Beeinflussung der Studienteilnahme durch (finanzielle) Anreize, Seite 71"
+  expected_source_id: TBD
+  version_sensitive: false
+  notes: "Testet Halluzinationsabwehr (erfundener Betrag)."
+
+- id: ADV-04
+  category: adversarial
+  question: "Hat die Schweiz das Zusatzprotokoll zur Biomedizinkonvention betreffend biomedizinische Forschung gemäss Leitfaden ratifiziert?"
+  expected_refusal: false
+  reference_answer: >
+    Nein. Der Leitfaden hält fest, dass das vom Europarat im Januar 2005 verabschiedete
+    Zusatzprotokoll betreffend biomedizinische Forschung von der Schweiz bisher NICHT
+    unterzeichnet wurde. (Die Biomedizinkonvention selbst hat die Schweiz 2008 ratifiziert.)
+  expected_source: "Kapitel 3.1 – Internationale Regelungen, Seite 22"
+  expected_source_id: TBD
+  version_sensitive: false
+  notes: "Testet falsche Prämisse (Ratifikation) und Verwechslung Konvention/Zusatzprotokoll."
