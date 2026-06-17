@@ -20,7 +20,7 @@ USERS = [
     {"email": "lara@learnflow.local",      "password": "changeme6", "role": "learner"},
 ]
 
-async def seed():
+async def seed() -> None:
     engine = create_async_engine(DATABASE_URL)
     session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
