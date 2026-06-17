@@ -79,7 +79,7 @@ export default function ChatView({ user, onLogout }: Props) {
         confidence: res.confidence,
         debug: res.debug,
       }]);
-    } catch (e) {
+    } catch {
       setMessages(prev => [...prev, {
         role: "assistant",
         content: "Fehler beim Abrufen der Antwort. Bitte versuche es erneut.",

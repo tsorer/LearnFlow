@@ -33,8 +33,8 @@ export default function Upload({ user, onClose }: Props) {
         await api.uploadDocument(file, "default", user.token);
       }
       await load();
-    } catch (err: any) {
-      setError(err.message ?? "Upload fehlgeschlagen");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload fehlgeschlagen");
     } finally {
       setUploading(false);
       e.target.value = "";

@@ -11,12 +11,19 @@ target-version = "py313"
 [tool.ruff.lint]
 # E/F = Fehler & Stil, I = Import-Sortierung, UP = veraltete Syntax, B = Bug-Muster
 select = ["E", "F", "I", "UP", "B"]
+# B008: Depends() in FastAPI function signatures is intentional
+ignore = ["B008"]
 
 [tool.mypy]
 python_version = "3.13"
 strict = true
-# Ziel wird auf der Kommandozeile uebergeben (mypy .), sobald Code unter app/ liegt.
+
+[[tool.mypy.overrides]]
+module = ["asyncpg.*", "pgqueuer.*", "bcrypt.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 addopts = "-q"
 pythonpath = ["."]
+asyncio_mode = "auto"
+testpaths = ["tests"]

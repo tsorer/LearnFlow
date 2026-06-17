@@ -17,6 +17,8 @@ services:
   api:
     build:
       context: ./backend
+      args:
+        INSTALL_DEV: "true"
     command: >
       sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
     restart: unless-stopped
@@ -28,10 +30,18 @@ services:
         condition: service_healthy
     volumes:
       - ./backend:/app
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   worker:
     build:
       context: ./backend
+      args:
+        INSTALL_DEV: "false"
     command: python -m worker.main
     restart: unless-stopped
     env_file: .env
@@ -42,6 +52,12 @@ services:
         condition: service_healthy
     volumes:
       - ./backend:/app
+    healthcheck:
+      test: ["CMD", "python", "-c", "import asyncpg"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   webapp:
     build:
@@ -50,8 +66,16 @@ services:
     ports:
       - "80:80"
     depends_on:
-      - api
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
 volumes:
   pgdata:
     name: learnflow_pgdata
+    # explicit name keeps the volume if the directory is renamed
