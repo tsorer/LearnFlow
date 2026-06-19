@@ -18,7 +18,7 @@ LearnFlow hat ein klar getrenntes Frontend (React/TypeScript) und Backend (FastA
 
 Wir verwenden **API-First**: Die OpenAPI 3.0 Spec (YAML) wird geschrieben bevor Backend-Implementierung oder Frontend-Integration beginnt. Die Spec ist die verbindliche Schnittstellen-Definition — Abweichungen in der Implementierung gelten als Fehler, nicht die Spec.
 
-Die Spec wird als `openapi.yaml` im Projekt-Root versioniert und ist Teil jedes Pull Requests der Endpunkte hinzufügt oder ändert.
+Die Spec wird als `src/backend/openapi.yaml` versioniert (dort im Backend-Container und damit in der CI per `openapi-spec-validator` prüfbar) und ist Teil jedes Pull Requests der Endpunkte hinzufügt oder ändert.
 
 ---
 
