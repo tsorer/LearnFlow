@@ -1,6 +1,4 @@
-"""Unit tests for seed_users.py — role coverage and bcrypt hashing."""
-
-import bcrypt as _bcrypt
+"""Tests for seed_users: validates the USERS data list."""
 
 from seed_users import USERS
 
@@ -12,10 +10,8 @@ def test_all_roles_represented() -> None:
     assert "admin" in roles
 
 
-def test_passwords_are_bcrypt_hashed() -> None:
+def test_passwords_are_plaintext_in_list() -> None:
     for u in USERS:
-        password = u["password"].encode()
-        hashed = _bcrypt.hashpw(password, _bcrypt.gensalt())
-        assert _bcrypt.checkpw(password, hashed)
-        # Ensure the stored password is not stored as plaintext
-        assert not u["password"].startswith("$2b$")
+        assert not u["password"].startswith("$2b$"), (
+            f"{u['email']}: password must be plaintext in USERS list, not a bcrypt hash"
+        )
