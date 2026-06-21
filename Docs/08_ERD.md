@@ -26,11 +26,11 @@ erDiagram
 
     %% ── Bestehend ───────────────────────────────────────────
     users {
-        uuid        id           PK
-        varchar     username     UK
-        varchar     password_hash
+        uuid        id              PK
+        varchar     email           UK
+        varchar     hashed_password
         varchar     role
-        varchar     area
+        boolean     is_active
         timestamp   created_at
     }
 
@@ -154,7 +154,7 @@ Konfigurierbare Parameter (ADR-007 · ADR-008 · US-02 · US-06 · US-11):
 | Key | Startwert | Zweck |
 |---|---|---|
 | `similarity_threshold` | `0.35` | Retrieval-Gate (ADR-007) |
-| `min_retrieval_confidence` | — | Stufe 1 (ADR-008) |
+| `min_retrieval_confidence` | `0.40` | Stufe 1 (ADR-008) |
 | `min_citation_coverage` | `0.50` | Stufe 2 (ADR-008) |
 | `stale_days` | `90` | US-06 |
 | `rrf_k` | `60` | RRF-Fusion (ADR-007) |

@@ -12,7 +12,7 @@
 
 **Änderungen gegenüber v3 (Entscheide 2026-05-20):**
 - MVP-Constraint: genau **ein Bereich** (Pilot-Bereich, hartcodiert).
-- User-Management: kein Admin-UI — Accounts werden per **DB-Script** angelegt (Felder: username, passwort, Rolle: Lernende / Bereichsverantwortlicher / Admin). US-11 entfällt als Abhängigkeit für US-05.
+- User-Management: kein Admin-UI — Accounts werden per **DB-Script** angelegt (Felder: email, passwort, Rolle: Lernende / Bereichsverantwortlicher / Admin). US-11 entfällt als Abhängigkeit für US-05.
 - US-11: auf reine Systemkonfiguration reduziert (Konfidenz- und Stale-Schwellenwert); kein User-Management mehr im Scope.
 - US-06: **Post-MVP** — Stale-Content-Erkennung inkl. E-Mail-Report wird nicht im MVP umgesetzt. SMTP-Provider-Entscheid entfällt damit als Blocker. US-11-Abhängigkeit (Stale-Schwellenwert) bleibt erhalten, da der Wert künftig benötigt wird.
 
@@ -23,9 +23,9 @@
 | Constraint | Wert |
 |---|---|
 | Anzahl Bereiche | **1** (Pilot-Bereich, hartcodiert) |
-| User-Management | **DB-Script** — kein Admin-UI; Felder: username, passwort, Rolle (Lernende / Bereichsverantwortlicher / Admin) |
+| User-Management | **DB-Script** — kein Admin-UI; Felder: email, passwort, Rolle (Lernende / Bereichsverantwortlicher / Admin) |
 | Systemkonfiguration | **DB-Script** — Konfidenz- und Stale-Schwellenwert direkt in DB änderbar; alternativ via Admin-Seite (US-11) |
-| Authentifizierung | Username / Passwort (lokal); post-MVP SSO via IdP |
+| Authentifizierung | E-Mail / Passwort (lokal); post-MVP SSO via IdP (E-Mail als Identifier für Azure AD / SAML) |
 | Rollen | **Lernende** (Anwender: fragen, Feedback, Quiz) / **Bereichsverantwortlicher** (Anwender + Dokumente & Quiz verwalten) / **Admin** (Systemkonfiguration im Hintergrund) |
 
 ---
@@ -110,7 +110,7 @@
 *Als Plattformnutzerin möchte ich mich sicher anmelden können und automatisch den Bereich sehen, dem ich zugeordnet bin, damit nur autorisierte Mitarbeitende Zugang zur Plattform und zu den relevanten Inhalten haben.*
 
 **Akzeptanzkriterien:**
-- ✓ MVP: Authentifizierung per Username/Passwort; Accounts werden per DB-Script angelegt (Felder: username, passwort, Rolle: Lernende / Bereichsverantwortlicher / Admin) – keine Self-Service-Registrierung.
+- ✓ MVP: Authentifizierung per E-Mail/Passwort; Accounts werden per DB-Script angelegt (Felder: email, passwort, Rolle: Lernende / Bereichsverantwortlicher / Admin) – keine Self-Service-Registrierung.
 - ✓ Post-MVP: SSO-Anbindung via Unternehmens-IdP (z. B. Azure AD / SAML 2.0) geplant.
 - ✓ Nicht authentifizierte Nutzer werden auf die Login-Seite weitergeleitet.
 - ✓ MVP: Nach dem Login sieht jede Person den Pilot-Bereich (genau ein Bereich, hartcodiert).

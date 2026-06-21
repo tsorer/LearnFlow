@@ -67,6 +67,7 @@ def upgrade() -> None:
             name="fk_chunks_document_id",
         ),
     )
+    op.create_index("ix_chunks_document_id", "chunks", ["document_id"])
 
     # pgvector and tsvector columns — added via raw SQL because SQLAlchemy's
     # create_table() cannot express these types without the extension being present first.
@@ -85,6 +86,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    op.drop_index("ix_chunks_document_id", table_name="chunks")
     op.drop_table("chunks")
     op.drop_table("documents")
     op.execute("DROP EXTENSION IF EXISTS vector")

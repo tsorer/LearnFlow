@@ -115,8 +115,10 @@ def upgrade() -> None:
     ]
     for key, value, description in rows:
         op.execute(
-            f"INSERT INTO config (key, value, description) VALUES"  # noqa: S608
-            f" ('{key}', '{value}', '{description}')"
+            sa.text(
+                "INSERT INTO config (key, value, description) VALUES (:key, :value, :description)"
+            ),
+            {"key": key, "value": value, "description": description},
         )
 
 

@@ -34,8 +34,8 @@ LearnFlow ist eine interne Lernplattform, die neuen Mitarbeitenden erlaubt, Frag
 | Constraint | Wert |
 |---|---|
 | Anzahl Bereiche | 1 (Pilot-Bereich, hartcodiert) |
-| User-Management | DB-Script — kein Admin-UI; Felder: username, passwort, Rolle |
-| Authentifizierung | Username / Passwort (lokal); post-MVP SSO via IdP |
+| User-Management | DB-Script — kein Admin-UI; Felder: email, passwort, Rolle |
+| Authentifizierung | E-Mail / Passwort (lokal); post-MVP SSO via IdP (E-Mail als Identifier für Azure AD / SAML) |
 | Rollen | Lernende / Bereichsverantwortlicher / Admin |
 | Budget | 480 h gesamt (4 Personen × 15 Wochen × 1 Tag/Woche), davon **360 h Umsetzung** und ~120 h Planung/Analyse/Architektur |
 | Deadline | 30. September 2026 |
@@ -120,7 +120,7 @@ LearnFlow ist eine interne Lernplattform, die neuen Mitarbeitenden erlaubt, Frag
 *Als Plattformnutzer:in möchte ich mich sicher anmelden und automatisch den Bereich sehen, dem ich zugeordnet bin, damit nur autorisierte Mitarbeitende Zugang haben.*
 
 **Akzeptanzkriterien:**
-- ✓ Authentifizierung per Username/Passwort; Accounts per DB-Script angelegt (Felder: username, passwort, Rolle: Lernende / Bereichsverantwortlicher / Admin) — keine Self-Service-Registrierung.
+- ✓ Authentifizierung per E-Mail/Passwort; Accounts per DB-Script angelegt (Felder: email, passwort, Rolle: Lernende / Bereichsverantwortlicher / Admin) — keine Self-Service-Registrierung.
 - ✓ Post-MVP: SSO-Anbindung via Unternehmens-IdP (z. B. Azure AD / SAML 2.0).
 - ✓ Nicht authentifizierte Nutzer werden auf die Login-Seite weitergeleitet.
 - ✓ Nach dem Login sieht jede Person den Pilot-Bereich (hartcodiert).
