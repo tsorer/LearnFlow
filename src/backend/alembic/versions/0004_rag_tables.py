@@ -113,8 +113,9 @@ def upgrade() -> None:
         ("retrieval_top_k",           "20",   "Candidates retrieved per search type (ADR-007)"),
         ("context_top_n",             "5",    "Chunks passed to the LLM as context (ADR-007)"),
     ]
+    bind = op.get_bind()
     for key, value, description in rows:
-        op.execute(
+        bind.execute(
             sa.text(
                 "INSERT INTO config (key, value, description) VALUES (:key, :value, :description)"
             ),
