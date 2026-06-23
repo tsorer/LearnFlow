@@ -9,8 +9,6 @@ import bcrypt as _bcrypt
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-DATABASE_URL = os.environ["DATABASE_URL"].replace("postgresql://", "postgresql+asyncpg://", 1)
-
 USERS = [
     {"email": "frank@learnflow.local",     "password": "changeme1", "role": "knowledge_owner"},
     {"email": "niklaus@learnflow.local",   "password": "changeme2", "role": "admin"},
@@ -20,8 +18,10 @@ USERS = [
     {"email": "lara@learnflow.local",      "password": "changeme6", "role": "learner"},
 ]
 
-async def seed():
-    engine = create_async_engine(DATABASE_URL)
+
+async def seed() -> None:
+    database_url = os.environ["DATABASE_URL"].replace("postgresql://", "postgresql+asyncpg://", 1)
+    engine = create_async_engine(database_url)
     session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     async with session_factory() as db:
@@ -54,4 +54,6 @@ async def seed():
     await engine.dispose()
     print("Done.")
 
-asyncio.run(seed())
+
+if __name__ == "__main__":
+    asyncio.run(seed())

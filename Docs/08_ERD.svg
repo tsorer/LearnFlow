@@ -1,0 +1,189 @@
+<svg viewBox="0 0 1060 710" xmlns="http://www.w3.org/2000/svg" role="img" font-family="ui-monospace,'Cascadia Code','SF Mono',Consolas,monospace" font-size="11">
+  <title>LearnFlow ERD</title>
+  <desc>Entity Relationship Diagram mit 9 Tabellen: users, pgqueuer, documents, chunks, query_sessions, answers, feedback, config, quiz_questions</desc>
+
+  <defs>
+    <marker id="arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#94a3b8"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1060" height="710" fill="#f8fafc" rx="10"/>
+
+  <!-- Title -->
+  <text x="530" y="28" text-anchor="middle" font-family="ui-sans-serif,system-ui,sans-serif" font-size="15" font-weight="700" fill="#0f172a">LearnFlow — Entity Relationship Diagram</text>
+
+  <!-- Legend -->
+  <g transform="translate(20,44)" font-family="ui-sans-serif,system-ui,sans-serif" font-size="11" fill="#374151">
+    <rect width="10" height="10" fill="#3b82f6" rx="2" y="1"/><text x="15" y="10">Vorhanden</text>
+    <rect x="92" width="10" height="10" fill="#16a34a" rx="2" y="1"/><text x="107" y="10">Sprint 1</text>
+    <rect x="163" width="10" height="10" fill="#d97706" rx="2" y="1"/><text x="178" y="10">Zukunft</text>
+    <rect x="234" width="10" height="10" fill="#6b7280" rx="2" y="1"/><text x="249" y="10">SHOULD / T-34</text>
+  </g>
+
+  <!-- ── RELATIONSHIP LINES ── -->
+  <!-- users → query_sessions -->
+  <line x1="134" y1="216" x2="134" y2="236" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="138" y="230" font-family="ui-sans-serif,system-ui,sans-serif" font-size="9" fill="#94a3b8">initiates</text>
+  <!-- query_sessions → answers -->
+  <line x1="134" y1="316" x2="134" y2="336" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="138" y="330" font-family="ui-sans-serif,system-ui,sans-serif" font-size="9" fill="#94a3b8">contains</text>
+  <!-- answers → feedback -->
+  <line x1="134" y1="514" x2="134" y2="534" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="138" y="527" font-family="ui-sans-serif,system-ui,sans-serif" font-size="9" fill="#94a3b8">receives</text>
+  <!-- users → documents -->
+  <path d="M 248 152 H 263 V 202 H 278" fill="none" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="252" y="148" font-family="ui-sans-serif,system-ui,sans-serif" font-size="9" fill="#94a3b8">uploads</text>
+  <!-- documents → chunks -->
+  <line x1="398" y1="316" x2="398" y2="336" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="402" y="330" font-family="ui-sans-serif,system-ui,sans-serif" font-size="9" fill="#94a3b8">split into</text>
+  <!-- documents → quiz_questions -->
+  <path d="M 518 202 H 533 V 293 H 548" fill="none" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="521" y="244" font-family="ui-sans-serif,system-ui,sans-serif" font-size="9" fill="#94a3b8">generates</text>
+  <!-- users → config (FK dashed) -->
+  <path d="M 134 88 V 62 H 668 V 88" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arr)"/>
+  <text x="380" y="58" text-anchor="middle" font-family="ui-sans-serif,system-ui,sans-serif" font-size="9" fill="#94a3b8">modifies (changed_by)</text>
+
+  <!-- TABLE: users  x=20 y=88 w=228 h=128 -->
+  <g transform="translate(20,88)">
+    <rect width="228" height="128" rx="6" fill="#eff6ff" stroke="#93c5fd" stroke-width="1.5"/>
+    <rect width="228" height="26" rx="6" fill="#3b82f6"/>
+    <rect y="20" width="228" height="6" fill="#3b82f6"/>
+    <text x="114" y="17" text-anchor="middle" font-family="ui-sans-serif,system-ui,sans-serif" font-size="12" font-weight="700" fill="white">users</text>
+    <text x="8" y="42" fill="#1d4ed8" font-weight="700">PK  uuid id</text>
+    <text x="8" y="58" fill="#374151">    varchar email</text>
+    <text x="8" y="74" fill="#374151">    varchar hashed_password</text>
+    <text x="8" y="90" fill="#374151">    varchar role</text>
+    <text x="8" y="106" fill="#374151">    boolean is_active</text>
+    <text x="8" y="122" fill="#374151">    timestamp created_at</text>
+  </g>
+
+  <!-- TABLE: query_sessions  x=20 y=236 w=228 h=80 -->
+  <g transform="translate(20,236)">
+    <rect width="228" height="80" rx="6" fill="#fffbeb" stroke="#fcd34d" stroke-width="1.5"/>
+    <rect width="228" height="26" rx="6" fill="#d97706"/>
+    <rect y="20" width="228" height="6" fill="#d97706"/>
+    <text x="114" y="17" text-anchor="middle" font-family="ui-sans-serif,system-ui,sans-serif" font-size="12" font-weight="700" fill="white">query_sessions</text>
+    <text x="8" y="42" fill="#1d4ed8" font-weight="700">PK  uuid id</text>
+    <text x="8" y="58" fill="#7c3aed" font-style="italic">FK  uuid user_id</text>
+    <text x="8" y="74" fill="#374151">    timestamp created_at</text>
+  </g>
+
+  <!-- TABLE: answers  x=20 y=336 w=228 h=178 -->
+  <g transform="translate(20,336)">
+    <rect width="228" height="178" rx="6" fill="#fffbeb" stroke="#fcd34d" stroke-width="1.5"/>
+    <rect width="228" height="26" rx="6" fill="#d97706"/>
+    <rect y="20" width="228" height="6" fill="#d97706"/>
+    <text x="114" y="17" text-anchor="middle" font-family="ui-sans-serif,system-ui,sans-serif" font-size="12" font-weight="700" fill="white">answers</text>
+    <text x="8" y="42" fill="#1d4ed8" font-weight="700">PK  uuid id</text>
+    <text x="8" y="58" fill="#7c3aed" font-style="italic">FK  uuid session_id</text>
+    <text x="8" y="74" fill="#374151">    text question</text>
+    <text x="8" y="90" fill="#374151">    text answer_text</text>
+    <text x="8" y="106" fill="#374151">    float confidence_score</text>
+    <text x="8" y="122" fill="#374151">    float citation_coverage</text>
+    <text x="8" y="138" fill="#374151">    float retrieval_confidence</text>
+    <text x="8" y="154" fill="#374151">    boolean suppressed</text>
+    <text x="8" y="170" fill="#374151">    timestamp created_at</text>
+  </g>
+
+  <!-- TABLE: feedback  x=20 y=534 w=228 h=128 -->
+  <g transform="translate(20,534)">
+    <rect width="228" height="128" rx="6" fill="#fffbeb" stroke="#fcd34d" stroke-width="1.5"/>
+    <rect width="228" height="26" rx="6" fill="#d97706"/>
+    <rect y="20" width="228" height="6" fill="#d97706"/>
+    <text x="114" y="17" text-anchor="middle" font-family="ui-sans-serif,system-ui,sans-serif" font-size="12" font-weight="700" fill="white">feedback</text>
+    <text x="8" y="42" fill="#1d4ed8" font-weight="700">PK  uuid id</text>
+    <text x="8" y="58" fill="#7c3aed" font-style="italic">FK  uuid answer_id</text>
+    <text x="8" y="74" fill="#374151">    boolean helpful</text>
+    <text x="8" y="90" fill="#374151">    varchar category</text>
+    <text x="8" y="106" fill="#374151">    text comment</text>
+    <text x="8" y="122" fill="#374151">    timestamp created_at</text>
+  </g>
+
+  <!-- TABLE: documents  x=278 y=88 w=240 h=228 -->
+  <g transform="translate(278,88)">
+    <rect width="240" height="228" rx="6" fill="#f0fdf4" stroke="#86efac" stroke-width="1.5"/>
+    <rect width="240" height="26" rx="6" fill="#16a34a"/>
+    <rect y="20" width="240" height="6" fill="#16a34a"/>
+    <text x="120" y="17" text-anchor="middle" font-family="ui-sans-serif,system-ui,sans-serif" font-size="12" font-weight="700" fill="white">documents</text>
+    <text x="8" y="42" fill="#1d4ed8" font-weight="700">PK  uuid id</text>
+    <text x="8" y="58" fill="#374151">    varchar filename</text>
+    <text x="8" y="74" fill="#374151">    varchar content_type</text>
+    <text x="8" y="90" fill="#374151">    bytea content</text>
+    <text x="8" y="106" fill="#374151">    varchar status</text>
+    <text x="8" y="122" fill="#374151">    varchar area</text>
+    <text x="8" y="138" fill="#7c3aed" font-style="italic">FK  uuid uploaded_by</text>
+    <text x="8" y="154" fill="#374151">    int chunk_count</text>
+    <text x="8" y="170" fill="#374151">    text error_message</text>
+    <text x="8" y="186" fill="#374151">    timestamp created_at</text>
+    <text x="8" y="202" fill="#374151">    timestamp updated_at</text>
+    <text x="8" y="218" fill="#d97706" font-weight="600">    timestamp validated_at</text>
+  </g>
+
+  <!-- TABLE: chunks  x=278 y=336 w=240 h=162 -->
+  <g transform="translate(278,336)">
+    <rect width="240" height="162" rx="6" fill="#f0fdf4" stroke="#86efac" stroke-width="1.5"/>
+    <rect width="240" height="26" rx="6" fill="#16a34a"/>
+    <rect y="20" width="240" height="6" fill="#16a34a"/>
+    <text x="120" y="17" text-anchor="middle" font-family="ui-sans-serif,system-ui,sans-serif" font-size="12" font-weight="700" fill="white">chunks</text>
+    <text x="8" y="42" fill="#1d4ed8" font-weight="700">PK  uuid id</text>
+    <text x="8" y="58" fill="#7c3aed" font-style="italic">FK  uuid document_id</text>
+    <text x="8" y="74" fill="#374151">    text content</text>
+    <text x="8" y="90" fill="#374151">    vector(1536) embedding</text>
+    <text x="8" y="106" fill="#374151">    tsvector tsv</text>
+    <text x="8" y="122" fill="#374151">    int chunk_index / page</text>
+    <text x="8" y="138" fill="#374151">    text heading</text>
+    <text x="120" y="158" text-anchor="middle" font-family="ui-sans-serif,system-ui,sans-serif" font-size="9" fill="#16a34a">HNSW · GIN/german</text>
+  </g>
+
+  <!-- TABLE: config  x=548 y=88 w=240 h=128 -->
+  <g transform="translate(548,88)">
+    <rect width="240" height="128" rx="6" fill="#fffbeb" stroke="#fcd34d" stroke-width="1.5"/>
+    <rect width="240" height="26" rx="6" fill="#d97706"/>
+    <rect y="20" width="240" height="6" fill="#d97706"/>
+    <text x="120" y="17" text-anchor="middle" font-family="ui-sans-serif,system-ui,sans-serif" font-size="12" font-weight="700" fill="white">config</text>
+    <text x="8" y="42" fill="#1d4ed8" font-weight="700">PK  varchar key</text>
+    <text x="8" y="58" fill="#374151">    text value</text>
+    <text x="8" y="74" fill="#374151">    text description</text>
+    <text x="8" y="90" fill="#7c3aed" font-style="italic">FK  uuid changed_by</text>
+    <text x="8" y="106" fill="#374151">    timestamp changed_at</text>
+    <text x="120" y="124" text-anchor="middle" font-family="ui-sans-serif,system-ui,sans-serif" font-size="9" fill="#d97706">thresholds, RRF-k, stale_days …</text>
+  </g>
+
+  <!-- TABLE: quiz_questions  x=548 y=236 w=240 h=162 -->
+  <g transform="translate(548,236)">
+    <rect width="240" height="162" rx="6" fill="#f9fafb" stroke="#d1d5db" stroke-width="1.5"/>
+    <rect width="240" height="26" rx="6" fill="#6b7280"/>
+    <rect y="20" width="240" height="6" fill="#6b7280"/>
+    <text x="120" y="17" text-anchor="middle" font-family="ui-sans-serif,system-ui,sans-serif" font-size="12" font-weight="700" fill="white">quiz_questions  (T-34)</text>
+    <text x="8" y="42" fill="#1d4ed8" font-weight="700">PK  uuid id</text>
+    <text x="8" y="58" fill="#7c3aed" font-style="italic">FK  uuid document_id</text>
+    <text x="8" y="74" fill="#374151">    text question</text>
+    <text x="8" y="90" fill="#374151">    jsonb options</text>
+    <text x="8" y="106" fill="#374151">    varchar correct_answer</text>
+    <text x="8" y="122" fill="#374151">    boolean approved</text>
+    <text x="8" y="138" fill="#374151">    timestamp created_at</text>
+    <text x="120" y="158" text-anchor="middle" font-family="ui-sans-serif,system-ui,sans-serif" font-size="9" fill="#6b7280">SHOULD — US-07 / US-08</text>
+  </g>
+
+  <!-- TABLE: pgqueuer  x=818 y=88 w=218 h=178 -->
+  <g transform="translate(818,88)">
+    <rect width="218" height="178" rx="6" fill="#eff6ff" stroke="#93c5fd" stroke-width="1.5"/>
+    <rect width="218" height="26" rx="6" fill="#3b82f6"/>
+    <rect y="20" width="218" height="6" fill="#3b82f6"/>
+    <text x="109" y="17" text-anchor="middle" font-family="ui-sans-serif,system-ui,sans-serif" font-size="12" font-weight="700" fill="white">pgqueuer</text>
+    <text x="8" y="42" fill="#1d4ed8" font-weight="700">PK  bigint id</text>
+    <text x="8" y="58" fill="#374151">    int priority</text>
+    <text x="8" y="74" fill="#374151">    varchar status</text>
+    <text x="8" y="90" fill="#374151">    varchar entrypoint</text>
+    <text x="8" y="106" fill="#374151">    bytea payload</text>
+    <text x="8" y="122" fill="#374151">    timestamp created</text>
+    <text x="8" y="138" fill="#374151">    timestamp updated</text>
+    <text x="8" y="154" fill="#374151">    timestamp heartbeat</text>
+    <text x="8" y="170" fill="#374151">    timestamp execute_after</text>
+  </g>
+
+  <!-- Footer -->
+  <text x="530" y="696" text-anchor="middle" font-family="ui-sans-serif,system-ui,sans-serif" font-size="10" fill="#94a3b8">PK blau · FK violett · validated_at orange = neu gegenüber TechSpike · Stand 2026-06-17</text>
+</svg>

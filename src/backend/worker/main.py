@@ -19,9 +19,7 @@ async def main() -> None:
     driver = AsyncpgDriver(conn)
     qm = QueueManager(driver)
 
-    # TODO: register task handlers here
-    # @qm.entrypoint("task_name")
-    # async def handle_task(context): ...
+    # TODO T-13: register process_document entrypoint here
 
     log.info("Worker ready — listening for jobs")
     await qm.run()
