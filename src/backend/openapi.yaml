@@ -29,7 +29,7 @@ paths:
   /api/auth/login:
     post:
       tags: [auth]
-      summary: Anmeldung mit Username/Passwort, liefert JWT (US-05)
+      summary: Anmeldung mit E-Mail/Passwort, liefert JWT (US-05)
       security: []
       requestBody:
         required: true
@@ -204,10 +204,11 @@ components:
 
     LoginRequest:
       type: object
-      required: [username, password]
+      required: [email, password]
       properties:
-        username:
+        email:
           type: string
+          format: email
         password:
           type: string
           format: password
@@ -226,13 +227,14 @@ components:
 
     User:
       type: object
-      required: [id, username, role]
+      required: [id, email, role]
       properties:
         id:
           type: string
           format: uuid
-        username:
+        email:
           type: string
+          format: email
         role:
           $ref: '#/components/schemas/Role'
 
