@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import auth, jobs
+from app.routers import auth
 
 app = FastAPI(title="LearnFlow API")
 
@@ -14,7 +14,6 @@ app.add_middleware(
 )
 
 app.include_router(auth.router)
-app.include_router(jobs.router)
 
 
 @app.get("/health")
