@@ -9,10 +9,13 @@ Backlog in **GitHub Issues** (`T-01 … T-38`). Code in `src/`, Setup in `src/RE
 Docs/             Entscheide: ADRs, C4-Diagramme, Anforderungen, Quality Attributes
 src/              Anwendungscode + Docker-Compose, Makefile, README
   backend/        Python 3.13 / FastAPI, Alembic-Migrationen, pgqueuer-Worker, Tests
+  backend/openapi.yaml
+                  OpenAPI-Spec
   frontend/       React 18 / TypeScript / Vite
 Ops/              Betrieb: CI-Runbook, Pilotstart-Checkliste
 LearningCorpus/   Fachkorpus (SKOS-Richtlinien, EU AI Act) + Gold-Eval-Datasets (Grundlage ADR-009)
 .github/          CI-Workflow (Actions) + Issue-Templates
+.claudeignore     Verzeichnisse, die ignoriert werden sollen
 Artefakten/       Historische Kursartefakte nach Modul/Tag — können veraltet sein
 Niklaus/ Reto/    Individuelle Arbeits-/Spike-Verzeichnisse
 Frank/ Christoph/
@@ -69,15 +72,18 @@ Details: `Docs/04_ADR-00X_*.md`, `Docs/05_C4-*`, `Docs/06_Architecture-Draft.md`
 - **Zielgetrieben:** Aufgabe in testbare Kriterien + kurzen Plan überführen, dann gegen
   diese Kriterien verifizieren (→ Definition of Done).
 
-## Entwicklungsprozess (verbindlich für jeden Task)
+## Entwicklungsprozess (verbindlich für jeden Issue)
 
-1. **Task lesen** — GitHub Issue vollständig lesen; Akzeptanzkriterien und Scope erfassen.
-2. **Spec prüfen** — relevante Dokumente in `Docs/` konsultieren und mit dem Task abgleichen.
+- aktuellen Stand in GIT prüfen
+- Wenn es noch kein Issue gibt, fragen ob ein neues Issue erstellt werden soll
+- **Issue lesen** — GitHub Issue vollständig lesen; Akzeptanzkriterien und Scope erfassen.
+- **Spec prüfen** — relevante Dokumente in `Docs/` konsultieren und mit dem Issue abgleichen.
    Bei Inkonsistenzen oder Unklarheiten: **zuerst rückfragen**, Docs anpassen, erst dann weiter.
-3. **Erst coden wenn alles klar** — kein Code ohne vollständig verstandene, konsistente Anforderung.
-4. **Tests schreiben** — neue Geschäftslogik wird mit Unit- und Integrationstests getestet;
+- Endpoints dürden nur erstellt werden, wenn sie in der OpenAPI-Spec definiert sind. Falls nicht melden, damit die OPenAPI-Spec angepasst werden kann
+- **Erst coden wenn alles klar** — kein Code ohne vollständig verstandene, konsistente Anforderung.
+- **Tests schreiben** — neue Geschäftslogik wird mit Unit- und Integrationstests getestet;
    jede RAG-Komponente muss isoliert testbar sein (→ DoD Kriterium 3).
-5. **Branch + PR** — immer auf Feature-Branch (`feat/T-XX-beschreibung`); PR wenn `make qa`
+- **Branch + PR** — immer auf Feature-Branch (`feat/T-XX-beschreibung`); PR wenn `make qa`
    grün; Review durch eine zweite Person (→ DoD Kriterien 1+2).
 
 ## Tripwires — was Claude NICHT tun soll
