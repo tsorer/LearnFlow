@@ -84,7 +84,8 @@ Details: `Docs/04_ADR-00X_*.md`, `Docs/05_C4-*`, `Docs/06_Architecture-Draft.md`
 - **Tests schreiben** — neue Geschäftslogik wird mit Unit- und Integrationstests getestet;
    jede RAG-Komponente muss isoliert testbar sein (→ DoD Kriterium 3).
 - **Branch + PR** — immer auf Feature-Branch (`feat/T-XX-beschreibung`); PR wenn `make qa`
-   grün; Review durch eine zweite Person (→ DoD Kriterien 1+2).
+   grün;
+- Pull-Request Name mit Branchname prefixen
 
 ## Tripwires — was Claude NICHT tun soll
 
