@@ -310,7 +310,7 @@ components:
 
     DocumentStatus:
       type: string
-      enum: [processing, available, error]
+      enum: [pending, processing, available, failed]
 
     DocumentUploadRequest:
       type: object
@@ -320,24 +320,32 @@ components:
           type: string
           format: binary
           description: Dokument (PDF, DOCX oder Markdown), max. 10 MB
-        area_id:
+        area:
           type: string
           description: Bereich; im MVP hartcodierter Pilot-Bereich
+          default: default
 
     DocumentUploadResponse:
       type: object
-      required: [document_id, filename, upload_date, status]
+      required: [id, filename, status, area, chunk_count, created_at]
       properties:
-        document_id:
+        id:
           type: string
           format: uuid
         filename:
           type: string
-        upload_date:
-          type: string
-          format: date-time
         status:
           $ref: '#/components/schemas/DocumentStatus'
+        area:
+          type: string
+        chunk_count:
+          type: integer
+        error_message:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
 
     Document:
       type: object
