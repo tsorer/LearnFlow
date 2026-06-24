@@ -1,3 +1,4 @@
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -10,7 +11,19 @@ class Settings(BaseSettings):
     # JWT
     jwt_secret: str
     jwt_algorithm: str = "HS256"
-    jwt_expire_hours: int = 8
+    jwt_expire_hours: int = 1
+
+    # bcrypt
+    bcrypt_rounds: int = 12
+
+    @model_validator(mode="after")
+    def check_jwt_secret(self) -> "Settings":
+        if len(self.jwt_secret) < 32 or "changeme" in self.jwt_secret.lower():
+            raise ValueError(
+                "JWT_SECRET must be a strong random value of at least 32 characters. "
+                "Generate one with: openssl rand -hex 32"
+            )
+        return self
 
     # LLM / Embeddings (via LiteLLM)
     openai_api_key: str

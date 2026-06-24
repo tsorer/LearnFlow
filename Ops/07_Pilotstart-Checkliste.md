@@ -14,6 +14,9 @@ Diese Checkliste beschreibt alle Schritte, die **vor dem ersten Login eines echt
 | 1.2 | Täglicher `pg_dump`-Cron in Docker Compose konfiguriert und getestet (Backup landet in `/backups/`) | Dev | ⬜ |
 | 1.3 | Backup-Restore einmal durchgespielt (Wiederherstellung verifiziert) | Dev | ⬜ |
 | 1.4 | `.env`-Datei auf Server mit Produktionswerten befüllt (kein `localhost`, kein `dev`-Key) | Dev | ⬜ |
+| 1.5 | `JWT_SECRET` auf starken Zufallswert gesetzt (`openssl rand -hex 32`); Standardwert `changeme*` wurde **nie** deployed | Dev | ⬜ |
+| 1.6 | TLS-Zertifikat auf dem Server eingerichtet; HTTP→HTTPS-Redirect in `nginx.conf` aktiviert (auskommentierter Block); `Strict-Transport-Security`-Header einkommentiert | Dev | ⬜ |
+| 1.7 | Alle Seed-Passwörter (`changeme1`–`changeme6`) durch starke individuelle Passwörter ersetzt (`make seed` mit angepasstem `seed_users.py` oder direktem DB-Update) | Dev | ⬜ |
 
 ---
 
