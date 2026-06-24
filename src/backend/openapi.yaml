@@ -1,0 +1,360 @@
+openapi: 3.0.3
+info:
+  title: LearnFlow API
+  version: 0.1.0
+  description: >
+    Verbindliche Schnittstellen-Definition (API-First, ADR-010). Grundgerüst (T-03):
+    Endpunkte aus US-01..US-05 als Stubs. Auth (US-05) und Dokument-Upload (US-04) sind
+    mit vollständigen Request/Response-Schemas ausmodelliert; die übrigen Endpunkte sind
+    bewusst leere Stubs und werden in den jeweiligen Folge-Issues ausmodelliert.
+
+servers:
+  - url: /
+
+tags:
+  - name: auth
+    description: Authentifizierung und Bereichszuordnung (US-05)
+  - name: query
+    description: Quellenbelegte Frage-Antwort inkl. Konfidenz (US-01, US-02)
+  - name: feedback
+    description: Feedback zu Antworten (US-03)
+  - name: documents
+    description: Lernkorpus-Verwaltung / Dokument-Upload (US-04)
+
+# JWT-Bearer global; Login überschreibt mit security: [] (Pre-Auth).
+security:
+  - bearerAuth: []
+
+paths:
+  /api/auth/login:
+    post:
+      tags: [auth]
+      summary: Anmeldung mit E-Mail/Passwort, liefert JWT (US-05)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Erfolgreiche Anmeldung
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          description: Ungültige Anmeldedaten
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/auth/me:
+    get:
+      tags: [auth]
+      summary: Aktuell angemeldeten Benutzer abrufen (US-05)
+      responses:
+        '200':
+          description: Benutzerinformationen
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Nicht authentifiziert
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/auth/logout:
+    post:
+      tags: [auth]
+      summary: Abmeldung (US-05)
+      responses:
+        '204':
+          description: Abgemeldet
+        '401':
+          description: Nicht authentifiziert
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/query:
+    post:
+      tags: [query]
+      summary: Frage stellen, quellenbelegte Antwort erhalten (US-01, US-02)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QueryRequest'
+      responses:
+        '200':
+          description: Antwort mit Quellen und Konfidenz (Stub)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueryResponse'
+        '401':
+          description: Nicht authentifiziert
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/feedback:
+    post:
+      tags: [feedback]
+      summary: Antwort als hilfreich/nicht hilfreich bewerten (US-03)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeedbackRequest'
+      responses:
+        '201':
+          description: Feedback gespeichert (Stub)
+        '401':
+          description: Nicht authentifiziert
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/documents:
+    get:
+      tags: [documents]
+      summary: Dokumente des eigenen Bereichs auflisten (US-04)
+      responses:
+        '200':
+          description: Liste der Dokumente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentList'
+        '401':
+          description: Nicht authentifiziert
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Keine Berechtigung (Rolle knowledge_owner erforderlich)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      tags: [documents]
+      summary: Dokument in den Lernkorpus hochladen (US-04)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DocumentUploadRequest'
+      responses:
+        '201':
+          description: Upload angenommen, Verarbeitung läuft
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentUploadResponse'
+        '401':
+          description: Nicht authentifiziert
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Keine Berechtigung (Rolle knowledge_owner erforderlich)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '413':
+          description: Datei überschreitet das 10-MB-Limit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '415':
+          description: 'Nicht unterstütztes Dateiformat (erlaubt: PDF, DOCX, Markdown)'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/documents/{document_id}:
+    delete:
+      tags: [documents]
+      summary: Dokument löschen (US-04)
+      parameters:
+        - name: document_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Dokument gelöscht
+        '401':
+          description: Nicht authentifiziert
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Dokument nicht gefunden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Role:
+      type: string
+      enum: [learner, knowledge_owner, admin]
+
+    Error:
+      type: object
+      required: [detail]
+      properties:
+        detail:
+          type: string
+          description: Menschenlesbare Fehlerbeschreibung
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+
+    TokenResponse:
+      type: object
+      required: [access_token, token_type, role]
+      properties:
+        access_token:
+          type: string
+        token_type:
+          type: string
+          default: bearer
+        role:
+          $ref: '#/components/schemas/Role'
+
+    User:
+      type: object
+      required: [id, email, role]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        role:
+          $ref: '#/components/schemas/Role'
+
+    QueryRequest:
+      type: object
+      required: [question]
+      properties:
+        question:
+          type: string
+          minLength: 3
+          maxLength: 1000
+
+    QueryResponse:
+      type: object
+      description: Stub-Antwortform (wird in US-01/US-02-Issues ausmodelliert)
+      properties:
+        answer:
+          type: string
+        sources:
+          type: array
+          items:
+            type: object
+        confidence_score:
+          type: number
+          format: float
+
+    FeedbackRequest:
+      type: object
+      description: Stub (wird in US-03-Issue ausmodelliert)
+      required: [query_id, rating]
+      properties:
+        query_id:
+          type: string
+        rating:
+          type: string
+          enum: [positive, negative]
+
+    DocumentStatus:
+      type: string
+      enum: [processing, available, error]
+
+    DocumentUploadRequest:
+      type: object
+      required: [file]
+      properties:
+        file:
+          type: string
+          format: binary
+          description: Dokument (PDF, DOCX oder Markdown), max. 10 MB
+        area_id:
+          type: string
+          description: Bereich; im MVP hartcodierter Pilot-Bereich
+
+    DocumentUploadResponse:
+      type: object
+      required: [document_id, filename, upload_date, status]
+      properties:
+        document_id:
+          type: string
+          format: uuid
+        filename:
+          type: string
+        upload_date:
+          type: string
+          format: date-time
+        status:
+          $ref: '#/components/schemas/DocumentStatus'
+
+    Document:
+      type: object
+      required: [document_id, filename, upload_date, status]
+      properties:
+        document_id:
+          type: string
+          format: uuid
+        filename:
+          type: string
+        upload_date:
+          type: string
+          format: date-time
+        status:
+          $ref: '#/components/schemas/DocumentStatus'
+
+    DocumentList:
+      type: array
+      items:
+        $ref: '#/components/schemas/Document'
