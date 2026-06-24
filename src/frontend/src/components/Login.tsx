@@ -42,12 +42,12 @@ export default function Login({ onLogin }: Props) {
           </div>
         )}
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <label style={{ fontSize: 12, fontWeight: 600, color: "var(--muted)" }}>E-MAIL</label>
-          <input type="email" value={email} onChange={e => setEmail(e.target.value)} required autoFocus />
+          <label htmlFor="login-email" style={{ fontSize: 12, fontWeight: 600, color: "var(--muted)" }}>E-MAIL</label>
+          <input id="login-email" type="email" value={email} onChange={e => setEmail(e.target.value)} required autoFocus />
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <label style={{ fontSize: 12, fontWeight: 600, color: "var(--muted)" }}>PASSWORT</label>
-          <input type="password" value={password} onChange={e => setPassword(e.target.value)} required />
+          <label htmlFor="login-password" style={{ fontSize: 12, fontWeight: 600, color: "var(--muted)" }}>PASSWORT</label>
+          <input id="login-password" type="password" value={password} onChange={e => setPassword(e.target.value)} required />
         </div>
         <button type="submit" className="primary" disabled={busy} style={{ marginTop: 8, padding: "10px 14px" }}>
           {busy ? "Anmelden…" : "Anmelden"}
