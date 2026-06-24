@@ -69,6 +69,17 @@ Details: `Docs/04_ADR-00X_*.md`, `Docs/05_C4-*`, `Docs/06_Architecture-Draft.md`
 - **Zielgetrieben:** Aufgabe in testbare Kriterien + kurzen Plan überführen, dann gegen
   diese Kriterien verifizieren (→ Definition of Done).
 
+## Entwicklungsprozess (verbindlich für jeden Task)
+
+1. **Task lesen** — GitHub Issue vollständig lesen; Akzeptanzkriterien und Scope erfassen.
+2. **Spec prüfen** — relevante Dokumente in `Docs/` konsultieren und mit dem Task abgleichen.
+   Bei Inkonsistenzen oder Unklarheiten: **zuerst rückfragen**, Docs anpassen, erst dann weiter.
+3. **Erst coden wenn alles klar** — kein Code ohne vollständig verstandene, konsistente Anforderung.
+4. **Tests schreiben** — neue Geschäftslogik wird mit Unit- und Integrationstests getestet;
+   jede RAG-Komponente muss isoliert testbar sein (→ DoD Kriterium 3).
+5. **Branch + PR** — immer auf Feature-Branch (`feat/T-XX-beschreibung`); PR wenn `make qa`
+   grün; Review durch eine zweite Person (→ DoD Kriterien 1+2).
+
 ## Tripwires — was Claude NICHT tun soll
 
 - **Fail-closed-Schwellen (ADR-008) nicht aufweichen** (z. B. `>=` → `>`);
