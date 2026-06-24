@@ -27,15 +27,18 @@ beforeEach(() => {
   vi.stubGlobal("__BUILD_TIME__", new Date().toISOString());
   // jsdom implementiert scrollIntoView nicht (von ChatView nach Login genutzt).
   Element.prototype.scrollIntoView = vi.fn();
+  // Jeder Test startet auf der geschützten Wurzel.
+  window.history.pushState({}, "", "/");
 });
 
 afterEach(cleanup);
 
 describe("App auth (T-08)", () => {
-  it("zeigt das Login-Formular, solange niemand angemeldet ist", () => {
+  it("leitet unauthentifizierten Zugriff auf die geschützte Route nach /login um (AK 3)", () => {
     render(<App />);
     expect(screen.getByLabelText(/e-mail/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/passwort/i)).toBeInTheDocument();
+    expect(window.location.pathname).toBe("/login");
   });
 
   it("speichert nach erfolgreichem Login keinen Token in localStorage/sessionStorage", async () => {
@@ -51,8 +54,26 @@ describe("App auth (T-08)", () => {
     await waitFor(() =>
       expect(screen.queryByLabelText(/passwort/i)).not.toBeInTheDocument(),
     );
+    // AK 1: Credentials werden an POST /auth/login gesendet.
+    expect(mockLogin).toHaveBeenCalledWith("lara@learnflow.ch", "secret");
     expect(localStorage.length).toBe(0);
     expect(sessionStorage.length).toBe(0);
+  });
+
+  it("leitet nach Logout zurück auf /login (AK 3)", async () => {
+    mockLogin.mockResolvedValue({ access_token: "tok123", role: "learner" });
+    mockMe.mockResolvedValue({ id: "u1", email: "lara@learnflow.ch", role: "learner" });
+
+    render(<App />);
+    await userEvent.type(screen.getByLabelText(/e-mail/i), "lara@learnflow.ch");
+    await userEvent.type(screen.getByLabelText(/passwort/i), "secret");
+    await userEvent.click(screen.getByRole("button", { name: /anmelden/i }));
+
+    const logout = await screen.findByRole("button", { name: /abmelden/i });
+    await userEvent.click(logout);
+
+    await waitFor(() => expect(screen.getByLabelText(/passwort/i)).toBeInTheDocument());
+    expect(window.location.pathname).toBe("/login");
   });
 
   it("zeigt eine Fehlermeldung bei falschem Passwort und schreibt nichts in den Storage", async () => {
