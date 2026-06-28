@@ -165,7 +165,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DocumentUploadResponse'
+                $ref: '#/components/schemas/DocumentResponse'
         '401':
           description: Nicht authentifiziert
           content:
@@ -208,7 +208,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Document'
+                $ref: '#/components/schemas/DocumentResponse'
         '401':
           description: Nicht authentifiziert
           content:
@@ -354,7 +354,7 @@ components:
           description: Bereich; im MVP hartcodierter Pilot-Bereich
           default: default
 
-    DocumentUploadResponse:
+    DocumentResponse:
       type: object
       required: [id, filename, status, area, chunk_count, created_at]
       properties:

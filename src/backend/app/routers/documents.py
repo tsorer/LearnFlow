@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, s
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import require_knowledge_owner
+from app.auth.dependencies import get_current_user, require_knowledge_owner
 from app.database import get_db
 from app.models.tables import Document, User
 from app.queue import enqueue_document
@@ -72,6 +72,27 @@ async def upload_document(
     db.add(document)
     await enqueue_document(db, str(document.id))
     await db.commit()
+
+    return DocumentResponse(
+        id=document.id,
+        filename=document.filename,
+        status=document.status,
+        area=document.area,
+        chunk_count=document.chunk_count,
+        error_message=document.error_message,
+        created_at=document.created_at,
+    )
+
+
+@router.get("/{document_id}", response_model=DocumentResponse)
+async def get_document(
+    document_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> DocumentResponse:
+    document = await db.get(Document, document_id)
+    if document is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dokument nicht gefunden")
 
     return DocumentResponse(
         id=document.id,

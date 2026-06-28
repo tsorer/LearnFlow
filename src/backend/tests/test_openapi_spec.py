@@ -34,5 +34,5 @@ def test_all_us_endpoints_present():
 def test_auth_and_upload_schemas_defined():
     spec, _ = read_from_filename(str(SPEC_PATH))
     schemas = spec["components"]["schemas"]
-    for name in ("LoginRequest", "TokenResponse", "DocumentUploadResponse"):
+    for name in ("LoginRequest", "TokenResponse", "DocumentResponse"):
         assert name in schemas, f"Schema fehlt: {name}"

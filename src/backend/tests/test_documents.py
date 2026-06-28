@@ -90,3 +90,59 @@ async def test_upload_oversized_file_returns_413() -> None:
     big_content = b"0" * (10 * 1024 * 1024 + 1)
     r = await _post_upload("big.pdf", big_content, db)
     assert r.status_code == 413
+
+
+def make_document(status: str = "processing") -> object:
+    from app.models.tables import Document
+
+    return Document(
+        id=uuid.uuid4(),
+        filename="notes.pdf",
+        content_type="application/pdf",
+        content=b"x",
+        status=status,
+        area="default",
+        uploaded_by=uuid.uuid4(),
+        chunk_count=0,
+        error_message=None,
+        created_at=datetime.now(UTC),
+    )
+
+
+async def _get_document(
+    document_id: uuid.UUID, db: AsyncMock, role: str | None = "learner"
+) -> "object":
+    if role is not None:
+        app.dependency_overrides[get_current_user] = lambda: make_user(role)
+    app.dependency_overrides[get_db] = lambda: db
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        return await client.get(f"/documents/{document_id}")
+
+
+async def test_get_document_returns_200_with_status() -> None:
+    document = make_document(status="processing")
+    db = make_db()
+    db.get = AsyncMock(return_value=document)
+
+    r = await _get_document(document.id, db)
+
+    assert r.status_code == 200
+    body = r.json()
+    assert body["id"] == str(document.id)
+    assert body["status"] == "processing"
+
+
+async def test_get_document_not_found_returns_404() -> None:
+    db = make_db()
+    db.get = AsyncMock(return_value=None)
+
+    r = await _get_document(uuid.uuid4(), db)
+
+    assert r.status_code == 404
+
+
+async def test_get_document_no_auth_returns_401() -> None:
+    db = make_db()
+    r = await _get_document(uuid.uuid4(), db, role=None)
+    assert r.status_code == 401
