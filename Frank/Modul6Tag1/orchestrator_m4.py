@@ -2,16 +2,17 @@
 
 Generator -> pytest -> Feedback -> Generator ... bis PASS oder Runden-Limit.
 
-Aufgabe im Loop: check_encoding_m4.py (Kopie von check_encoding.py, v1) hat drei
-Bugs, die test_m4.py aufdeckt. Der Generator bekommt den ECHTEN pytest-Output als
-Feedback und muss nachbessern.
+Der Generator schreibt check_encoding_m4.py von Grund auf neu — aus der
+Ursprungsanforderung (AUFGABE) plus test_m4.py als verbindlichem Vertrag. Es wird
+nichts aus check_encoding.py kopiert oder gepatcht: jede Runde ist eine komplette
+Neufassung, die gegen die Test-Suite antritt.
 
 Lauf (im adai-Env, NICHT aus Claude Code heraus):
     conda activate adai
     python orchestrator_m4.py
 
-Nur den Evaluator pruefen, ohne API-Kosten:
-    python orchestrator_m4.py --evaluator-only
+Nur die aktuelle Datei bewerten, ohne API-Kosten:
+    python orchestrator_m4.py --check
 """
 
 import ast
@@ -28,12 +29,27 @@ from claude_agent_sdk import AssistantMessage, ClaudeAgentOptions, TextBlock, qu
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 HERE = Path(__file__).parent
-SOURCE = HERE / "check_encoding.py"       # v1, mit den Bugs — Ausgangslage
-TARGET = HERE / "check_encoding_m4.py"    # was der Generator ueberschreibt
+TARGET = HERE / "check_encoding_m4.py"    # wird jede Runde komplett neu geschrieben
 TEST_FILE = "test_m4.py"
 
 MODEL = "claude-sonnet-4-6"  # wie in test_pge.py; fuer mehr Qualitaet: "claude-opus-5"
 MAX_ROUNDS = 3
+
+
+# ---------------------------------------------------------------------------
+# Die Ursprungsanforderung — wortgleich der Prompt, aus dem check_encoding.py
+# urspruenglich entstand. Der Generator sieht NUR das und die Test-Suite.
+# ---------------------------------------------------------------------------
+
+AUFGABE = """Prüft das Encoding der noch nicht committeten Dateien. Nutze IMMER,
+wenn Code committed werden soll.
+
+Du prüfst Datei-Encodings. Führe dafür python check_encoding.py aus. Das Skript
+liegt im Arbeitsverzeichnis, ermittelt die noch nicht committeten Dateien selbst
+und konvertiert sie bei Bedarf nach UTF-8 ohne BOM. Berichte danach: wie viele
+Dateien geprüft wurden, welche geändert wurden und ob der Exit-Code 0 war."""
+
+RAHMEN = f"""Schreibe genau dieses Skript — die Datei heisst {TARGET.name}."""
 
 
 # ---------------------------------------------------------------------------
@@ -58,15 +74,13 @@ def pytest_evaluator(test_file: str) -> str:
 # Der Generator
 # ---------------------------------------------------------------------------
 
-GENERATOR_SYSTEM = """Du bist Generator. Du reparierst eine bestehende Python-Datei,
-bis eine gegebene pytest-Suite gruen ist.
+GENERATOR_SYSTEM = """Du bist Generator. Du schreibst eine Python-Datei von Grund
+auf neu, bis eine gegebene pytest-Suite gruen ist.
 
 Regeln:
 - Antworte mit dem VOLLSTAENDIGEN Inhalt der Datei, nichts sonst. Kein Fliesstext,
   keine Erklaerung, keine Markdown-Fences.
-- Aendere so wenig wie moeglich: nur was noetig ist, damit die Tests bestehen.
-- Bestehende Funktionssignaturen und das Verhalten von main() bleiben erhalten.
-- Erfinde keine Testerwartungen — der pytest-Output ist die Wahrheit."""
+"""
 
 
 def role_opts(system: str, budget: float = 0.50) -> ClaudeAgentOptions:
@@ -95,41 +109,42 @@ def extract_code(answer: str) -> str:
     return (fenced.group(1) if fenced else answer).strip() + "\n"
 
 
+def build_prompt(spec: str, attempt: str | None, verdict: str | None) -> str:
+    parts = [f"AUFGABE:\n{AUFGABE}", RAHMEN, f"TEST-SUITE ({TEST_FILE}):\n\n{spec}"]
+    if attempt is not None:
+        parts.append(f"DEIN LETZTER VERSUCH:\n\n{attempt}")
+        parts.append(f"pytest sagt dazu:\n{verdict}")
+    return "\n\n---\n\n".join(parts)
+
+
 # ---------------------------------------------------------------------------
 # Loop
 # ---------------------------------------------------------------------------
 
 
 async def main() -> int:
-    shutil.copy(SOURCE, TARGET)  # immer reproduzierbar bei der kaputten v1 starten
-    print(f"Ausgangslage: {SOURCE.name} -> {TARGET.name}")
+    TARGET.unlink(missing_ok=True)   # leeres Blatt — nichts wird uebernommen
+    print(f"Ziel: {TARGET.name} (wird neu geschrieben)")
+    print(f"Vertrag: {TEST_FILE}")
 
     spec = (HERE / TEST_FILE).read_text(encoding="utf-8")
-    verdict = pytest_evaluator(TEST_FILE)
-
-    print(f"\n=== EVALUATOR (Runde 0, ungepatcht) ===\n{verdict[:600]}")
-    if verdict == "PASS":
-        print("\n*** Nichts zu tun — die Tests sind schon gruen. ***")
-        return 0
+    attempt: str | None = None
+    verdict: str | None = None
 
     for rnd in range(1, MAX_ROUNDS + 1):
         print(f"\n=== GENERATOR (Runde {rnd}) ===")
-        prompt = (
-            f"Diese pytest-Suite muss gruen werden:\n\n{spec}\n\n"
-            f"Aktueller Inhalt von {TARGET.name}:\n\n"
-            f"{TARGET.read_text(encoding='utf-8')}\n\n"
-            f"pytest sagt:\n{verdict}"
-        )
-        code = extract_code(await run(role_opts(GENERATOR_SYSTEM), prompt))
+        code = extract_code(await run(role_opts(GENERATOR_SYSTEM),
+                                      build_prompt(spec, attempt, verdict)))
 
         try:
             ast.parse(code)
         except SyntaxError as e:
             print(f"  Generator lieferte ungueltiges Python: {e}")
-            verdict = f"FAIL:\nSyntaxError in der Antwort: {e}"
+            attempt, verdict = code, f"FAIL:\nSyntaxError: {e}"
             continue
 
         TARGET.write_text(code, encoding="utf-8", newline="\n")
+        attempt = code
         print(f"  {len(code.splitlines())} Zeilen geschrieben")
 
         print(f"\n=== EVALUATOR (Runde {rnd}) ===")
@@ -145,9 +160,8 @@ async def main() -> int:
 
 
 if __name__ == "__main__":
-    if "--evaluator-only" in sys.argv:
-        # Kostenfrei: nur zeigen, was der Evaluator zur Ausgangslage sagt.
-        shutil.copy(SOURCE, TARGET)
+    if "--check" in sys.argv:
+        # Kostenfrei: bewertet die Datei, die gerade da liegt.
         print(pytest_evaluator(TEST_FILE))
         sys.exit(0)
     sys.exit(asyncio.run(main()))

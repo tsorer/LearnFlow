@@ -1,0 +1,1089 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ist ein Quadrat auch ein Rechteck?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap">
+
+<style>
+  :root {
+    --paper:    #EBEEEC;
+    --surface:  #F6F8F7;
+    --ink:      #131A19;
+    --muted:    #5A6664;
+    --rule:     #C7CFCC;
+    --rule-soft:#DDE3E1;
+    --quadrat:  #0F7A80;
+    --rechteck: #B0692A;
+    --quadrat-wash:  rgba(15, 122, 128, 0.09);
+    --rechteck-wash: rgba(176, 105, 42, 0.09);
+    --ok:       #0F7A80;
+    --no:       #A8322A;
+
+    --f-display: "Instrument Serif", Georgia, "Times New Roman", serif;
+    --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --f-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:    #101413;
+      --surface:  #191F1E;
+      --ink:      #E3E8E6;
+      --muted:    #9AA6A3;
+      --rule:     #333D3B;
+      --rule-soft:#252D2C;
+      --quadrat:  #43BCC2;
+      --rechteck: #E39B47;
+      --quadrat-wash:  rgba(67, 188, 194, 0.12);
+      --rechteck-wash: rgba(227, 155, 71, 0.12);
+      --ok:       #43BCC2;
+      --no:       #E4736A;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper:    #101413;
+    --surface:  #191F1E;
+    --ink:      #E3E8E6;
+    --muted:    #9AA6A3;
+    --rule:     #333D3B;
+    --rule-soft:#252D2C;
+    --quadrat:  #43BCC2;
+    --rechteck: #E39B47;
+    --quadrat-wash:  rgba(67, 188, 194, 0.12);
+    --rechteck-wash: rgba(227, 155, 71, 0.12);
+    --ok:       #43BCC2;
+    --no:       #E4736A;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--f-body);
+    font-size: 17px;
+    line-height: 1.6;
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .deck {
+    scroll-snap-type: y proximity;
+  }
+
+  /* ---- Folie ---- */
+
+  .folie {
+    scroll-snap-align: start;
+    border-top: 1px solid var(--rule);
+    padding: clamp(2.5rem, 6vw, 5rem) clamp(1.25rem, 5vw, 4rem) clamp(3rem, 7vw, 6rem);
+    display: grid;
+    grid-template-columns: 6.5rem minmax(0, 68ch);
+    gap: clamp(1rem, 4vw, 3rem);
+    justify-content: center;
+  }
+
+  .folie:first-child { border-top: none; }
+
+  @media (max-width: 780px) {
+    .folie {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 1.25rem;
+    }
+  }
+
+  .rail {
+    font-family: var(--f-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding-top: 0.7rem;
+    line-height: 1.5;
+  }
+
+  .rail b {
+    display: block;
+    font-weight: 600;
+    color: var(--ink);
+    font-size: 1.15rem;
+    letter-spacing: 0.02em;
+    margin-bottom: 0.15rem;
+  }
+
+  @media (max-width: 780px) {
+    .rail { display: flex; align-items: baseline; gap: 0.6rem; padding-top: 0; }
+    .rail b { display: inline; font-size: 0.9rem; margin: 0; }
+  }
+
+  .body { min-width: 0; display: flex; flex-direction: column; gap: 1.4rem; }
+  .body > * { margin: 0; }
+
+  /* ---- Type ---- */
+
+  h1 {
+    font-family: var(--f-display);
+    font-weight: 400;
+    font-size: clamp(2.6rem, 7vw, 4.6rem);
+    line-height: 1.02;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+  }
+
+  h2 {
+    font-family: var(--f-display);
+    font-weight: 400;
+    font-size: clamp(1.8rem, 4vw, 2.7rem);
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+
+  h3 {
+    font-size: 0.76rem;
+    font-family: var(--f-mono);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.13em;
+    color: var(--muted);
+  }
+
+  .lede {
+    font-size: clamp(1.05rem, 2.2vw, 1.3rem);
+    line-height: 1.5;
+    color: var(--muted);
+    max-width: 46ch;
+  }
+
+  .kicker {
+    font-family: var(--f-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  p { max-width: 62ch; }
+
+  strong { font-weight: 600; }
+
+  em.q { font-style: normal; color: var(--quadrat); font-weight: 600; }
+  em.r { font-style: normal; color: var(--rechteck); font-weight: 600; }
+
+  code, .vec {
+    font-family: var(--f-mono);
+    font-size: 0.9em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .vec { white-space: nowrap; }
+
+  /* ---- Satz-Zerlegung ---- */
+
+  .satz {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    font-family: var(--f-mono);
+    font-size: clamp(0.85rem, 2vw, 1.05rem);
+  }
+
+  .tok {
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    padding: 0.35rem 0.6rem;
+    color: var(--muted);
+    background: var(--surface);
+  }
+
+  .tok.q { border-color: var(--quadrat); color: var(--quadrat); background: var(--quadrat-wash); font-weight: 600; }
+  .tok.r { border-color: var(--rechteck); color: var(--rechteck); background: var(--rechteck-wash); font-weight: 600; }
+  .tok.qpos { border-style: dashed; border-color: var(--ink); color: var(--ink); background: transparent; }
+
+  .satz-legende {
+    font-family: var(--f-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+  }
+
+  /* ---- Tabellen ---- */
+
+  .scroll { overflow-x: auto; }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 0.92rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  th, td {
+    text-align: left;
+    padding: 0.6rem 0.9rem 0.6rem 0;
+    border-bottom: 1px solid var(--rule-soft);
+    vertical-align: top;
+  }
+
+  thead th {
+    font-family: var(--f-mono);
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    border-bottom: 1px solid var(--rule);
+    white-space: nowrap;
+  }
+
+  tbody tr:last-child td { border-bottom: none; }
+
+  td.num, th.num { font-family: var(--f-mono); white-space: nowrap; }
+
+  tr.is-q td:first-child { color: var(--quadrat); font-weight: 600; }
+  tr.is-r td:first-child { color: var(--rechteck); font-weight: 600; }
+
+  .dim { color: var(--muted); }
+
+  .fw {
+    display: block;
+    font-family: var(--f-mono);
+    font-size: 0.78em;
+    opacity: 0.75;
+    margin-top: 0.15rem;
+  }
+
+  tr.sum td { border-top: 1px solid var(--rule); border-bottom: none; font-weight: 600; }
+  tr.fnw td:first-child { padding-left: 1rem; }
+
+  /* ---- Gewichtsbalken ---- */
+
+  .bars { display: flex; flex-direction: column; gap: 0.55rem; }
+
+  .bar-row {
+    display: grid;
+    grid-template-columns: 8.5rem minmax(0, 1fr) 3.5rem;
+    align-items: center;
+    gap: 0.85rem;
+    font-family: var(--f-mono);
+    font-size: 0.85rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  @media (max-width: 560px) {
+    .bar-row { grid-template-columns: 5.5rem minmax(0, 1fr) 3.1rem; gap: 0.5rem; font-size: 0.78rem; }
+  }
+
+  .bar-track {
+    height: 0.7rem;
+    background: var(--rule-soft);
+    border-radius: 1px;
+    overflow: hidden;
+  }
+
+  .bar-fill { display: block; height: 100%; background: var(--muted); }
+  .bar-fill.p { background: var(--ink); }
+  .bar-fill.q { background: var(--quadrat); }
+  .bar-fill.r { background: var(--rechteck); }
+
+  .bar-row .name.q { color: var(--quadrat); font-weight: 600; }
+  .bar-row .name.r { color: var(--rechteck); font-weight: 600; }
+  .bar-row .name.p { color: var(--ink); font-weight: 600; }
+  .bar-row .name { color: var(--muted); }
+  .bar-row .val { text-align: right; }
+
+  /* ---- Definitionskasten ---- */
+
+  .def {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    padding: 1.1rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+  }
+
+  .def .eyebrow {
+    font-family: var(--f-mono);
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .def p { max-width: 60ch; }
+
+  /* ---- Gestapelte Beiträge ---- */
+
+  .stack { display: flex; flex-direction: column; gap: 0.6rem; }
+
+  .stack-row {
+    display: grid;
+    grid-template-columns: 11rem minmax(0, 1fr) 3.5rem;
+    align-items: center;
+    gap: 0.85rem;
+    font-family: var(--f-mono);
+    font-size: 0.85rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  @media (max-width: 560px) {
+    .stack-row { grid-template-columns: 7rem minmax(0, 1fr) 3.1rem; gap: 0.5rem; font-size: 0.75rem; }
+  }
+
+  .stack-row .dimname { color: var(--muted); }
+  .stack-row .total { text-align: right; font-weight: 600; }
+
+  .stack-track {
+    display: flex;
+    height: 0.9rem;
+    background: var(--rule-soft);
+    border-radius: 1px;
+    overflow: hidden;
+  }
+
+  .seg { height: 100%; }
+  .seg.q { background: var(--quadrat); }
+  .seg.r { background: var(--rechteck); }
+  .seg.p { background: var(--ink); }
+
+  .legende {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.1rem;
+    font-family: var(--f-mono);
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+
+  .legende .key { display: flex; align-items: center; gap: 0.45rem; }
+
+  .sw { display: inline-block; width: 0.7rem; height: 0.7rem; border-radius: 1px; flex: none; }
+  .sw.q { background: var(--quadrat); }
+  .sw.r { background: var(--rechteck); }
+  .sw.p { background: var(--ink); }
+
+  /* ---- Rechenschritt ---- */
+
+  .calc {
+    font-family: var(--f-mono);
+    font-size: 0.88rem;
+    font-variant-numeric: tabular-nums;
+    background: var(--surface);
+    border: 1px solid var(--rule-soft);
+    border-left: 2px solid var(--rule);
+    border-radius: 2px;
+    padding: 1rem 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    overflow-x: auto;
+    line-height: 1.7;
+  }
+
+  .calc .lbl { color: var(--muted); font-size: 0.78rem; letter-spacing: 0.04em; }
+  .calc.q { border-left-color: var(--quadrat); }
+  .calc.r { border-left-color: var(--rechteck); }
+  .calc.p { border-left-color: var(--ink); }
+
+  tr.is-p td:first-child { color: var(--ink); font-weight: 600; }
+
+  .result {
+    font-family: var(--f-mono);
+    font-weight: 600;
+    font-size: clamp(0.95rem, 2.2vw, 1.2rem);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---- Verdikt ---- */
+
+  .verdikt {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    flex-wrap: wrap;
+    border-top: 2px solid var(--ink);
+    padding-top: 1rem;
+  }
+
+  .verdikt .word {
+    font-family: var(--f-display);
+    font-size: clamp(2.2rem, 6vw, 3.4rem);
+    line-height: 1;
+  }
+
+  .verdikt .word.ja { color: var(--ok); }
+  .verdikt .word.nein { color: var(--no); }
+  .verdikt .why { color: var(--muted); max-width: 38ch; font-size: 0.95rem; }
+
+  td.mark { font-weight: 600; white-space: nowrap; }
+  td.mark.ok { color: var(--ok); }
+  td.mark.no { color: var(--no); }
+  tr.decisive td { background: var(--rechteck-wash); }
+
+  /* ---- Rollenkarten ---- */
+
+  .rollen { display: grid; gap: 1px; background: var(--rule-soft); border: 1px solid var(--rule-soft); border-radius: 2px; }
+  @media (min-width: 700px) { .rollen { grid-template-columns: repeat(3, 1fr); } }
+
+  .rolle { background: var(--surface); padding: 1.1rem 1.2rem; display: flex; flex-direction: column; gap: 0.45rem; }
+  .rolle .glyph { font-family: var(--f-display); font-size: 2.2rem; line-height: 1; }
+  .rolle .name { font-family: var(--f-mono); font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+  .rolle .frage { font-weight: 600; }
+  .rolle .bsp { font-size: 0.9rem; color: var(--muted); }
+
+  /* ---- Figuren ---- */
+
+  figure { margin: 0; display: flex; flex-direction: column; gap: 0.7rem; }
+  figure svg { max-width: 100%; height: auto; display: block; }
+  figure svg text { font-family: var(--f-mono); }
+  figcaption { font-size: 0.85rem; color: var(--muted); max-width: 54ch; }
+
+  /* ---- Notiz ---- */
+
+  .notiz {
+    border-left: 2px solid var(--rule);
+    padding-left: 1.1rem;
+    color: var(--muted);
+    font-size: 0.95rem;
+    max-width: 58ch;
+  }
+
+  .warn {
+    border-left: 2px solid var(--rechteck);
+    padding: 0.2rem 0 0.2rem 1.1rem;
+    max-width: 58ch;
+  }
+
+  div.warn, div.notiz { display: flex; flex-direction: column; gap: 0.5rem; }
+  div.warn > *, div.notiz > * { margin: 0; max-width: none; }
+
+  ul { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: 0.6rem; max-width: 60ch; }
+  li::marker { color: var(--muted); }
+
+  footer {
+    border-top: 1px solid var(--rule);
+    padding: 2rem clamp(1.25rem, 5vw, 4rem) 3rem;
+    font-family: var(--f-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-align: center;
+  }
+</style>
+
+</head>
+<body>
+<main class="deck">
+
+  <!-- 01 ------------------------------------------------------------ -->
+  <section class="folie">
+    <div class="rail"><b>01</b>Die Frage</div>
+    <div class="body">
+      <p class="kicker">Attention · Query, Key, Value</p>
+      <h1>Ist ein Quadrat auch ein Rechteck?</h1>
+      <p class="lede">Ein Satz, sieben Tokens, drei Aufmerksamkeits&shy;köpfe — und am Ende hängt die Antwort an einer einzigen Zahl.</p>
+
+      <figure>
+        <svg viewBox="0 0 380 175" role="img" aria-label="Ein Rechteck mit zwei Paar gleich langer Seiten neben einem Quadrat mit vier gleich langen Seiten.">
+          <g fill="none" stroke="var(--rechteck)" stroke-width="1.6">
+            <rect x="18" y="40" width="150" height="95"/>
+            <path d="M18 52 h12 M30 40 v12" stroke-width="1" opacity="0.5"/>
+            <path d="M156 135 h12 M168 123 v12" stroke-width="1" opacity="0.5"/>
+            <path d="M93 34 v12"/>
+            <path d="M93 129 v12"/>
+            <path d="M12 82 h12 M12 93 h12"/>
+            <path d="M162 82 h12 M162 93 h12"/>
+          </g>
+          <text x="18" y="160" fill="var(--rechteck)" font-size="12" font-weight="600">Rechteck</text>
+
+          <g fill="none" stroke="var(--quadrat)" stroke-width="1.6">
+            <rect x="243" y="40" width="95" height="95"/>
+            <path d="M243 52 h12 M255 40 v12" stroke-width="1" opacity="0.5"/>
+            <path d="M326 135 h12 M338 123 v12" stroke-width="1" opacity="0.5"/>
+            <path d="M290 34 v12"/>
+            <path d="M290 129 v12"/>
+            <path d="M237 82 h12"/>
+            <path d="M332 82 h12"/>
+          </g>
+          <text x="243" y="160" fill="var(--quadrat)" font-size="12" font-weight="600">Quadrat</text>
+        </svg>
+        <figcaption>Die Hash-Marken zählen, welche Seiten gleich lang sind: beim Rechteck zwei Paare, beim Quadrat alle vier. Genau dieser Unterschied entscheidet später.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- 02 ------------------------------------------------------------ -->
+  <section class="folie">
+    <div class="rail"><b>02</b>Drei Rollen</div>
+    <div class="body">
+      <h2>Jedes Token spielt drei Rollen gleichzeitig</h2>
+      <p>Q, K und V sind keine drei verschiedenen Dinge — es sind drei Projektionen <em>desselben</em> Tokens, erzeugt durch drei gelernte Matrizen: <span class="vec">Q = xW<sub>Q</sub></span>, <span class="vec">K = xW<sub>K</sub></span>, <span class="vec">V = xW<sub>V</sub></span>.</p>
+
+      <div class="rollen">
+        <div class="rolle">
+          <div class="glyph">Q</div>
+          <div class="name">Query</div>
+          <div class="frage">Was suche ich?</div>
+          <div class="bsp">Das Fragezeichen — die letzte Position — sucht: „Wer ist das Subjekt?“</div>
+        </div>
+        <div class="rolle">
+          <div class="glyph">K</div>
+          <div class="name">Key</div>
+          <div class="frage">Wofür bin ich auffindbar?</div>
+          <div class="bsp">„Quadrat“ ist auffindbar als geometrische Form an früher Satzposition.</div>
+        </div>
+        <div class="rolle">
+          <div class="glyph">V</div>
+          <div class="name">Value</div>
+          <div class="frage">Was gebe ich weiter?</div>
+          <div class="bsp">„Quadrat“ liefert seine Eigenschaften: rechtwinklig, vier Seiten, alle gleich lang.</div>
+        </div>
+      </div>
+
+      <p class="notiz">Der entscheidende Punkt: <strong>K und V gehören demselben Token.</strong> Womit man gefunden wird, ist nicht dasselbe wie das, was man liefert — wie im Suchindex, wo Stichwort und Dokumentinhalt getrennt sind.</p>
+
+      <p class="warn"><strong>Alle Queries kommen vom Fragezeichen.</strong> Es ist die letzte Position im Satz, also die, an der die Antwort entsteht. Jeder der drei Köpfe hat dort einen eigenen Query-Vektor — drei Fragen von derselben Stelle aus.</p>
+    </div>
+  </section>
+
+  <!-- 03 ------------------------------------------------------------ -->
+  <section class="folie">
+    <div class="rail"><b>03</b>Die Vektoren</div>
+    <div class="body">
+      <h2>Der Satz und seine Zahlen</h2>
+
+      <div class="satz">
+        <span class="tok">Ist</span>
+        <span class="tok">ein</span>
+        <span class="tok q">Quadrat</span>
+        <span class="tok">auch</span>
+        <span class="tok">ein</span>
+        <span class="tok r">Rechteck</span>
+        <span class="tok qpos">?</span>
+      </div>
+      <p class="satz-legende">7 Tokens · 2 Formen · 4 Funktionswörter · 1 Satzzeichen</p>
+
+      <p><strong>„ein“ zählt zweimal.</strong> Attention läuft über <em>Positionen</em>, nicht über Vokabeleinträge: jedes Vorkommen ist ein eigenes Token mit eigenen Q-, K- und V-Vektoren, unterscheidbar über das Positional Encoding.</p>
+
+      <p><strong>Das „?“ ist ein vollwertiges Token.</strong> Es trägt den Satztyp — ohne es wäre der Satz eine Aussage, keine Frage. Dafür bekommt der Vektorraum eine vierte Dimension.</p>
+
+      <div class="def">
+        <span class="eyebrow">Definition · zwei Vektorräume</span>
+        <p>Wir <strong>legen hier zwei Räume fest</strong>: einen <strong>Key-Raum</strong>, in dem gesucht wird, und einen <strong>Value-Raum</strong>, in dem geliefert wird. Jedes der sieben Tokens bekommt in jedem Raum genau einen Vektor.</p>
+        <p>Beide Räume sind für dieses Beispiel von Hand gewählt, damit die Zahlen lesbar bleiben. Im echten Modell fallen die Vektoren aus <span class="vec">K = x · W<sub>K</sub></span> und <span class="vec">V = x · W<sub>V</sub></span> — mit trainierten Matrizen und Dimensionen, die nichts bedeuten, was man benennen könnte.</p>
+      </div>
+
+      <h3>Value-Raum — was ein Token einbringt</h3>
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Token</th>
+              <th class="num">rechtwinklig</th>
+              <th class="num">vier Seiten</th>
+              <th class="num">alle Seiten gleich</th>
+              <th class="num">ist eine Frage</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="is-q"><td>Quadrat</td><td class="num">1</td><td class="num">1</td><td class="num">1</td><td class="num">0</td></tr>
+            <tr class="is-r"><td>Rechteck</td><td class="num">1</td><td class="num">1</td><td class="num">0</td><td class="num">0</td></tr>
+            <tr class="is-p"><td>?</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">1</td></tr>
+            <tr><td class="dim">Funktionswörter <span class="fw">Ist · ein · auch · ein</span></td><td class="num dim">0</td><td class="num dim">0</td><td class="num dim">0</td><td class="num dim">0</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Key-Raum — wofür ein Token auffindbar ist</h3>
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Token</th>
+              <th class="num">ist geom. Form</th>
+              <th class="num">steht früh</th>
+              <th class="num">steht spät</th>
+              <th class="num">ist Satzzeichen</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="is-q"><td>Quadrat</td><td class="num">2</td><td class="num">1</td><td class="num">0</td><td class="num">0</td></tr>
+            <tr class="is-r"><td>Rechteck</td><td class="num">2</td><td class="num">0</td><td class="num">1</td><td class="num">0</td></tr>
+            <tr class="is-p"><td>?</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">2</td></tr>
+            <tr><td class="dim">Funktionswörter <span class="fw">Ist · ein · auch · ein</span></td><td class="num dim">0</td><td class="num dim">0</td><td class="num dim">0</td><td class="num dim">0</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="warn"><strong>Diese Tabellen gelten immer — nicht nur am Fragezeichen.</strong> K und V gehören dem <em>Token</em>, nicht dem Frager: sie werden einmal berechnet und stehen dann fest, egal welche Position gerade sucht. Was sich ändert, ist allein Q — jede Position hat ihren eigenen Query-Vektor. Von den <strong>7 × 3 = 21 Queries</strong> in diesem Beispiel verfolgen wir nur die drei am Fragezeichen.</p>
+
+      <div class="def">
+        <span class="eyebrow">Bewusste Abweichung · Multi-Query Attention</span>
+        <p>Im <strong>Standard-Transformer hat jeder Kopf eigene</strong> <span class="vec">W<sub>Q</sub></span>, <span class="vec">W<sub>K</sub></span> und <span class="vec">W<sub>V</sub></span> — dort gäbe es also nicht nur 21 Queries, sondern auch 21 Keys und 21 Values.</p>
+        <p>Wir teilen hier <strong>einen K/V-Satz über alle drei Köpfe</strong>. Das ist keine Schlamperei, sondern ein eigenes Verfahren: <strong>Multi-Query Attention</strong> (Shazeer 2019) und ihre Verallgemeinerung GQA machen es genauso — und zwar aus genau dem Grund, der zwei Absätze weiter oben steht. Weniger K/V-Sätze heisst kleinerer KV-Cache. Moderne Modelle sind an diesem Punkt wieder dort, wo unser Spielzeugmodell steht.</p>
+      </div>
+
+      <p class="notiz">Die vier Funktionswörter sind zu einer Zeile zusammengefasst, weil sie identische Vektoren tragen — in den Rechnungen ab Folie 4 zählt jedes einzeln.</p>
+
+      <p class="notiz">Genau darauf beruht der <strong>KV-Cache</strong>: weil K und V nicht davon abhängen, wer fragt, berechnet man sie beim Generieren einmal pro Token und verwendet sie für jede weitere Position wieder. Nur Queries kommen neu dazu. — Feinheit für Nachfragen: jede Attention-Schicht hat eigene <span class="vec">W<sub>K</sub></span> und <span class="vec">W<sub>V</sub></span> und arbeitet auf der Ausgabe der Schicht darunter. Innerhalb einer Schicht und eines Durchlaufs stehen K und V aber fest.</p>
+
+      <p class="notiz">Key- und Value-Raum bedeuten bewusst Verschiedenes und dürfen sogar verschieden viele Dimensionen haben — zwingend gleich lang müssen nur Q und K sein, weil ihr Skalarprodukt gebildet wird. Dass beide Räume hier vier Dimensionen haben, ist Zufall. Die Positionsdimensionen stammen aus dem Positional Encoding; sie sind unverzichtbar, weil deutsche Fragen der Form <em>„Ist ein X auch ein Y?“</em> ihre Bedeutung aus der Wortstellung ziehen.</p>
+    </div>
+  </section>
+
+  <!-- 04 ------------------------------------------------------------ -->
+  <section class="folie">
+    <div class="rail"><b>04</b>Kopf A</div>
+    <div class="body">
+      <h2>Kopf A fragt: „Wer ist das Subjekt?“</h2>
+      <p>Query des Fragezeichens in diesem Kopf: <span class="vec">Q<sub>A</sub> = [1, 2, 0, 0]</span> — gesucht wird eine geometrische Form, die <em>früh</em> im Satz steht.</p>
+
+      <p class="warn"><strong>Von Hand gesetzt.</strong> Dieser Query-Vektor ist hier didaktisch gewählt, damit die Rechnung im Kopf aufgeht. Im echten Modell entsteht er als <span class="vec">Q = x · W<sub>Q</sub></span> — und <span class="vec">W<sub>Q</sub></span> ist trainiert, nicht designt.</p>
+
+      <h3>Scores und Softmax — alle sieben Tokens</h3>
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Token</th>
+              <th class="num">Key</th>
+              <th class="num">Q<sub>A</sub> · K</th>
+              <th class="num">e<sup>Score</sup></th>
+              <th class="num">Gewicht</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="is-q"><td>Quadrat</td><td class="num">[2, 1, 0, 0]</td><td class="num">2 + 2 + 0 + 0 = 4</td><td class="num">54.60</td><td class="num">0.815</td></tr>
+            <tr class="is-r"><td>Rechteck</td><td class="num">[2, 0, 1, 0]</td><td class="num">2 + 0 + 0 + 0 = 2</td><td class="num">7.39</td><td class="num">0.110</td></tr>
+            <tr class="fnw"><td class="dim">Ist</td><td class="num dim">[0, 0, 0, 0]</td><td class="num dim">0</td><td class="num dim">1.00</td><td class="num dim">0.015</td></tr>
+            <tr class="fnw"><td class="dim">ein</td><td class="num dim">[0, 0, 0, 0]</td><td class="num dim">0</td><td class="num dim">1.00</td><td class="num dim">0.015</td></tr>
+            <tr class="fnw"><td class="dim">auch</td><td class="num dim">[0, 0, 0, 0]</td><td class="num dim">0</td><td class="num dim">1.00</td><td class="num dim">0.015</td></tr>
+            <tr class="fnw"><td class="dim">ein</td><td class="num dim">[0, 0, 0, 0]</td><td class="num dim">0</td><td class="num dim">1.00</td><td class="num dim">0.015</td></tr>
+            <tr class="fnw"><td class="dim">?</td><td class="num dim">[0, 0, 0, 2]</td><td class="num dim">0 + 0 + 0 + 0 = 0</td><td class="num dim">1.00</td><td class="num dim">0.015</td></tr>
+            <tr class="sum"><td>Summe</td><td class="num"></td><td class="num"></td><td class="num">66.99</td><td class="num">1.000</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="notiz">Das „?“ ist mitgerechnet, bekommt hier aber Score 0: seine vierte Key-Dimension trifft auf eine Null in <span class="vec">Q<sub>A</sub></span>. Dieser Kopf interessiert sich nicht für Satzzeichen — Kopf C auf Folie 7 tut es.</p>
+
+      <h3>Attention-Gewichte</h3>
+      <div class="bars">
+        <div class="bar-row">
+          <span class="name q">Quadrat</span>
+          <span class="bar-track"><span class="bar-fill q" style="width:81.5%"></span></span>
+          <span class="val">0.815</span>
+        </div>
+        <div class="bar-row">
+          <span class="name r">Rechteck</span>
+          <span class="bar-track"><span class="bar-fill r" style="width:11.0%"></span></span>
+          <span class="val">0.110</span>
+        </div>
+        <div class="bar-row">
+          <span class="name">Ist</span>
+          <span class="bar-track"><span class="bar-fill" style="width:1.5%"></span></span>
+          <span class="val">0.015</span>
+        </div>
+        <div class="bar-row">
+          <span class="name">ein</span>
+          <span class="bar-track"><span class="bar-fill" style="width:1.5%"></span></span>
+          <span class="val">0.015</span>
+        </div>
+        <div class="bar-row">
+          <span class="name">auch</span>
+          <span class="bar-track"><span class="bar-fill" style="width:1.5%"></span></span>
+          <span class="val">0.015</span>
+        </div>
+        <div class="bar-row">
+          <span class="name">ein</span>
+          <span class="bar-track"><span class="bar-fill" style="width:1.5%"></span></span>
+          <span class="val">0.015</span>
+        </div>
+        <div class="bar-row">
+          <span class="name p">?</span>
+          <span class="bar-track"><span class="bar-fill p" style="width:1.5%"></span></span>
+          <span class="val">0.015</span>
+        </div>
+      </div>
+
+      <div class="calc q">
+        <span class="lbl">Gewichtete Summe der Values</span>
+        <span>0.815 · [1,1,1,0] &nbsp;+&nbsp; 0.110 · [1,1,0,0] &nbsp;+&nbsp; 0.015 · [0,0,0,1]</span>
+        <span class="result">= [0.93, 0.93, <span style="color:var(--quadrat)">0.82</span>, 0.01]</span>
+      </div>
+
+      <p class="notiz">Aus einem Score-Abstand von 2 wird ein Gewichts&shy;verhältnis von 7:1. Softmax ist exponentiell — Attention ist bewusst spitz, nicht linear-fair.</p>
+
+      <p class="notiz"><strong>Spitz, aber nie ausschliessend.</strong> Softmax gibt keinem Token exakt null: selbst die Funktionswörter bekommen je 1.5 %, und das Rechteck steckt mit 11 % im Kontext von Kopf A, obwohl es nicht das Subjekt ist. Es wird also nie ausgewählt, sondern immer gemischt — hart wird die Entscheidung erst später im Feedforward-Netz.</p>
+    </div>
+  </section>
+
+
+  <!-- 05 ------------------------------------------------------------ -->
+  <section class="folie">
+    <div class="rail"><b>05</b>Der Mischschritt</div>
+    <div class="body">
+      <h2>Die gewichtete Summe — langsam</h2>
+      <p>Der letzte Schritt von Folie 04 in einer Zeile war: <span class="vec">0.815 · [1,1,1,0] + 0.110 · [1,1,0,0] + 0.015 · [0,0,0,1]</span>. Hier ist er ausgeschrieben.</p>
+
+      <p><strong>Zwei Zutaten, zwei Aufgaben.</strong> Die Gewichte bestimmen, <em>wie viel</em> von jedem Token durchkommt. Die Values bestimmen, <em>was</em> durchkommt. Multipliziert ergibt das pro Token einen Beitrag — und die Beiträge werden aufaddiert.</p>
+
+      <h3>1 · Jedes Token skalieren</h3>
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Token</th>
+              <th class="num">Gewicht</th>
+              <th class="num">V</th>
+              <th class="num">Beitrag = Gewicht · V</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="is-q"><td>Quadrat</td><td class="num">0.815</td><td class="num">[1, 1, 1, 0]</td><td class="num">[0.815, 0.815, 0.815, 0]</td></tr>
+            <tr class="is-r"><td>Rechteck</td><td class="num">0.110</td><td class="num">[1, 1, 0, 0]</td><td class="num">[0.110, 0.110, 0, 0]</td></tr>
+            <tr class="fnw"><td class="dim">Ist</td><td class="num dim">0.015</td><td class="num dim">[0, 0, 0, 0]</td><td class="num dim">[0, 0, 0, 0]</td></tr>
+            <tr class="fnw"><td class="dim">ein</td><td class="num dim">0.015</td><td class="num dim">[0, 0, 0, 0]</td><td class="num dim">[0, 0, 0, 0]</td></tr>
+            <tr class="fnw"><td class="dim">auch</td><td class="num dim">0.015</td><td class="num dim">[0, 0, 0, 0]</td><td class="num dim">[0, 0, 0, 0]</td></tr>
+            <tr class="fnw"><td class="dim">ein</td><td class="num dim">0.015</td><td class="num dim">[0, 0, 0, 0]</td><td class="num dim">[0, 0, 0, 0]</td></tr>
+            <tr class="is-p"><td>?</td><td class="num">0.015</td><td class="num">[0, 0, 0, 1]</td><td class="num">[0, 0, 0, 0.015]</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="notiz">Die vier Funktionswörter tragen exakt nichts bei — nicht weil ihr Gewicht null wäre, sondern weil ihr Value-Vektor null ist. Ein Token kann Aufmerksamkeit bekommen und trotzdem nichts liefern.</p>
+
+      <h3>2 · Spaltenweise addieren</h3>
+      <p>Die sieben Beitragsvektoren werden Dimension für Dimension aufsummiert — jede Spalte für sich:</p>
+
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Dimension</th>
+              <th class="num">Quadrat + Rechteck + Ist + ein + auch + ein + ?</th>
+              <th class="num">Ergebnis</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>rechtwinklig</td><td class="num">0.815 + 0.110 + 0 + 0 + 0 + 0 + 0</td><td class="num">0.925</td></tr>
+            <tr><td>vier Seiten</td><td class="num">0.815 + 0.110 + 0 + 0 + 0 + 0 + 0</td><td class="num">0.925</td></tr>
+            <tr><td>alle Seiten gleich</td><td class="num">0.815 + 0 + 0 + 0 + 0 + 0 + 0</td><td class="num">0.815</td></tr>
+            <tr><td>ist eine Frage</td><td class="num">0 + 0 + 0 + 0 + 0 + 0 + 0.015</td><td class="num">0.015</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>3 · Wer hat was beigesteuert?</h3>
+      <div class="stack">
+        <div class="stack-row">
+          <span class="dimname">rechtwinklig</span>
+          <span class="stack-track"><span class="seg q" style="width:81.5%"></span><span class="seg r" style="width:11.0%"></span></span>
+          <span class="total">0.925</span>
+        </div>
+        <div class="stack-row">
+          <span class="dimname">vier Seiten</span>
+          <span class="stack-track"><span class="seg q" style="width:81.5%"></span><span class="seg r" style="width:11.0%"></span></span>
+          <span class="total">0.925</span>
+        </div>
+        <div class="stack-row">
+          <span class="dimname">alle Seiten gleich</span>
+          <span class="stack-track"><span class="seg q" style="width:81.5%"></span></span>
+          <span class="total">0.815</span>
+        </div>
+        <div class="stack-row">
+          <span class="dimname">ist eine Frage</span>
+          <span class="stack-track"><span class="seg p" style="width:1.5%"></span></span>
+          <span class="total">0.015</span>
+        </div>
+      </div>
+
+      <div class="legende">
+        <span class="key"><i class="sw q"></i>Quadrat · 0.815</span>
+        <span class="key"><i class="sw r"></i>Rechteck · 0.110</span>
+        <span class="key"><i class="sw p"></i>? · 0.015</span>
+      </div>
+
+      <p>Die ersten beiden Dimensionen sind gestapelt, weil <em>beide</em> Formen rechtwinklig sind und vier Seiten haben. Die dritte trägt nur das Quadrat — deshalb steht dort exakt sein Aufmerksamkeitsgewicht.</p>
+
+      <div class="calc q">
+        <span class="lbl">Ergebnis — der neue Kontextvektor</span>
+        <span class="result">[0.925, 0.925, <span style="color:var(--quadrat)">0.815</span>, 0.015]</span>
+        <span class="lbl">gerundet: [0.93, 0.93, 0.82, 0.01]</span>
+      </div>
+    </div>
+  </section>
+  <!-- 06 ------------------------------------------------------------ -->
+  <section class="folie">
+    <div class="rail"><b>06</b>Kopf B</div>
+    <div class="body">
+      <h2>Kopf B fragt: „Womit wird verglichen?“</h2>
+      <p>Query: <span class="vec">Q<sub>B</sub> = [1, 0, 2, 0]</span> — dieselbe Rechnung, aber gesucht wird die Form, die <em>spät</em> im Satz steht. Die Gewichte kippen spiegelbildlich.</p>
+
+      <div class="calc r">
+        <span class="lbl">Scores</span>
+        <span>Quadrat &nbsp;[1,0,2,0] · [2,1,0,0] = 2 + 0 + 0 + 0 &nbsp;=&nbsp; <strong>2</strong></span>
+        <span>Rechteck [1,0,2,0] · [2,0,1,0] = 2 + 0 + 2 + 0 &nbsp;=&nbsp; <strong>4</strong></span>
+        <span>Ist · ein · auch · ein · ? &nbsp;=&nbsp; <strong>0</strong> &nbsp;(je e⁰ = 1)</span>
+        <span class="lbl">Summe: 7.39 + 54.60 + 5 × 1 = 66.99</span>
+      </div>
+
+      <div class="bars">
+        <div class="bar-row">
+          <span class="name q">Quadrat</span>
+          <span class="bar-track"><span class="bar-fill q" style="width:11.0%"></span></span>
+          <span class="val">0.110</span>
+        </div>
+        <div class="bar-row">
+          <span class="name r">Rechteck</span>
+          <span class="bar-track"><span class="bar-fill r" style="width:81.5%"></span></span>
+          <span class="val">0.815</span>
+        </div>
+        <div class="bar-row">
+          <span class="name">Ist</span>
+          <span class="bar-track"><span class="bar-fill" style="width:1.5%"></span></span>
+          <span class="val">0.015</span>
+        </div>
+        <div class="bar-row">
+          <span class="name">ein</span>
+          <span class="bar-track"><span class="bar-fill" style="width:1.5%"></span></span>
+          <span class="val">0.015</span>
+        </div>
+        <div class="bar-row">
+          <span class="name">auch</span>
+          <span class="bar-track"><span class="bar-fill" style="width:1.5%"></span></span>
+          <span class="val">0.015</span>
+        </div>
+        <div class="bar-row">
+          <span class="name">ein</span>
+          <span class="bar-track"><span class="bar-fill" style="width:1.5%"></span></span>
+          <span class="val">0.015</span>
+        </div>
+        <div class="bar-row">
+          <span class="name p">?</span>
+          <span class="bar-track"><span class="bar-fill p" style="width:1.5%"></span></span>
+          <span class="val">0.015</span>
+        </div>
+      </div>
+
+      <div class="calc r">
+        <span class="lbl">Gewichtete Summe der Values</span>
+        <span>0.110 · [1,1,1,0] &nbsp;+&nbsp; 0.815 · [1,1,0,0] &nbsp;+&nbsp; 0.015 · [0,0,0,1]</span>
+        <span class="result">= [0.93, 0.93, <span style="color:var(--rechteck)">0.11</span>, 0.01]</span>
+      </div>
+
+      <div class="warn">
+        <h3>Warum überhaupt mehrere Köpfe?</h3>
+        <p>Ein einzelner Kopf mit der Query „zeig mir alle Formen“ <span class="vec">[1,0,0,0]</span> würde beide gleich stark gewichten — je 0.374 — und <span class="vec">[0.75, 0.75, 0.37, 0.05]</span> liefern. Ein Brei, aus dem niemand mehr herauslesen kann, <em>welche</em> Form die gleich langen Seiten hatte.</p>
+        <p>Der Grund für Multi-Head ist allgemeiner: <strong>ein Kopf bildet pro Position nur <em>eine</em> Konvexkombination</strong> — er kann also nur an eine Stelle schauen. Mehrere Köpfe schauen an mehrere. Dass dabei ein Kopf eine sauber benennbare Aufgabe übernimmt, ist die Ausnahme, nicht die Regel (siehe Folie 10).</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 07 ------------------------------------------------------------ -->
+  <section class="folie">
+    <div class="rail"><b>07</b>Kopf C</div>
+    <div class="body">
+      <h2>Kopf C fragt: „Welcher Satztyp?“</h2>
+      <p>Query: <span class="vec">Q<sub>C</sub> = [0, 0, 0, 2]</span> — dieser Kopf ignoriert die Geometrie vollständig und sucht nur nach dem Satzzeichen. Das Fragezeichen schaut also auf <em>sich selbst</em>.</p>
+
+      <div class="calc p">
+        <span class="lbl">Scores</span>
+        <span>? &nbsp;[0,0,0,2] · [0,0,0,2] = 0 + 0 + 0 + 4 &nbsp;=&nbsp; <strong>4</strong></span>
+        <span>Quadrat · Rechteck · 4 Funktionswörter &nbsp;=&nbsp; <strong>0</strong> &nbsp;(je e⁰ = 1)</span>
+        <span class="lbl">Summe: 54.60 + 6 × 1 = 60.60</span>
+      </div>
+
+      <div class="bars">
+        <div class="bar-row">
+          <span class="name p">?</span>
+          <span class="bar-track"><span class="bar-fill p" style="width:90.1%"></span></span>
+          <span class="val">0.901</span>
+        </div>
+        <div class="bar-row">
+          <span class="name q">Quadrat</span>
+          <span class="bar-track"><span class="bar-fill q" style="width:1.65%"></span></span>
+          <span class="val">0.017</span>
+        </div>
+        <div class="bar-row">
+          <span class="name r">Rechteck</span>
+          <span class="bar-track"><span class="bar-fill r" style="width:1.65%"></span></span>
+          <span class="val">0.017</span>
+        </div>
+        <div class="bar-row">
+          <span class="name">4 × Funktionswort</span>
+          <span class="bar-track"><span class="bar-fill" style="width:6.6%"></span></span>
+          <span class="val">0.066</span>
+        </div>
+      </div>
+
+      <div class="calc p">
+        <span class="lbl">Gewichtete Summe der Values</span>
+        <span>0.901 · [0,0,0,1] &nbsp;+&nbsp; 0.017 · [1,1,1,0] &nbsp;+&nbsp; 0.017 · [1,1,0,0]</span>
+        <span class="result">= [0.03, 0.03, 0.02, <span style="color:var(--ink)">0.90</span>]</span>
+      </div>
+
+      <p class="notiz">Das Fragezeichen ist kein Beiwerk: <strong>die vierte Dimension entscheidet die Ausgabeform.</strong> Ohne sie wüsste das Modell nicht, dass ein „Ja“ oder „Nein“ verlangt ist statt einer Aussage.</p>
+
+      <p class="warn"><strong>Ehrlich bleiben beim Satztyp.</strong> Im Deutschen markiert nicht das Fragezeichen die Entscheidungsfrage, sondern die <strong>Verberststellung</strong>: <em>„Ist ein Quadrat auch ein Rechteck“</em> ist auch ohne „?“ unmissverständlich eine Frage — die Aussage hiesse <em>„Ein Quadrat ist auch ein Rechteck“</em>. Der Satztyp hängt also an „Ist“ auf Position 1. Wir bündeln beide Signale hier im „?“, damit das Beispiel mit <em>einem</em> Satztyp-Träger auskommt.</p>
+    </div>
+  </section>
+
+  <!-- 08 ------------------------------------------------------------ -->
+  <section class="folie">
+    <div class="rail"><b>08</b>Die Antwort</div>
+    <div class="body">
+      <h2>Zusammenführen — und erst jetzt entscheiden</h2>
+      <p>Die drei Köpfe werden konkateniert. Zwölf Zahlen — und zwar <strong>am Fragezeichen</strong>, der letzten Position im Satz, weil dort die Antwort entsteht:</p>
+
+      <div class="calc">
+        <span class="lbl">Kopf A · Subjekt</span>
+        <span class="result">[0.93, 0.93, <span style="color:var(--quadrat)">0.82</span>, 0.01]</span>
+        <span class="lbl">Kopf B · Vergleich</span>
+        <span class="result">[0.93, 0.93, <span style="color:var(--rechteck)">0.11</span>, 0.01]</span>
+        <span class="lbl">Kopf C · Satztyp</span>
+        <span class="result">[0.03, 0.03, 0.02, <span style="color:var(--ink)">0.90</span>]</span>
+      </div>
+
+      <p class="warn"><strong>Jede Position bekommt so einen Vektor</strong> — auch „Quadrat“, auch „ein“. Alle sieben werden gleichzeitig berechnet, jede mit ihren eigenen Queries. Wir verfolgen nur das Fragezeichen, weil an der letzten Position das nächste Token vorhergesagt wird. Die übrigen sechs sind nicht falsch, nur für diese Frage unerheblich.</p>
+
+      <p class="notiz">Nicht jede Position darf alles sehen: beim Generieren sperrt eine <strong>kausale Maske</strong> alles rechts von der eigenen Position — „Quadrat“ sieht das spätere „Rechteck“ also gar nicht. Nur die letzte Position sieht den ganzen Satz, und genau deshalb rechnen wir dort.</p>
+
+      <div class="def">
+        <span class="eyebrow">Ein Schritt fehlt noch · Output-Projektion</span>
+        <p>Konkatenieren allein genügt nicht. Die zwölf Zahlen laufen zuerst durch die <strong>Output-Projektion <span class="vec">W<sub>O</sub></span></strong> — eine trainierte Matrix, die sie zurück auf die Modellbreite bringt. <strong>Sie ist der einzige Ort, an dem die Köpfe überhaupt miteinander vermischt werden</strong>; bis dahin stehen sie unverbunden nebeneinander.</p>
+        <p><span class="vec">W<sub>O</sub></span> gehört noch zur Attention-Schicht. Danach kommen Residual-Verbindung und LayerNorm, <em>dann</em> erst das Feedforward-Netz.</p>
+      </div>
+
+      <p><strong>Jetzt endet die Attention.</strong> Was folgt, ist das Feedforward-Netz. Es liest zwei Dinge ab.</p>
+
+      <h3>1 · Kopf C — welche Antwortform?</h3>
+      <p><span class="vec">0.90</span> in der Frage-Dimension → verlangt wird ein Ja oder Nein, keine Aussage.</p>
+
+      <h3>2 · Kopf A gegen Kopf B — Subset-Test</h3>
+      <p>Hat das Subjekt mindestens alles, was der Vergleich verlangt?</p>
+
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Eigenschaft</th>
+              <th class="num">Subjekt</th>
+              <th class="num">Vergleich</th>
+              <th class="num">Erfüllt?</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>rechtwinklig</td><td class="num">0.93</td><td class="num">0.93</td><td class="mark ok">✓</td></tr>
+            <tr><td>vier Seiten</td><td class="num">0.93</td><td class="num">0.93</td><td class="mark ok">✓</td></tr>
+            <tr class="decisive"><td>alle Seiten gleich</td><td class="num">0.82</td><td class="num">0.11</td><td class="mark ok">✓ mehr als nötig</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="verdikt">
+        <span class="word ja">Ja.</span>
+        <span class="why">Das Quadrat hat zusätzlich gleich lange Seiten — und Zusatz&shy;eigenschaften schaden bei einer Ist-ein-Frage nicht.</span>
+      </div>
+
+      <figure>
+        <svg viewBox="0 0 340 150" role="img" aria-label="Die Menge der Quadrate liegt vollständig innerhalb der Menge der Rechtecke.">
+          <rect x="10" y="14" width="320" height="122" rx="4" fill="none" stroke="var(--rechteck)" stroke-width="1.5" stroke-dasharray="5 4"/>
+          <text x="24" y="34" fill="var(--rechteck)" font-size="12" font-weight="600">Rechtecke</text>
+          <rect x="150" y="44" width="160" height="76" rx="3" fill="var(--quadrat-wash)" stroke="var(--quadrat)" stroke-width="1.5"/>
+          <text x="164" y="64" fill="var(--quadrat)" font-size="12" font-weight="600">Quadrate</text>
+          <text x="164" y="86" fill="currentColor" font-size="11" opacity="0.65">rechtwinklig + vier Seiten</text>
+          <text x="164" y="103" fill="currentColor" font-size="11" opacity="0.65">+ alle Seiten gleich</text>
+          <text x="24" y="112" fill="currentColor" font-size="11" opacity="0.65">rechtwinklig</text>
+          <text x="24" y="128" fill="currentColor" font-size="11" opacity="0.65">+ vier Seiten</text>
+        </svg>
+        <figcaption>Mehr Eigenschaften bedeutet eine kleinere Menge: jedes Quadrat ist ein Rechteck, aber nicht umgekehrt. Der Subset-Test oben ist genau diese Grafik in Zahlen.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- 09 ------------------------------------------------------------ -->
+  <section class="folie">
+    <div class="rail"><b>09</b>Die Probe</div>
+    <div class="body">
+      <h2>Frage umgedreht — dieselbe Maschine, andere Antwort</h2>
+
+      <div class="satz">
+        <span class="tok">Ist</span>
+        <span class="tok">ein</span>
+        <span class="tok r">Rechteck</span>
+        <span class="tok">auch</span>
+        <span class="tok">ein</span>
+        <span class="tok q">Quadrat</span>
+        <span class="tok qpos">?</span>
+      </div>
+
+      <p><strong>Kein gelernter Parameter hat sich geändert</strong> — keine Query, keine Formel, keine Matrix. Was sich ändert, sind die Positionsmerkmale: „steht früh“ und „steht spät“ tauschen zwischen Quadrat und Rechteck, damit auch ihre Key-Vektoren. Kopf A und Kopf B greifen daher auf die jeweils andere Form zu. Kopf C liefert unverändert <span class="vec">0.90</span>: es ist immer noch eine Frage.</p>
+
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Eigenschaft</th>
+              <th class="num">Subjekt <span class="dim">(Rechteck)</span></th>
+              <th class="num">Vergleich <span class="dim">(Quadrat)</span></th>
+              <th class="num">Erfüllt?</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>rechtwinklig</td><td class="num">0.93</td><td class="num">0.93</td><td class="mark ok">✓</td></tr>
+            <tr><td>vier Seiten</td><td class="num">0.93</td><td class="num">0.93</td><td class="mark ok">✓</td></tr>
+            <tr class="decisive"><td>alle Seiten gleich</td><td class="num">0.11</td><td class="num">0.82</td><td class="mark no">✗ fehlt</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="verdikt">
+        <span class="word nein">Nein.</span>
+        <span class="why">Die gesamte Asymmetrie der Frage hängt an einer einzigen Zahl in einer einzigen Dimension — und sie kippt allein durch die Wortstellung.</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10 ------------------------------------------------------------ -->
+  <section class="folie">
+    <div class="rail"><b>10</b>Kleingedrucktes</div>
+    <div class="body">
+      <h2>Was dieses Modell verschweigt</h2>
+      <p>Drei Vereinfachungen, die man aktiv dazusagen sollte — dann sind sie eine Stärke statt einer Angriffsfläche.</p>
+
+      <ul>
+        <li><strong>Attention beantwortet nichts.</strong> Sie ist Routing, dessen Ziel vom Inhalt abhängt — sie holt Information an die richtige Position, aber die Gewichte dafür rechnet sie selbst aus dem Inhalt aus. Vergleichen und Entscheiden passiert danach, im Feedforward-Netz und im Output-Head.</li>
+        <li><strong>Die Dimensionen sind nicht interpretierbar.</strong> „Dimension 3 = alle Seiten gleich lang“ gibt es in einem echten Transformer nicht.</li>
+        <li><strong>Das Weltwissen sitzt hier am falschen Ort.</strong> Dass ein Quadrat gleich lange Seiten hat, steckt real in den <strong>FFN-Gewichten</strong>. Wir haben es auf Folie 3 in die Value-Vektoren verschoben — nur deshalb wird die Rechnung überhaupt sichtbar. Beides zugleich gibt es nicht.</li>
+        <li><strong>Attention-Gewichte sind keine Erklärung.</strong> Dass ein Kopf zu 82 % auf „Quadrat“ schaut, heisst nicht, dass die Antwort deswegen zustande kam. Hohe Gewichte lassen sich oft umverteilen, ohne dass sich die Ausgabe ändert — die Interpretierbarkeit, die dieses Beispiel suggeriert, ist eine didaktische Leihgabe.</li>
+        <li><strong>Ein Kopf, eine Aufgabe — so sauber ist es nie.</strong> Unsere drei Köpfe haben je eine benennbare Funktion. In echten Modellen lässt sich ein grosser Teil der Köpfe ersatzlos entfernen, ohne dass die Leistung nennenswert leidet.</li>
+        <li><strong>Die Skalierung fehlt.</strong> Echte Attention teilt die Scores durch <span class="vec">√d<sub>k</sub></span>, bevor der Softmax läuft, sonst sättigt er bei hohen Dimensionen und die Gradienten verschwinden. Hier weggelassen, damit die Zahlen im Kopf nachvollziehbar bleiben.</li>
+      </ul>
+
+      <div class="calc">
+        <span class="lbl">Ein Kopf</span>
+        <span class="result">Attention(Q, K, V) = softmax( Q Kᵀ / √d<sub>k</sub> ) · V</span>
+        <span class="lbl">Alle Köpfe zusammen — das, was dieses Deck durchgerechnet hat</span>
+        <span class="result">MultiHead(Q, K, V) = Concat(head₁ … head<sub>h</sub>) · W<sub>O</sub></span>
+        <span class="lbl">mit head<sub>i</sub> = Attention(Q W<sub>Q</sub><sup>i</sup>, K W<sub>K</sub><sup>i</sup>, V W<sub>V</sub><sup>i</sup>)</span>
+      </div>
+
+      <p class="notiz">Q, K und V sind im echten Modell nicht von Hand gesetzt, sondern gelernt: aus <em>einem</em> Embedding pro Token erzeugen drei trainierte Matrizen die drei Rollen. Das Modell entscheidet selbst, worauf zu achten sich lohnt — auch, dass ein Kopf sich für Satzzeichen interessiert.</p>
+    </div>
+  </section>
+
+</main>
+
+<footer>Attention · Query, Key, Value — Beispiel aus der ebenen Geometrie</footer>
+</body>
+</html>
