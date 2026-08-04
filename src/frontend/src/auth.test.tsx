@@ -87,5 +87,38 @@ describe("App auth (T-08)", () => {
     expect(await screen.findByText(/e-mail oder passwort falsch/i)).toBeInTheDocument();
     expect(localStorage.length).toBe(0);
     expect(sessionStorage.length).toBe(0);
+    expect(mockMe).not.toHaveBeenCalled();
+  });
+
+  it("meldet einen Fehler in /auth/me nicht als falsches Passwort", async () => {
+    mockLogin.mockResolvedValue({ access_token: "tok123", role: "learner" });
+    mockMe.mockRejectedValue(new Error("HTTP 500"));
+
+    render(<App />);
+    await userEvent.type(screen.getByLabelText(/e-mail/i), "lara@learnflow.ch");
+    await userEvent.type(screen.getByLabelText(/passwort/i), "correct");
+    await userEvent.click(screen.getByRole("button", { name: /anmelden/i }));
+
+    expect(await screen.findByText(/profil konnte aber nicht geladen werden/i)).toBeInTheDocument();
+    expect(screen.queryByText(/e-mail oder passwort falsch/i)).not.toBeInTheDocument();
+    // Kein User im State → Route bleibt geschuetzt, Formular ist erneut absendbar.
+    expect(window.location.pathname).toBe("/login");
+    expect(screen.getByRole("button", { name: /anmelden/i })).toBeEnabled();
+    expect(localStorage.length).toBe(0);
+    expect(sessionStorage.length).toBe(0);
+  });
+
+  it("haelt angemeldete User von /login fern (GuestRoute)", async () => {
+    mockLogin.mockResolvedValue({ access_token: "tok123", role: "learner" });
+    mockMe.mockResolvedValue({ id: "u1", email: "lara@learnflow.ch", role: "learner" });
+
+    window.history.pushState({}, "", "/login");
+    render(<App />);
+    await userEvent.type(screen.getByLabelText(/e-mail/i), "lara@learnflow.ch");
+    await userEvent.type(screen.getByLabelText(/passwort/i), "secret");
+    await userEvent.click(screen.getByRole("button", { name: /anmelden/i }));
+
+    await waitFor(() => expect(window.location.pathname).toBe("/"));
+    expect(screen.queryByLabelText(/passwort/i)).not.toBeInTheDocument();
   });
 });
