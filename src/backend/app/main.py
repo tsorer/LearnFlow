@@ -8,7 +8,9 @@ from app.routers import auth, documents
 
 app = FastAPI(title="LearnFlow API")
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+# slowapi's handler is narrowly typed for RateLimitExceeded; Starlette's signature
+# expects the general Exception type — safe, dispatch is by the registered class.
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
 
 app.add_middleware(
     CORSMiddleware,
