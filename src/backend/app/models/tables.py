@@ -46,7 +46,7 @@ class Document(Base):
     filename: Mapped[str] = mapped_column(String(255), nullable=False)
     content_type: Mapped[str] = mapped_column(String(100), nullable=False)
     content: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
-    status: Mapped[str] = mapped_column(String(20), nullable=False, server_default="queued")
+    status: Mapped[str] = mapped_column(String(20), nullable=False, server_default="pending")
     area: Mapped[str] = mapped_column(String(100), nullable=False, server_default="default")
     uploaded_by: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
