@@ -13,12 +13,24 @@ export default function Login({ onLogin }: Props) {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true); setError("");
+
+    // Getrennte Fehlerbehandlung: nur ein fehlgeschlagener /auth/login sagt etwas
+    // ueber die Credentials aus. Ein Fehler in /auth/me darf nicht als
+    // "Passwort falsch" erscheinen (AK 4).
+    let token: string;
     try {
-      const res = await api.login(email, password);
-      const me = await api.me(res.access_token);
-      onLogin({ ...me, role: me.role as AuthUser["role"], token: res.access_token });
+      token = (await api.login(email, password)).access_token;
     } catch {
       setError("E-Mail oder Passwort falsch.");
+      setBusy(false);
+      return;
+    }
+
+    try {
+      const me = await api.me(token);
+      onLogin({ ...me, role: me.role as AuthUser["role"], token });
+    } catch {
+      setError("Anmeldung erfolgreich, das Profil konnte aber nicht geladen werden. Bitte erneut versuchen.");
     } finally {
       setBusy(false);
     }
@@ -42,12 +54,12 @@ export default function Login({ onLogin }: Props) {
           </div>
         )}
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <label style={{ fontSize: 12, fontWeight: 600, color: "var(--muted)" }}>E-MAIL</label>
-          <input type="email" value={email} onChange={e => setEmail(e.target.value)} required autoFocus />
+          <label htmlFor="login-email" style={{ fontSize: 12, fontWeight: 600, color: "var(--muted)" }}>E-MAIL</label>
+          <input id="login-email" type="email" value={email} onChange={e => setEmail(e.target.value)} required autoFocus />
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <label style={{ fontSize: 12, fontWeight: 600, color: "var(--muted)" }}>PASSWORT</label>
-          <input type="password" value={password} onChange={e => setPassword(e.target.value)} required />
+          <label htmlFor="login-password" style={{ fontSize: 12, fontWeight: 600, color: "var(--muted)" }}>PASSWORT</label>
+          <input id="login-password" type="password" value={password} onChange={e => setPassword(e.target.value)} required />
         </div>
         <button type="submit" className="primary" disabled={busy} style={{ marginTop: 8, padding: "10px 14px" }}>
           {busy ? "Anmelden…" : "Anmelden"}

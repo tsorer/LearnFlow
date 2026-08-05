@@ -42,11 +42,11 @@ Protection auf `main`). Details: `Ops/09_CI-Runbook.md`.
 KI-Fehler aus Kriterium 1 — aber nur, wenn sie maschinell und für alle gleich erzwungen
 werden statt „lief bei mir".
 
-### 3. Unit-Tests für neue Logik; RAG-Komponenten isoliert testbar
+### 3. Unit- und Integrationstests für neue Logik; RAG-Komponenten isoliert testbar
 
-**Überprüfbar:** Neue Geschäftslogik hat mindestens einen Test; die betroffene
-RAG-Komponente (Chunking, Embedding, Retrieval, Generierung) ist ohne die anderen
-aufrufbar.
+**Überprüfbar:** Neue Geschäftslogik wird mit Unit- und Integrationstests getestet;
+die betroffene RAG-Komponente (Chunking, Embedding, Retrieval, Generierung) ist ohne
+die anderen aufrufbar.
 
 **Warum:** RAG-Qualität ist empirisch, nicht per Code-Review validierbar
 (Testability-NFA). Ohne Test pro Komponente bleibt unklar, welche Stufe regrediert.
