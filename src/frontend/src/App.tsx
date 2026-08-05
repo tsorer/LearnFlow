@@ -1,35 +1,36 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import type { AuthUser } from "./types";
-import { api } from "./api/client";
 import Login from "./components/Login";
 import ChatView from "./components/ChatView";
-
-const TOKEN_KEY = "lf_token";
+import { ProtectedRoute, GuestRoute } from "./components/RouteGuards";
 
 export default function App() {
+  // JWT/User nur im Memory (ADR-002) — bewusst kein localStorage.
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const token = localStorage.getItem(TOKEN_KEY);
-    if (!token) { setLoading(false); return; }
-    api.me(token)
-      .then((me) => setUser({ ...me, role: me.role as AuthUser["role"], token }))
-      .catch(() => localStorage.removeItem(TOKEN_KEY))
-      .finally(() => setLoading(false));
-  }, []);
-
-  const handleLogin = (u: AuthUser) => {
-    localStorage.setItem(TOKEN_KEY, u.token);
-    setUser(u);
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem(TOKEN_KEY);
-    setUser(null);
-  };
-
-  if (loading) return <div style={{ padding: 32, color: "var(--muted)" }}>Laden…</div>;
-  if (!user) return <Login onLogin={handleLogin} />;
-  return <ChatView user={user} onLogout={handleLogout} />;
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route
+          path="/login"
+          element={
+            <GuestRoute user={user}>
+              <Login onLogin={setUser} />
+            </GuestRoute>
+          }
+        />
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute user={user}>
+              {u => <ChatView user={u} onLogout={() => setUser(null)} />}
+            </ProtectedRoute>
+          }
+        />
+        {/* Unbekannte Pfade: auf die geschützte Wurzel, die ihrerseits zum Login leitet. */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
+  );
 }
