@@ -59,7 +59,7 @@ C4Container
 |---|---|---|
 | **Reliability** | API Server | Mehrschichtiger Unterdrückungsmechanismus (Quellenprüfung → Konfidenz → Self-Check) als Pipeline im API Server; Circuit Breaker für LiteLLM-Aufrufe. |
 | **Reliability** | Datenbank | Konfidenz- und Stale-Schwellenwerte in `config`-Tabelle — empirisch kalibrierbar ohne Deployment. |
-| **Security** | API Server | JWT (8 h) + bcrypt-Hashing; RBAC-Middleware; pseudonymisiertes Feedback-Schreiben; serverseitige URL-Abweisung ohne Admin-Rolle. |
+| **Security** | API Server | JWT (1 h) + bcrypt-Hashing; Login-Rate-Limit 5/min pro Client-IP; RBAC-Middleware; pseudonymisiertes Feedback-Schreiben; serverseitige URL-Abweisung ohne Admin-Rolle. |
 | **Maintainability** | API Server | LiteLLM-Abstraktion: Provider-Wechsel (Azure OpenAI EU ↔ OpenAI Direct ↔ Ollama) ist ein Konfigurationseintrag in der `config`-Tabelle — kein Code-Change. |
 | **Performance** | API Server + Web App | FastAPI async Batch-Response + Ladeanimation im Frontend; Wartezeit ≤ 10 s p95 über Retrieval-Optimierung (pgvector HNSW, ADR-007). |
 | **Performance** | Datenbank | pgvector HNSW-Index liefert Sub-100-ms-Latenz bei Similarity Search für < 10 000 Chunks. |
