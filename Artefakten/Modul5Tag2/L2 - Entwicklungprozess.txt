@@ -1,0 +1,38 @@
+AI Agent Risk Classification — (unnamed feature)
+
+Teaching version · scored 2026-08-05
+
+RISK TIER: MEDIUM  Gate: Security review before merge
+
+Surface	3 — End-to-end functionality
+Data	2 — Basic personal data
+Autonomy	3 — Chooses within limits
+Exposure	3 — Outside our jurisdiction
+
+How the tier was derived: Base level 2 (highest axis = 2). No combinations. No red lines.
+
+REQUIRED CONTROLS & OBLIGATIONS
+
+ALWAYS ON — NEVER SWITCHED OFF
+
+Prompt injection and jailbreak detection
+Harmful content filter
+Protection of system instructions and tool names
+AI disclosure to the customer
+
+IF A SAFETY CHECK IS TO BE SWITCHED OFF
+
+Exception needs a review before merge.
+Someone other than the requester confirms the check is genuinely not relevant here.
+
+COMPLIANCE OBLIGATIONS
+
+AI disclosure to the customer (EU AI Act, Art. 50)
+Interaction documented
+Personal data in the prompt documented (GDPR)
+Security-relevant events logged
+
+RESPONSIBILITIES
+
+Documented and proceed — no separate approval
+Security review before merge
