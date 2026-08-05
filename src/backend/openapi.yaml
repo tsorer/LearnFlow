@@ -376,22 +376,7 @@ components:
           type: string
           format: date-time
 
-    Document:
-      type: object
-      required: [document_id, filename, upload_date, status]
-      properties:
-        document_id:
-          type: string
-          format: uuid
-        filename:
-          type: string
-        upload_date:
-          type: string
-          format: date-time
-        status:
-          $ref: '#/components/schemas/DocumentStatus'
-
     DocumentList:
       type: array
       items:
-        $ref: '#/components/schemas/Document'
+        $ref: '#/components/schemas/DocumentResponse'
