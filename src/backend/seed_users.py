@@ -5,9 +5,10 @@ import asyncio
 import os
 import uuid
 
-import bcrypt as _bcrypt
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+from app.auth.jwt import hash_password
 
 USERS = [
     {"email": "frank@learnflow.local",     "password": "changeme1", "role": "knowledge_owner"},
@@ -31,7 +32,7 @@ async def seed() -> None:
                 {"email": u["email"]},
             )
             existing = result.scalar_one_or_none()
-            hashed = _bcrypt.hashpw(u["password"].encode(), _bcrypt.gensalt()).decode()
+            hashed = await hash_password(u["password"])
 
             if existing:
                 await db.execute(

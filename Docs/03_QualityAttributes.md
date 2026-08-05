@@ -57,7 +57,11 @@ Interne Unternehmensdokumente im Korpus machen unbefugten Zugriff zu einem Busin
 
 **Architektonische Massnahmen:**
 
-1. **JWT (8 h) + bcrypt-Hashing** für lokale Authentifizierung.
+1. **JWT (1 h, `JWT_EXPIRE_HOURS`) + bcrypt-Hashing** für lokale Authentifizierung;
+   Login rate-limitiert auf 5/Minute pro Client-IP. Bewusst **kein** Limit pro Konto:
+   ein kontobezogener Zähler liesse sich von jeder beliebigen IP aus auslösen und
+   würde den echten Nutzer aussperren (Account-Lockout-DoS). Preis dafür ist, dass
+   Nutzer hinter derselben NAT-Adresse sich ein Budget teilen — im Pilot akzeptiert.
 2. **Admin-Middleware für rollenbasierte Zugriffskontrolle** — URL-Zugriff ohne korrekte Rolle wird serverseitig abgewiesen.
 3. **Pseudonymisierung** von Feedback und Query-Logs; Cluster < 5 Fragen nicht anzeigen.
 4. **Auth-Schicht SSO-nachrüstbar** — ohne Umbau, wenn Post-MVP IdP-Anbindung kommt.

@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
-from app.auth.jwt import create_access_token, verify_password
+from app.auth.jwt import DUMMY_PASSWORD_HASH, create_access_token, verify_password
 from app.database import get_db
 from app.limiter import limiter
 from app.models.tables import User
@@ -32,7 +32,12 @@ async def login(
         select(User).where(User.email == body.email, User.is_active)
     )
     user = result.scalar_one_or_none()
-    if not user or not verify_password(body.password, user.hashed_password):
+    # Verify unconditionally — against a dummy hash when the e-mail is unknown — so the
+    # response time does not reveal whether an account exists.
+    password_ok = await verify_password(
+        body.password, user.hashed_password if user else DUMMY_PASSWORD_HASH
+    )
+    if not user or not password_ok:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
     token = create_access_token(str(user.id), user.role)

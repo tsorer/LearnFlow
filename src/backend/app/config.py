@@ -1,4 +1,4 @@
-from pydantic import model_validator
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -13,17 +13,22 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_expire_hours: int = 1
 
-    # bcrypt
-    bcrypt_rounds: int = 12
+    # bcrypt (4-31 is bcrypt's valid range; 15+ costs seconds per hash, so cap below that)
+    bcrypt_rounds: int = Field(default=12, ge=4, le=14)
 
-    @model_validator(mode="after")
-    def check_jwt_secret(self) -> "Settings":
+    def validate_secrets(self) -> None:
+        """Fail-closed check on JWT_SECRET, deliberately outside pydantic.
+
+        A pydantic validator would raise ValidationError, whose message embeds the
+        raw settings source dict as `input_value` — that puts (truncated) parts of
+        DATABASE_URL and OPENAI_API_KEY into the container log on every failed
+        start. Raising a plain ValueError here keeps the message value-free.
+        """
         if len(self.jwt_secret) < 32 or "changeme" in self.jwt_secret.lower():
             raise ValueError(
                 "JWT_SECRET must be a strong random value of at least 32 characters. "
                 "Generate one with: openssl rand -hex 32"
             )
-        return self
 
     # LLM / Embeddings (via LiteLLM)
     openai_api_key: str
@@ -44,3 +49,4 @@ class Settings(BaseSettings):
 
 
 settings = Settings()  # type: ignore[call-arg]
+settings.validate_secrets()

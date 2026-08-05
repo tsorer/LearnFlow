@@ -15,7 +15,9 @@ Diese Checkliste beschreibt alle Schritte, die **vor dem ersten Login eines echt
 | 1.3 | Backup-Restore einmal durchgespielt (Wiederherstellung verifiziert) | Dev | ⬜ |
 | 1.4 | `.env`-Datei auf Server mit Produktionswerten befüllt (kein `localhost`, kein `dev`-Key) | Dev | ⬜ |
 | 1.5 | `JWT_SECRET` auf starken Zufallswert gesetzt (`openssl rand -hex 32`); Standardwert `changeme*` wurde **nie** deployed | Dev | ⬜ |
-| 1.6 | TLS-Zertifikat auf dem Server eingerichtet; HTTP→HTTPS-Redirect in `nginx.conf` aktiviert (auskommentierter Block); `Strict-Transport-Security`-Header einkommentiert | Dev | ⬜ |
+| 1.6 | TLS-Zertifikat auf dem Server eingerichtet und ins `webapp`-Image/Volume unter `/etc/nginx/certs/` gemountet | Dev | ⬜ |
+| 1.6a | In `nginx.conf` **beide** TLS-Schritte ausgeführt: Redirect-Block einkommentiert **und** im Haupt-`server`-Block `listen 80` durch `listen 443 ssl` + `ssl_certificate*` ersetzt. Nur einer der beiden Schritte legt die App still (nginx meldet das bloss als Warnung) | Dev | ⬜ |
+| 1.6b | `Strict-Transport-Security`-Header einkommentiert; danach `docker exec src-webapp-1 nginx -t` **ohne** Warnung `conflicting server name` und ein Aufruf über HTTPS erfolgreich geprüft | Dev | ⬜ |
 | 1.7 | Alle Seed-Passwörter (`changeme1`–`changeme6`) durch starke individuelle Passwörter ersetzt (`make seed` mit angepasstem `seed_users.py` oder direktem DB-Update) | Dev | ⬜ |
 
 ---

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { AuthUser } from "../types";
-import { api } from "../api/client";
+import { ApiError, api } from "../api/client";
 
 interface Props { onLogin: (u: AuthUser) => void; }
 
@@ -20,8 +20,14 @@ export default function Login({ onLogin }: Props) {
     let token: string;
     try {
       token = (await api.login(email, password)).access_token;
-    } catch {
-      setError("E-Mail oder Passwort falsch.");
+    } catch (err) {
+      // 429 darf nicht als "Passwort falsch" erscheinen — sonst probiert der
+      // ausgesperrte Nutzer weiter und verlaengert das Rate-Limit-Fenster.
+      setError(
+        err instanceof ApiError && err.status === 429
+          ? "Zu viele Login-Versuche. Bitte in einer Minute erneut versuchen."
+          : "E-Mail oder Passwort falsch.",
+      );
       setBusy(false);
       return;
     }
