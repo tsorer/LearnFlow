@@ -79,7 +79,9 @@ Details: `Docs/04_ADR-00X_*.md`, `Docs/05_C4-*`, `Docs/06_Architecture-Draft.md`
 - **Issue lesen** — GitHub Issue vollständig lesen; Akzeptanzkriterien und Scope erfassen.
 - **Spec prüfen** — relevante Dokumente in `Docs/` konsultieren und mit dem Issue abgleichen.
    Bei Inkonsistenzen oder Unklarheiten: **zuerst rückfragen**, Docs anpassen, erst dann weiter.
-- Endpoints dürden nur erstellt werden, wenn sie in der OpenAPI-Spec definiert sind. Falls nicht melden, damit die OPenAPI-Spec angepasst werden kann
+- **Spec zuerst** — berührt eine Backend-Änderung die Schnittstelle (neuer Endpoint, geändertes
+   Request-/Response-Feld, neuer Statuscode), zuerst `src/backend/openapi.yaml` anpassen und den
+   Spec-Diff kurz zeigen. Erst danach implementieren. Nichts implementieren, was nicht in der  Spec steht (ADR-010). 
 - **Erst coden wenn alles klar** — kein Code ohne vollständig verstandene, konsistente Anforderung.
 - **Tests schreiben** — neue Geschäftslogik wird mit Unit- und Integrationstests getestet;
    jede RAG-Komponente muss isoliert testbar sein (→ DoD Kriterium 3).
