@@ -3,14 +3,19 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import get_current_user, require_knowledge_owner
+from app.auth.dependencies import require_knowledge_owner
 from app.database import get_db
 from app.models.tables import Document, User
 from app.queue import enqueue_document
 
 router = APIRouter(prefix="/documents", tags=["documents"])
+
+# MVP: genau ein hartcodierter Pilot-Bereich (Requirements §3) — User hat noch kein
+# eigenes area-Feld. Sobald Bereiche pro User existieren, ersetzt user.area dies hier.
+PILOT_AREA = "default"
 
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # ADR-003: hartes 10-MB-Limit
 
@@ -31,10 +36,33 @@ class DocumentResponse(BaseModel):
     created_at: datetime
 
 
+def _to_response(document: Document) -> DocumentResponse:
+    return DocumentResponse(
+        id=document.id,
+        filename=document.filename,
+        status=document.status,
+        area=document.area,
+        chunk_count=document.chunk_count,
+        error_message=document.error_message,
+        created_at=document.created_at,
+    )
+
+
+@router.get("", response_model=list[DocumentResponse])
+async def list_documents(
+    user: User = Depends(require_knowledge_owner),
+    db: AsyncSession = Depends(get_db),
+) -> list[DocumentResponse]:
+    result = await db.execute(
+        select(Document).where(Document.area == PILOT_AREA).order_by(Document.created_at.desc())
+    )
+    return [_to_response(d) for d in result.scalars().all()]
+
+
 @router.post("", response_model=DocumentResponse, status_code=status.HTTP_201_CREATED)
 async def upload_document(
     file: UploadFile = File(...),
-    area: str = Form("default"),
+    area: str = Form(PILOT_AREA),
     user: User = Depends(require_knowledge_owner),
     db: AsyncSession = Depends(get_db),
 ) -> DocumentResponse:
@@ -73,33 +101,34 @@ async def upload_document(
     await enqueue_document(db, str(document.id))
     await db.commit()
 
-    return DocumentResponse(
-        id=document.id,
-        filename=document.filename,
-        status=document.status,
-        area=document.area,
-        chunk_count=document.chunk_count,
-        error_message=document.error_message,
-        created_at=document.created_at,
-    )
+    return _to_response(document)
+
+
+async def _get_pilot_area_document(document_id: uuid.UUID, db: AsyncSession) -> Document:
+    document = await db.get(Document, document_id)
+    # Same 404 for "missing" and "wrong area" — existence of another area's
+    # document is not something to reveal to a knowledge_owner outside it.
+    if document is None or document.area != PILOT_AREA:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dokument nicht gefunden")
+    return document
 
 
 @router.get("/{document_id}", response_model=DocumentResponse)
 async def get_document(
     document_id: uuid.UUID,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_knowledge_owner),
     db: AsyncSession = Depends(get_db),
 ) -> DocumentResponse:
-    document = await db.get(Document, document_id)
-    if document is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dokument nicht gefunden")
+    document = await _get_pilot_area_document(document_id, db)
+    return _to_response(document)
 
-    return DocumentResponse(
-        id=document.id,
-        filename=document.filename,
-        status=document.status,
-        area=document.area,
-        chunk_count=document.chunk_count,
-        error_message=document.error_message,
-        created_at=document.created_at,
-    )
+
+@router.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_document(
+    document_id: uuid.UUID,
+    user: User = Depends(require_knowledge_owner),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    document = await _get_pilot_area_document(document_id, db)
+    await db.delete(document)  # Chunk rows cascade via ondelete="CASCADE" (0003)
+    await db.commit()

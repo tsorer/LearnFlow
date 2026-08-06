@@ -86,7 +86,7 @@ async def test_upload_oversized_file_returns_413() -> None:
     assert r.status_code == 413
 
 
-def make_document(status: str = "processing") -> object:
+def make_document(status: str = "processing", area: str = "default") -> object:
     from app.models.tables import Document
 
     return Document(
@@ -95,7 +95,7 @@ def make_document(status: str = "processing") -> object:
         content_type="application/pdf",
         content=b"x",
         status=status,
-        area="default",
+        area=area,
         uploaded_by=uuid.uuid4(),
         chunk_count=0,
         error_message=None,
@@ -104,7 +104,7 @@ def make_document(status: str = "processing") -> object:
 
 
 async def _get_document(
-    document_id: uuid.UUID, db: AsyncMock, role: str | None = "learner"
+    document_id: uuid.UUID, db: AsyncMock, role: str | None = "knowledge_owner"
 ) -> "object":
     if role is not None:
         app.dependency_overrides[get_current_user] = lambda: make_user(role)
@@ -136,7 +136,132 @@ async def test_get_document_not_found_returns_404() -> None:
     assert r.status_code == 404
 
 
+async def test_get_document_wrong_area_returns_404() -> None:
+    document = make_document(area="other")
+    db = make_db()
+    db.get = AsyncMock(return_value=document)
+
+    r = await _get_document(document.id, db)
+
+    assert r.status_code == 404
+
+
+async def test_get_document_wrong_role_returns_403() -> None:
+    db = make_db()
+    db.get = AsyncMock(return_value=make_document())
+
+    r = await _get_document(uuid.uuid4(), db, role="learner")
+
+    assert r.status_code == 403
+
+
 async def test_get_document_no_auth_returns_401() -> None:
     db = make_db()
     r = await _get_document(uuid.uuid4(), db, role=None)
+    assert r.status_code == 401
+
+
+async def _list_documents(db: AsyncMock, role: str | None = "knowledge_owner") -> "object":
+    if role is not None:
+        app.dependency_overrides[get_current_user] = lambda: make_user(role)
+    app.dependency_overrides[get_db] = lambda: db
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        return await client.get("/documents")
+
+
+def make_execute_result(documents: list[object]) -> MagicMock:
+    result = MagicMock()
+    result.scalars.return_value.all.return_value = documents
+    return result
+
+
+async def test_list_documents_returns_documents() -> None:
+    docs = [make_document(), make_document()]
+    db = make_db()
+    db.execute = AsyncMock(return_value=make_execute_result(docs))
+
+    r = await _list_documents(db)
+
+    assert r.status_code == 200
+    assert len(r.json()) == 2
+
+
+async def test_list_documents_empty_returns_empty_list() -> None:
+    db = make_db()
+    db.execute = AsyncMock(return_value=make_execute_result([]))
+
+    r = await _list_documents(db)
+
+    assert r.status_code == 200
+    assert r.json() == []
+
+
+async def test_list_documents_wrong_role_returns_403() -> None:
+    db = make_db()
+    r = await _list_documents(db, role="learner")
+    assert r.status_code == 403
+
+
+async def test_list_documents_no_auth_returns_401() -> None:
+    db = make_db()
+    r = await _list_documents(db, role=None)
+    assert r.status_code == 401
+
+
+async def _delete_document(
+    document_id: uuid.UUID, db: AsyncMock, role: str | None = "knowledge_owner"
+) -> "object":
+    if role is not None:
+        app.dependency_overrides[get_current_user] = lambda: make_user(role)
+    app.dependency_overrides[get_db] = lambda: db
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        return await client.delete(f"/documents/{document_id}")
+
+
+async def test_delete_document_returns_204() -> None:
+    document = make_document()
+    db = make_db()
+    db.get = AsyncMock(return_value=document)
+    db.delete = AsyncMock()
+
+    r = await _delete_document(document.id, db)
+
+    assert r.status_code == 204
+    db.delete.assert_awaited_once_with(document)
+    db.commit.assert_awaited_once()
+
+
+async def test_delete_document_not_found_returns_404() -> None:
+    db = make_db()
+    db.get = AsyncMock(return_value=None)
+
+    r = await _delete_document(uuid.uuid4(), db)
+
+    assert r.status_code == 404
+
+
+async def test_delete_document_wrong_area_returns_404() -> None:
+    document = make_document(area="other")
+    db = make_db()
+    db.get = AsyncMock(return_value=document)
+
+    r = await _delete_document(document.id, db)
+
+    assert r.status_code == 404
+
+
+async def test_delete_document_wrong_role_returns_403() -> None:
+    db = make_db()
+    db.get = AsyncMock(return_value=make_document())
+
+    r = await _delete_document(uuid.uuid4(), db, role="learner")
+
+    assert r.status_code == 403
+
+
+async def test_delete_document_no_auth_returns_401() -> None:
+    db = make_db()
+    r = await _delete_document(uuid.uuid4(), db, role=None)
     assert r.status_code == 401
