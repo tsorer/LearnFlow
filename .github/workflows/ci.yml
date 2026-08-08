@@ -25,6 +25,46 @@ jobs:
       - run: mypy app worker
       - run: pytest
 
+  # T-09: Login-Flow gegen den vollstaendigen Stack (nginx + api + db).
+  # Faengt die Nahtstellen ab, die backend/frontend prinzipbedingt nicht sehen:
+  # /api-Rewrite, SPA-Fallback, echter bcrypt-Hash aus der users-Tabelle.
+  e2e:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src
+    steps:
+      - uses: actions/checkout@v4
+      - name: .env fuer den Wegwerf-Stack erzeugen
+        run: |
+          cp .env.example .env
+          # Die Defaults in .env.example sind absichtlich nicht startfaehig
+          # (JWT_SECRET enthaelt "changeme"), deshalb hier CI-Werte einsetzen.
+          sed -i 's|^DB_PASSWORD=.*|DB_PASSWORD=ci-e2e-password|' .env
+          sed -i 's|^JWT_SECRET=.*|JWT_SECRET=ci-e2e-secret-with-at-least-32-chars|' .env
+          # Cost 4 statt 12: der Seed hasht sechs User, und geprueft wird hier die
+          # Kette, nicht die bcrypt-Haerte (die deckt tests/test_auth.py ab).
+          sed -i 's|^BCRYPT_ROUNDS=.*|BCRYPT_ROUNDS=4|' .env
+          # Port 80 auf dem Runner freilassen — getestet wird ohnehin stack-intern.
+          sed -i 's|^# WEBAPP_PORT=.*|WEBAPP_PORT=8080|' .env
+      # --wait-timeout, weil --wait sonst unbegrenzt wartet: der worker startet
+      # parallel zur api und damit vor deren `alembic upgrade head`, laeuft in
+      # einen Restart-Loop und wird nie healthy. Ohne Limit blockiert der Job bis
+      # zum 6-Stunden-Timeout des Runners, statt mit Logs zu scheitern.
+      - run: docker compose up -d --build --wait --wait-timeout 300
+      - run: docker exec src-api-1 python seed_users.py
+      - run: make e2e
+      - name: Container-Logs bei Fehlschlag
+        if: failure()
+        run: docker compose logs --no-color --tail=200
+      # Ohne -v: das pgdata-Volume traegt in docker-compose.yml den globalen Namen
+      # `learnflow_pgdata` und ist damit nicht projekt-lokal — `down -v` wuerde auf
+      # einem self-hosted Runner (oder beim Nachbauen dieses Schritts) die
+      # Entwicklungsdatenbank loeschen. Auf GitHub-Runnern faellt sie ohnehin weg.
+      - name: Stack abraeumen
+        if: always()
+        run: docker compose down
+
   frontend:
     runs-on: ubuntu-latest
     defaults:

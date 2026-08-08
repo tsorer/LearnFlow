@@ -1,4 +1,4 @@
-.PHONY: up down seed logs check qa qa-be qa-fe lint-be typecheck-be test-be
+.PHONY: up down seed logs check qa qa-be qa-fe lint-be typecheck-be test-be e2e
 
 # --- infra ---
 up:
@@ -42,6 +42,13 @@ qa-fe:
 		-v //app/node_modules \
 		-w //app node:22-alpine \
 		sh -c "npm ci --silent && npm run lint && npm run check && npm run test"
+
+# --- end-to-end (T-09, requires: make up && make seed) ---
+# Laeuft im api-Container, weil der bereits pytest/httpx mitbringt und im
+# edge-Netz liegt: der Test spricht ueber nginx (webapp) mit der API, nimmt also
+# denselben Weg wie der Browser. Nicht Teil von `make qa` — braucht den Stack.
+e2e:
+	docker exec -e E2E_BASE_URL=http://webapp src-api-1 pytest e2e
 
 # --- full local quality gate ---
 qa: qa-be qa-fe

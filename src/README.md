@@ -52,7 +52,8 @@ make down       # stoppen
 make seed       # Testuser anlegen
 make logs       # Logs aller Services
 make check      # Health-Checks prüfen
-make qa         # Lint + Types + Tests (Backend + Frontend)
+make qa         # Lint + Types + Tests (Backend + Frontend) — CI-Jobs backend/frontend
+make e2e        # Login-Flow gegen den laufenden Stack (nach up + seed) — CI-Job e2e
 ```
 
 ```bash
