@@ -2,9 +2,14 @@ import { useState } from "react";
 import type { AuthUser } from "../types";
 import { ApiError, api } from "../api/client";
 
-interface Props { onLogin: (u: AuthUser) => void; }
+interface Props {
+  onLogin: (u: AuthUser) => void;
+  // Gesetzt, wenn die vorige Sitzung durch einen 401 beendet wurde (T-40) —
+  // sonst waere der Rauswurf aus einer offenen Ansicht nicht erklaerbar.
+  sessionExpired?: boolean;
+}
 
-export default function Login({ onLogin }: Props) {
+export default function Login({ onLogin, sessionExpired = false }: Props) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -42,6 +47,9 @@ export default function Login({ onLogin }: Props) {
     }
   };
 
+  // Ein neuer Fehlversuch verdraengt den Hinweis auf die abgelaufene Sitzung.
+  const notice = error || (sessionExpired ? "Sitzung abgelaufen. Bitte melde dich erneut an." : "");
+
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <form onSubmit={submit} style={{
@@ -54,9 +62,9 @@ export default function Login({ onLogin }: Props) {
         <div style={{ color: "var(--muted)", fontSize: 13, marginBottom: 8 }}>
           Melde dich mit deinem Account an.
         </div>
-        {error && (
+        {notice && (
           <div style={{ background: "var(--red-lt)", color: "var(--red)", borderRadius: 6, padding: "8px 12px", fontSize: 13 }}>
-            {error}
+            {notice}
           </div>
         )}
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
