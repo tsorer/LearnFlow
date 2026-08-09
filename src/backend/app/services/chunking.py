@@ -1,8 +1,8 @@
 """Structure-aware, token-based chunking (ADR-007, T-12).
 
-Splitting respects natural boundaries first (heading > paragraph > line >
-sentence > word) and only falls back to the next finer boundary when a piece
-still exceeds the token budget — so chunks never end mid-sentence.
+Splitting respects natural boundaries first (heading > paragraph > sentence >
+line > word) and only falls back to the next finer boundary when a piece still
+exceeds the token budget — so chunks never end mid-sentence.
 
 The token counter is injectable: the worker uses tiktoken (matching the
 embedding model, ADR-005), tests use a trivial counter to assert exact chunk
@@ -28,15 +28,29 @@ ENCODING_NAME = "cl100k_base"
 
 TokenCounter = Callable[[str], int]
 
-_SENTENCE_END = re.compile(r"(?<=[.!?…])\s+")
+# Abbreviations that do not end a sentence — without them administrative German
+# ("Art. 5", "Abs. 2") falls apart into fragments, which is exactly the
+# vocabulary of the EU AI Act and the SKOS guidelines. Case-sensitive: extend
+# with the forms the corpus actually contains.
+_ABBREVIATIONS = (
+    "Art", "Abs", "Ziff", "Bst", "Buchst", "lit", "Nr", "Kap",
+    "vgl", "Vgl", "bzw", "ca", "z", "B", "S", "Abb", "Tab",
+)  # fmt: skip
+# Each lookbehind sits *after* the punctuation, so it must include the dot:
+# `(?<!\bArt)` would never match anything.
+_NOT_AFTER_ABBREVIATION = "".join(rf"(?<!\b{abbr}\.)" for abbr in _ABBREVIATIONS)
+_SENTENCE_END = re.compile(rf"(?<=[.!?…]){_NOT_AFTER_ABBREVIATION}\s+")
 
-# Boundary priority. Paragraph and line splits keep their separator when
+# Boundary priority. Sentences rank above single line breaks: in a PDF text
+# layer a line break is a layout artifact that almost always falls mid-sentence,
+# so splitting on it first would end chunks mid-sentence before the sentence
+# splitter ever runs. Paragraph and line splits keep their separator when
 # rejoined; sentence and word splits consumed whitespace, so they rejoin with
 # a single space.
 _SPLITTERS: list[tuple[Callable[[str], list[str]], str]] = [
     (lambda text: text.split("\n\n"), "\n\n"),
-    (lambda text: text.split("\n"), "\n"),
     (lambda text: _SENTENCE_END.split(text), " "),
+    (lambda text: text.split("\n"), "\n"),
     (lambda text: text.split(" "), " "),
 ]
 

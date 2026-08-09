@@ -67,6 +67,31 @@ def test_long_text_is_split_within_size_and_never_mid_sentence() -> None:
     assert [c.chunk_index for c in chunks] == list(range(len(chunks)))
 
 
+def test_abbreviations_do_not_end_a_chunk() -> None:
+    # "Art. 5", "Abs. 2" — the vocabulary of the EU AI Act and the SKOS
+    # guidelines. A naive split after every dot ends chunks on "Art.".
+    text = " ".join(f"Nach Art. {i} gilt Regel Nummer {i} zwingend." for i in range(1, 21))
+
+    chunks = chunk_blocks([ParsedBlock(text=text)], chunk_size=20, chunk_overlap=6, count=words)
+
+    assert len(chunks) > 1
+    assert not any(c.content.rstrip().endswith(("Art.", "Abs.")) for c in chunks)
+
+
+def test_line_breaks_do_not_end_a_chunk_mid_sentence() -> None:
+    # A PDF text layer wraps sentences across lines; the break is a layout
+    # artifact, not a sentence boundary.
+    page = "\n".join(f"Satz nummer {i} mit\nsechs Wörtern." for i in range(1, 21))
+
+    chunks = chunk_blocks(
+        [ParsedBlock(text=page, page=1)], chunk_size=20, chunk_overlap=6, count=words
+    )
+
+    assert len(chunks) > 1
+    assert all(words(c.content) <= 20 for c in chunks)
+    assert all(c.content.rstrip().endswith(".") for c in chunks)
+
+
 def test_consecutive_chunks_overlap() -> None:
     blocks = [ParsedBlock(text=" ".join(SENTENCES))]
 

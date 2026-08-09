@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import uuid
+from collections.abc import Awaitable, Callable
 
 import asyncpg
 from pgqueuer import QueueManager
@@ -22,9 +23,14 @@ from app.services.parsing import parse_document
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger(__name__)
 
+# The heading is indexed alongside the content: DOCX and Markdown headings are
+# not part of the chunk text (parsing strips them into their own field), and in
+# our corpus the section titles carry the search-relevant terms. coalesce is not
+# optional — `NULL || ' ' || text` is NULL in Postgres, and PDF chunks always
+# have heading = NULL, so without it no PDF chunk would be indexed at all.
 INSERT_CHUNK = (
     "INSERT INTO chunks (id, document_id, content, chunk_index, page, heading, tsv) "
-    "VALUES ($1, $2, $3, $4, $5, $6, to_tsvector('german', $3))"
+    "VALUES ($1, $2, $3, $4, $5, $6, to_tsvector('german', coalesce($6, '') || ' ' || $3))"
 )
 
 
@@ -98,6 +104,25 @@ async def read_chunk_config(conn: asyncpg.Connection) -> tuple[int, int]:
     )
 
 
+def make_job_handler(pool: asyncpg.Pool) -> Callable[[Job], Awaitable[None]]:
+    """Build the pgqueuer entrypoint. Lives outside main() so a test can assert
+    the one property that silently broke T-11: it must be a coroutine function.
+    """
+
+    # Must be an async def, not a lambda: pgqueuer decides via
+    # iscoroutinefunction() whether to await the entrypoint. A lambda returning
+    # a coroutine is treated as synchronous, so the coroutine is dropped and the
+    # job is logged as successful without ever running.
+    async def handle_document_job(job: Job) -> None:
+        # Own connection per job — the QueueManager's connection is busy with
+        # LISTEN/dequeue and asyncpg forbids concurrent operations on one
+        # connection, which two parallel uploads would trigger immediately.
+        async with pool.acquire() as job_conn:
+            await process_document(job_conn, job)
+
+    return handle_document_job
+
+
 async def main() -> None:
     log.info("Worker starting — connecting to database")
     conn = await asyncpg.connect(settings.asyncpg_dsn)
@@ -105,18 +130,7 @@ async def main() -> None:
     driver = AsyncpgDriver(conn)
     qm = QueueManager(driver)
 
-    # Must be an async def, not a lambda: pgqueuer decides via
-    # iscoroutinefunction() whether to await the entrypoint. A lambda returning
-    # a coroutine is treated as synchronous, so the coroutine is dropped and the
-    # job is logged as successful without ever running.
-    async def handle_document_job(job: Job) -> None:
-        # Own connection per job — `conn` belongs to the QueueManager
-        # (LISTEN/dequeue) and asyncpg forbids concurrent operations on one
-        # connection, which two parallel uploads would trigger immediately.
-        async with pool.acquire() as job_conn:
-            await process_document(job_conn, job)
-
-    qm.entrypoint("process_document")(handle_document_job)
+    qm.entrypoint("process_document")(make_job_handler(pool))
 
     log.info("Worker ready — listening for jobs")
     await qm.run()

@@ -1,3 +1,4 @@
+import inspect
 import json
 import uuid
 from collections.abc import Sequence
@@ -9,7 +10,7 @@ import pytest
 from pgqueuer.models import Job
 
 from app.services.parsing import MARKDOWN_CONTENT_TYPE
-from worker.main import process_document, read_chunk_config
+from worker.main import make_job_handler, process_document, read_chunk_config
 
 MARKDOWN = b"# Titel\n\nErster Absatz.\n\nZweiter Absatz."
 
@@ -67,7 +68,9 @@ async def test_process_document_writes_chunks_and_marks_available() -> None:
 
     sql, rows = conn.executemany.await_args.args
     assert "INSERT INTO chunks" in sql
-    assert "to_tsvector('german', $3)" in sql
+    # Heading and content share the index; coalesce keeps PDF chunks (heading
+    # NULL) from producing a NULL tsv.
+    assert "to_tsvector('german', coalesce($6, '') || ' ' || $3)" in sql
     assert len(rows) == 1
     chunk_id, doc_id, text, index, page, heading = rows[0]
     # chunks.id has no server default — the worker supplies it.
@@ -125,6 +128,29 @@ async def test_process_document_without_extractable_text_fails() -> None:
         document_id,
         "Kein extrahierbarer Text gefunden",
     )
+
+
+def test_job_handler_is_a_coroutine_function() -> None:
+    """pgqueuer decides via iscoroutinefunction() whether to await the
+    entrypoint. Registering a lambda made every job report success without ever
+    running — this guards the shape of the handler, not just its body.
+    """
+    assert inspect.iscoroutinefunction(make_job_handler(AsyncMock()))
+
+
+async def test_job_handler_uses_a_pooled_connection() -> None:
+    """Jobs must not share the QueueManager's connection — asyncpg forbids
+    concurrent operations on one connection (two parallel uploads).
+    """
+    job_conn = make_conn()
+    # acquire() is a sync call returning an async context manager.
+    pool = MagicMock()
+    pool.acquire = MagicMock(return_value=AsyncMock(__aenter__=AsyncMock(return_value=job_conn)))
+
+    await make_job_handler(pool)(make_job(str(uuid.uuid4())))
+
+    pool.acquire.assert_called_once()
+    job_conn.executemany.assert_awaited_once()
 
 
 async def test_process_document_sets_failed_for_missing_document() -> None:
