@@ -44,9 +44,9 @@ qa-fe:
 		sh -c "npm ci --silent && npm run lint && npm run check && npm run test"
 
 # --- end-to-end (T-09, requires: make up && make seed) ---
-# Laeuft im api-Container, weil der bereits pytest/httpx mitbringt und im
-# edge-Netz liegt: der Test spricht ueber nginx (webapp) mit der API, nimmt also
-# denselben Weg wie der Browser. Nicht Teil von `make qa` — braucht den Stack.
+# Runs inside the api container: it already ships pytest/httpx and sits on the
+# edge network, so the test talks to the API through nginx (webapp) — the same
+# path the browser takes. Not part of `make qa`; it needs the running stack.
 e2e:
 	docker exec -e E2E_BASE_URL=http://webapp src-api-1 pytest e2e
 

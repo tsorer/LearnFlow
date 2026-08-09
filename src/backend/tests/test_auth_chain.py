@@ -1,21 +1,20 @@
-"""T-09: die Auth-Kette in-process, ohne laufenden Stack.
+"""T-09: the auth chain in-process, without a running stack.
 
-Die bestehenden Tests decken je nur ein Ende der Kette ab: `test_auth.py` hoert beim
-ausgestellten Token auf, `test_documents.py` ersetzt `get_current_user` per
-`dependency_overrides` und umgeht damit genau den Teil, der Login und geschuetzte
-Route verbindet. Hier laeuft der ganze Weg — Login -> JWT -> Dekodierung ->
-User-Lookup -> geschuetzte Route — durch die echte Dependency-Kette; ersetzt ist
-nur die Datenbank.
+The existing tests each cover one end of the chain only: test_auth.py stops at the
+issued token, and test_documents.py replaces `get_current_user` via
+`dependency_overrides`, bypassing exactly the part that connects login to a
+protected route. Here the whole path runs — login -> JWT -> decode -> user lookup
+-> protected route — through the real dependency chain; only the database is
+replaced.
 
-Das ist ein Integrationstest, kein End-to-End-Test: Browser, nginx und Postgres
-fehlen. Die Nahtstellen dorthin deckt `e2e/test_login_flow.py` ab. Der Wert dieser
-Datei ist, dass sie ohne Container in Sekunden laeuft und die Fehlerfaelle
-(abgelaufen, fremd signiert, User geloescht, deaktiviert) billig durchspielt.
+This is an integration test, not an end-to-end test: browser, nginx and Postgres
+are missing. Those seams are covered by `e2e/test_login_flow.py`. The value of
+this file is that it runs in seconds without containers and exercises the failure
+cases (expired, foreign signature, deleted user, deactivated account) cheaply.
 """
 
 import asyncio
 import uuid
-from collections.abc import Iterator
 from datetime import UTC, datetime
 from typing import Any
 
@@ -27,22 +26,21 @@ from sqlalchemy import Select
 from app.auth.jwt import create_access_token, hash_password
 from app.config import settings
 from app.database import get_db
-from app.limiter import limiter
 from app.main import app
 from app.models.tables import User
 
 EMAIL = "lara@learnflow.ch"
 PASSWORD = "correct-horse-battery-staple"
-# Ein einziger echter bcrypt-Hash fuer das ganze Modul: der Login-Endpunkt muss
-# gegen einen echten Hash pruefen, kostet bei Cost 12 aber ~0.3 s pro Aufruf.
+# A single real bcrypt hash for the whole module: the login endpoint has to verify
+# against a genuine hash, but at cost 12 each call takes ~0.3 s.
 PASSWORD_HASH = asyncio.run(hash_password(PASSWORD))
-# Fest statt uuid4(): der Wert landet in der Test-Id, und die muss zwischen Laeufen
-# stabil bleiben (--last-failed, Flakiness-Historie der CI).
+# Fixed instead of uuid4(): the value ends up in the test id, which must stay
+# stable across runs (--last-failed, flakiness history in CI).
 MISSING_DOCUMENT_ID = uuid.UUID("00000000-0000-0000-0000-0000000000ff")
 
 
 class _Result:
-    """Ersatz fuer das SQLAlchemy-Result; der Flow nutzt nur scalar_one_or_none()."""
+    """Stand-in for the SQLAlchemy result; the flow only uses scalar_one_or_none()."""
 
     def __init__(self, user: User | None) -> None:
         self._user = user
@@ -52,17 +50,17 @@ class _Result:
 
 
 class FakeDb:
-    """AsyncSession-Ersatz, der die zwei SELECTs des Login-Flows beantwortet.
+    """AsyncSession stand-in answering the two SELECTs of the login flow.
 
-    Aufgeloest wird ueber die gebundenen Parameter des Statements — nach E-Mail
-    beim Login, nach Id beim Token-Lookup. Dadurch muss das JWT wirklich das
-    richtige Subject tragen, damit die geschuetzte Route antwortet; ein Mock, der
-    jeden SELECT mit demselben User beantwortet, wuerde genau das verdecken.
+    Lookups are resolved from the statement's bound parameters — by e-mail for the
+    login, by id for the token lookup. That way the JWT really has to carry the
+    right subject for the protected route to answer; a mock that returns the same
+    user for every SELECT would hide exactly that.
 
-    `User.is_active` steht in beiden Queries, taucht aber als reines
-    Spaltenpraedikat ohne Bind-Parameter auf. Es wird deshalb am kompilierten SQL
-    erkannt und hier nachgebildet — sonst faellt die Deaktivierungssperre in den
-    Tests lautlos weg, obwohl sie in der Anwendung greift.
+    `User.is_active` is part of both queries but renders as a bare column predicate
+    without a bind parameter. It is therefore detected on the compiled WHERE clause
+    and reproduced here — otherwise the deactivation guard would silently drop out
+    of the tests while still being enforced in the application.
     """
 
     def __init__(self, *users: User) -> None:
@@ -72,13 +70,13 @@ class FakeDb:
         compiled = stmt.compile()
         params = compiled.params
         if "email_1" not in params and "id_1" not in params:
-            # Lieber laut scheitern als ein irrefuehrendes 401 liefern: die
-            # Parameternamen vergibt SQLAlchemy, ein Umbau der Query benennt sie um.
-            raise AssertionError(f"FakeDb kennt die Kriterien dieses Statements nicht: {compiled}")
+            # Fail loudly rather than return a misleading 401: SQLAlchemy assigns
+            # these parameter names, and reworking the query renames them.
+            raise AssertionError(f"FakeDb does not know this statement's criteria: {compiled}")
 
-        # Nur die WHERE-Klausel betrachten: `select(User)` fuehrt die Spalte
-        # `users.is_active` immer in der SELECT-Liste, am gesamten SQL waere die
-        # Erkennung deshalb konstant wahr — und die Sperre wieder ungeprueft.
+        # Only look at the WHERE clause: `select(User)` always lists the
+        # `users.is_active` column in the SELECT list, so matching against the full
+        # SQL would be constantly true — and the guard unverified again.
         enforces_active = "is_active" in str(stmt.whereclause)
         for user in self._users:
             hit = params.get("email_1") == user.email or str(params.get("id_1")) == str(user.id)
@@ -98,14 +96,6 @@ def make_user(role: str = "learner", is_active: bool = True) -> User:
     )
 
 
-@pytest.fixture(autouse=True)
-def _reset_state() -> Iterator[None]:
-    limiter.reset()
-    yield
-    app.dependency_overrides.clear()
-    limiter.reset()
-
-
 def _client(db: FakeDb) -> AsyncClient:
     app.dependency_overrides[get_db] = lambda: db
     return AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
@@ -120,11 +110,11 @@ def _auth(token: str) -> dict[str, str]:
 
 
 async def test_login_issues_token_that_opens_protected_route() -> None:
-    """AK 1: Happy-Path — nach dem Login ist die geschuetzte Route erreichbar.
+    """AK 1: happy path — the protected route is reachable after login.
 
-    `/auth/me` ist die Route, die das Frontend direkt nach dem Login ruft. Dass der
-    Token auch ausserhalb des auth-Routers greift, prueft der E2E-Test gegen den
-    laufenden Stack; hier wuerde dafuer nur ein weiterer Fake stehen.
+    `/auth/me` is the route the frontend calls right after login. That the token
+    also works outside the auth router is checked by the e2e test against the
+    running stack; in-process that would only prove another fake.
     """
     user = make_user()
 
@@ -139,7 +129,7 @@ async def test_login_issues_token_that_opens_protected_route() -> None:
 
 
 async def test_wrong_password_issues_no_token() -> None:
-    """Gegenprobe zum Happy-Path: ohne gueltiges Passwort gibt es keinen Token."""
+    """Counter-check to the happy path: no valid password, no token."""
     async with _client(FakeDb(make_user())) as client:
         r = await _login(client, password="wrong")
 
@@ -149,11 +139,11 @@ async def test_wrong_password_issues_no_token() -> None:
 
 @pytest.mark.parametrize("path", ["/auth/me", f"/documents/{MISSING_DOCUMENT_ID}"])
 async def test_protected_route_without_token_returns_401(path: str) -> None:
-    """Ohne Token antwortet die API auf geschuetzten Routen mit 401.
+    """Without a token the API answers 401 on protected routes.
 
-    Das ist die API-Seite von AK 2. Die Umleitung auf `/login` selbst haengt im
-    Frontend am React-State (`ProtectedRoute`) und nicht an diesem Status — sie
-    wird in `frontend/src/auth.test.tsx` geprueft, nicht hier.
+    This is the API side of AK 2. The redirect to `/login` itself hangs on React
+    state (`ProtectedRoute`), not on this status — it is checked in
+    `frontend/src/auth.test.tsx`, not here.
     """
     async with _client(FakeDb(make_user())) as client:
         r = await client.get(path)
@@ -165,7 +155,7 @@ async def test_protected_route_without_token_returns_401(path: str) -> None:
     "token",
     [
         "not-a-jwt",
-        # Korrekt geformt und nicht abgelaufen, aber mit fremdem Secret signiert.
+        # Well-formed and unexpired, but signed with a foreign secret.
         jwt.encode(
             {"sub": str(uuid.uuid4()), "role": "admin"},
             "an-attackers-secret-that-is-long-enough",
@@ -182,7 +172,7 @@ async def test_protected_route_with_invalid_token_returns_401(token: str) -> Non
 
 
 async def test_token_of_unknown_user_returns_401() -> None:
-    """Gueltige Signatur genuegt nicht — der User muss beim Zugriff noch existieren."""
+    """A valid signature is not enough — the user must still exist on access."""
     token = create_access_token(str(uuid.uuid4()), "learner")
 
     async with _client(FakeDb(make_user())) as client:
@@ -192,7 +182,7 @@ async def test_token_of_unknown_user_returns_401() -> None:
 
 
 async def test_deactivated_user_cannot_log_in() -> None:
-    """Ein deaktivierter Account bekommt kein Token — sonst blieben Offboardings folgenlos."""
+    """A deactivated account gets no token — otherwise offboarding has no effect."""
     async with _client(FakeDb(make_user(is_active=False))) as client:
         r = await _login(client)
 
@@ -200,7 +190,7 @@ async def test_deactivated_user_cannot_log_in() -> None:
 
 
 async def test_token_of_deactivated_user_returns_401() -> None:
-    """Die Deaktivierung wirkt sofort und nicht erst, wenn das Token ablaeuft."""
+    """Deactivation takes effect immediately, not once the token expires."""
     user = make_user(is_active=False)
     token = create_access_token(str(user.id), user.role)
 
@@ -211,7 +201,7 @@ async def test_token_of_deactivated_user_returns_401() -> None:
 
 
 async def test_expired_token_returns_401(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Die Ablaufzeit (T-06: 1 h) wird beim Zugriff durchgesetzt, nicht nur gesetzt."""
+    """The expiry (T-06: 1 h) is enforced on access, not merely set on issue."""
     user = make_user()
     monkeypatch.setattr(settings, "jwt_expire_hours", -1)
     expired = create_access_token(str(user.id), user.role)

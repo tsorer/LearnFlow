@@ -1,4 +1,3 @@
-from collections.abc import Iterator
 from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID, uuid4
 
@@ -7,7 +6,6 @@ from httpx import ASGITransport, AsyncClient, Response
 
 from app.auth.jwt import DUMMY_PASSWORD_HASH, decode_token, hash_password
 from app.database import get_db
-from app.limiter import limiter
 from app.main import app
 
 
@@ -38,14 +36,6 @@ def make_db_with_user(
     result.scalar_one_or_none.return_value = user
     db.execute = AsyncMock(return_value=result)
     return db
-
-
-@pytest.fixture(autouse=True)
-def _reset_state() -> Iterator[None]:
-    limiter.reset()
-    yield
-    app.dependency_overrides.clear()
-    limiter.reset()
 
 
 @pytest.fixture

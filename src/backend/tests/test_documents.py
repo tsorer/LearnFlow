@@ -29,12 +29,6 @@ def make_user(role: str) -> User:
     )
 
 
-@pytest.fixture(autouse=True)
-def clear_overrides():
-    yield
-    app.dependency_overrides.clear()
-
-
 async def _post_upload(
     filename: str,
     content: bytes,
