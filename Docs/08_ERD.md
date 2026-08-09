@@ -158,6 +158,8 @@ Konfigurierbare Parameter (ADR-007 · ADR-008 · US-02 · US-06 · US-11):
 | `similarity_threshold` | `0.35` | Retrieval-Gate (ADR-007) |
 | `min_retrieval_confidence` | `0.40` | Stufe 1 (ADR-008) |
 | `min_citation_coverage` | `0.50` | Stufe 2 (ADR-008) |
+| `confidence_threshold_high` | `0.75` | Band-Grenze Komposit-Score „Hoch" (ADR-008 · US-02) |
+| `confidence_threshold_medium` | `0.45` | Band-Grenze „Mittel"; darunter unterdrückt (ADR-008 · US-02) |
 | `stale_days` | `90` | US-06 |
 | `rrf_k` | `60` | RRF-Fusion (ADR-007) |
 | `retrieval_top_k` | `20` | Kandidaten je Suche (ADR-007) |
@@ -184,3 +186,4 @@ SHOULD-Priorität (US-07 / US-08). Eigenes Issue T-34, nicht im aktuellen Sprint
 | `0005_quiz` | `quiz_questions` | ⬜ T-34 |
 | `0006_documents_status_default` | `documents.status`-Default auf `pending` | ✅ deployed |
 | `0007_chunking_config` | `config`: `chunk_size` · `chunk_overlap` | 🔵 T-12 |
+| `0008_confidence_thresholds` | `config`: `confidence_threshold_high` · `confidence_threshold_medium` | 🔵 T-24 |

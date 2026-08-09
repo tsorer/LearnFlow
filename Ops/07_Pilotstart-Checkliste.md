@@ -40,17 +40,27 @@ Diese Checkliste beschreibt alle Schritte, die **vor dem ersten Login eines echt
 docker compose exec api python -m alembic upgrade head
 ```
 
-### 3.2 Initialkonfiguration in `config`-Tabelle setzen
+### 3.2 Initialkonfiguration in `config`-Tabelle prüfen
+
+Die Startwerte legen die Migrationen an (`0004`, `0007`, `0008`) — kein manuelles `INSERT` nötig.
+Nur kontrollieren:
 
 ```sql
--- Konfidenz-Schwellenwerte (empirisch anpassen nach Pilot-Erfahrung)
-INSERT INTO config (key, value) VALUES
-  ('confidence_threshold_high',  '0.75'),
-  ('confidence_threshold_medium', '0.45'),
-  ('stale_threshold_days',       '90');
+SELECT key, value FROM config ORDER BY key;
 ```
 
-> Die Werte können nach dem Pilotstart über die Admin-Seite (US-11) ohne Deployment angepasst werden.
+Nachjustieren (empirisch nach Pilot-Erfahrung):
+
+```sql
+-- Konfidenz-Bänder (ADR-008 · US-02)
+UPDATE config SET value = '0.75' WHERE key = 'confidence_threshold_high';
+UPDATE config SET value = '0.45' WHERE key = 'confidence_threshold_medium';
+-- Stale-Schwelle (US-06)
+UPDATE config SET value = '90'   WHERE key = 'stale_days';
+```
+
+> Änderungen wirken sofort — die Werte werden pro Anfrage gelesen, kein Service-Neustart nötig.
+> Nach dem Pilotstart sind sie über die Admin-Seite (US-11) ohne Deployment anpassbar.
 
 ---
 
