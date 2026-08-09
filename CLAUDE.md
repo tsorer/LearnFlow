@@ -47,9 +47,11 @@ Details: `Docs/04_ADR-00X_*.md`, `Docs/05_C4-*`, `Docs/06_Architecture-Draft.md`
 
 ## Qualität & Konventionen (Tests, Branches, PRs)
 
-- **Tests/Checks:** `make qa` (aus `src/`) läuft lokal exakt wie die CI — Backend
-  `ruff check .` + `mypy app worker` + `pytest`, Frontend `npm run lint` +
-  `npm run check` (tsc) + `npm run test`. Details: `Ops/09_CI-Runbook.md`.
+- **Tests/Checks:** `make qa` (aus `src/`) deckt die CI-Jobs `backend` und `frontend`
+  ab — Backend `ruff check .` + `mypy app worker` + `pytest`, Frontend `npm run lint` +
+  `npm run check` (tsc) + `npm run test`. Der dritte CI-Job `e2e` läuft **nicht** in
+  `make qa`, weil er den vollständigen Stack braucht: separat `make up && make seed &&
+  make e2e`. Details: `Ops/09_CI-Runbook.md`.
 - **Einzelne Tests:** Backend `docker exec src-api-1 pytest <pfad>::<test>` ·
   Frontend (in `frontend/`) `npm run test -- <datei>`
 - **Migrationen (Alembic):** `docker exec src-api-1 alembic upgrade head`
@@ -79,7 +81,9 @@ Details: `Docs/04_ADR-00X_*.md`, `Docs/05_C4-*`, `Docs/06_Architecture-Draft.md`
 - **Issue lesen** — GitHub Issue vollständig lesen; Akzeptanzkriterien und Scope erfassen.
 - **Spec prüfen** — relevante Dokumente in `Docs/` konsultieren und mit dem Issue abgleichen.
    Bei Inkonsistenzen oder Unklarheiten: **zuerst rückfragen**, Docs anpassen, erst dann weiter.
-- Endpoints dürden nur erstellt werden, wenn sie in der OpenAPI-Spec definiert sind. Falls nicht melden, damit die OPenAPI-Spec angepasst werden kann
+- **Spec zuerst** — berührt eine Backend-Änderung die Schnittstelle (neuer Endpoint, geändertes
+   Request-/Response-Feld, neuer Statuscode), zuerst `src/backend/openapi.yaml` anpassen und den
+   Spec-Diff kurz zeigen. Erst danach implementieren. Nichts implementieren, was nicht in der  Spec steht (ADR-010). 
 - **Erst coden wenn alles klar** — kein Code ohne vollständig verstandene, konsistente Anforderung.
 - **Tests schreiben** — neue Geschäftslogik wird mit Unit- und Integrationstests getestet;
    jede RAG-Komponente muss isoliert testbar sein (→ DoD Kriterium 3).

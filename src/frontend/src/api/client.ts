@@ -2,6 +2,14 @@ import type { Document, QueryResponse } from "../types";
 
 const BASE = "/api";
 
+/** Carries the HTTP status so callers can tell 429 (rate limited) from 401. */
+export class ApiError extends Error {
+  constructor(readonly status: number, message: string) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
 async function req<T>(
   method: string,
   path: string,
@@ -21,7 +29,7 @@ async function req<T>(
 
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(text || `HTTP ${res.status}`);
+    throw new ApiError(res.status, text || `HTTP ${res.status}`);
   }
   if (res.status === 204) return undefined as T;
   return res.json();

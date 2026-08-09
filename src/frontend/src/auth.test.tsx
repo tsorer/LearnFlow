@@ -10,11 +10,13 @@ import { render, screen, waitFor, cleanup } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom/vitest";
 import App from "./App";
-import { api } from "./api/client";
+import { ApiError, api } from "./api/client";
 
-vi.mock("./api/client", () => ({
-  api: { login: vi.fn(), me: vi.fn() },
-}));
+// ApiError bleibt die echte Klasse — Login.tsx prueft per instanceof darauf.
+vi.mock("./api/client", async () => {
+  const actual = await vi.importActual<typeof import("./api/client")>("./api/client");
+  return { ApiError: actual.ApiError, api: { login: vi.fn(), me: vi.fn() } };
+});
 
 const mockLogin = vi.mocked(api.login);
 const mockMe = vi.mocked(api.me);
@@ -88,6 +90,18 @@ describe("App auth (T-08)", () => {
     expect(localStorage.length).toBe(0);
     expect(sessionStorage.length).toBe(0);
     expect(mockMe).not.toHaveBeenCalled();
+  });
+
+  it("meldet ein Rate-Limit (429) nicht als falsches Passwort", async () => {
+    mockLogin.mockRejectedValue(new ApiError(429, '{"detail":"Rate limit exceeded"}'));
+
+    render(<App />);
+    await userEvent.type(screen.getByLabelText(/e-mail/i), "lara@learnflow.ch");
+    await userEvent.type(screen.getByLabelText(/passwort/i), "correct");
+    await userEvent.click(screen.getByRole("button", { name: /anmelden/i }));
+
+    expect(await screen.findByText(/zu viele login-versuche/i)).toBeInTheDocument();
+    expect(screen.queryByText(/e-mail oder passwort falsch/i)).not.toBeInTheDocument();
   });
 
   it("meldet einen Fehler in /auth/me nicht als falsches Passwort", async () => {

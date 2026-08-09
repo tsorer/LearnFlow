@@ -10,13 +10,20 @@ Bei jedem Push und Pull Request läuft ein fester Satz Checks. **Grün = jeder C
 hat Exit-Code 0.** Schlägt einer fehl (Exit-Code ≠ 0), ist der Lauf **rot**. Der Wert
 liegt darin, dass es maschinell und für alle gleich passiert — nicht „lief bei mir".
 
-Die Checks (zwei Sprachen, daher zwei Job-Spalten):
+Die Checks laufen in drei Jobs: je einer pro Sprache, plus einer gegen den
+vollständigen Stack.
 
 | Ebene | Backend (Python) | Frontend (TypeScript) |
 |---|---|---|
 | Lint / Stil | `ruff check .` | `eslint .` |
 | Typen | `mypy` | `tsc --noEmit` |
 | Tests | `pytest` | `vitest run` |
+
+Der dritte Job **`e2e`** (T-09) startet den Stack per Docker Compose, seedet die
+Testuser und ruft `pytest e2e`: geprüft wird der Login-Flow über nginx gegen die
+echte Datenbank. Er deckt die Nahtstellen ab, welche die beiden Sprach-Jobs
+prinzipbedingt nicht sehen — das `/api`-Rewrite von nginx, den SPA-Fallback und
+den echten bcrypt-Hash aus der `users`-Tabelle.
 
 `tsc --noEmit` und `mypy` sind das Review-Netz aus ADR-002: sie fangen genau die
 Fehlerklasse KI-generierten Codes (falsche Props, erfundene Signaturen, ungenutzte
@@ -40,23 +47,22 @@ erste Datei dazukommt:
 
 ## Verifikation 1 — lokal, vor dem Push
 
-Ein Befehl führt lokal exakt das aus, was die CI ausführt:
+Aus `src/` führen diese Befehle lokal aus, was die CI ausführt:
 
 ```bash
-make check            # Backend + Frontend
-make check-backend    # nur Python
-make check-frontend   # nur TypeScript
+make qa      # Jobs `backend` + `frontend`
+make qa-be   # nur Python
+make qa-fe   # nur TypeScript
+
+make up && make seed && make e2e   # Job `e2e` — braucht den laufenden Stack
 ```
 
-Einmalige Einrichtung pro Maschine:
+`make e2e` ist bewusst nicht Teil von `make qa`: es setzt gestartete Container
+voraus, während `make qa` ohne sie auskommen soll.
 
-```bash
-# Backend
-cd src/backend && pip install -r requirements-dev.txt
-
-# Frontend
-cd src/frontend && npm install    # erzeugt package-lock.json -> committen!
-```
+Eine separate Toolchain-Installation braucht es nicht — `make qa-be` läuft im
+api-Container, `make qa-fe` in einem `node:22-alpine`-Wegwerfcontainer. Für das
+Frontend gilt: `package-lock.json` committen, die CI nutzt `npm ci`.
 
 So sieht der grüne Lauf aus (Beispielmodul `app/confidence.py` + Test):
 

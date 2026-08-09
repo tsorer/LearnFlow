@@ -1,0 +1,43 @@
+AI Agent Risk Classification — (unnamed feature)
+
+Teaching version · scored 2026-08-05
+
+RISK TIER: HIGH  Gate: Review + eval-gate + named owner
+
+Surface	2 — Uses knowledge sources
+Data	3 — Personal records
+Autonomy	2 — Generates text only
+Exposure	3 — Outside our jurisdiction
+
+How the tier was derived: Base level 2 (highest axis = 2). Combinations fired: sensitive data × leaves our jurisdiction (+1) → level 3. No red lines.
+
+REQUIRED CONTROLS & OBLIGATIONS
+
+ALWAYS ON — NEVER SWITCHED OFF
+
+Prompt injection and jailbreak detection
+Harmful content filter
+Protection of system instructions and tool names
+AI disclosure to the customer
+
+IF A SAFETY CHECK IS TO BE SWITCHED OFF
+
+Exception needs a compensating control and a named owner.
+Switching one off means something else has to cover the risk — e.g. if the price check is relaxed, prices must come deterministically from a database or service, never from the model. Evidence required before go-live.
+
+COMPLIANCE OBLIGATIONS
+
+AI disclosure to the customer (EU AI Act, Art. 50)
+Interaction documented
+Personal data in the prompt documented (GDPR)
+Security-relevant events logged
+Data-protection assessment checked (DPIA needed?)
+Least-privilege access to tools and data
+
+RESPONSIBILITIES
+
+Documented and proceed — no separate approval
+Security review before merge
+Named owner
+Pass/fail test before go-live
+Kill-switch verified

@@ -1,3 +1,12 @@
+networks:
+  # db is reachable from api and worker on separate networks, so api and worker
+  # never share a network with each other — worker (which parses untrusted
+  # uploads) cannot reach api:8000 directly, only through nginx on the edge
+  # network. That's what makes --forwarded-allow-ips='*' on api safe below.
+  api-db:
+  worker-db:
+  edge:
+
 services:
   db:
     image: pgvector/pgvector:pg17
@@ -8,6 +17,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - pgdata:/var/lib/postgresql/data
+    networks: [api-db, worker-db]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U learnflow -d learnflow"]
       interval: 5s
@@ -20,11 +30,13 @@ services:
       args:
         INSTALL_DEV: "true"
     command: >
-      sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+      sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+      --proxy-headers --forwarded-allow-ips='*'"
     restart: unless-stopped
     env_file: .env
     environment:
       DATABASE_URL: postgresql://learnflow:${DB_PASSWORD}@db:5432/learnflow
+    networks: [api-db, edge]
     depends_on:
       db:
         condition: service_healthy
@@ -47,6 +59,7 @@ services:
     env_file: .env
     environment:
       DATABASE_URL: postgresql://learnflow:${DB_PASSWORD}@db:5432/learnflow
+    networks: [worker-db]
     depends_on:
       db:
         condition: service_healthy
@@ -64,7 +77,8 @@ services:
       context: ./frontend
     restart: unless-stopped
     ports:
-      - "80:80"
+      - "${WEBAPP_PORT:-80}:80"
+    networks: [edge]
     depends_on:
       api:
         condition: service_healthy
