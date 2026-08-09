@@ -7,32 +7,27 @@ tokens through the actual HTTP stack and exercise the real
 is mocked, so the JWT decoding, expiry check, and role check are all real.
 """
 
-from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
-import pytest
+from fastapi.dependencies.models import Dependant
+from fastapi.routing import APIRoute
 from httpx import ASGITransport, AsyncClient
-from jose import jwt
+from openapi_spec_validator.readers import read_from_filename
 
+from app.auth.dependencies import get_current_user
 from app.auth.jwt import create_access_token
-from app.config import settings
 from app.database import get_db
-from app.limiter import limiter
 from app.main import app
 from app.models.tables import User
 
-
-@pytest.fixture(autouse=True)
-def _reset_state() -> Iterator[None]:
-    limiter.reset()
-    yield
-    app.dependency_overrides.clear()
-    limiter.reset()
+SPEC_PATH = Path(__file__).parent.parent / "openapi.yaml"
 
 
-def make_db_with_user(user_id: str, role: str = "learner") -> AsyncMock:
+def make_active_user_db(user_id: str, role: str = "learner") -> AsyncMock:
     """DB whose lookup in get_current_user resolves to a real, active User."""
     user = User(
         id=user_id,
@@ -50,29 +45,20 @@ def make_db_with_user(user_id: str, role: str = "learner") -> AsyncMock:
 
 
 def expired_token(subject: str, role: str) -> str:
-    payload = {
-        "sub": subject,
-        "role": role,
-        "exp": datetime.now(UTC) - timedelta(hours=1),
-    }
-    return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
-
-
-async def _client() -> AsyncClient:
-    return AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
+    return create_access_token(subject, role, expires_delta=timedelta(hours=-1))
 
 
 # ---- /auth/me ----------------------------------------------------------
 
 
 async def test_me_without_token_returns_401() -> None:
-    async with await _client() as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         r = await client.get("/auth/me")
     assert r.status_code == 401
 
 
 async def test_me_with_garbage_token_returns_401() -> None:
-    async with await _client() as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         r = await client.get("/auth/me", headers={"Authorization": "Bearer not-a-jwt"})
     assert r.status_code == 401
 
@@ -80,16 +66,16 @@ async def test_me_with_garbage_token_returns_401() -> None:
 async def test_me_with_expired_token_returns_401() -> None:
     user_id = str(uuid4())
     token = expired_token(user_id, "learner")
-    async with await _client() as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         r = await client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
     assert r.status_code == 401
 
 
 async def test_me_with_valid_token_returns_200() -> None:
     user_id = str(uuid4())
-    app.dependency_overrides[get_db] = lambda: make_db_with_user(user_id, "learner")
+    app.dependency_overrides[get_db] = lambda: make_active_user_db(user_id, "learner")
     token = create_access_token(user_id, "learner")
-    async with await _client() as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         r = await client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
     assert r.status_code == 200
     assert r.json()["id"] == user_id
@@ -99,13 +85,13 @@ async def test_me_with_valid_token_returns_200() -> None:
 
 
 async def test_logout_without_token_returns_401() -> None:
-    async with await _client() as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         r = await client.post("/auth/logout")
     assert r.status_code == 401
 
 
 async def test_logout_with_garbage_token_returns_401() -> None:
-    async with await _client() as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         r = await client.post("/auth/logout", headers={"Authorization": "Bearer garbage"})
     assert r.status_code == 401
 
@@ -113,16 +99,16 @@ async def test_logout_with_garbage_token_returns_401() -> None:
 async def test_logout_with_expired_token_returns_401() -> None:
     user_id = str(uuid4())
     token = expired_token(user_id, "learner")
-    async with await _client() as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         r = await client.post("/auth/logout", headers={"Authorization": f"Bearer {token}"})
     assert r.status_code == 401
 
 
 async def test_logout_with_valid_token_returns_204_with_empty_body() -> None:
     user_id = str(uuid4())
-    app.dependency_overrides[get_db] = lambda: make_db_with_user(user_id, "learner")
+    app.dependency_overrides[get_db] = lambda: make_active_user_db(user_id, "learner")
     token = create_access_token(user_id, "learner")
-    async with await _client() as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         r = await client.post("/auth/logout", headers={"Authorization": f"Bearer {token}"})
     assert r.status_code == 204
     assert r.content == b""
@@ -132,16 +118,16 @@ async def test_logout_with_valid_token_returns_204_with_empty_body() -> None:
 
 
 async def test_documents_post_without_token_returns_401() -> None:
-    async with await _client() as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         r = await client.post("/documents", files={"file": ("a.pdf", b"x", "application/pdf")})
     assert r.status_code == 401
 
 
 async def test_documents_post_with_wrong_role_returns_403() -> None:
     user_id = str(uuid4())
-    app.dependency_overrides[get_db] = lambda: make_db_with_user(user_id, "learner")
+    app.dependency_overrides[get_db] = lambda: make_active_user_db(user_id, "learner")
     token = create_access_token(user_id, "learner")
-    async with await _client() as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         r = await client.post(
             "/documents",
             headers={"Authorization": f"Bearer {token}"},
@@ -154,14 +140,75 @@ async def test_documents_post_with_correct_role_is_authorized() -> None:
     """Proves the happy path is not blocked — asserts past the 401/403 auth
     gate, not full upload semantics (already covered by test_documents.py)."""
     user_id = str(uuid4())
-    db = make_db_with_user(user_id, "knowledge_owner")
+    db = make_active_user_db(user_id, "knowledge_owner")
     db.add = MagicMock()
     app.dependency_overrides[get_db] = lambda: db
     token = create_access_token(user_id, "knowledge_owner")
-    async with await _client() as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         r = await client.post(
             "/documents",
             headers={"Authorization": f"Bearer {token}"},
             files={"file": ("a.pdf", b"x", "application/pdf")},
         )
     assert r.status_code not in (401, 403)
+
+
+# ---- structural: every spec-protected route actually enforces auth ------
+
+
+def _requires_get_current_user(dependant: Dependant) -> bool:
+    return any(
+        sub.call is get_current_user or _requires_get_current_user(sub)
+        for sub in dependant.dependencies
+    )
+
+
+def _iter_api_routes(routes: list[Any]) -> Any:
+    """Flatten app.routes into APIRoute leaves.
+
+    FastAPI resolves included routers lazily behind an internal
+    `_IncludedRouter` wrapper rather than copying their routes onto the app
+    eagerly, so `app.routes` alone only ever shows routes declared directly
+    on `app` (e.g. /health) plus one wrapper per `include_router` call. The
+    wrapper exposes the sub-router as `.original_router`, which is the
+    documented-enough seam to recurse through.
+    """
+    for route in routes:
+        if isinstance(route, APIRoute):
+            yield route
+        elif hasattr(route, "original_router"):
+            yield from _iter_api_routes(route.original_router.routes)
+
+
+def test_all_spec_protected_routes_require_auth() -> None:
+    """T-07 AK 'alle geschuetzten Routen pruefen die korrekte Rolle' as a
+    structural guarantee: walk every implemented route, cross-reference
+    openapi.yaml's security declaration, and assert get_current_user (or a
+    dependency built on it, e.g. require_role) is wired in wherever the spec
+    doesn't explicitly opt out via `security: []`. Catches the next route
+    that forgets its auth dependency, not just the ones someone remembered
+    to hand-write a 401 test for.
+    """
+    spec, _ = read_from_filename(str(SPEC_PATH))
+    default_security = spec.get("security", [])
+    paths: dict[str, Any] = spec["paths"]
+
+    checked = 0
+    for route in _iter_api_routes(app.routes):
+        spec_path = "/api" + route.path
+        operations = paths.get(spec_path)
+        if not operations:
+            continue
+        for method in route.methods:
+            op = operations.get(method.lower())
+            if op is None:
+                continue
+            if op.get("security", default_security) == []:
+                continue  # explicitly public per spec
+            checked += 1
+            assert _requires_get_current_user(route.dependant), (
+                f"{method} {route.path} requires auth per openapi.yaml "
+                f"({spec_path}) but has no get_current_user dependency"
+            )
+
+    assert checked > 0, "no protected routes matched between app.routes and openapi.yaml"
