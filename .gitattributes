@@ -1,0 +1,6 @@
+# Binärformate nie als Text behandeln — core.autocrlf=true würde sonst
+# Zeilenenden in PDFs/Office-Dateien umschreiben und sie damit zerstören.
+*.pdf binary
+*.docx binary
+*.png binary
+*.jpg binary

@@ -35,10 +35,14 @@ Dokumente werden **struktur-bewusst** zerlegt: Die Pipeline respektiert zuerst n
 
 | Parameter         | Startwert                                        | Im Spike zu variieren |
 | ----------------- | ------------------------------------------------ | --------------------- |
-| Chunk-Grösse      | **512 Token**                                    | 256 / 512 / 1024      |
-| Overlap           | **64 Token (~12,5 %)**                           | 0 % / 10 % / 20 %     |
+| Chunk-Grösse      | **512 Token** (`config.chunk_size`)              | 256 / 512 / 1024      |
+| Overlap           | **64 Token (~12,5 %)** (`config.chunk_overlap`)  | 0 % / 10 % / 20 %     |
 | Splitting-Einheit | Token (tiktoken-kompatibel zum Embedding-Modell) | —                     |
 | Grenzen-Priorität | Überschrift > Absatz > Satz                      | —                     |
+
+Chunk-Grösse und Overlap liegen — wie die Retrieval-Schwellen — in der `config`-Tabelle
+(ADR-003) und sind damit **ohne Deployment kalibrierbar**. Der Worker liest sie pro Job.
+Eine Änderung erzwingt weiterhin eine vollständige Re-Indexierung (siehe Konsequenzen).
 
 Pro Chunk werden **Metadaten** mitgespeichert (Dokument-ID, Bereich, Quell-Überschrift/Seite, Position) — Grundlage für die spätere Quellenanzeige (US-01) und Metadata-Filterung.
 

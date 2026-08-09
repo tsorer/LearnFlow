@@ -153,6 +153,8 @@ Konfigurierbare Parameter (ADR-007 · ADR-008 · US-02 · US-06 · US-11):
 
 | Key | Startwert | Zweck |
 |---|---|---|
+| `chunk_size` | `512` | Chunk-Grösse in Token (ADR-007) |
+| `chunk_overlap` | `64` | Overlap in Token (ADR-007) |
 | `similarity_threshold` | `0.35` | Retrieval-Gate (ADR-007) |
 | `min_retrieval_confidence` | `0.40` | Stufe 1 (ADR-008) |
 | `min_citation_coverage` | `0.50` | Stufe 2 (ADR-008) |
@@ -180,3 +182,5 @@ SHOULD-Priorität (US-07 / US-08). Eigenes Issue T-34, nicht im aktuellen Sprint
 | `0003_documents_chunks` | `documents` · `chunks` · pgvector-Extension · HNSW · GIN | 🔵 T-11 / T-13 |
 | `0004_rag_tables` | `query_sessions` · `answers` · `feedback` · `config` | 🟡 Zukunft |
 | `0005_quiz` | `quiz_questions` | ⬜ T-34 |
+| `0006_documents_status_default` | `documents.status`-Default auf `pending` | ✅ deployed |
+| `0007_chunking_config` | `config`: `chunk_size` · `chunk_overlap` | 🔵 T-12 |
