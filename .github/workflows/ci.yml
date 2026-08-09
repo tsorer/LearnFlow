@@ -25,6 +25,47 @@ jobs:
       - run: mypy app worker
       - run: pytest
 
+  # T-09: login flow against the full stack (nginx + api + db). Catches the seams
+  # the backend/frontend jobs cannot see by construction: the /api rewrite, the
+  # SPA fallback, and the real bcrypt hash from the users table.
+  e2e:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create .env for the throwaway stack
+        run: |
+          cp .env.example .env
+          # The defaults in .env.example deliberately refuse to start
+          # (JWT_SECRET contains "changeme"), so substitute CI values here.
+          sed -i 's|^DB_PASSWORD=.*|DB_PASSWORD=ci-e2e-password|' .env
+          sed -i 's|^JWT_SECRET=.*|JWT_SECRET=ci-e2e-secret-with-at-least-32-chars|' .env
+          # Cost 4 instead of 12: the seed hashes six users, and what is under test
+          # here is the chain, not bcrypt's strength (tests/test_auth.py covers that).
+          sed -i 's|^BCRYPT_ROUNDS=.*|BCRYPT_ROUNDS=4|' .env
+          # Leave port 80 free on the runner — the test runs stack-internally anyway.
+          sed -i 's|^# WEBAPP_PORT=.*|WEBAPP_PORT=8080|' .env
+      # Request `webapp` only: via depends_on that brings up webapp -> api -> db but
+      # leaves out the worker. Otherwise the worker starts alongside the api and thus
+      # before its `alembic upgrade head`, cannot find the pgqueuer table and enters a
+      # restart loop that --wait waits for in vain. The login flow does not need it.
+      # --wait-timeout stays as a net in case another healthcheck hangs.
+      - run: docker compose up -d --build --wait --wait-timeout 300 webapp
+      - run: make seed
+      - run: make e2e
+      - name: Container logs on failure
+        if: failure()
+        run: docker compose logs --no-color --tail=200
+      # Without -v: docker-compose.yml gives the pgdata volume the global name
+      # `learnflow_pgdata`, so it is not project-scoped — `down -v` would wipe the
+      # development database on a self-hosted runner (or wherever this step gets
+      # copied). On GitHub-hosted runners it is discarded anyway.
+      - name: Tear down the stack
+        if: always()
+        run: docker compose down
+
   frontend:
     runs-on: ubuntu-latest
     defaults:
