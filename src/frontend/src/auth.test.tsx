@@ -13,9 +13,15 @@ import App from "./App";
 import { ApiError, api } from "./api/client";
 
 // ApiError bleibt die echte Klasse — Login.tsx prueft per instanceof darauf.
+// Der 401-Handler ist hier eine Attrappe: die Session-Logik gehoert zu T-40 und
+// wird in session.test.tsx gegen den echten client.ts geprueft.
 vi.mock("./api/client", async () => {
   const actual = await vi.importActual<typeof import("./api/client")>("./api/client");
-  return { ApiError: actual.ApiError, api: { login: vi.fn(), me: vi.fn() } };
+  return {
+    ApiError: actual.ApiError,
+    setUnauthorizedHandler: vi.fn(),
+    api: { login: vi.fn(), me: vi.fn() },
+  };
 });
 
 const mockLogin = vi.mocked(api.login);

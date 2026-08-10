@@ -10,6 +10,18 @@ export class ApiError extends Error {
   }
 }
 
+let onUnauthorized: (() => void) | null = null;
+
+/**
+ * Registers the session teardown that runs when the API rejects an
+ * authenticated request with 401 — typically an expired JWT (T-06: 1 h).
+ * Without it a 401 only surfaces as a generic error and the user is stranded
+ * on a dead page instead of being sent back to the login (T-40).
+ */
+export function setUnauthorizedHandler(handler: (() => void) | null): void {
+  onUnauthorized = handler;
+}
+
 async function req<T>(
   method: string,
   path: string,
@@ -28,6 +40,10 @@ async function req<T>(
   });
 
   if (!res.ok) {
+    // Only a request that carried a token can have an expired session. A 401
+    // from /auth/login (which sends none) stays a credentials error and must
+    // not be reported as "Sitzung abgelaufen".
+    if (res.status === 401 && token) onUnauthorized?.();
     const text = await res.text();
     throw new ApiError(res.status, text || `HTTP ${res.status}`);
   }
