@@ -16,4 +16,7 @@ async def enqueue_document(db: AsyncSession, document_id: str) -> None:
         """),
         {"payload": payload},
     )
-    await db.execute(text("SELECT pg_notify('ch_pgqueuer', 'process_document')"))
+    # No pg_notify here: the tg_pgqueuer_changed trigger from migration 0001
+    # already emits the table_changed_event JSON that pgqueuer's listener
+    # expects. Sending the bare entrypoint name in addition made every upload
+    # log a CRITICAL parse error in the worker.
