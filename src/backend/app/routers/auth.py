@@ -44,8 +44,12 @@ async def login(
     return TokenResponse(access_token=token, role=user.role)
 
 
-@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
-async def logout(user: User = Depends(get_current_user)) -> None:
+@router.post(
+    "/logout",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(get_current_user)],
+)
+async def logout() -> None:
     return None
 
 

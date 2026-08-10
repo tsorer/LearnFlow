@@ -63,6 +63,17 @@ async def test_me_with_garbage_token_returns_401() -> None:
     assert r.status_code == 401
 
 
+async def test_me_with_non_uuid_subject_returns_401() -> None:
+    """A validly-signed token whose `sub` isn't a UUID must still be treated
+    as an invalid token (401), not reach the DB query and blow up as a 500 --
+    User.id is a UUID column, and asyncpg raises an unhandled DataError for a
+    malformed UUID literal if the subject is passed through unvalidated."""
+    token = create_access_token("not-a-uuid", "learner")
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        r = await client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert r.status_code == 401
+
+
 async def test_me_with_expired_token_returns_401() -> None:
     user_id = str(uuid4())
     token = expired_token(user_id, "learner")
@@ -180,14 +191,31 @@ def _iter_api_routes(routes: list[Any]) -> Any:
             yield from _iter_api_routes(route.original_router.routes)
 
 
+# Routes that intentionally live outside openapi.yaml (ADR-010 covers the
+# public API surface, not infra endpoints like health checks) and are not
+# auth-gated by design. Anything not in openapi.yaml and not listed here
+# fails the structural check below instead of silently passing through it.
+PUBLIC_NON_SPEC_ROUTES = {("GET", "/health")}
+
+
 def test_all_spec_protected_routes_require_auth() -> None:
     """T-07 AK 'alle geschuetzten Routen pruefen die korrekte Rolle' as a
-    structural guarantee: walk every implemented route, cross-reference
-    openapi.yaml's security declaration, and assert get_current_user (or a
-    dependency built on it, e.g. require_role) is wired in wherever the spec
-    doesn't explicitly opt out via `security: []`. Catches the next route
-    that forgets its auth dependency, not just the ones someone remembered
-    to hand-write a 401 test for.
+    structural guarantee, checked in both directions:
+
+    - every implemented route must be either documented in openapi.yaml or
+      explicitly allowlisted as intentionally public and undocumented
+      (PUBLIC_NON_SPEC_ROUTES) -- otherwise a route missing from both would
+      be invisible to this check entirely, e.g. a new endpoint that is
+      neither added to the spec nor given an auth dependency;
+    - every documented route that isn't explicitly public (`security: []`)
+      must carry get_current_user (or a dependency built on it, e.g.
+      require_role) somewhere in its FastAPI dependency tree.
+
+    This only verifies that *some* authenticated user is required, not that
+    the *correct* role is -- openapi.yaml states role requirements as prose
+    in a response description, not as a machine-checkable field, so the
+    finer-grained role check for e.g. POST /documents still lives in
+    test_documents_post_with_wrong_role_returns_403 above.
     """
     spec, _ = read_from_filename(str(SPEC_PATH))
     default_security = spec.get("security", [])
@@ -197,12 +225,16 @@ def test_all_spec_protected_routes_require_auth() -> None:
     for route in _iter_api_routes(app.routes):
         spec_path = "/api" + route.path
         operations = paths.get(spec_path)
-        if not operations:
-            continue
         for method in route.methods:
-            op = operations.get(method.lower())
-            if op is None:
+            if (method, route.path) in PUBLIC_NON_SPEC_ROUTES:
                 continue
+            assert operations is not None and method.lower() in operations, (
+                f"{method} {route.path} is not declared in openapi.yaml "
+                f"({spec_path}) and is not in PUBLIC_NON_SPEC_ROUTES -- every "
+                "route must be either documented (so the auth check below "
+                "applies to it) or explicitly allowlisted as intentionally public"
+            )
+            op = operations[method.lower()]
             if op.get("security", default_security) == []:
                 continue  # explicitly public per spec
             checked += 1
@@ -211,4 +243,4 @@ def test_all_spec_protected_routes_require_auth() -> None:
                 f"({spec_path}) but has no get_current_user dependency"
             )
 
-    assert checked > 0, "no protected routes matched between app.routes and openapi.yaml"
+    assert checked >= 4, "expected at least the 4 currently known protected routes"

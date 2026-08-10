@@ -1,3 +1,4 @@
+import uuid
 from typing import Any
 
 from fastapi import Depends, HTTPException, status
@@ -22,7 +23,11 @@ async def get_current_user(
         user_id: str | None = payload.get("sub")
         if not user_id:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
-    except JWTError as err:
+        # Reject a non-UUID subject here rather than letting it hit the DB query below:
+        # asyncpg raises an unhandled DataError for a malformed UUID literal, which
+        # would surface as a 500 instead of the 401 a merely-invalid token should get.
+        uuid.UUID(user_id)
+    except (JWTError, ValueError) as err:
         raise HTTPException(  # noqa: B904
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
         ) from err
