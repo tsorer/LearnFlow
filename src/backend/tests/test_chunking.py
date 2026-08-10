@@ -67,15 +67,35 @@ def test_long_text_is_split_within_size_and_never_mid_sentence() -> None:
     assert [c.chunk_index for c in chunks] == list(range(len(chunks)))
 
 
-def test_abbreviations_do_not_end_a_chunk() -> None:
-    # "Art. 5", "Abs. 2" — the vocabulary of the EU AI Act and the SKOS
-    # guidelines. A naive split after every dot ends chunks on "Art.".
-    text = " ".join(f"Nach Art. {i} gilt Regel Nummer {i} zwingend." for i in range(1, 21))
+# The abbreviations the pilot corpus actually contains (EU AI Act, SKOS
+# guidelines). The spaced forms matter most: each dot is a split candidate of
+# its own, so "d. h." breaks into two fragments instead of one.
+@pytest.mark.parametrize(
+    ("abbreviation", "sentence"),
+    [
+        ("Art.", "Nach Art. 5 gilt diese Regel für alle Anbieter zwingend."),
+        ("Abs.", "Nach Abs. 2 gilt diese Regel für alle Anbieter zwingend."),
+        ("z. B.", "Das trifft z. B. auf alle Systeme dieser Kategorie zu."),
+        ("d. h.", "Das gilt für Systeme, d. h. auch für alle grossen Modelle."),
+        ("u. a.", "Das betrifft u. a. Behörden und ausserdem alle privaten Stellen."),
+        ("usw.", "Anbieter, Nutzer usw. müssen die Vorgaben in jedem Fall prüfen."),
+        ("etc.", "Risiken, Kosten etc. sind vor dem Einsatz sorgfältig zu prüfen."),
+    ],
+)
+def test_abbreviations_do_not_end_a_chunk(abbreviation: str, sentence: str) -> None:
+    text = " ".join([sentence] * 20)
 
     chunks = chunk_blocks([ParsedBlock(text=text)], chunk_size=20, chunk_overlap=6, count=words)
 
+    # Every dotted part is its own trap: "d. h." can break after "d." as well.
+    # The word boundary matters — a plain endswith("h.") would also match a
+    # chunk ending on "unerheblich." and report a defect that isn't there.
+    parts = "|".join(re.escape(p.rstrip(".")) for p in abbreviation.split(" "))
+    ends_on_abbreviation = re.compile(rf"\b({parts})\.$")
+
     assert len(chunks) > 1
-    assert not any(c.content.rstrip().endswith(("Art.", "Abs.")) for c in chunks)
+    assert not any(ends_on_abbreviation.search(c.content.rstrip()) for c in chunks)
+    assert all(c.content.rstrip().endswith(".") for c in chunks)
 
 
 def test_line_breaks_do_not_end_a_chunk_mid_sentence() -> None:

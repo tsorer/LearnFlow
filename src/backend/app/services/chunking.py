@@ -31,10 +31,14 @@ TokenCounter = Callable[[str], int]
 # Abbreviations that do not end a sentence — without them administrative German
 # ("Art. 5", "Abs. 2") falls apart into fragments, which is exactly the
 # vocabulary of the EU AI Act and the SKOS guidelines. Case-sensitive: extend
-# with the forms the corpus actually contains.
+# with the forms the corpus actually contains. The spaced forms are listed
+# letter by letter ("z", "B" for "z. B.") because each dot is a split candidate
+# of its own. Counted in the pilot corpus: Art. 106x, Abs. 42x, z. B. 37x,
+# bzw. 16x, d. h. 10x, vgl. 9x, usw. 5x, u. a. 4x, etc. 2x.
 _ABBREVIATIONS = (
     "Art", "Abs", "Ziff", "Bst", "Buchst", "lit", "Nr", "Kap",
     "vgl", "Vgl", "bzw", "ca", "z", "B", "S", "Abb", "Tab",
+    "d", "h", "u", "a", "usw", "etc",
 )  # fmt: skip
 # Each lookbehind sits *after* the punctuation, so it must include the dot:
 # `(?<!\bArt)` would never match anything.
