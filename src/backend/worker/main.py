@@ -15,9 +15,11 @@ from app.config import settings
 from app.services.chunking import (
     DEFAULT_CHUNK_OVERLAP,
     DEFAULT_CHUNK_SIZE,
+    Chunk,
     chunk_blocks,
     count_tokens,
 )
+from app.services.embedding import embed_texts
 from app.services.parsing import parse_document
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -28,9 +30,16 @@ log = logging.getLogger(__name__)
 # our corpus the section titles carry the search-relevant terms. coalesce is not
 # optional — `NULL || ' ' || text` is NULL in Postgres, and PDF chunks always
 # have heading = NULL, so without it no PDF chunk would be indexed at all.
+#
+# The embedding is bound as text and cast in Postgres ($7::text::vector, ADR-005):
+# a bare $7::vector would make Postgres infer the parameter type as `vector`,
+# which asyncpg cannot encode without registering the extension codec on every
+# pooled connection. pgvector's input format is a JSON float array, so
+# json.dumps produces exactly the literal it expects.
 INSERT_CHUNK = (
-    "INSERT INTO chunks (id, document_id, content, chunk_index, page, heading, tsv) "
-    "VALUES ($1, $2, $3, $4, $5, $6, to_tsvector('german', coalesce($6, '') || ' ' || $3))"
+    "INSERT INTO chunks (id, document_id, content, chunk_index, page, heading, tsv, embedding) "
+    "VALUES ($1, $2, $3, $4, $5, $6, "
+    "to_tsvector('german', coalesce($6, '') || ' ' || $3), $7::text::vector)"
 )
 
 
@@ -41,28 +50,41 @@ async def process_document(conn: asyncpg.Connection, job: Job) -> None:
 
     await conn.execute("UPDATE documents SET status = 'processing' WHERE id = $1", document_id)
     try:
+        chunks = await prepare_chunks(conn, document_id)
+        # Embedding runs before the transaction opens, not inside it: it is
+        # tens of seconds of HTTP, and an open transaction across that span
+        # would sit idle-in-transaction and hold back VACUUM on chunks.
+        # All chunks are embedded before anything is written — a partially
+        # embedded document would stay findable through the tsv index while
+        # being invisible to the dense half of the hybrid search (ADR-007),
+        # which is silently degraded recall instead of a failed job.
+        embeddings = await embed_texts([chunk.content for chunk in chunks])
         async with conn.transaction():
-            chunk_count = await index_document(conn, document_id)
-            # TODO (T-13): embedding + pgvector indexing
+            await store_chunks(conn, document_id, chunks, embeddings)
             await conn.execute(
                 "UPDATE documents SET status = 'available', chunk_count = $2, "
                 "error_message = NULL WHERE id = $1",
                 document_id,
-                chunk_count,
+                len(chunks),
             )
-        log.info("Indexed document_id=%s chunks=%s", document_id, chunk_count)
+        log.info("Indexed document_id=%s chunks=%s", document_id, len(chunks))
     except Exception as exc:
         log.exception("Failed to process document_id=%s", document_id)
+        # error_message is handed to every authenticated user by GET
+        # /documents/{id}. Our own ValueErrors are written for that audience;
+        # provider errors are not — they carry api_base, deployment names and,
+        # on an auth failure, a fragment of the API key. Those stay in the log.
+        message = str(exc) if isinstance(exc, ValueError) else "Verarbeitung fehlgeschlagen"
         await conn.execute(
             "UPDATE documents SET status = 'failed', error_message = $2 WHERE id = $1",
             document_id,
-            str(exc),
+            message,
         )
         raise
 
 
-async def index_document(conn: asyncpg.Connection, document_id: str) -> int:
-    """Parse, chunk and store a document. Returns the number of chunks written."""
+async def prepare_chunks(conn: asyncpg.Connection, document_id: str) -> list[Chunk]:
+    """Read, parse and chunk a document. Reads only — writes nothing."""
     row = await conn.fetchrow(
         "SELECT content, content_type FROM documents WHERE id = $1", document_id
     )
@@ -78,17 +100,36 @@ async def index_document(conn: asyncpg.Connection, document_id: str) -> int:
     )
     if not chunks:
         raise ValueError("Kein extrahierbarer Text gefunden")
+    return chunks
 
+
+async def store_chunks(
+    conn: asyncpg.Connection,
+    document_id: str,
+    chunks: list[Chunk],
+    embeddings: list[list[float]],
+) -> None:
+    """Write a document's chunks with their vectors. The caller owns the
+    transaction, so a failure leaves the previous index untouched."""
     # Replace instead of append so re-processing a document stays idempotent.
     await conn.execute("DELETE FROM chunks WHERE document_id = $1", document_id)
     await conn.executemany(
         INSERT_CHUNK,
         [
-            (str(uuid.uuid4()), document_id, c.content, c.chunk_index, c.page, c.heading)
-            for c in chunks
+            (
+                str(uuid.uuid4()),
+                document_id,
+                c.content,
+                c.chunk_index,
+                c.page,
+                c.heading,
+                json.dumps(embedding),
+            )
+            # strict= turns a chunk/vector count mismatch into an error instead
+            # of silently dropping the tail.
+            for c, embedding in zip(chunks, embeddings, strict=True)
         ],
     )
-    return len(chunks)
 
 
 async def read_chunk_config(conn: asyncpg.Connection) -> tuple[int, int]:

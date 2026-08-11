@@ -22,6 +22,15 @@ strict = true
 module = ["asyncpg.*", "pgqueuer.*", "bcrypt.*", "pgvector.*"]
 ignore_missing_imports = true
 
+# litellm ships py.typed, so ignore_missing_imports alone does not apply and
+# mypy type-checks all 126 MB of it — minutes per run, in CI on every push.
+# Skipping the import keeps `mypy app worker` at a few seconds; the response
+# shape we rely on is asserted in tests/test_embedding.py instead.
+[[tool.mypy.overrides]]
+module = ["litellm.*"]
+ignore_missing_imports = true
+follow_imports = "skip"
+
 [tool.pytest.ini_options]
 addopts = "-q"
 pythonpath = ["."]
