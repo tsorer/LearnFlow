@@ -61,7 +61,7 @@ Details: `Docs/04_ADR-00X_*.md`, `Docs/05_C4-*`, `Docs/06_Architecture-Draft.md`
   Vorlage nehmen statt neu zu erfinden.
 - **Stil:** gilt, was `ruff`/`eslint` erzwingen; sonst bestehenden Stil im Modul übernehmen.
 - **Branches:** nie direkt auf `main` — Feature-Branch + PR.
-- **PRs:** CI grün (Required Checks `backend` + `frontend`), Review durch zweite Person.
+- **PRs:** CI grün (Required Checks `backend` + `frontend` + `e2e`), Review durch zweite Person.
   `package-lock.json` committen — CI nutzt `npm ci`.
 - **Sprache:** Docs/Ordner Deutsch; Code-Identifier und Commits Englisch.
 
