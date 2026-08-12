@@ -81,9 +81,20 @@ Details: `Docs/04_ADR-00X_*.md`, `Docs/05_C4-*`, `Docs/06_Architecture-Draft.md`
 - **Issue lesen** — GitHub Issue vollständig lesen; Akzeptanzkriterien und Scope erfassen.
 - **Spec prüfen** — relevante Dokumente in `Docs/` konsultieren und mit dem Issue abgleichen.
    Bei Inkonsistenzen oder Unklarheiten: **zuerst rückfragen**, Docs anpassen, erst dann weiter.
-- **Spec zuerst** — berührt eine Backend-Änderung die Schnittstelle (neuer Endpoint, geändertes
+- **Spec zuerst** — berührt eine Änderung die Schnittstelle (neuer Endpoint, geändertes
    Request-/Response-Feld, neuer Statuscode), zuerst `src/backend/openapi.yaml` anpassen und den
-   Spec-Diff kurz zeigen. Erst danach implementieren. Nichts implementieren, was nicht in der  Spec steht (ADR-010). 
+   Spec-Diff kurz zeigen. Erst danach implementieren. Nichts implementieren, was nicht in der Spec
+   steht (ADR-010).
+- **Spec und Code gehen zusammen** — `openapi.yaml` ist für beide Seiten verbindlich, in beide
+   Richtungen. Ein neuer Endpoint braucht **im selben PR** drei Dinge, sonst ist die CI rot:
+   1. den Eintrag in `openapi.yaml`,
+   2. eine Route im Backend — bei noch offener Umsetzung ein Platzhalter mit `501` und einem
+      `TODO (T-XX)`, Vorlage: `app/routers/query.py`. Kein erfundener Beispielinhalt, ADR-008 ist
+      fail-closed,
+   3. die neu generierten Frontend-Typen: `make generate-api`, `src/frontend/src/api/schema.d.ts`
+      mitcommitten.
+   Wer die Spec ändert, macht Punkt 3 — nicht das Frontend-Team später. Die drei Checks dazu:
+   `tests/test_rbac.py` (beide Richtungen Code ↔ Spec) und `npm run check` (generierte Typen).
 - **Erst coden wenn alles klar** — kein Code ohne vollständig verstandene, konsistente Anforderung.
 - **Tests schreiben** — neue Geschäftslogik wird mit Unit- und Integrationstests getestet;
    jede RAG-Komponente muss isoliert testbar sein (→ DoD Kriterium 3).
@@ -99,6 +110,8 @@ Details: `Docs/04_ADR-00X_*.md`, `Docs/05_C4-*`, `Docs/06_Architecture-Draft.md`
   Azure OpenAI EU ist Vorbedingung (ADR-004, Pilotstart-Checkliste).
 - **Keine Secrets / `.env` committen**; nicht auf `main` committen/pushen.
 - **`package.json` nicht von Hand editieren** — `npm install` nutzen, Lockfile committen.
+- **`src/frontend/src/api/schema.d.ts` nicht von Hand editieren** — generiert aus `openapi.yaml`
+  (`make generate-api`). Von Hand geänderte Typen überleben die nächste Generierung nicht.
 - **Keine inhaltlichen Entscheide in dieser Datei** — die gehören in `Docs/`.
 - **Spike-Verzeichnisse** (`Niklaus/`, `Reto/`, `Frank/`, `Christoph/`) und `Artefakten/`
   nicht als Quelle der Wahrheit behandeln.

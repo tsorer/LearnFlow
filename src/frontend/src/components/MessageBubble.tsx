@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { Message, ChunkDebugInfo, StageInfo, LLMCallInfo, DebugInfo, ConfidenceInfo } from "../types";
-import { api } from "../api/client";
+import { ApiError, api } from "../api/client";
 
 
 const PARAM_LABELS: Record<string, string> = {
@@ -92,7 +92,7 @@ function PipelineStep({
   // Value display: count (threshold≥1) stays integer, fraction → %, string as-is
   const valStr = stage.value === null || stage.value === undefined ? null
     : typeof stage.value === "number"
-      ? (stage.threshold !== null && stage.threshold >= 1 ? String(stage.value) : pct(stage.value))
+      ? (stage.threshold != null && stage.threshold >= 1 ? String(stage.value) : pct(stage.value))
       : String(stage.value);
 
   const thStr = stage.threshold === null || stage.threshold === undefined ? null
@@ -341,13 +341,30 @@ function DebugPanel({ debug, confidence }: { debug: DebugInfo; confidence: Confi
 interface Props { message: Message; token: string; }
 
 export default function MessageBubble({ message: m, token }: Props) {
-  const [feedback, setFeedback] = useState<number | null>(null);
+  const [feedback, setFeedback] = useState<boolean | null>(null);
+  const [feedbackError, setFeedbackError] = useState("");
   const [showSources, setShowSources] = useState(false);
 
-  const submitFeedback = async (rating: number) => {
+  // The previous 1-5 stars existed neither in the spec nor in the database:
+  // US-03 and the `feedback` table know a thumb plus category and free text.
+  // TODO (T-31): add the category picker and the free-text field — both are
+  // already in the contract and are still sent as null here.
+  const submitFeedback = async (helpful: boolean) => {
     if (!m.answer_id || feedback !== null) return;
-    setFeedback(rating);
-    await api.submitFeedback(m.answer_id, rating, null, token).catch(() => {});
+    setFeedbackError("");
+    try {
+      await api.submitFeedback(m.answer_id, helpful, null, null, token);
+      // Marked only once it is actually stored. Setting it up front latched the
+      // button as saved even though POST /answers/{id}/feedback still answers
+      // 501 (T-30) — a rating the user cannot correct and that never arrives.
+      setFeedback(helpful);
+    } catch (err) {
+      setFeedbackError(
+        err instanceof ApiError && err.status === 501
+          ? "Bewertungen sind noch nicht verfügbar."
+          : "Bewertung konnte nicht gespeichert werden.",
+      );
+    }
   };
 
   if (m.role === "user") {
@@ -452,17 +469,21 @@ export default function MessageBubble({ message: m, token }: Props) {
       {m.answer_id && !m.suppressed && (
         <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
           <span style={{ fontSize: 11, color: "var(--muted)" }}>Hilfreich?</span>
-          {[1, 2, 3, 4, 5].map(r => (
-            <button key={r} onClick={() => submitFeedback(r)}
+          {([true, false] as const).map(helpful => (
+            <button key={String(helpful)} onClick={() => submitFeedback(helpful)}
+              aria-label={helpful ? "Hilfreich" : "Nicht hilfreich"}
               style={{
-                background: feedback === r ? "var(--blue)" : "transparent",
-                color: feedback === r ? "#fff" : "var(--muted)",
+                background: feedback === helpful ? "var(--blue)" : "transparent",
+                color: feedback === helpful ? "#fff" : "var(--muted)",
                 border: "1px solid var(--border)", borderRadius: 4,
                 padding: "1px 6px", fontSize: 11,
               }}>
-              {r}
+              {helpful ? "👍" : "👎"}
             </button>
           ))}
+          {feedbackError && (
+            <span style={{ fontSize: 11, color: "var(--red)" }}>{feedbackError}</span>
+          )}
         </div>
       )}
     </div>

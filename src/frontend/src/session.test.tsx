@@ -21,15 +21,18 @@ function route(method: string, path: string, status: number, body?: unknown) {
 }
 
 function fakeFetch(input: RequestInfo | URL, init?: RequestInit) {
-  const key = `${init?.method ?? "GET"} ${String(input)}`;
+  // openapi-fetch passes a single Request; a bare fetch(url, init) is still
+  // possible, so both shapes are normalised here before matching a route.
+  const request = input instanceof Request ? input : new Request(String(input), init);
+  const key = `${request.method} ${new URL(request.url, "http://localhost").pathname}`;
   const res = routes.get(key);
   if (!res) throw new Error(`Nicht gemockte Anfrage: ${key}`);
-  return Promise.resolve({
-    ok: res.status >= 200 && res.status < 300,
-    status: res.status,
-    json: async () => res.body,
-    text: async () => (res.body === undefined ? "" : JSON.stringify(res.body)),
-  } as Response);
+  return Promise.resolve(
+    new Response(res.body === undefined ? null : JSON.stringify(res.body), {
+      status: res.status,
+      headers: { "Content-Type": "application/json" },
+    }),
+  );
 }
 
 /** Meldet den Seed-Learner an und wartet, bis ChatView steht. */
@@ -67,8 +70,11 @@ describe("Session-Ablauf (T-40)", () => {
     await userEvent.type(screen.getByPlaceholderText(/frage stellen/i), "Was gilt fuer SKOS?");
     await userEvent.click(screen.getByRole("button", { name: /senden/i }));
 
+    // findBy, not getBy: the URL flips one render before the login form is on
+    // screen — while <Navigate> is mounted the tree renders nothing at all.
+    // A synchronous assertion here passes alone and fails under parallel load.
     await waitFor(() => expect(window.location.pathname).toBe("/login"));
-    expect(screen.getByLabelText(/passwort/i)).toBeInTheDocument();
+    expect(await screen.findByLabelText(/passwort/i)).toBeInTheDocument();
     expect(await screen.findByText(/sitzung abgelaufen/i)).toBeInTheDocument();
   });
 

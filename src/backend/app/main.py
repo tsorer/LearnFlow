@@ -4,10 +4,27 @@ from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 from starlette.responses import Response
 
+from app.config import settings
 from app.limiter import limiter
-from app.routers import auth, documents
+from app.routers import admin, auth, documents, feedback, query
 
-app = FastAPI(title="LearnFlow API")
+# Passing None removes the route entirely rather than hiding it, so there is no
+# unauthenticated endpoint left to find. app.openapi() keeps working in-process,
+# which is what the spec-conformance check in tests/test_rbac.py builds on.
+#
+# root_path is what makes the enabled docs actually usable: the API is only
+# reachable through nginx's `location /api/`, which strips the prefix before
+# proxying. Routing therefore matches the stripped path, but every URL the app
+# hands to a browser — Swagger's reference to its own spec above all — has to
+# carry /api again, or it lands in the SPA fallback instead.
+_docs = settings.expose_api_docs
+app = FastAPI(
+    title="LearnFlow API",
+    root_path="/api",
+    openapi_url="/openapi.json" if _docs else None,
+    docs_url="/docs" if _docs else None,
+    redoc_url="/redoc" if _docs else None,
+)
 app.state.limiter = limiter
 
 
@@ -38,8 +55,14 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(documents.router)
+app.include_router(query.router)
+app.include_router(feedback.router)
+app.include_router(admin.router)
 
 
 @app.get("/health")
 async def health() -> dict[str, str]:
+    """Liveness probe for the Docker healthcheck — declared in openapi.yaml
+    with `security: []`, because the check runs without credentials.
+    """
     return {"status": "ok"}

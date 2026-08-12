@@ -39,7 +39,7 @@ export default function ChatView({ user, onLogout }: Props) {
 
   useEffect(() => {
     if (!isAdmin) return;
-    api.getConfig(user.token).then(r => setParams(r.config)).catch(() => {});
+    api.getConfig(user.token).then(setParams).catch(() => {});
   }, []);
 
   const updateParam = useCallback((key: string, val: string) => {
