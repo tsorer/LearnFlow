@@ -196,6 +196,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '400':
+          description: 'Unbekannter Bereich (MVP: nur der hartcodierte Pilot-Bereich)'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /api/documents/{document_id}:
     get:
@@ -221,8 +227,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '403':
+          description: Keine Berechtigung (Rolle knowledge_owner erforderlich)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '404':
-          description: Dokument nicht gefunden
+          description: Dokument nicht gefunden (auch bei fremdem Bereich)
           content:
             application/json:
               schema:
@@ -246,8 +258,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '403':
+          description: Keine Berechtigung (Rolle knowledge_owner erforderlich)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '404':
-          description: Dokument nicht gefunden
+          description: Dokument nicht gefunden (auch bei fremdem Bereich)
           content:
             application/json:
               schema:

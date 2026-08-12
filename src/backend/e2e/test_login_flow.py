@@ -101,16 +101,18 @@ def test_token_opens_protected_route(client: httpx.Client, token: str) -> None:
 
 
 def test_token_is_accepted_outside_the_auth_router(client: httpx.Client, token: str) -> None:
-    """404 rather than 401: authentication works, the document just does not exist.
+    """403 rather than 401: authentication works, but the route requires knowledge_owner
+    (T-14) and this token's role is learner.
 
-    Shows that the token and the /api rewrite also work for business routes, not
-    just for the auth router's own endpoint.
+    Shows that the token and the /api rewrite also work for business routes, not just
+    for the auth router's own endpoint — and that the role from a real token reaches
+    require_role, not just the unit-mocked dependency in tests/test_documents.py.
     """
     r = client.get(
         f"/api/documents/{MISSING_DOCUMENT_ID}", headers={"Authorization": f"Bearer {token}"}
     )
 
-    assert r.status_code == 404
+    assert r.status_code == 403
 
 
 @pytest.mark.parametrize("path", ["/api/auth/me", f"/api/documents/{MISSING_DOCUMENT_ID}"])
