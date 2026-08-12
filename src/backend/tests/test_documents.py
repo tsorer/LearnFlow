@@ -5,11 +5,13 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy.dialects import postgresql
 
 from app.auth.dependencies import get_current_user
 from app.database import get_db
 from app.main import app
 from app.models.tables import User
+from app.routers.documents import PILOT_AREA
 
 
 def make_db() -> AsyncMock:
@@ -41,7 +43,7 @@ async def _post_upload(
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         files = {"file": (filename, io.BytesIO(content), "application/octet-stream")}
-        return await client.post("/documents", files=files, data={"area": "default"})
+        return await client.post("/documents", files=files, data={"area": PILOT_AREA})
 
 
 @pytest.mark.parametrize("filename", ["notes.pdf", "report.docx", "readme.md"])
@@ -53,7 +55,7 @@ async def test_upload_success_returns_201(filename: str) -> None:
     body = r.json()
     assert body["filename"] == filename
     assert body["status"] == "pending"
-    assert body["area"] == "default"
+    assert body["area"] == PILOT_AREA
     assert body["chunk_count"] == 0
     assert body["error_message"] is None
     assert "id" in body
@@ -86,7 +88,21 @@ async def test_upload_oversized_file_returns_413() -> None:
     assert r.status_code == 413
 
 
-def make_document(status: str = "processing", area: str = "default") -> object:
+async def test_upload_unknown_area_returns_422() -> None:
+    """A non-pilot area would create a document unreachable by list/get/delete."""
+    db = make_db()
+    app.dependency_overrides[get_current_user] = lambda: make_user("knowledge_owner")
+    app.dependency_overrides[get_db] = lambda: db
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        files = {"file": ("notes.pdf", io.BytesIO(b"content"), "application/octet-stream")}
+        r = await client.post("/documents", files=files, data={"area": "not-the-pilot-area"})
+
+    assert r.status_code == 422
+    db.add.assert_not_called()
+
+
+def make_document(status: str = "processing", area: str = PILOT_AREA) -> object:
     from app.models.tables import Document
 
     return Document(
@@ -195,6 +211,24 @@ async def test_list_documents_empty_returns_empty_list() -> None:
 
     assert r.status_code == 200
     assert r.json() == []
+
+
+async def test_list_documents_query_filters_by_pilot_area_and_orders_newest_first() -> None:
+    """A mocked db.execute ignores the statement it's called with — so the four
+    other list tests above stay green even if `.where(...)`/`.order_by(...)` were
+    deleted from list_documents. This test inspects the actual compiled SQL
+    instead, so the area filter and ordering have real regression coverage."""
+    db = make_db()
+    db.execute = AsyncMock(return_value=make_execute_result([]))
+
+    await _list_documents(db)
+
+    stmt = db.execute.await_args[0][0]
+    compiled = str(
+        stmt.compile(dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True})
+    )
+    assert f"documents.area = '{PILOT_AREA}'" in compiled
+    assert "ORDER BY documents.created_at DESC" in compiled
 
 
 async def test_list_documents_wrong_role_returns_403() -> None:
