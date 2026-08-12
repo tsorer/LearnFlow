@@ -20,6 +20,10 @@ tags:
     description: Feedback zu Antworten (US-03)
   - name: documents
     description: Lernkorpus-Verwaltung / Dokument-Upload (US-04)
+  - name: admin
+    description: Laufzeit-Konfiguration (US-11)
+  - name: infra
+    description: Betriebs-Endpunkte ohne fachliche Bedeutung
 
 # JWT-Bearer global; Login überschreibt mit security: [] (Pre-Auth).
 security:
@@ -101,7 +105,7 @@ paths:
               $ref: '#/components/schemas/QueryRequest'
       responses:
         '200':
-          description: Antwort mit Quellen und Konfidenz (Stub)
+          description: Antwort mit Quellen und Konfidenz
           content:
             application/json:
               schema:
@@ -112,11 +116,28 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '501':
+          description: >
+            Noch nicht implementiert (T-17). Der Endpoint existiert als Dummy,
+            damit Vertrag und Implementierung deckungsgleich bleiben; er liefert
+            bewusst keine erfundene Antwort. Entfällt mit der Implementierung.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
-  /api/feedback:
+  /api/answers/{answer_id}/feedback:
     post:
       tags: [feedback]
-      summary: Antwort als hilfreich/nicht hilfreich bewerten (US-03)
+      summary: Antwort bewerten (US-03)
+      parameters:
+        - name: answer_id
+          in: path
+          required: true
+          description: '`answer_id` aus der QueryResponse'
+          schema:
+            type: string
+            format: uuid
       requestBody:
         required: true
         content:
@@ -124,10 +145,22 @@ paths:
             schema:
               $ref: '#/components/schemas/FeedbackRequest'
       responses:
-        '201':
-          description: Feedback gespeichert (Stub)
+        '204':
+          description: Feedback gespeichert
         '401':
           description: Nicht authentifiziert
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Antwort nicht gefunden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '501':
+          description: Noch nicht implementiert (T-30) — siehe /api/query
           content:
             application/json:
               schema:
@@ -271,6 +304,95 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /api/admin/config:
+    get:
+      tags: [admin]
+      summary: Laufzeit-Konfiguration lesen (US-11)
+      responses:
+        '200':
+          description: Alle Konfigurationswerte
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigResponse'
+        '401':
+          description: Nicht authentifiziert
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Keine Berechtigung (Rolle admin erforderlich)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '501':
+          description: Noch nicht implementiert (T-37) — siehe /api/query
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      tags: [admin]
+      summary: Laufzeit-Konfiguration schreiben (US-11)
+      description: >
+        Ersetzt die übergebenen Schlüssel; nicht genannte bleiben unverändert.
+        Die Werte wirken ohne Neustart (ADR-008).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfigUpdateRequest'
+      responses:
+        '200':
+          description: Konfiguration nach der Änderung
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigResponse'
+        '401':
+          description: Nicht authentifiziert
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Keine Berechtigung (Rolle admin erforderlich)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Unbekannter Schlüssel oder ungültiger Wert
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '501':
+          description: Noch nicht implementiert (T-37) — siehe /api/query
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/health:
+    get:
+      tags: [infra]
+      summary: Liveness-Probe für den Docker-Healthcheck
+      description: >
+        Bewusst ohne Authentifizierung: der Healthcheck läuft im Container ohne
+        Zugangsdaten. Gibt keinerlei Zustandsdetails preis.
+      security: []
+      responses:
+        '200':
+          description: Service erreichbar
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
 components:
   securitySchemes:
     bearerAuth:
@@ -335,31 +457,290 @@ components:
           type: string
           minLength: 3
           maxLength: 1000
+        session_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Fortsetzung einer bestehenden Sitzung; null startet eine neue
 
     QueryResponse:
       type: object
-      description: Stub-Antwortform (wird in US-01/US-02-Issues ausmodelliert)
+      description: >
+        Antwort der Konfidenz-Pipeline (ADR-008). Bei `suppressed` steht in
+        `message` die Weiss-ich-nicht-Antwort und `citations` bleibt leer.
+      required: [session_id, answer_id, suppressed, citations]
       properties:
-        answer:
+        session_id:
           type: string
-        sources:
+          format: uuid
+        answer_id:
+          type: string
+          format: uuid
+          description: Adressiert das Feedback (POST /api/answers/{answer_id}/feedback)
+        suppressed:
+          type: boolean
+          description: true, wenn eine Stufe der Pipeline unterdrückt hat
+        suppression_reason:
+          type: string
+          nullable: true
+          description: Welche Stufe unterdrückt hat (ADR-008)
+        message:
+          type: string
+          nullable: true
+          description: Antworttext, oder die Weiss-ich-nicht-Meldung bei Unterdrückung
+        refinement_hint:
+          type: string
+          nullable: true
+          description: Vorschlag zur Präzisierung der Frage
+        citations:
           type: array
           items:
-            type: object
-        confidence_score:
+            $ref: '#/components/schemas/Citation'
+        confidence:
+          allOf:
+            - $ref: '#/components/schemas/ConfidenceInfo'
+          nullable: true
+        debug:
+          allOf:
+            - $ref: '#/components/schemas/DebugInfo'
+          nullable: true
+          description: Nur für Rolle admin gefüllt
+
+    Citation:
+      type: object
+      description: Quellenbeleg auf Chunk-Ebene (US-01)
+      required: [chunk_id, document_id, filename, excerpt, index]
+      properties:
+        chunk_id:
+          type: string
+          format: uuid
+        document_id:
+          type: string
+          format: uuid
+        filename:
+          type: string
+        page:
+          type: integer
+          nullable: true
+        excerpt:
+          type: string
+        index:
+          type: integer
+          description: Fussnotennummer im Antworttext
+
+    ConfidenceInfo:
+      type: object
+      description: Komposit-Score und seine Bestandteile (ADR-008)
+      required: [score, retrieval_score, citation_coverage]
+      properties:
+        score:
+          type: number
+          format: float
+        retrieval_score:
+          type: number
+          format: float
+        citation_coverage:
           type: number
           format: float
 
+    ChunkDebugInfo:
+      type: object
+      required: [filename, score, above_threshold, in_top_n, dense_rank, content]
+      properties:
+        filename:
+          type: string
+        page:
+          type: integer
+          nullable: true
+        heading:
+          type: string
+          nullable: true
+        score:
+          type: number
+          format: float
+        above_threshold:
+          type: boolean
+        in_top_n:
+          type: boolean
+        dense_rank:
+          type: integer
+        content:
+          type: string
+
+    StageInfo:
+      type: object
+      description: Eine Stufe der Defense-in-Depth-Pipeline (ADR-008)
+      required: [id, name, ran, passed, detail]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        ran:
+          type: boolean
+        passed:
+          type: boolean
+        value:
+          oneOf:
+            - type: number
+            - type: string
+          nullable: true
+        threshold:
+          type: number
+          format: float
+          nullable: true
+        detail:
+          type: string
+
+    LLMCallInfo:
+      type: object
+      required: [step, label, prompt, response]
+      properties:
+        step:
+          type: string
+        label:
+          type: string
+        prompt:
+          type: string
+        response:
+          type: string
+
+    RetrievalDetail:
+      type: object
+      required: [top_score, mean_score, evidence_density, result, count]
+      properties:
+        top_score:
+          type: number
+          format: float
+        mean_score:
+          type: number
+          format: float
+        evidence_density:
+          type: number
+          format: float
+        result:
+          type: number
+          format: float
+        count:
+          type: integer
+
+    DebugInfo:
+      type: object
+      description: >
+        Nachvollziehbarkeit der Pipeline für die Admin-Ansicht. Nicht Teil des
+        fachlichen Vertrags — Felder können sich mit der Pipeline ändern.
+      required:
+        [chunks, stages, llm_calls, similarity_threshold, min_retrieval_confidence,
+         min_citation_coverage, self_check_ran, retrieval_detail, params_used,
+         dense_above_threshold, total_dense_retrieved, sparse_count, top_n_used,
+         formula_breakdown]
+      properties:
+        chunks:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChunkDebugInfo'
+        stages:
+          type: array
+          items:
+            $ref: '#/components/schemas/StageInfo'
+        llm_calls:
+          type: array
+          items:
+            $ref: '#/components/schemas/LLMCallInfo'
+        similarity_threshold:
+          type: number
+          format: float
+        min_retrieval_confidence:
+          type: number
+          format: float
+        min_citation_coverage:
+          type: number
+          format: float
+        self_check_ran:
+          type: boolean
+        self_check_verdict:
+          type: string
+          nullable: true
+        retrieval_detail:
+          $ref: '#/components/schemas/RetrievalDetail'
+        params_used:
+          type: object
+          additionalProperties:
+            type: number
+            nullable: true
+        dense_above_threshold:
+          type: integer
+        total_dense_retrieved:
+          type: integer
+        sparse_count:
+          type: integer
+        top_n_used:
+          type: integer
+        formula_breakdown:
+          type: string
+
+    FeedbackCategory:
+      type: string
+      description: >
+        Grund der Bewertung (US-03). Die ersten vier gelten für `helpful: true`,
+        die übrigen fünf für `helpful: false`.
+      enum:
+        - verstaendlich
+        - vollstaendig
+        - hilfreich_fuer_code
+        - quelle_passt_gut
+        - faktisch_falsch
+        - unvollstaendig
+        - veraltet
+        - unverstaendlich
+        - quelle_stimmt_nicht
+
     FeedbackRequest:
       type: object
-      description: Stub (wird in US-03-Issue ausmodelliert)
-      required: [query_id, rating]
+      description: >
+        Bewertung einer Antwort (US-03). Wird pseudonymisiert erfasst — die
+        Tabelle `feedback` hält bewusst keinen Bezug zur Nutzerin.
+      required: [helpful]
       properties:
-        query_id:
+        helpful:
+          type: boolean
+          description: 👍 = true, 👎 = false
+        category:
+          allOf:
+            - $ref: '#/components/schemas/FeedbackCategory'
+          nullable: true
+        comment:
           type: string
-        rating:
+          maxLength: 500
+          nullable: true
+          description: Optionale Freitext-Ergänzung
+
+    ConfigResponse:
+      type: object
+      required: [config]
+      properties:
+        config:
+          type: object
+          description: Schlüssel-Wert-Paare aus der config-Tabelle; Werte immer als String
+          additionalProperties:
+            type: string
+
+    ConfigUpdateRequest:
+      type: object
+      required: [config]
+      properties:
+        config:
+          type: object
+          additionalProperties:
+            type: string
+
+    HealthResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
           type: string
-          enum: [positive, negative]
+          enum: [ok]
 
     DocumentStatus:
       type: string

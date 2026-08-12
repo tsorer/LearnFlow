@@ -44,6 +44,34 @@ Browser: **http://localhost**
 
 DB: user `learnflow`, Passwort aus `DB_PASSWORD`, Database `learnflow`.
 
+### API-Typen nach einer Spec-Änderung neu generieren
+
+```bash
+make generate-api   # aus src/ — braucht kein lokales Node
+```
+
+`src/frontend/src/api/schema.d.ts` wird aus `backend/openapi.yaml` erzeugt und gehört in
+denselben Commit wie die Spec-Änderung. Wer es vergisst, bekommt einen roten `frontend`-Job
+mit genau diesem Befehl in der Fehlermeldung. Der Client (`src/api/client.ts`) ist gegen
+diese Typen geschrieben — ein geändertes Schema bricht den Build, nicht erst die Laufzeit.
+
+### API-Dokumentation (Swagger UI / ReDoc)
+
+Standardmässig **aus**. FastAPI liefert `/docs`, `/redoc` und `/openapi.json` ohne
+Authentifizierung aus und legt damit die vollständige API-Oberfläche offen — für
+eine Plattform mit internen Dokumenten eine bewusste Entscheidung, kein Default.
+
+Für die lokale Entwicklung in `.env` einschalten:
+
+```
+EXPOSE_API_DOCS=true
+```
+
+Danach `make up` (oder `docker compose restart api`); die drei URLs sind dann unter
+`http://localhost/api/docs` usw. erreichbar. Verbindlich ist trotzdem
+`backend/openapi.yaml` — das ausgelieferte Schema ist aus dem Code abgeleitet und
+nur eine Entwicklungshilfe (ADR-010).
+
 ## Nützliche Befehle
 
 ```bash

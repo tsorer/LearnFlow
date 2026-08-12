@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import type { AuthUser, Message } from "../types";
-import { api } from "../api/client";
+import { api, ApiError } from "../api/client";
 import Upload from "./Upload";
 import MessageBubble from "./MessageBubble";
 
@@ -34,23 +34,38 @@ export default function ChatView({ user, onLogout }: Props) {
   const [showParams, setShowParams] = useState(false);
   const [params, setParams] = useState<Record<string, string>>({});
   const [paramSaved, setParamSaved] = useState(false);
+  const [paramError, setParamError] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const isAdmin = user.role === "admin";
 
   useEffect(() => {
     if (!isAdmin) return;
-    api.getConfig(user.token).then(r => setParams(r.config)).catch(() => {});
+    api.getConfig(user.token).then(setParams).catch(() => {});
   }, []);
 
   const updateParam = useCallback((key: string, val: string) => {
     setParams(prev => ({ ...prev, [key]: val }));
     setParamSaved(false);
+    setParamError("");
   }, []);
 
   const saveParams = async () => {
-    await api.updateConfig(params, user.token).catch(() => {});
-    setParamSaved(true);
-    setTimeout(() => setParamSaved(false), 2000);
+    setParamError("");
+    try {
+      await api.updateConfig(params, user.token);
+      // Confirmed only once the write actually returned. Swallowing the
+      // rejection showed the green check while PUT /admin/config answers 501
+      // (T-37): the admin would go on believing a fail-closed threshold was
+      // stored that the config table never received (ADR-008).
+      setParamSaved(true);
+      setTimeout(() => setParamSaved(false), 2000);
+    } catch (err) {
+      setParamError(
+        err instanceof ApiError && err.status === 501
+          ? "Parameter sind noch nicht speicherbar."
+          : "Parameter konnten nicht gespeichert werden.",
+      );
+    }
   };
 
   useEffect(() => {
@@ -222,6 +237,7 @@ export default function ChatView({ user, onLogout }: Props) {
                     Speichern
                   </button>
                   {paramSaved && <span style={{ fontSize: 12, color: "var(--green)", fontWeight: 600 }}>✓ Gespeichert</span>}
+                  {paramError && <span style={{ fontSize: 12, color: "var(--red)", fontWeight: 600 }}>{paramError}</span>}
                 </div>
               </div>
             </div>

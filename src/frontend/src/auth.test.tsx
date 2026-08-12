@@ -50,7 +50,7 @@ describe("App auth (T-08)", () => {
   });
 
   it("speichert nach erfolgreichem Login keinen Token in localStorage/sessionStorage", async () => {
-    mockLogin.mockResolvedValue({ access_token: "tok123", role: "learner" });
+    mockLogin.mockResolvedValue({ access_token: "tok123", token_type: "bearer", role: "learner" });
     mockMe.mockResolvedValue({ id: "u1", email: "lara@learnflow.ch", role: "learner" });
 
     render(<App />);
@@ -69,7 +69,7 @@ describe("App auth (T-08)", () => {
   });
 
   it("leitet nach Logout zurück auf /login (AK 3)", async () => {
-    mockLogin.mockResolvedValue({ access_token: "tok123", role: "learner" });
+    mockLogin.mockResolvedValue({ access_token: "tok123", token_type: "bearer", role: "learner" });
     mockMe.mockResolvedValue({ id: "u1", email: "lara@learnflow.ch", role: "learner" });
 
     render(<App />);
@@ -111,7 +111,7 @@ describe("App auth (T-08)", () => {
   });
 
   it("meldet einen Fehler in /auth/me nicht als falsches Passwort", async () => {
-    mockLogin.mockResolvedValue({ access_token: "tok123", role: "learner" });
+    mockLogin.mockResolvedValue({ access_token: "tok123", token_type: "bearer", role: "learner" });
     mockMe.mockRejectedValue(new Error("HTTP 500"));
 
     render(<App />);
@@ -129,7 +129,7 @@ describe("App auth (T-08)", () => {
   });
 
   it("haelt angemeldete User von /login fern (GuestRoute)", async () => {
-    mockLogin.mockResolvedValue({ access_token: "tok123", role: "learner" });
+    mockLogin.mockResolvedValue({ access_token: "tok123", token_type: "bearer", role: "learner" });
     mockMe.mockResolvedValue({ id: "u1", email: "lara@learnflow.ch", role: "learner" });
 
     window.history.pushState({}, "", "/login");

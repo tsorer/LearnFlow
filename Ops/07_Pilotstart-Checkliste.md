@@ -19,6 +19,7 @@ Diese Checkliste beschreibt alle Schritte, die **vor dem ersten Login eines echt
 | 1.6a | In `nginx.conf` **beide** TLS-Schritte ausgeführt: Redirect-Block einkommentiert **und** im Haupt-`server`-Block `listen 80` durch `listen 443 ssl` + `ssl_certificate*` ersetzt. Nur einer der beiden Schritte legt die App still (nginx meldet das bloss als Warnung) | Dev | ⬜ |
 | 1.6b | `Strict-Transport-Security`-Header einkommentiert; danach `docker exec src-webapp-1 nginx -t` **ohne** Warnung `conflicting server name` und ein Aufruf über HTTPS erfolgreich geprüft | Dev | ⬜ |
 | 1.7 | Alle Seed-Passwörter (`changeme1`–`changeme6`) durch starke individuelle Passwörter ersetzt (`make seed` mit angepasstem `seed_users.py` oder direktem DB-Update) | Dev | ⬜ |
+| 1.8 | `EXPOSE_API_DOCS` in der Server-`.env` **nicht** gesetzt bzw. auf `false`. Gegenprobe: `/api/docs`, `/api/redoc` und `/api/openapi.json` liefern **404**. Eingeschaltet legen sie die vollständige API-Oberfläche ohne Authentifizierung offen | Dev | ⬜ |
 
 ---
 

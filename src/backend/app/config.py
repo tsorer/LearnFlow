@@ -16,6 +16,12 @@ class Settings(BaseSettings):
     # bcrypt (4-31 is bcrypt's valid range; 15+ costs seconds per hash, so cap below that)
     bcrypt_rounds: int = Field(default=12, ge=4, le=14)
 
+    # Swagger UI, ReDoc and /openapi.json publish the complete API surface, and
+    # FastAPI serves them without authentication. Off unless a deployment opts
+    # in, so the pilot cannot publish them by omission — the contract lives in
+    # openapi.yaml (ADR-010), the served schema is only a development aid.
+    expose_api_docs: bool = False
+
     def validate_secrets(self) -> None:
         """Fail-closed check on JWT_SECRET, deliberately outside pydantic.
 

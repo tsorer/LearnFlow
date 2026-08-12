@@ -4,3 +4,9 @@
 *.docx binary
 *.png binary
 *.jpg binary
+
+# Aus src/backend/openapi.yaml generiert (T-39) — nie von Hand editieren.
+# linguist-generated blendet die Datei in PR-Diffs ein und aus der
+# Sprachstatistik aus; eol=lf hält sie unter Windows byte-identisch mit dem,
+# was der Generator schreibt, sonst schlägt der Drift-Check dort immer an.
+src/frontend/src/api/schema.d.ts linguist-generated=true eol=lf
