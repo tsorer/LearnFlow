@@ -33,8 +33,8 @@ async def verify_password(plain: str, hashed: str) -> bool:
     return await run_in_threadpool(_verify_password_sync, plain, hashed)
 
 
-def create_access_token(subject: str, role: str) -> str:
-    expire = datetime.now(UTC) + timedelta(hours=settings.jwt_expire_hours)
+def create_access_token(subject: str, role: str, expires_delta: timedelta | None = None) -> str:
+    expire = datetime.now(UTC) + (expires_delta or timedelta(hours=settings.jwt_expire_hours))
     payload = {"sub": subject, "role": role, "exp": expire}
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
