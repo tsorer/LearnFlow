@@ -1,0 +1,775 @@
+<title>LearnFlow · Custom Tool &amp; Agent-Loop — Testprotokoll</title>
+
+<style>
+  :root {
+    /* Neutrale mit leichter Blaubias Richtung Akzent — Messprotokoll, kein Papier-Look */
+    --ground: #e9edf1;
+    --surface: #ffffff;
+    --surface-sunk: #f2f5f8;
+    --ink: #16212b;
+    --ink-soft: #566573;
+    --ink-faint: #8593a0;
+    --rule: #d2dae1;
+    --rule-strong: #b8c4ce;
+
+    --accent: #2b5d7d;
+    --accent-soft: #e2ecf3;
+
+    --ok: #2f7a57;
+    --ok-soft: #e2f0e9;
+    --warn: #9a6607;
+    --warn-soft: #f6ecd8;
+    --fail: #a63d33;
+    --fail-soft: #f7e5e2;
+
+    --font-display: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    --font-body: Cambria, "Iowan Old Style", Georgia, "Times New Roman", serif;
+    --font-mono: "Cascadia Mono", Consolas, "SF Mono", "Roboto Mono", monospace;
+
+    --shadow: 0 1px 2px rgba(22, 33, 43, .06), 0 8px 24px rgba(22, 33, 43, .07);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0f161d;
+      --surface: #18212b;
+      --surface-sunk: #131c25;
+      --ink: #e4eaf0;
+      --ink-soft: #9aa8b5;
+      --ink-faint: #6d7d8b;
+      --rule: #2a3743;
+      --rule-strong: #3b4b59;
+
+      --accent: #83b4d6;
+      --accent-soft: #1c2c39;
+
+      --ok: #6fc39a;
+      --ok-soft: #16281f;
+      --warn: #d7a54a;
+      --warn-soft: #2a2214;
+      --fail: #e08b81;
+      --fail-soft: #2c1a18;
+
+      --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 10px 28px rgba(0, 0, 0, .35);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #0f161d;
+    --surface: #18212b;
+    --surface-sunk: #131c25;
+    --ink: #e4eaf0;
+    --ink-soft: #9aa8b5;
+    --ink-faint: #6d7d8b;
+    --rule: #2a3743;
+    --rule-strong: #3b4b59;
+
+    --accent: #83b4d6;
+    --accent-soft: #1c2c39;
+
+    --ok: #6fc39a;
+    --ok-soft: #16281f;
+    --warn: #d7a54a;
+    --warn-soft: #2a2214;
+    --fail: #e08b81;
+    --fail-soft: #2c1a18;
+
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 10px 28px rgba(0, 0, 0, .35);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 17px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .deck {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 28px 20px 96px;
+  }
+
+  .slide {
+    display: none;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    box-shadow: var(--shadow);
+    padding: 40px 44px 44px;
+    min-height: 76svh;
+    flex-direction: column;
+    gap: 26px;
+  }
+  .slide.is-active { display: flex; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .slide.is-active { animation: rise .22s ease-out; }
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: none; }
+    }
+  }
+
+  /* ── Typografie ─────────────────────────────────────── */
+
+  .eyebrow {
+    font-family: var(--font-display);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .eyebrow::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--rule);
+  }
+
+  h1, h2, h3 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    text-wrap: balance;
+    margin: 0;
+    letter-spacing: -.015em;
+  }
+  h1 { font-size: clamp(30px, 4.4vw, 46px); line-height: 1.12; }
+  h2 { font-size: clamp(22px, 2.9vw, 30px); line-height: 1.2; }
+  h3 { font-size: 15px; letter-spacing: .01em; }
+
+  p { margin: 0 0 12px; max-width: 66ch; }
+  p:last-child { margin-bottom: 0; }
+  .lead { font-size: 19px; color: var(--ink-soft); }
+
+  strong { font-weight: 600; }
+  code, .mono { font-family: var(--font-mono); font-size: .88em; }
+  code { background: var(--surface-sunk); padding: 1px 5px; border-radius: 3px; }
+
+  .slide > header { flex: 0 0 auto; }
+  .content { flex: 1 1 auto; display: flex; flex-direction: column; gap: 22px; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; align-items: start; }
+  .cols-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  @media (max-width: 760px) {
+    .cols, .cols-3 { grid-template-columns: 1fr; }
+    .slide { padding: 28px 22px 32px; }
+  }
+
+  /* ── Terminal-Auszüge ───────────────────────────────── */
+
+  .stream {
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    line-height: 1.62;
+    background: var(--surface-sunk);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--rule-strong);
+    border-radius: 3px;
+    padding: 14px 16px;
+    margin: 0;
+    overflow-x: auto;
+    white-space: pre;
+    color: var(--ink-soft);
+  }
+  .stream b { color: var(--ink); font-weight: 600; }
+  .stream .call { color: var(--accent); }
+  .stream--ok { border-left-color: var(--ok); }
+  .stream--warn { border-left-color: var(--warn); }
+  .stream--fail { border-left-color: var(--fail); }
+
+  /* ── Status-Pills ───────────────────────────────────── */
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-display);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    padding: 3px 9px;
+    border-radius: 100px;
+    white-space: nowrap;
+  }
+  .pill--ok   { background: var(--ok-soft);   color: var(--ok); }
+  .pill--warn { background: var(--warn-soft); color: var(--warn); }
+  .pill--fail { background: var(--fail-soft); color: var(--fail); }
+
+  /* ── Tabellen ───────────────────────────────────────── */
+
+  .table-wrap { overflow-x: auto; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--font-display);
+    font-size: 14px;
+  }
+  th {
+    text-align: left;
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    font-weight: 600;
+    padding: 0 12px 8px 0;
+    border-bottom: 1px solid var(--rule-strong);
+    white-space: nowrap;
+  }
+  td {
+    padding: 9px 12px 9px 0;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+  }
+  tr:last-child td { border-bottom: none; }
+  .num { font-variant-numeric: tabular-nums; text-align: right; padding-right: 0; white-space: nowrap; }
+  .run-no {
+    font-family: var(--font-mono);
+    color: var(--ink-faint);
+    font-size: 13px;
+  }
+
+  /* ── Kennzahlen ─────────────────────────────────────── */
+
+  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1px; background: var(--rule); border: 1px solid var(--rule); border-radius: 3px; overflow: hidden; }
+  .metric { background: var(--surface); padding: 14px 16px; }
+  .metric dt {
+    font-family: var(--font-display);
+    font-size: 10.5px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 5px;
+  }
+  .metric dd {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 26px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -.02em;
+    line-height: 1.1;
+  }
+  .metric dd span { font-size: 13px; font-weight: 400; color: var(--ink-soft); letter-spacing: 0; }
+
+  /* ── Karten & Listen ────────────────────────────────── */
+
+  .card {
+    background: var(--surface-sunk);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: 16px 18px;
+  }
+  .card h3 { margin-bottom: 8px; }
+  .card p { font-size: 15px; }
+
+  .finding {
+    border-left: 3px solid var(--accent);
+    padding-left: 16px;
+  }
+  .finding h3 { margin-bottom: 6px; }
+
+  ul { margin: 0; padding-left: 20px; max-width: 66ch; }
+  li { margin-bottom: 7px; }
+  li:last-child { margin-bottom: 0; }
+  li::marker { color: var(--ink-faint); }
+
+  .kv { font-family: var(--font-display); font-size: 14px; display: flex; flex-wrap: wrap; gap: 6px 20px; color: var(--ink-soft); }
+  .kv b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  /* ── Titelfolie ─────────────────────────────────────── */
+
+  .title-slide { justify-content: center; gap: 30px; }
+  .title-meta {
+    font-family: var(--font-display);
+    font-size: 13px;
+    color: var(--ink-soft);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 22px;
+    padding-top: 22px;
+    border-top: 1px solid var(--rule);
+  }
+
+  /* ── Ablauf-Diagramm ────────────────────────────────── */
+
+  .chain { display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px; font-family: var(--font-display); font-size: 13px; }
+  .node {
+    background: var(--surface-sunk);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: 10px 14px;
+    flex: 1 1 130px;
+  }
+  .node b { display: block; font-family: var(--font-mono); font-size: 12px; color: var(--accent); margin-bottom: 3px; }
+  .node--mcp { border-color: var(--accent); background: var(--accent-soft); }
+  .arrow { align-self: center; color: var(--ink-faint); font-size: 15px; }
+
+  /* ── Navigation ─────────────────────────────────────── */
+
+  .nav {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    background: color-mix(in srgb, var(--surface) 92%, transparent);
+    backdrop-filter: blur(8px);
+    border-top: 1px solid var(--rule);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 10px 20px;
+    font-family: var(--font-display);
+    font-size: 13px;
+  }
+  .nav-title { color: var(--ink-soft); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .counter { font-variant-numeric: tabular-nums; color: var(--ink-faint); }
+  button {
+    font: inherit;
+    font-weight: 600;
+    color: var(--ink);
+    background: var(--surface-sunk);
+    border: 1px solid var(--rule-strong);
+    border-radius: 3px;
+    padding: 5px 13px;
+    cursor: pointer;
+  }
+  button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  button:disabled { opacity: .4; cursor: default; }
+  button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .progress { position: fixed; left: 0; bottom: 0; height: 2px; background: var(--accent); transition: width .2s ease; z-index: 2; }
+  @media (prefers-reduced-motion: reduce) { .progress { transition: none; } }
+</style>
+
+<div class="deck">
+
+  <!-- 1 ───────────────────────────────────────────────── -->
+  <section class="slide title-slide" data-title="Titel">
+    <header>
+      <p class="eyebrow">CAS ADAI · Modul 5B · Tag 1 · Lab</p>
+      <h1>Ein Linter für unser Gold-Eval-Dataset — und was sieben Agent-Läufe darüber verraten haben</h1>
+    </header>
+    <p class="lead">Wir haben ein Custom Tool für LearnFlow gebaut, es an einen In-Process-MCP-Server
+      gehängt und die Agent-Loop systematisch gegen ihre eigenen Grenzen laufen lassen:
+      Genehmigungen, Budget, Turns, Werkzeugkasten.</p>
+    <div class="title-meta">
+      <span>Team LearnFlow</span>
+      <span>7 Läufe · $0.88 gesamt</span>
+      <span><code>claude-sonnet-4-6</code></span>
+      <span>Artefakten/Modul5BTag1</span>
+    </div>
+  </section>
+
+  <!-- 2 ───────────────────────────────────────────────── -->
+  <section class="slide" data-title="Was wir gebaut haben">
+    <header>
+      <p class="eyebrow">Der Aufbau</p>
+      <h2>Zwei Tools, ein Server, harte Grenzen</h2>
+    </header>
+    <div class="content">
+      <p><code>gold_lint</code> prüft Einträge unseres Gold-Eval-Datasets gegen das Schema aus
+        ADR-009 — die Vorstufe zum CI-Gate EVAL-3. <code>celsius_to_f</code> aus dem Kursbeispiel
+        hängt am selben Server, damit sichtbar wird, wie der Agent pro Teilaufgabe wählt.</p>
+
+      <div class="chain">
+        <div class="node"><b>query()</b>Prompt + Optionen</div>
+        <span class="arrow">→</span>
+        <div class="node"><b>Claude Code Engine</b>Agent-Loop, Werkzeugwahl</div>
+        <span class="arrow">→</span>
+        <div class="node node--mcp"><b>mcp__learnflow__</b>gold_lint · celsius_to_f</div>
+        <span class="arrow">→</span>
+        <div class="node"><b>gold_lint.py</b>Regeln, ohne SDK</div>
+      </div>
+
+      <div class="cols">
+        <div class="card">
+          <h3>Warum diese Trennung</h3>
+          <p>Die Regellogik kennt das SDK nicht. Dadurch ist sie isoliert testbar — 27 Unit-Tests,
+            ohne Netz, ohne API-Kosten — und später auch ohne Agent im CI nutzbar.</p>
+        </div>
+        <div class="card">
+          <h3>Guardrails</h3>
+          <p><code>max_turns</code>, <code>max_budget_usd</code>, <code>permission_mode</code>,
+            dazu <code>tools</code> und <code>allowed_tools</code>. Genau diese fünf haben wir
+            einzeln gegen die Wand gefahren.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 ───────────────────────────────────────────────── -->
+  <section class="slide" data-title="Testmatrix">
+    <header>
+      <p class="eyebrow">Übersicht</p>
+      <h2>Sieben Läufe, vier davon absichtlich an der Grenze</h2>
+    </header>
+    <div class="content">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Lauf</th><th>Skript / Änderung</th><th>Ergebnis</th>
+              <th class="num">Turns</th><th class="num">Kosten</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="run-no">1</td><td><code>my_agent.py</code></td>
+              <td><span class="pill pill--ok">vollständig</span> Lint über 26 Einträge</td>
+              <td class="num">4</td><td class="num">$0.2558</td>
+            </tr>
+            <tr>
+              <td class="run-no">2</td><td>Tool aus <code>allowed_tools</code> entfernt</td>
+              <td><span class="pill pill--fail">abgebrochen</span> Aufruf blieb ungenehmigt</td>
+              <td class="num">4</td><td class="num">$0.1885</td>
+            </tr>
+            <tr>
+              <td class="run-no">3</td><td><code>combined_agent.py</code></td>
+              <td><span class="pill pill--warn">teilweise</span> Umrechnung, Aufgabe 2 fehlte</td>
+              <td class="num">3</td><td class="num">$0.0859</td>
+            </tr>
+            <tr>
+              <td class="run-no">4</td><td><code>effort="low"</code>, Thinking aus</td>
+              <td><span class="pill pill--warn">teilweise</span> rechnet trotzdem, ohne Gegenprobe</td>
+              <td class="num">2</td><td class="num">$0.1269</td>
+            </tr>
+            <tr>
+              <td class="run-no">5</td><td>Budget auf $0.05</td>
+              <td><span class="pill pill--fail">abgebrochen</span> Budget-Limit, Exception</td>
+              <td class="num">1</td><td class="num">$0.1158</td>
+            </tr>
+            <tr>
+              <td class="run-no">6</td><td><code>max_turns=2</code></td>
+              <td><span class="pill pill--fail">abgebrochen</span> Turn-Limit, Exception</td>
+              <td class="num">3</td><td class="num">$0.0406</td>
+            </tr>
+            <tr>
+              <td class="run-no">7</td><td><code>tools=["Read"]</code></td>
+              <td><span class="pill pill--warn">teilweise</span> Agent fragt statt zu raten</td>
+              <td class="num">6</td><td class="num">$0.0659</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="kv"><span>Gesamtkosten <b>$0.8794</b></span><span>teuerster Lauf <b>$0.2558</b></span>
+        <span>günstigster <b>$0.0406</b></span><span>Modell <b>claude-sonnet-4-6</b></span></p>
+    </div>
+  </section>
+
+  <!-- 4 ───────────────────────────────────────────────── -->
+  <section class="slide" data-title="Lauf 1 — der Beleg">
+    <header>
+      <p class="eyebrow">Lauf 1 · my_agent.py</p>
+      <h2>Der Agent liest, sucht sein Tool, prüft — und meldet einen echten Blocker</h2>
+    </header>
+    <div class="content">
+      <pre class="stream stream--ok">&gt;&gt;&gt; TOOL-CALL: <span class="call">Read</span>  Input: {'file_path': '...\LearningCorpus\Eval-Gold-Dataset-Frank.md'}
+&gt;&gt;&gt; TOOL-CALL: <span class="call">ToolSearch</span>  Input: {'query': 'select:mcp__learnflow__gold_lint'}
+&gt;&gt;&gt; TOOL-CALL: <span class="call">mcp__learnflow__gold_lint</span>  Input: {'entry_yaml': '- id: GBL-01 …' (12077 Zeichen)}
+
+<b>--- Turns: 4 · Kosten: $0.2558 ---</b></pre>
+
+      <dl class="metrics">
+        <div class="metric"><dt>geprüft</dt><dd>26 <span>Einträge</span></dd></div>
+        <div class="metric"><dt>ohne Befund</dt><dd>7</dd></div>
+        <div class="metric"><dt>Befund <code>TBD</code></dt><dd>19</dd></div>
+        <div class="metric"><dt>dateiweit</dt><dd>1 <span>Umfang</span></dd></div>
+      </dl>
+
+      <div class="finding">
+        <h3>Was der Agent daraus gemacht hat</h3>
+        <p>Alle 19 Befunde sind derselbe: <code>expected_source_id</code> steht auf <code>TBD</code>
+          statt auf einer Chunk-ID. Der Agent hat korrekt gefolgert, dass die Chunk-IDs nach der
+          Indexierung des SKOS-Korpus nachgetragen werden müssen — und keine Befunde erfunden,
+          die das Tool nicht gemeldet hat.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 ───────────────────────────────────────────────── -->
+  <section class="slide" data-title="Statische Vorprüfung">
+    <header>
+      <p class="eyebrow">Ohne Agent · deterministisch · kostenlos</p>
+      <h2>Dieselbe Regellogik über alle vier Gold-Datasets</h2>
+    </header>
+    <div class="content">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Dataset</th><th class="num">Einträge</th><th class="num">ohne Befund</th><th>häufigster Befund</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>…-Frank.md</code></td><td class="num">26</td><td class="num">7</td><td>19 × <code>expected_source_id: TBD</code></td></tr>
+            <tr><td><code>…-Reto.md</code></td><td class="num">27</td><td class="num">7</td><td>17 × TBD · <strong>3 × YAML nicht lesbar</strong></td></tr>
+            <tr><td><code>…-Christoph.md</code></td><td class="num">26</td><td class="num">7</td><td>19 × TBD</td></tr>
+            <tr><td><code>…-Christoph.yaml</code></td><td class="num">26</td><td class="num">7</td><td>19 × TBD</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="finding">
+        <h3>Der Fund, den niemand gesehen hatte</h3>
+        <p>Drei Einträge in Retos Datei sind für keinen YAML-Parser lesbar: typografische
+          Anführungszeichen innerhalb eines <code>"…"</code>-Strings. Das hat die Regellogik
+          verändert — ein kaputter Eintrag darf die übrigen 24 nicht blockieren, also fällt das
+          Parsen jetzt satzweise zurück und meldet den Defekt als eigenen Befund.</p>
+      </div>
+      <p class="kv"><span>Tests <b>27/27 grün</b></span><span>Laufzeit <b>0.13 s</b></span><span>API-Kosten <b>$0.00</b></span></p>
+    </div>
+  </section>
+
+  <!-- 6 ───────────────────────────────────────────────── -->
+  <section class="slide" data-title="Lauf 2 — Genehmigung">
+    <header>
+      <p class="eyebrow">Lauf 2 · Freigabe entzogen</p>
+      <h2>Ohne Eintrag in <code>allowed_tools</code> fragt der Agent — und im SDK antwortet niemand</h2>
+    </header>
+    <div class="content">
+      <p>Für Lauf 2 haben wir <code>mcp__learnflow__gold_lint</code> aus <code>allowed_tools</code>
+        entfernt und sonst nichts geändert. Das Tool ist weiterhin da und wird auch aufgerufen —
+        es ist nur nicht mehr vorgenehmigt.</p>
+      <pre class="stream stream--fail">&gt;&gt;&gt; TOOL-CALL: <span class="call">mcp__learnflow__gold_lint</span>  Input: {'entry_yaml': '- id: GBL-01 …' (12077 Zeichen)}
+Das Tool braucht deine Genehmigung — bitte bestätige die Anfrage, damit
+`mcp__learnflow__gold_lint` ausgeführt werden kann.
+
+<b>--- Turns: 4 · Kosten: $0.1885 ---</b></pre>
+      <div class="cols">
+        <div class="card">
+          <h3>Warum es hängt</h3>
+          <p>Die Permission-Prüfung ergibt „ask". Im SDK ersetzt der
+            <code>can_use_tool</code>-Callback den interaktiven Prompt — den haben wir nicht
+            gesetzt, also kann niemand zusagen. Der Aufruf kommt nie zustande, und das Skript
+            läuft ohne Fehler ins Leere.</p>
+        </div>
+        <div class="card">
+          <h3>Was es trotzdem kostet</h3>
+          <p>Bezahlt ist zu diesem Zeitpunkt alles: Datei gelesen, Tool-Schema geladen, der
+            12'077-Zeichen-Block aufgebaut. <strong>$0.1885 für null Ergebnis.</strong> Eine
+            fehlende Freigabe fällt erst am Ende der Werkzeugkette auf — nicht davor.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 ───────────────────────────────────────────────── -->
+  <section class="slide" data-title="Läufe 3+4 — Tool-Vertrag">
+    <header>
+      <p class="eyebrow">Läufe 3 &amp; 4 · combined_agent.py</p>
+      <h2>Das Tool kann nur eine Richtung — der Agent merkt es und rechnet selbst</h2>
+    </header>
+    <div class="content">
+      <p>Wir haben nach <strong>75 °F in Celsius</strong> gefragt. <code>celsius_to_f</code> kann
+        aber nur C → F. Der Agent hat den Vertrag aus Beschreibung und Schema korrekt gelesen:</p>
+      <pre class="stream stream--warn">Das verfügbare MCP-Tool rechnet nur <b>Celsius → Fahrenheit</b>, nicht umgekehrt.
+Ich rechne die Umkehrformel aus und verifiziere das Ergebnis mit dem Tool:
+<b>C = (75 − 32) × 5/9 ≈ 23.89 °C</b>
+&gt;&gt;&gt; TOOL-CALL: <span class="call">mcp__learnflow__celsius_to_f</span>  Input: {'c': 23.89}
+<b>75 °F = 23.89 °C ✓ (Tool-Verifikation: 23.89 °C → 75.002 °F)</b></pre>
+      <div class="cols">
+        <div class="card">
+          <h3>Lauf 3 — mit Reasoning</h3>
+          <p>Der Agent nutzt das Tool als <em>Gegenprobe</em> für sein eigenes Ergebnis. Diese
+            Idee stand in keinem Prompt.</p>
+          <p class="kv"><span>Turns <b>3</b></span><span><b>$0.0859</b></span></p>
+        </div>
+        <div class="card">
+          <h3>Lauf 4 — <code>effort="low"</code>, Thinking aus</h3>
+          <p><strong>Hypothese:</strong> ohne Reasoning-Budget bleibt die Umkehrrechnung aus.</p>
+          <p><strong>Ergebnis:</strong> Sie kam trotzdem — nur die Gegenprobe mit dem Tool fiel weg.
+            Das Modell formt die Formel weiter selbst um, es verzichtet auf die Kontrolle. Billiger
+            wurde der Lauf dadurch auch nicht.</p>
+          <p class="kv"><span>Turns <b>2</b></span><span><b>$0.1269</b></span></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8 ───────────────────────────────────────────────── -->
+  <section class="slide" data-title="Läufe 5+6 — Guardrails">
+    <header>
+      <p class="eyebrow">Läufe 5 &amp; 6 · die Grenzen</p>
+      <h2>Budget und Turns greifen — aber als Exception, nicht als Ergebnis</h2>
+    </header>
+    <div class="content">
+      <div class="cols">
+        <div>
+          <pre class="stream stream--fail">--- Tool-Aufrufe: Glob ×1, ToolSearch ×1
+--- Turns: 1 · Kosten: $0.1158 ---
+Traceback (most recent call last):
+  …
+<b>Exception: Reached maximum budget ($0.05)</b></pre>
+          <p style="margin-top:12px">Das Limit stoppt zuverlässig — aber der Prozess endet mit
+            einem Stacktrace. Für den Pilotbetrieb heisst das: <code>query()</code> gehört in ein
+            <code>try/except</code>, sonst reisst ein Kostenlimit den Worker mit.</p>
+        </div>
+        <div>
+          <pre class="stream stream--fail">&gt;&gt;&gt; TOOL-CALL: <span class="call">Glob</span>  {'pattern': 'Docs/04_ADR-009*.md'}
+&gt;&gt;&gt; TOOL-CALL: <span class="call">Read</span>  {'file_path': '…Docs\04_ADR-009_Eval-Strategie.md'}
+--- Turns: 3 · Kosten: $0.0406 ---
+<b>Exception: Reached maximum number of turns (2)</b></pre>
+          <p style="margin-top:12px">Das Experiment aus dem Lab: Der Agent hatte die richtige Datei
+            gerade gefunden und gelesen — die Antwort formulieren durfte er nicht mehr. Das Limit
+            muss oberhalb der erwarteten Werkzeugkette liegen.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9 ───────────────────────────────────────────────── -->
+  <section class="slide" data-title="Lauf 7 — Werkzeugkasten">
+    <header>
+      <p class="eyebrow">Lauf 7 · tools=["Read"]</p>
+      <h2>Erst als wir den Werkzeugkasten leerten, wurde die Grenze echt</h2>
+    </header>
+    <div class="content">
+      <p><code>allowed_tools</code> genehmigt nur — <code>tools</code> entscheidet, was überhaupt
+        existiert. Bis Lauf 6 hatte der Agent den vollen Claude-Code-Werkzeugkasten und benutzte
+        selbstverständlich <code>Glob</code>. Nach der Umstellung:</p>
+      <pre class="stream stream--warn">&gt;&gt;&gt; TOOL-CALL: <span class="call">mcp__learnflow__celsius_to_f</span>  Input: {'c': 23.89}
+&gt;&gt;&gt; TOOL-CALL: <span class="call">Read</span>  {'file_path': '…\Docs\04_ADR-009_Eval.md'}
+Beim ADR-009 hat der direkte Pfad nicht funktioniert, ich suche die Datei.
+&gt;&gt;&gt; TOOL-CALL: <span class="call">Read</span>  {'file_path': '…\Docs'}
+&gt;&gt;&gt; TOOL-CALL: <span class="call">Read</span>  {'file_path': '…\04_ADR-009_Eval-Gold-Dataset.md'}
+Ich kann das Verzeichnis nicht auflisten — dafür bräuchte ich das Shell-Tool,
+das du freigeben müsstest.
+
+<b>--- Tool-Aufrufe: Read ×4, mcp__learnflow__celsius_to_f ×1 · Turns: 6 · $0.0659 ---</b></pre>
+      <div class="cols">
+        <div class="card">
+          <h3>Das gute Verhalten</h3>
+          <p>Der Agent rät den Dateinamen viermal, gibt dann auf und <em>fragt</em> — er erfindet
+            keinen Inhalt für ADR-009. Genau das Verhalten, das wir für LearnFlow brauchen.</p>
+        </div>
+        <div class="card">
+          <h3>Der Nebeneffekt</h3>
+          <p><code>ToolSearch</code> verschwand aus dem Stream: Mit kleinem Werkzeugkasten kennt
+            das Modell die MCP-Tools sofort und ruft sie direkt auf, statt erst ihr Schema zu laden.
+            Weniger Tools heisst auch weniger Umwege.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10 ──────────────────────────────────────────────── -->
+  <section class="slide" data-title="Erkenntnisse">
+    <header>
+      <p class="eyebrow">Was wir mitnehmen</p>
+      <h2>Vier Dinge, die im Handout so nicht standen</h2>
+    </header>
+    <div class="content">
+      <div class="cols">
+        <div class="finding">
+          <h3>Verfügbarkeit ≠ Genehmigung</h3>
+          <p><code>allowed_tools</code> ist die Freigabe, <code>tools</code> der Werkzeugkasten.
+            Lauf 2 zeigt die eine Hälfte — ohne Freigabe stirbt die Kette am letzten Glied; Lauf 7
+            die andere — ohne <code>tools</code> hat der Agent Bash und Write im Kontext, nur eben
+            unbestätigt.</p>
+        </div>
+        <div class="finding">
+          <h3>Guardrails sind Exceptions</h3>
+          <p>Budget- und Turn-Limit beenden den Prozess mit Stacktrace. Wer sie produktiv nutzt,
+            muss sie abfangen und den Teilstand sichern.</p>
+        </div>
+        <div class="finding">
+          <h3>MCP-Tools kosten einen Umweg</h3>
+          <p>Bei vollem Werkzeugkasten lädt die Engine das Schema erst per <code>ToolSearch</code> —
+            ein zusätzlicher Turn, bevor das eigene Tool überhaupt läuft.</p>
+        </div>
+        <div class="finding">
+          <h3>Die Beschreibung ist der Vertrag</h3>
+          <p>Der Agent hat die Richtung von <code>celsius_to_f</code> aus der Beschreibung gelesen
+            und die Lücke offengelegt, statt sie zu überspielen. Schlechte Beschreibungen erzeugen
+            genau hier stille Fehler.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 11 ──────────────────────────────────────────────── -->
+  <section class="slide" data-title="Bilanz &amp; nächste Schritte">
+    <header>
+      <p class="eyebrow">Bilanz</p>
+      <h2>Ein Tool, das bleibt — und eine Rechnung unter einem Dollar</h2>
+    </header>
+    <div class="content">
+      <dl class="metrics">
+        <div class="metric"><dt>Agent-Läufe</dt><dd>7</dd></div>
+        <div class="metric"><dt>Gesamtkosten</dt><dd>$0.88</dd></div>
+        <div class="metric"><dt>Unit-Tests</dt><dd>27 <span>grün</span></dd></div>
+        <div class="metric"><dt>echte Funde</dt><dd>3 <span>kaputte Einträge</span></dd></div>
+      </dl>
+      <div class="cols">
+        <div>
+          <h3 style="margin-bottom:10px">Nächste Schritte</h3>
+          <ul>
+            <li>Retos drei nicht lesbare Einträge reparieren</li>
+            <li><code>expected_source_id</code> nach der Korpus-Indexierung nachtragen — 19 Einträge
+              allein in Franks Datei</li>
+            <li><code>gold_lint</code> als CI-Vorprüfung vor das Eval-Gate EVAL-3 hängen</li>
+            <li><code>query()</code> in <code>try/except</code> fassen, Teilstand sichern</li>
+          </ul>
+        </div>
+        <div>
+          <h3 style="margin-bottom:10px">Hausaufgabe bis Tag 2</h3>
+          <p>Zweiter Parameter <code>strict: bool</code> — zusätzlich prüfen, ob
+            <code>expected_source</code> gesetzt ist und ob <code>version_sensitive</code> bei
+            Beträgen <code>true</code> ist. Die Teuerungsanpassung ist der häufigste Grund für
+            veraltete Referenzantworten.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<div class="progress" id="progress"></div>
+<nav class="nav">
+  <span class="counter" id="counter">1 / 11</span>
+  <span class="nav-title" id="navTitle">Titel</span>
+  <button id="prev" aria-label="Vorherige Folie">← Zurück</button>
+  <button id="next" aria-label="Nächste Folie">Weiter →</button>
+</nav>
+
+<script>
+  (function () {
+    var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+    var counter = document.getElementById('counter');
+    var navTitle = document.getElementById('navTitle');
+    var progress = document.getElementById('progress');
+    var prev = document.getElementById('prev');
+    var next = document.getElementById('next');
+    var i = 0;
+
+    function show(n) {
+      i = Math.max(0, Math.min(slides.length - 1, n));
+      slides.forEach(function (s, k) { s.classList.toggle('is-active', k === i); });
+      counter.textContent = (i + 1) + ' / ' + slides.length;
+      navTitle.textContent = slides[i].dataset.title || '';
+      progress.style.width = ((i + 1) / slides.length * 100) + '%';
+      prev.disabled = i === 0;
+      next.disabled = i === slides.length - 1;
+      window.scrollTo(0, 0);
+      if (location.hash !== '#' + (i + 1)) history.replaceState(null, '', '#' + (i + 1));
+    }
+
+    prev.addEventListener('click', function () { show(i - 1); });
+    next.addEventListener('click', function () { show(i + 1); });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') { show(i + 1); e.preventDefault(); }
+      else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { show(i - 1); e.preventDefault(); }
+      else if (e.key === 'Home') { show(0); e.preventDefault(); }
+      else if (e.key === 'End') { show(slides.length - 1); e.preventDefault(); }
+    });
+
+    var start = parseInt((location.hash || '').slice(1), 10);
+    show(isNaN(start) ? 0 : start - 1);
+  })();
+</script>
