@@ -2,6 +2,7 @@ import pathlib
 
 import pytest
 
+from app.exceptions import UserFacingError
 from app.services.parsing import (
     DOCX_CONTENT_TYPE,
     MARKDOWN_CONTENT_TYPE,
@@ -59,5 +60,5 @@ def test_parse_empty_document_yields_no_blocks() -> None:
 
 
 def test_parse_unsupported_content_type_raises() -> None:
-    with pytest.raises(ValueError, match="Content-Type"):
+    with pytest.raises(UserFacingError, match="Content-Type"):
         parse_document(b"data", "application/zip")

@@ -2,6 +2,7 @@ import re
 
 import pytest
 
+from app.exceptions import UserFacingError
 from app.services.chunking import chunk_blocks
 from app.services.parsing import ParsedBlock
 
@@ -148,7 +149,7 @@ def test_no_blocks_yields_no_chunks() -> None:
 
 @pytest.mark.parametrize(("chunk_size", "chunk_overlap"), [(0, 0), (10, 10), (10, -1)])
 def test_invalid_parameters_are_rejected(chunk_size: int, chunk_overlap: int) -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(UserFacingError, match="Chunk-Konfiguration ungültig"):
         chunk_blocks(
             [ParsedBlock(text="Text.")],
             chunk_size=chunk_size,

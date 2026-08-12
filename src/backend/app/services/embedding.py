@@ -14,6 +14,7 @@ from typing import Any
 import litellm
 
 from app.config import settings
+from app.exceptions import UserFacingError
 
 # OpenAI caps one embeddings request at 300k tokens. At the ADR-007 chunk size
 # of 512 tokens, 64 inputs are ~33k — enough headroom that raising chunk_size
@@ -69,12 +70,12 @@ def _vectors_from(response: Any, expected: int) -> list[list[float]]:
     # mix-up would not raise, it would produce wrong citations at query time.
     items = sorted(response.data, key=lambda item: int(item["index"]))
     if len(items) != expected:
-        raise ValueError(f"Embedding-Antwort enthält {len(items)} statt {expected} Vektoren")
+        raise UserFacingError(f"Embedding-Antwort enthält {len(items)} statt {expected} Vektoren")
 
     vectors = [[float(value) for value in item["embedding"]] for item in items]
     for vector in vectors:
         if len(vector) != settings.embed_dimensions:
-            raise ValueError(
+            raise UserFacingError(
                 f"Embedding hat {len(vector)} statt {settings.embed_dimensions} Dimensionen"
             )
     return vectors
