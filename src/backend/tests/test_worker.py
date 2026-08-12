@@ -21,6 +21,19 @@ def fake_tokenizer(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("worker.main.count_tokens", lambda text: len(text.split()))
 
 
+@pytest.fixture(autouse=True)
+def fake_embeddings(monkeypatch: pytest.MonkeyPatch) -> None:
+    """No test may reach the embedding provider — CI runs with a dummy API key.
+    The n-th chunk gets the vector [n, 0.5], so tests can assert which vector
+    ended up on which chunk, not merely that one is present.
+    """
+
+    async def embed(texts: list[str]) -> list[list[float]]:
+        return [[float(i), 0.5] for i in range(len(texts))]
+
+    monkeypatch.setattr("worker.main.embed_texts", embed)
+
+
 def make_job(document_id: str) -> Job:
     now = datetime.now(UTC)
     return Job(
@@ -72,7 +85,7 @@ async def test_process_document_writes_chunks_and_marks_available() -> None:
     # NULL) from producing a NULL tsv.
     assert "to_tsvector('german', coalesce($6, '') || ' ' || $3)" in sql
     assert len(rows) == 1
-    chunk_id, doc_id, text, index, page, heading = rows[0]
+    chunk_id, doc_id, text, index, page, heading, _embedding = rows[0]
     # chunks.id has no server default — the worker supplies it.
     assert uuid.UUID(chunk_id)
     assert (doc_id, text, index, page, heading) == (
@@ -113,6 +126,76 @@ async def test_chunk_parameters_come_from_config() -> None:
     _, rows = conn.executemany.await_args.args
     assert len(rows) > 1
     assert [row[3] for row in rows] == list(range(len(rows)))
+
+
+async def test_stores_one_embedding_per_chunk() -> None:
+    document_id = str(uuid.uuid4())
+    body = " ".join(f"Satz nummer {i} mit sechs Wörtern." for i in range(1, 6))
+    conn = make_conn(
+        content=f"# Titel\n\n{body}".encode(),
+        config=(("chunk_size", "8"), ("chunk_overlap", "0")),
+    )
+
+    await process_document(conn, make_job(document_id))
+
+    sql, rows = conn.executemany.await_args.args
+    # Bound as text and cast in Postgres — asyncpg has no codec for `vector`.
+    assert "embedding" in sql
+    assert "$7::text::vector" in sql
+    # Vectors keep their chunk's position; a mix-up here would show up as wrong
+    # citations at query time, not as an error.
+    assert [json.loads(row[6]) for row in rows] == [[float(i), 0.5] for i in range(len(rows))]
+
+
+async def test_embedding_runs_before_the_transaction_opens(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The whole point of the split: seconds of HTTP must not happen inside an
+    open transaction, where they would block VACUUM on chunks.
+    """
+    conn = make_conn()
+    open_transactions: list[int] = []
+
+    async def embed(texts: list[str]) -> list[list[float]]:
+        open_transactions.append(conn.transaction.call_count)
+        return [[0.0, 0.5] for _ in texts]
+
+    monkeypatch.setattr("worker.main.embed_texts", embed)
+
+    await process_document(conn, make_job(str(uuid.uuid4())))
+
+    assert open_transactions == [0]
+
+
+async def test_embedding_failure_marks_the_document_failed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    document_id = str(uuid.uuid4())
+    conn = make_conn()
+
+    # Shaped like a real provider error: an auth failure echoes a fragment of
+    # the key, and the whole string would otherwise reach the API client.
+    secret = "AuthenticationError: Incorrect API key provided: sk-proj-abc***XYZ (api_base: ...)"
+
+    async def fail(texts: list[str]) -> list[list[float]]:
+        raise RuntimeError(secret)
+
+    monkeypatch.setattr("worker.main.embed_texts", fail)
+
+    with pytest.raises(RuntimeError):
+        await process_document(conn, make_job(document_id))
+
+    # Nothing was written, so the previous index of this document survives.
+    conn.executemany.assert_not_awaited()
+    assert ("DELETE FROM chunks WHERE document_id = $1", document_id) not in executed(conn)
+    assert executed(conn)[-1] == (
+        "UPDATE documents SET status = 'failed', error_message = $2 WHERE id = $1",
+        document_id,
+        "Verarbeitung fehlgeschlagen",
+    )
+    # documents.error_message is served to every authenticated user by
+    # GET /documents/{id} — nothing from the provider may end up in it.
+    assert not any(secret in str(call) for call in executed(conn))
 
 
 async def test_process_document_without_extractable_text_fails() -> None:
