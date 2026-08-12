@@ -88,8 +88,13 @@ async def test_upload_oversized_file_returns_413() -> None:
     assert r.status_code == 413
 
 
-async def test_upload_unknown_area_returns_422() -> None:
-    """A non-pilot area would create a document unreachable by list/get/delete."""
+async def test_upload_unknown_area_returns_400() -> None:
+    """A non-pilot area would create a document unreachable by list/get/delete.
+
+    400, not 422: FastAPI's own request validation (e.g. a missing file) already
+    owns 422 with a different body shape (an array, not a string) — this business
+    rule needs a status of its own to keep the spec's `422 -> Error` unambiguous.
+    """
     db = make_db()
     app.dependency_overrides[get_current_user] = lambda: make_user("knowledge_owner")
     app.dependency_overrides[get_db] = lambda: db
@@ -98,7 +103,7 @@ async def test_upload_unknown_area_returns_422() -> None:
         files = {"file": ("notes.pdf", io.BytesIO(b"content"), "application/octet-stream")}
         r = await client.post("/documents", files=files, data={"area": "not-the-pilot-area"})
 
-    assert r.status_code == 422
+    assert r.status_code == 400
     db.add.assert_not_called()
 
 

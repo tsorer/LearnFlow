@@ -50,7 +50,9 @@ def _to_response(document: Document) -> DocumentResponse:
 
 
 async def _get_pilot_area_document(document_id: uuid.UUID, db: AsyncSession) -> Document:
-    document = await db.get(Document, document_id)
+    # defer(content): GET liefert kein content-Feld, DELETE braucht es nur zum Löschen
+    # der Zeile — das bis zu 10 MB grosse bytea (ADR-003) muss dafür nicht geladen werden.
+    document = await db.get(Document, document_id, options=[defer(Document.content)])
     # Gleiches 404 für "nicht gefunden" und "falscher Bereich" — die Existenz eines
     # fremden Dokuments soll ausserhalb des eigenen Bereichs nicht preisgegeben werden.
     if document is None or document.area != PILOT_AREA:
@@ -81,9 +83,13 @@ async def upload_document(
     user: User = Depends(require_knowledge_owner),
     db: AsyncSession = Depends(get_db),
 ) -> DocumentResponse:
+    # 400, nicht 422: FastAPI nutzt 422 bereits für seine eigene Request-Validierung
+    # (z.B. fehlende Datei) mit einer anderen Body-Form (Array statt String) — beides
+    # unter demselben Code wäre ein uneindeutiger Vertrag für die generierten
+    # Frontend-Typen (T-39).
     if area != PILOT_AREA:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Unbekannter Bereich (MVP: nur '{PILOT_AREA}')",
         )
 

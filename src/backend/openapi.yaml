@@ -196,7 +196,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        '422':
+        '400':
           description: 'Unbekannter Bereich (MVP: nur der hartcodierte Pilot-Bereich)'
           content:
             application/json:
