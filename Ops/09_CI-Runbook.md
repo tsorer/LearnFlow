@@ -93,7 +93,7 @@ erzwungen**, einmalig in GitHub einstellen:
 1. Repo → **Settings → Branches → Add branch protection rule**
 2. Branch-Pattern: `main`
 3. **Require status checks to pass before merging** aktivieren
-4. Als erforderliche Checks **`backend`** und **`frontend`** auswählen
+4. Als erforderliche Checks **`backend`**, **`frontend`** und **`e2e`** auswählen
    (erscheinen in der Liste, sobald der Workflow einmal gelaufen ist)
 5. Empfohlen: **Require a pull request before merging** (greift mit DoD-Kriterium 1,
    Review durch eine zweite Person)
