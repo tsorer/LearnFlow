@@ -214,11 +214,20 @@ FRAMEWORK_DOC_ROUTES = {"/openapi.json", "/docs", "/docs/oauth2-redirect", "/red
 
 
 def test_only_api_routes_and_known_framework_routes_are_served() -> None:
-    """Nothing reaches the network that the two checks below cannot see.
+    """Nothing on app.routes reaches the network that the two checks below
+    cannot see.
 
     Both of them walk APIRoute instances. Anything registered at the Starlette
     level is invisible to them, so it is enumerated here instead — and the docs
     routes are additionally tied to the flag that is supposed to control them.
+
+    Known gap, top level only: a non-APIRoute registered on an *included*
+    router sits behind the _IncludedRouter wrapper, which the comprehension
+    below skips via `original_router` and which _iter_api_routes narrows to
+    APIRoute again. Such a route is served, unauthenticated and undeclared,
+    with all three conformance checks green. Accepted as a residual risk — it
+    takes registering a route past FastAPI's decorators to get there. Do not
+    read this test as covering it.
     """
     non_api = {
         getattr(route, "path", repr(route))

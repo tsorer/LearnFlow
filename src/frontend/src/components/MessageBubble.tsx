@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { Message, ChunkDebugInfo, StageInfo, LLMCallInfo, DebugInfo, ConfidenceInfo } from "../types";
 import { ApiError, api } from "../api/client";
 
@@ -343,6 +343,11 @@ interface Props { message: Message; token: string; }
 export default function MessageBubble({ message: m, token }: Props) {
   const [feedback, setFeedback] = useState<boolean | null>(null);
   const [feedbackError, setFeedbackError] = useState("");
+  // A ref, not state: nothing renders from it, and a ref is already set when
+  // the next click handler runs. State would only hold if React flushed the
+  // update before that click — true for discrete events today, but an implicit
+  // dependency for a guard whose whole job is to be unconditional.
+  const submitting = useRef(false);
   const [showSources, setShowSources] = useState(false);
 
   // The previous 1-5 stars existed neither in the spec nor in the database:
@@ -350,7 +355,13 @@ export default function MessageBubble({ message: m, token }: Props) {
   // TODO (T-31): add the category picker and the free-text field — both are
   // already in the contract and are still sent as null here.
   const submitFeedback = async (helpful: boolean) => {
-    if (!m.answer_id || feedback !== null) return;
+    // `feedback` only guards a stored rating — it is set after the await, so
+    // during the request it is still null. Without `submitting` a double click
+    // (or 👍 then 👎 before the first answer) posts twice for the same
+    // answer_id; from T-30 on that is two rows with contradicting `helpful`,
+    // and the US-03 evaluation cannot tell which one the user meant.
+    if (!m.answer_id || feedback !== null || submitting.current) return;
+    submitting.current = true;
     setFeedbackError("");
     try {
       await api.submitFeedback(m.answer_id, helpful, null, null, token);
@@ -364,6 +375,8 @@ export default function MessageBubble({ message: m, token }: Props) {
           ? "Bewertungen sind noch nicht verfügbar."
           : "Bewertung konnte nicht gespeichert werden.",
       );
+    } finally {
+      submitting.current = false;
     }
   };
 

@@ -55,6 +55,12 @@ qa-fe:
 # Generator selbst braucht unter einer Sekunde, ein voller Install jedes Mal
 # machte den Befehl teurer als das Problem. CLAUDE.md schreibt ihn nach jeder
 # Spec-Änderung vor — was Minuten kostet, wird umgangen.
+#
+# Die Bedingung prüft die Binärdatei, nicht das Lockfile: nach einem Bump von
+# openapi-typescript generiert das Volume weiter mit der alten Version, und die
+# committeten Typen fallen in der CI durch — mit genau dem Befehl in der
+# Meldung, den man gerade ausgeführt hat. Dann einmalig:
+#   docker volume rm learnflow-fe-node-modules
 generate-api:
 	docker run --rm \
 		-v "$(CURDIR)/frontend:/app" \

@@ -12,6 +12,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { delimiter, resolve } from 'node:path';
+import { findBareFetch } from './bare-fetch.mjs';
 
 const SPEC = '../backend/openapi.yaml';
 const GENERATED = 'src/api/schema.d.ts';
@@ -56,22 +57,10 @@ if (normalize(generated.stdout) !== normalize(readFileSync(GENERATED, 'utf8'))) 
   );
 }
 
-// `globalThis.fetch` is the transport openapi-fetch is configured with — the
-// one legitimate reference. Anything else building its own request bypasses the
-// typed layer and with it every guarantee this script exists for.
-//
-// Comments and string literals are removed first: matching the raw text made
-// the word "fetch(" in a comment fail the build. The pattern then looks for the
-// identifier rather than a call shape, so that whitespace before the paren and
-// an aliased reference (`const f = globalThis.fetch`) are caught too. Two forms
-// are allowed: `globalThis.fetch` as the transport, and `fetch:` as the option
-// key naming it — a key is a name, not a reference to the global.
-const stripped = readFileSync(CLIENT, 'utf8')
-  .replace(/\/\*[\s\S]*?\*\//g, '')
-  .replace(/(^|[^:])\/\/.*$/gm, '$1')
-  .replace(/(["'`])(?:\\.|(?!\1)[^\\])*\1/g, '""');
-
-const bareFetch = [...stripped.matchAll(/(?<!globalThis\s*\.\s*)\bfetch\b(?!\s*:)/g)];
+// The scan itself lives in bare-fetch.mjs, where scripts/bare-fetch.test.mjs
+// can hold it to its promise — comments and strings must not be able to hide a
+// bare fetch from it.
+const bareFetch = findBareFetch(readFileSync(CLIENT, 'utf8'));
 if (bareFetch.length > 0) {
   fail(
     `${CLIENT} greift direkt auf fetch zu (${bareFetch.length}x).\n` +
