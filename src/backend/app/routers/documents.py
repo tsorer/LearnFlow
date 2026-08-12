@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, s
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import defer
 
 from app.auth.dependencies import require_knowledge_owner
 from app.database import get_db
@@ -48,13 +49,27 @@ def _to_response(document: Document) -> DocumentResponse:
     )
 
 
+async def _get_pilot_area_document(document_id: uuid.UUID, db: AsyncSession) -> Document:
+    document = await db.get(Document, document_id)
+    # Gleiches 404 für "nicht gefunden" und "falscher Bereich" — die Existenz eines
+    # fremden Dokuments soll ausserhalb des eigenen Bereichs nicht preisgegeben werden.
+    if document is None or document.area != PILOT_AREA:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dokument nicht gefunden")
+    return document
+
+
 @router.get("", response_model=list[DocumentResponse])
 async def list_documents(
     user: User = Depends(require_knowledge_owner),
     db: AsyncSession = Depends(get_db),
 ) -> list[DocumentResponse]:
+    # defer(content): DocumentResponse liefert kein content-Feld, das bis zu 10 MB
+    # grosse bytea (ADR-003) soll daher gar nicht erst aus der DB geladen werden.
     result = await db.execute(
-        select(Document).where(Document.area == PILOT_AREA).order_by(Document.created_at.desc())
+        select(Document)
+        .options(defer(Document.content))
+        .where(Document.area == PILOT_AREA)
+        .order_by(Document.created_at.desc())
     )
     return [_to_response(d) for d in result.scalars().all()]
 
@@ -66,6 +81,12 @@ async def upload_document(
     user: User = Depends(require_knowledge_owner),
     db: AsyncSession = Depends(get_db),
 ) -> DocumentResponse:
+    if area != PILOT_AREA:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"Unbekannter Bereich (MVP: nur '{PILOT_AREA}')",
+        )
+
     filename = file.filename or ""
     ext = "." + filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
     if ext not in ALLOWED_CONTENT_TYPES:
@@ -102,15 +123,6 @@ async def upload_document(
     await db.commit()
 
     return _to_response(document)
-
-
-async def _get_pilot_area_document(document_id: uuid.UUID, db: AsyncSession) -> Document:
-    document = await db.get(Document, document_id)
-    # Same 404 for "missing" and "wrong area" — existence of another area's
-    # document is not something to reveal to a knowledge_owner outside it.
-    if document is None or document.area != PILOT_AREA:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dokument nicht gefunden")
-    return document
 
 
 @router.get("/{document_id}", response_model=DocumentResponse)

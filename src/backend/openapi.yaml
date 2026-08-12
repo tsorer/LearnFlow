@@ -196,6 +196,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '422':
+          description: 'Unbekannter Bereich (MVP: nur der hartcodierte Pilot-Bereich)'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /api/documents/{document_id}:
     get:
