@@ -39,9 +39,15 @@ ROWS = [
 def upgrade() -> None:
     bind = op.get_bind()
     for key, value, description in ROWS:
+        # `key` is the primary key and the pilot checklist used to seed exactly
+        # these two rows by hand, so an INSERT would abort the upgrade wherever
+        # that was already done. DO NOTHING rather than DO UPDATE: an existing
+        # value is a deliberate operator setting and must not be reset to the
+        # start value by a migration.
         bind.execute(
             sa.text(
-                "INSERT INTO config (key, value, description) VALUES (:key, :value, :description)"
+                "INSERT INTO config (key, value, description) "
+                "VALUES (:key, :value, :description) ON CONFLICT (key) DO NOTHING"
             ),
             {"key": key, "value": value, "description": description},
         )
