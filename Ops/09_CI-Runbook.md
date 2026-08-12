@@ -86,6 +86,12 @@ Der Exit-Code ist das einzige Signal, auf das die CI hört.
 
 ## Verifikation 2 — in der CI, als erzwungenes Merge-Gate
 
+> **Status (2026-08-12): aktuell deaktiviert.** Die Regel wurde im Rahmen von T-41
+> aktiviert und verifiziert (Issue #64), auf Team-Entscheid aber wieder entfernt, weil
+> alle im Team direkt auf `main` Artifakte pushen können müssen — „Require a pull request before
+> merging" verhindert das für alle, auch für Admins. Die Anleitung unten bleibt als
+> Vorlage stehen, falls die Regel später wieder aktiviert wird.
+
 Die Datei `.github/workflows/ci.yml` führt dieselben Befehle bei jedem PR auf einem
 sauberen Runner aus. Damit „grün" nicht Vertrauenssache ist, sondern **technisch
 erzwungen**, einmalig in GitHub einstellen:
