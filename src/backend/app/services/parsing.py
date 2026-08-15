@@ -13,6 +13,8 @@ from dataclasses import dataclass
 import docx
 import pypdf
 
+from app.exceptions import UserFacingError
+
 PDF_CONTENT_TYPE = "application/pdf"
 DOCX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 MARKDOWN_CONTENT_TYPE = "text/markdown"
@@ -33,11 +35,11 @@ class ParsedBlock:
 def parse_document(content: bytes, content_type: str) -> list[ParsedBlock]:
     """Parse an uploaded document into text blocks.
 
-    Raises ValueError for content types the upload endpoint does not allow.
+    Raises UserFacingError for content types the upload endpoint does not allow.
     """
     parser = _PARSERS.get(content_type)
     if parser is None:
-        raise ValueError(f"Nicht unterstützter Content-Type: {content_type}")
+        raise UserFacingError(f"Nicht unterstützter Content-Type: {content_type}")
     return [b for b in parser(content) if b.text]
 
 

@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from pgqueuer.models import Job
 
+from app.exceptions import UserFacingError
 from app.services.parsing import MARKDOWN_CONTENT_TYPE
 from worker.main import make_job_handler, process_document, read_chunk_config
 
@@ -193,16 +194,71 @@ async def test_embedding_failure_marks_the_document_failed(
         document_id,
         "Verarbeitung fehlgeschlagen",
     )
-    # documents.error_message is served to every authenticated user by
-    # GET /documents/{id} — nothing from the provider may end up in it.
+    # documents.error_message is served to every knowledge_owner and admin by
+    # GET /documents — nothing from the provider may end up in it.
     assert not any(secret in str(call) for call in executed(conn))
+
+
+async def test_foreign_error_deriving_from_valueerror_stays_out_of_error_message(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The gap T-44 closes: until now the worker decided by isinstance(exc,
+    ValueError), so a dependency whose error type happens to derive from
+    ValueError would have had its message served to every knowledge_owner.
+    Nothing enforced that assumption across dependency upgrades — only the
+    exception type we raise ourselves may reach error_message.
+    """
+    document_id = str(uuid.uuid4())
+    conn = make_conn()
+
+    class ProviderError(ValueError):
+        """Shaped like a third-party error that inherits from ValueError."""
+
+    secret = "Incorrect API key provided: sk-proj-abc***XYZ (api_base: https://eu.example)"
+
+    async def fail(texts: list[str]) -> list[list[float]]:
+        raise ProviderError(secret)
+
+    monkeypatch.setattr("worker.main.embed_texts", fail)
+
+    with pytest.raises(ProviderError):
+        await process_document(conn, make_job(document_id))
+
+    assert executed(conn)[-1] == (
+        "UPDATE documents SET status = 'failed', error_message = $2 WHERE id = $1",
+        document_id,
+        "Verarbeitung fehlgeschlagen",
+    )
+    assert not any(secret in str(call) for call in executed(conn))
+
+
+async def test_user_facing_error_reaches_error_message(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Counterpart to the test above: the allowed path still carries its text."""
+    document_id = str(uuid.uuid4())
+    conn = make_conn()
+
+    async def fail(texts: list[str]) -> list[list[float]]:
+        raise UserFacingError("Embedding hat 3 statt 1536 Dimensionen")
+
+    monkeypatch.setattr("worker.main.embed_texts", fail)
+
+    with pytest.raises(UserFacingError):
+        await process_document(conn, make_job(document_id))
+
+    assert executed(conn)[-1] == (
+        "UPDATE documents SET status = 'failed', error_message = $2 WHERE id = $1",
+        document_id,
+        "Embedding hat 3 statt 1536 Dimensionen",
+    )
 
 
 async def test_process_document_without_extractable_text_fails() -> None:
     document_id = str(uuid.uuid4())
     conn = make_conn(content=b"   \n\n  ")
 
-    with pytest.raises(ValueError):
+    with pytest.raises(UserFacingError):
         await process_document(conn, make_job(document_id))
 
     conn.executemany.assert_not_awaited()
@@ -241,7 +297,7 @@ async def test_process_document_sets_failed_for_missing_document() -> None:
     conn = make_conn()
     conn.fetchrow.return_value = None
 
-    with pytest.raises(ValueError):
+    with pytest.raises(UserFacingError):
         await process_document(conn, make_job(document_id))
 
     assert executed(conn)[-1] == (
@@ -264,3 +320,22 @@ async def test_read_chunk_config(
     conn = make_conn(config=config)
 
     assert await read_chunk_config(conn) == expected
+
+
+async def test_non_numeric_chunk_config_fails_with_a_configuration_message() -> None:
+    """config.value is a plain Text column and nothing validates it on write
+    (PUT /admin/config is a T-37 placeholder), so a non-numeric value is
+    reachable. It must read like the range checks in chunk_blocks rather than
+    like Python's int() — and not fall back to the default, which would index
+    the corpus with parameters nobody configured."""
+    document_id = str(uuid.uuid4())
+    conn = make_conn(config=(("chunk_size", "fünfhundert"), ("chunk_overlap", "64")))
+
+    with pytest.raises(UserFacingError):
+        await process_document(conn, make_job(document_id))
+
+    assert executed(conn)[-1] == (
+        "UPDATE documents SET status = 'failed', error_message = $2 WHERE id = $1",
+        document_id,
+        "Chunk-Konfiguration ungültig: chunk_size ist keine ganze Zahl ('fünfhundert')",
+    )

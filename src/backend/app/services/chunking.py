@@ -17,6 +17,7 @@ from dataclasses import dataclass
 
 import tiktoken
 
+from app.exceptions import UserFacingError
 from app.services.parsing import ParsedBlock
 
 DEFAULT_CHUNK_SIZE = 512
@@ -92,10 +93,16 @@ def chunk_blocks(
     hard chunk borders, so a chunk never mixes two headings or two PDF pages
     and its metadata is exact rather than approximate.
     """
+    # Both values come from the config table, so a bad one is an operator
+    # mistake rather than a bad document. The message reaches the uploader
+    # (worker/main.py writes it to documents.error_message), and the prefix is
+    # what keeps them from looking for the fault in their own file.
     if chunk_size <= 0:
-        raise ValueError("chunk_size muss grösser als 0 sein")
+        raise UserFacingError("Chunk-Konfiguration ungültig: chunk_size muss grösser als 0 sein")
     if not 0 <= chunk_overlap < chunk_size:
-        raise ValueError("chunk_overlap muss zwischen 0 und chunk_size liegen")
+        raise UserFacingError(
+            "Chunk-Konfiguration ungültig: chunk_overlap muss zwischen 0 und chunk_size liegen"
+        )
 
     chunks: list[Chunk] = []
     for (heading, page), section in itertools.groupby(blocks, key=lambda b: (b.heading, b.page)):

@@ -4,6 +4,7 @@ from typing import Any
 import pytest
 
 from app.config import settings
+from app.exceptions import UserFacingError
 from app.services.embedding import BATCH_SIZE, embed_texts
 
 DIMENSIONS = 3
@@ -84,14 +85,14 @@ async def test_sorts_response_by_index(monkeypatch: pytest.MonkeyPatch) -> None:
 async def test_rejects_wrong_dimension(monkeypatch: pytest.MonkeyPatch) -> None:
     patch_provider(monkeypatch, Recorder(response([vector(1.0, size=DIMENSIONS - 1)])))
 
-    with pytest.raises(ValueError, match="Dimensionen"):
+    with pytest.raises(UserFacingError, match="Dimensionen"):
         await embed_texts(["erster"])
 
 
 async def test_rejects_incomplete_response(monkeypatch: pytest.MonkeyPatch) -> None:
     patch_provider(monkeypatch, Recorder(response([vector(1.0)])))
 
-    with pytest.raises(ValueError, match="Vektoren"):
+    with pytest.raises(UserFacingError, match="Vektoren"):
         await embed_texts(["erster", "zweiter"])
 
 

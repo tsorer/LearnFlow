@@ -12,6 +12,7 @@ from pgqueuer.db import AsyncpgDriver
 from pgqueuer.models import Job
 
 from app.config import settings
+from app.exceptions import UserFacingError
 from app.services.chunking import (
     DEFAULT_CHUNK_OVERLAP,
     DEFAULT_CHUNK_SIZE,
@@ -70,11 +71,12 @@ async def process_document(conn: asyncpg.Connection, job: Job) -> None:
         log.info("Indexed document_id=%s chunks=%s", document_id, len(chunks))
     except Exception as exc:
         log.exception("Failed to process document_id=%s", document_id)
-        # error_message is handed to every authenticated user by GET
-        # /documents/{id}. Our own ValueErrors are written for that audience;
-        # provider errors are not — they carry api_base, deployment names and,
-        # on an auth failure, a fragment of the API key. Those stay in the log.
-        message = str(exc) if isinstance(exc, ValueError) else "Verarbeitung fehlgeschlagen"
+        # error_message is handed to every knowledge_owner and admin by GET
+        # /documents, not only to the uploader. Only a UserFacingError carries a
+        # message written for that audience; everything else stays in the log
+        # above — provider errors carry api_base, deployment names and, on an
+        # auth failure, a fragment of the API key.
+        message = str(exc) if isinstance(exc, UserFacingError) else "Verarbeitung fehlgeschlagen"
         await conn.execute(
             "UPDATE documents SET status = 'failed', error_message = $2 WHERE id = $1",
             document_id,
@@ -89,7 +91,7 @@ async def prepare_chunks(conn: asyncpg.Connection, document_id: str) -> list[Chu
         "SELECT content, content_type FROM documents WHERE id = $1", document_id
     )
     if row is None:
-        raise ValueError(f"Dokument {document_id} nicht gefunden")
+        raise UserFacingError(f"Dokument {document_id} nicht gefunden")
 
     chunk_size, chunk_overlap = await read_chunk_config(conn)
     blocks = parse_document(bytes(row["content"]), row["content_type"])
@@ -99,7 +101,7 @@ async def prepare_chunks(conn: asyncpg.Connection, document_id: str) -> list[Chu
         blocks, chunk_size=chunk_size, chunk_overlap=chunk_overlap, count=count_tokens
     )
     if not chunks:
-        raise ValueError("Kein extrahierbarer Text gefunden")
+        raise UserFacingError("Kein extrahierbarer Text gefunden")
     return chunks
 
 
@@ -138,11 +140,34 @@ async def read_chunk_config(conn: asyncpg.Connection) -> tuple[int, int]:
     rows = await conn.fetch(
         "SELECT key, value FROM config WHERE key IN ('chunk_size', 'chunk_overlap')"
     )
-    values = {row["key"]: row["value"] for row in rows}
+    values: dict[str, str] = {row["key"]: row["value"] for row in rows}
     return (
-        int(values.get("chunk_size", DEFAULT_CHUNK_SIZE)),
-        int(values.get("chunk_overlap", DEFAULT_CHUNK_OVERLAP)),
+        _as_int(values, "chunk_size", DEFAULT_CHUNK_SIZE),
+        _as_int(values, "chunk_overlap", DEFAULT_CHUNK_OVERLAP),
     )
+
+
+def _as_int(values: dict[str, str], key: str, default: int) -> int:
+    """Read one chunk parameter from the config rows.
+
+    `config.value` is one Text column shared by floats, ints and everything
+    else, and nothing validates it on write yet — PUT /admin/config is still a
+    placeholder (T-37). A bare int() would fail with Python's own wording
+    ("invalid literal for int() ..."), which is exactly the kind of text this
+    ticket keeps out of error_message, while the range checks one call later in
+    chunk_blocks already phrase the same class of mistake as a configuration
+    error. The value comes from an operator, not from a provider, so it can be
+    named.
+    """
+    raw = values.get(key)
+    if raw is None:
+        return default
+    try:
+        return int(raw)
+    except ValueError as exc:
+        raise UserFacingError(
+            f"Chunk-Konfiguration ungültig: {key} ist keine ganze Zahl ({raw!r})"
+        ) from exc
 
 
 def make_job_handler(pool: asyncpg.Pool) -> Callable[[Job], Awaitable[None]]:
