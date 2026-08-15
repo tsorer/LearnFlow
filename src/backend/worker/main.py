@@ -140,11 +140,34 @@ async def read_chunk_config(conn: asyncpg.Connection) -> tuple[int, int]:
     rows = await conn.fetch(
         "SELECT key, value FROM config WHERE key IN ('chunk_size', 'chunk_overlap')"
     )
-    values = {row["key"]: row["value"] for row in rows}
+    values: dict[str, str] = {row["key"]: row["value"] for row in rows}
     return (
-        int(values.get("chunk_size", DEFAULT_CHUNK_SIZE)),
-        int(values.get("chunk_overlap", DEFAULT_CHUNK_OVERLAP)),
+        _as_int(values, "chunk_size", DEFAULT_CHUNK_SIZE),
+        _as_int(values, "chunk_overlap", DEFAULT_CHUNK_OVERLAP),
     )
+
+
+def _as_int(values: dict[str, str], key: str, default: int) -> int:
+    """Read one chunk parameter from the config rows.
+
+    `config.value` is one Text column shared by floats, ints and everything
+    else, and nothing validates it on write yet — PUT /admin/config is still a
+    placeholder (T-37). A bare int() would fail with Python's own wording
+    ("invalid literal for int() ..."), which is exactly the kind of text this
+    ticket keeps out of error_message, while the range checks one call later in
+    chunk_blocks already phrase the same class of mistake as a configuration
+    error. The value comes from an operator, not from a provider, so it can be
+    named.
+    """
+    raw = values.get(key)
+    if raw is None:
+        return default
+    try:
+        return int(raw)
+    except ValueError as exc:
+        raise UserFacingError(
+            f"Chunk-Konfiguration ungültig: {key} ist keine ganze Zahl ({raw!r})"
+        ) from exc
 
 
 def make_job_handler(pool: asyncpg.Pool) -> Callable[[Job], Awaitable[None]]:

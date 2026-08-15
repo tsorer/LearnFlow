@@ -320,3 +320,22 @@ async def test_read_chunk_config(
     conn = make_conn(config=config)
 
     assert await read_chunk_config(conn) == expected
+
+
+async def test_non_numeric_chunk_config_fails_with_a_configuration_message() -> None:
+    """config.value is a plain Text column and nothing validates it on write
+    (PUT /admin/config is a T-37 placeholder), so a non-numeric value is
+    reachable. It must read like the range checks in chunk_blocks rather than
+    like Python's int() — and not fall back to the default, which would index
+    the corpus with parameters nobody configured."""
+    document_id = str(uuid.uuid4())
+    conn = make_conn(config=(("chunk_size", "fünfhundert"), ("chunk_overlap", "64")))
+
+    with pytest.raises(UserFacingError):
+        await process_document(conn, make_job(document_id))
+
+    assert executed(conn)[-1] == (
+        "UPDATE documents SET status = 'failed', error_message = $2 WHERE id = $1",
+        document_id,
+        "Chunk-Konfiguration ungültig: chunk_size ist keine ganze Zahl ('fünfhundert')",
+    )
