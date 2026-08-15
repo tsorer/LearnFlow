@@ -89,7 +89,7 @@ Details: `Docs/04_ADR-00X_*.md`, `Docs/05_C4-*`, `Docs/06_Architecture-Draft.md`
    Richtungen. Ein neuer Endpoint braucht **im selben PR** drei Dinge, sonst ist die CI rot:
    1. den Eintrag in `openapi.yaml`,
    2. eine Route im Backend — bei noch offener Umsetzung ein Platzhalter mit `501` und einem
-      `TODO (T-XX)`, Vorlage: `app/routers/query.py`. Kein erfundener Beispielinhalt, ADR-008 ist
+      `TODO (T-XX)`, Vorlage: `app/routers/admin.py`. Kein erfundener Beispielinhalt, ADR-008 ist
       fail-closed,
    3. die neu generierten Frontend-Typen: `make generate-api`, `src/frontend/src/api/schema.d.ts`
       mitcommitten.

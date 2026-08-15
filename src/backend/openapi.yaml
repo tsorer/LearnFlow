@@ -116,11 +116,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        '501':
+        '422':
           description: >
-            Noch nicht implementiert (T-17). Der Endpoint existiert als Dummy,
-            damit Vertrag und Implementierung deckungsgleich bleiben; er liefert
-            bewusst keine erfundene Antwort. Entfällt mit der Implementierung.
+            Frage fehlt oder verletzt die Längengrenzen (3 bis 1000 Zeichen).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '503':
+          description: >
+            Retrieval nicht verfügbar (Embedding-Provider oder Datenbank). Kein
+            fachliches Ergebnis, sondern ein Infrastrukturfehler — bewusst nicht
+            als Unterdrückung getarnt (ADR-008).
           content:
             application/json:
               schema:
@@ -330,7 +337,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         '501':
-          description: Noch nicht implementiert (T-37) — siehe /api/query
+          description: Noch nicht implementiert (T-37)
           content:
             application/json:
               schema:
@@ -373,7 +380,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         '501':
-          description: Noch nicht implementiert (T-37) — siehe /api/query
+          description: Noch nicht implementiert (T-37)
           content:
             application/json:
               schema:
@@ -414,6 +421,32 @@ components:
         detail:
           type: string
           description: Menschenlesbare Fehlerbeschreibung
+
+    ValidationError:
+      type: object
+      description: >
+        FastAPIs Schema-Validierung. Bewusst nicht `Error`: hier ist `detail`
+        eine Liste von Einzelfehlern, kein String — ein Client, der beide gleich
+        behandelt, liest den falschen Typ.
+      required: [detail]
+      properties:
+        detail:
+          type: array
+          items:
+            type: object
+            required: [loc, msg, type]
+            properties:
+              loc:
+                type: array
+                description: Pfad zum beanstandeten Feld, z. B. ["body", "question"]
+                items:
+                  oneOf:
+                    - type: string
+                    - type: integer
+              msg:
+                type: string
+              type:
+                type: string
 
     LoginRequest:
       type: object
@@ -469,7 +502,9 @@ components:
       type: object
       description: >
         Antwort der Konfidenz-Pipeline (ADR-008). Bei `suppressed` steht in
-        `message` die Weiss-ich-nicht-Antwort und `citations` bleibt leer.
+        `message` die standardisierte Weiss-ich-nicht-Antwort, nie generierter
+        Fliesstext; `citations` darf die nächstliegenden Quellen enthalten,
+        damit die Frage präzisiert werden kann (ADR-008, Band «Niedrig»).
       required: [session_id, answer_id, suppressed, citations]
       properties:
         session_id:
@@ -485,7 +520,16 @@ components:
         suppression_reason:
           type: string
           nullable: true
-          description: Welche Stufe unterdrückt hat (ADR-008)
+          description: >
+            Welche Stufe unterdrückt hat (ADR-008). Geschlossene Menge, damit
+            das Frontend jeden Wert beschriften kann statt den technischen
+            Schlüssel anzuzeigen; T-18 ergänzt hier `citation_coverage` und
+            `self_check`.
+          enum:
+            - retrieval_gate
+            - retrieval_confidence
+            - generation_not_implemented
+            - configuration_error
         message:
           type: string
           nullable: true

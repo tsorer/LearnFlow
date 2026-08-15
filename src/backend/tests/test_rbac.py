@@ -302,8 +302,8 @@ def test_every_declared_endpoint_is_implemented() -> None:
     Spec-first is not spec-only: a declared path that nobody serves is a 404 for
     the client generated from it, and the frontend cannot tell "not built yet"
     from "broken". A new endpoint therefore ships with at least a placeholder in
-    the same PR -- see app/routers/query.py for the shape (auth dependency, 501,
-    TODO naming the ticket).
+    the same PR -- see app/routers/admin.py for the shape (auth dependency,
+    501, TODO naming the ticket).
     """
     spec, _ = read_from_filename(str(SPEC_PATH))
     implemented = {

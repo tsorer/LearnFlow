@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import type { Message, ChunkDebugInfo, StageInfo, LLMCallInfo, DebugInfo, ConfidenceInfo } from "../types";
+import type { Message, ChunkDebugInfo, StageInfo, LLMCallInfo, DebugInfo, ConfidenceInfo, SuppressionReason } from "../types";
 import { api } from "../api/client";
 
 
@@ -17,12 +17,14 @@ const PARAM_LABELS: Record<string, string> = {
   llm_seed:                 "Seed",
 };
 
-const suppressLabels: Record<string, string> = {
-  no_relevant_chunks:       "Keine Chunks über Schwellwert",
-  low_retrieval_confidence: "Retrieval-Konfidenz zu tief",
-  low_citation_coverage:    "Citation-Coverage zu tief",
-  low_composite_score:      "Composite Score unter Self-Check Zone",
-  self_check_failed:        "Self-Check fehlgeschlagen",
+// Keyed by the spec enum (see SuppressionReason): a reason added in
+// openapi.yaml — T-18 brings citation_coverage and self_check — fails the type
+// check here instead of rendering the raw key in the badge.
+const suppressLabels: Record<SuppressionReason, string> = {
+  retrieval_gate:             "Keine Chunks über Schwellwert",
+  retrieval_confidence:       "Retrieval-Konfidenz zu tief",
+  generation_not_implemented: "Quellen gefunden — Antwort folgt (T-18)",
+  configuration_error:        "Suche nicht korrekt konfiguriert",
 };
 
 function pct(v: number) { return `${Math.round(v * 100)}%`; }

@@ -64,6 +64,18 @@ Bevor überhaupt ein LLM-Aufruf erfolgt:
 - Wird die Schwelle von **keinem** Chunk erreicht → **kein LLM-Aufruf**, direkte Antwort „**Weiss ich nicht**". Das ist der Hauptmechanismus gegen Halluzinationen bei Out-of-Corpus-Fragen (≥ 90 %-Ziel).
 - Der Schwellenwert liegt in der `config`-Tabelle (ADR-003) — **ohne Deployment kalibrierbar**.
 
+**Präzisierung (T-17):** Das Gate prüft die **Top-`n`-Chunks**, die tatsächlich als Kontext
+dienen — nicht alle `k` Kandidaten der Fusion. Die Ablaufskizze oben liest sich anders, ist aber
+in dieser Reihenfolge fail-open: läge der einzige Chunk über Schwelle auf Fusionsrang 22, passierte
+das Gate, und der anschliessende Top-`n`-Schnitt lieferte dem LLM fünf Chunks, von denen **keiner**
+die Schwelle erreicht. Das Gate hätte einen Kontext freigegeben, den es nie geprüft hat — was ADR-008
+gerade ausschliessen will. Geprüft wird deshalb die Menge, mit der weitergearbeitet wird.
+
+Die Alternative — Gate über alle Kandidaten und den Kontext auf Chunks über Schwelle beschränken —
+hält die Reihenfolge oben wörtlich ein und wäre gleichwertig fail-closed, verändert aber die
+Kontextgrösse und damit die Evidenz-Dichte in ADR-008 Stufe 1. Sie bleibt offen für die
+Kalibrierung im Eval-Spike.
+
 ### 4. Grounding-Prompt-Kontrakt
 
 Das LLM erhält ausschliesslich die `n` gefilterten Chunks als Kontext, mit der strikten Instruktion: **nur aus dem bereitgestellten Kontext antworten**, jede Aussage mit Quellen-Referenz belegen, und bei fehlender Deckung explizit „Weiss ich nicht" ausgeben. Damit ist die Retrieval-Ausgabe das einzige Wissensfundament der Antwort.
