@@ -42,9 +42,13 @@ def test_answer_id_foreign_key_cascades() -> None:
     assert fk.ondelete == "CASCADE"
 
 
-def test_answer_id_is_indexed() -> None:
+def test_answer_id_is_uniquely_indexed() -> None:
+    """Unique, not just indexed: the endpoint upserts on this (one rating per
+    answer, review on #81) — a plain index here would let ON CONFLICT silently
+    stop matching."""
     (index,) = (i for i in TABLE.indexes if i.name == "ix_feedback_answer_id")
     assert [c.name for c in index.columns] == ["answer_id"]
+    assert index.unique
 
 
 def test_no_user_reference_column() -> None:
