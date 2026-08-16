@@ -6,47 +6,19 @@
  * den 501-Platzhalter (T-30, T-37) und ab der Umsetzung gegen echte Daten — die
  * Bestaetigung ist der Teil, der jetzt schon stimmen muss.
  *
- * Wie session.test.tsx gegen einen fetch-Stub statt gegen einen Modul-Mock:
- * geprueft wird, was tatsaechlich ueber die Leitung geht.
+ * Wie session.test.tsx gegen den gemeinsamen fetch-Stub (test/api.ts)
+ * statt gegen einen Modul-Mock: geprueft wird, was tatsaechlich ueber die
+ * Leitung geht.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, cleanup, fireEvent, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom/vitest";
 import App from "./App";
+import type { Role } from "./api/client";
+import { installApiStub, installAppEnvironment, type ApiStub } from "../test/api";
 
-const routes = new Map<string, { status: number; body?: unknown }>();
-let calls: string[] = [];
-
-// Haelt Antworten an, bis der Test sie freigibt — nur so laesst sich ein
-// zweiter Klick in das Fenster legen, in dem der erste noch unterwegs ist.
-let hold: Promise<void> | null = null;
-let release: () => void = () => {};
-
-function holdResponses() {
-  hold = new Promise<void>(resolve => {
-    release = () => { hold = null; resolve(); };
-  });
-}
-
-function route(method: string, path: string, status: number, body?: unknown) {
-  routes.set(`${method} /api${path}`, { status, body });
-}
-
-async function fakeFetch(input: RequestInfo | URL, init?: RequestInit) {
-  const request = input instanceof Request ? input : new Request(String(input), init);
-  const key = `${request.method} ${new URL(request.url, "http://localhost").pathname}`;
-  calls.push(key);
-  const res = routes.get(key);
-  if (!res) throw new Error(`Nicht gemockte Anfrage: ${key}`);
-  if (hold) await hold;
-  return new Response(res.body === undefined ? null : JSON.stringify(res.body), {
-    status: res.status,
-    headers: { "Content-Type": "application/json" },
-  });
-}
-
-const countCalls = (key: string) => calls.filter(c => c === key).length;
+let api: ApiStub;
 
 async function login(email: string) {
   await userEvent.type(screen.getByLabelText(/e-mail/i), email);
@@ -54,23 +26,22 @@ async function login(email: string) {
   await userEvent.click(screen.getByRole("button", { name: /anmelden/i }));
 }
 
-function authRoutes(role: string) {
-  route("POST", "/auth/login", 200, { access_token: "tok123", role });
-  route("GET", "/auth/me", 200, { id: "u1", email: "u@learnflow.ch", role });
+function authRoutes(role: Role) {
+  api.route("post", "/api/auth/login", 200, {
+    access_token: "tok123",
+    token_type: "bearer",
+    role,
+  });
+  api.route("get", "/api/auth/me", 200, { id: "u1", email: "u@learnflow.ch", role });
 }
 
 beforeEach(() => {
-  routes.clear();
-  calls = [];
-  hold = null;
-  vi.stubGlobal("fetch", vi.fn(fakeFetch));
-  vi.stubGlobal("__BUILD_TIME__", new Date().toISOString());
-  Element.prototype.scrollIntoView = vi.fn();
-  window.history.pushState({}, "", "/");
+  api = installApiStub();
+  installAppEnvironment();
 });
 
 afterEach(() => {
-  release();
+  api.release();
   cleanup();
   vi.unstubAllGlobals();
 });
@@ -78,7 +49,7 @@ afterEach(() => {
 describe("Admin-Parameter (T-37)", () => {
   async function openPanel() {
     authRoutes("admin");
-    route("GET", "/admin/config", 200, { config: { top_k: "20" } });
+    api.route("get", "/api/admin/config", 200, { config: { top_k: "20" } });
     render(<App />);
     await login("admin@learnflow.ch");
     await userEvent.click(await screen.findByRole("button", { name: /parameter/i }));
@@ -89,7 +60,7 @@ describe("Admin-Parameter (T-37)", () => {
     // dann erscheinen, wenn die config-Tabelle nie etwas gesehen hat — der
     // Admin haette gegen eine Schwelle gearbeitet, die nicht gesetzt ist.
     await openPanel();
-    route("PUT", "/admin/config", 501, { detail: "Not implemented (T-37)" });
+    api.route("put", "/api/admin/config", 501, { detail: "Not implemented (T-37)" });
 
     await userEvent.click(screen.getByRole("button", { name: /^speichern$/i }));
 
@@ -99,7 +70,7 @@ describe("Admin-Parameter (T-37)", () => {
 
   it("meldet Gespeichert, wenn der Schreibvorgang durchgeht", async () => {
     await openPanel();
-    route("PUT", "/admin/config", 200, { config: { top_k: "20" } });
+    api.route("put", "/api/admin/config", 200, { config: { top_k: "20" } });
 
     await userEvent.click(screen.getByRole("button", { name: /^speichern$/i }));
 
@@ -108,16 +79,20 @@ describe("Admin-Parameter (T-37)", () => {
 });
 
 describe("Feedback (T-30)", () => {
-  const FEEDBACK = "POST /api/answers/a1/feedback";
+  const FEEDBACK = "/api/answers/{answer_id}/feedback" as const;
+  const feedbackCalls = () => api.count("post", FEEDBACK);
 
   /** Meldet einen Learner an und stellt eine Frage, bis die Daumen stehen. */
   async function askQuestion() {
     authRoutes("learner");
-    route("POST", "/query", 200, {
+    api.route("post", "/api/query", 200, {
       answer_id: "a1",
       session_id: "s1",
       message: "Antwort",
       suppressed: false,
+      // Required by the spec — the old hand-written mock omitted it, which is
+      // exactly the drift the typed routes now prevent.
+      citations: [],
     });
     render(<App />);
     await login("lara@learnflow.ch");
@@ -128,8 +103,8 @@ describe("Feedback (T-30)", () => {
 
   it("sendet nur einen POST, solange der erste noch laeuft", async () => {
     const thumbUp = await askQuestion();
-    route("POST", "/answers/a1/feedback", 204);
-    holdResponses();
+    api.route("post", FEEDBACK, 204);
+    api.hold();
 
     // `feedback` ist in diesem Fenster noch null und taugt nicht als Sperre —
     // ohne `submitting` waeren das zwei Zeilen zur selben answer_id, die
@@ -138,17 +113,17 @@ describe("Feedback (T-30)", () => {
     fireEvent.click(thumbUp);
     fireEvent.click(screen.getByRole("button", { name: /nicht hilfreich/i }));
 
-    expect(countCalls(FEEDBACK)).toBe(1);
+    expect(feedbackCalls()).toBe(1);
 
-    await act(async () => { release(); });
-    expect(countCalls(FEEDBACK)).toBe(1);
+    await act(async () => { api.release(); });
+    expect(feedbackCalls()).toBe(1);
   });
 
   it("laesst nach einem Fehlschlag eine erneute Bewertung zu", async () => {
     // Die Sperre darf nicht latchen: ein 501 heute heisst nicht, dass der
     // Nutzer nach T-30 nicht mehr bewerten darf.
     const thumbUp = await askQuestion();
-    route("POST", "/answers/a1/feedback", 501, { detail: "Not implemented (T-30)" });
+    api.route("post", FEEDBACK, 501, { detail: "Not implemented (T-30)" });
 
     await userEvent.click(thumbUp);
 
@@ -156,6 +131,6 @@ describe("Feedback (T-30)", () => {
     expect(thumbUp).toBeEnabled();
 
     await userEvent.click(thumbUp);
-    expect(countCalls(FEEDBACK)).toBe(2);
+    expect(feedbackCalls()).toBe(2);
   });
 });
