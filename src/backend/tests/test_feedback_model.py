@@ -26,6 +26,7 @@ def test_columns_and_types() -> None:
     assert not columns["helpful"].nullable
 
     assert isinstance(columns["category"].type, String)
+    assert columns["category"].type.length == 100
     assert columns["category"].nullable
 
     assert isinstance(columns["comment"].type, Text)
@@ -42,8 +43,8 @@ def test_answer_id_foreign_key_cascades() -> None:
 
 
 def test_answer_id_is_indexed() -> None:
-    indexed_columns = {col.name for index in TABLE.indexes for col in index.columns}
-    assert "answer_id" in indexed_columns
+    (index,) = (i for i in TABLE.indexes if i.name == "ix_feedback_answer_id")
+    assert [c.name for c in index.columns] == ["answer_id"]
 
 
 def test_no_user_reference_column() -> None:
