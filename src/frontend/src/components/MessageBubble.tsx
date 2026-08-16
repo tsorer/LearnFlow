@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import type { Message, ChunkDebugInfo, StageInfo, LLMCallInfo, DebugInfo, ConfidenceInfo } from "../types";
-import { ApiError, api } from "../api/client";
+import { api } from "../api/client";
 
 
 const PARAM_LABELS: Record<string, string> = {
@@ -365,16 +365,11 @@ export default function MessageBubble({ message: m, token }: Props) {
     setFeedbackError("");
     try {
       await api.submitFeedback(m.answer_id, helpful, null, null, token);
-      // Marked only once it is actually stored. Setting it up front latched the
-      // button as saved even though POST /answers/{id}/feedback still answers
-      // 501 (T-30) — a rating the user cannot correct and that never arrives.
+      // Marked only once it is actually stored — a rating the request could
+      // still reject (404/400) must not latch the button as saved.
       setFeedback(helpful);
-    } catch (err) {
-      setFeedbackError(
-        err instanceof ApiError && err.status === 501
-          ? "Bewertungen sind noch nicht verfügbar."
-          : "Bewertung konnte nicht gespeichert werden.",
-      );
+    } catch {
+      setFeedbackError("Bewertung konnte nicht gespeichert werden.");
     } finally {
       submitting.current = false;
     }
