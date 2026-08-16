@@ -1,15 +1,16 @@
 /**
  * @vitest-environment jsdom
  *
- * T-16: die Upload-UI. Gegen den gemeinsamen fetch-Stub (src/test/api.ts) —
+ * T-16: die Upload-UI. Gegen den gemeinsamen fetch-Stub (test/api.ts) —
  * geprueft wird, was tatsaechlich ueber die Leitung geht, in drei Faellen
  * gerade, dass nichts geht.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, cleanup, fireEvent, act, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom/vitest";
 import Upload, { MAX_UPLOAD_BYTES, validateFile } from "./components/Upload";
-import { installApiStub, type ApiStub } from "./test/api";
+import { installApiStub, type ApiStub } from "../test/api";
 import type { AuthUser, Document } from "./types";
 
 const user: AuthUser = {
@@ -51,6 +52,9 @@ const dropZone = () =>
   screen.getByText(/PDF, DOCX oder Markdown/i).closest("label") as HTMLLabelElement;
 
 const drop = (files: File[]) => fireEvent.drop(dropZone(), { dataTransfer: { files } });
+
+/** The hidden file input behind the click path. */
+const picker = () => dropZone().querySelector('input[type="file"]') as HTMLInputElement;
 
 /** The file the app put into the multipart body of the nth upload. */
 function sentFile(index = 0): File {
@@ -255,6 +259,60 @@ describe("Upload", () => {
     });
 
     expect(screen.queryByText("korpus.pdf")).not.toBeInTheDocument();
+  });
+
+  // AK 1 aus #23 verlangt beide Wege. Bis hierher ging jeder Test ueber den
+  // Drop, `handleInput` war damit ungedeckt — samt dem value-Reset und der
+  // disabled-Verdrahtung, die beide ihren eigenen Bug schon hatten.
+  describe("Klick-Pfad", () => {
+    it("uploads a file chosen through the file picker", async () => {
+      show();
+      await waitFor(() => expect(api.count("get", "/api/documents")).toBe(1));
+
+      await userEvent.upload(picker(), file("gewaehlt.pdf", 256));
+
+      await waitFor(() => expect(api.count("post", "/api/documents")).toBe(1));
+      expect(sentFile().name).toBe("gewaehlt.pdf");
+      expect(sentFile().size).toBe(256);
+    });
+
+    it("applies the same validation as the drop path", async () => {
+      show();
+      await waitFor(() => expect(api.count("get", "/api/documents")).toBe(1));
+
+      await userEvent.upload(picker(), file("gross.pdf", OVERSIZED));
+
+      expect(await screen.findByText(/überschreiten das Limit/)).toBeInTheDocument();
+      expect(api.count("post", "/api/documents")).toBe(0);
+    });
+
+    it("clears the input so the same file can be picked again after a fix", async () => {
+      // The browser fires no change event when the same file is selected twice
+      // in a row, so without the reset a corrected retry looks like nothing
+      // happens at all. Asserting the reset itself, because the missing second
+      // event is a browser behaviour jsdom does not reproduce.
+      show();
+      await waitFor(() => expect(api.count("get", "/api/documents")).toBe(1));
+
+      await userEvent.upload(picker(), file("korpus.pdf"));
+
+      await waitFor(() => expect(api.count("post", "/api/documents")).toBe(1));
+      expect(picker().value).toBe("");
+    });
+
+    it("disables the picker while an upload is running", async () => {
+      show();
+      await waitFor(() => expect(api.count("get", "/api/documents")).toBe(1));
+
+      api.hold("post");
+      await userEvent.upload(picker(), file("korpus.pdf"));
+      await waitFor(() => expect(api.count("post", "/api/documents")).toBe(1));
+
+      expect(picker()).toBeDisabled();
+
+      api.release("post");
+      await waitFor(() => expect(picker()).toBeEnabled());
+    });
   });
 
   it("polls while a document is processing and stops once it is available", async () => {

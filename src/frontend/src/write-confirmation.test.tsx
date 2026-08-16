@@ -6,7 +6,7 @@
  * den 501-Platzhalter (T-30, T-37) und ab der Umsetzung gegen echte Daten — die
  * Bestaetigung ist der Teil, der jetzt schon stimmen muss.
  *
- * Wie session.test.tsx gegen den gemeinsamen fetch-Stub (src/test/api.ts)
+ * Wie session.test.tsx gegen den gemeinsamen fetch-Stub (test/api.ts)
  * statt gegen einen Modul-Mock: geprueft wird, was tatsaechlich ueber die
  * Leitung geht.
  */
@@ -16,7 +16,7 @@ import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom/vitest";
 import App from "./App";
 import type { Role } from "./api/client";
-import { installApiStub, installAppEnvironment, type ApiStub } from "./test/api";
+import { installApiStub, installAppEnvironment, type ApiStub } from "../test/api";
 
 let api: ApiStub;
 

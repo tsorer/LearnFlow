@@ -146,8 +146,11 @@ export default function Upload({ user, onClose }: Props) {
 
   const handleInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
-    // Reset before awaiting: picking the same file twice in a row fires no
-    // change event otherwise, so a corrected retry would appear to do nothing.
+    // Read first, then clear: while the old value is still in the input,
+    // picking the same file again fires no change event, so a corrected retry
+    // would appear to do nothing. Cleared before the await rather than after
+    // so an unexpected throw cannot leave the input stuck on the old
+    // selection — during the upload itself it is disabled anyway.
     e.target.value = "";
     await handleFiles(files);
   };

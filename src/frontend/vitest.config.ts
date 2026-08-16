@@ -7,6 +7,6 @@ export default defineConfig({
     environment: "jsdom",
     // Unifies the fetch globals across jsdom and Node so request bodies are
     // readable in every test — see the file for what breaks without it.
-    setupFiles: ["./src/test/setup.ts"],
+    setupFiles: ["./test/setup.ts"],
   },
 });

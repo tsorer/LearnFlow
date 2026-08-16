@@ -5,7 +5,7 @@
  * fuehrt zurueck auf /login.
  *
  * Anders als auth.test.tsx wird hier NICHT das api-Modul gemockt, sondern
- * `fetch` (ueber den gemeinsamen Stub in src/test/api.ts) — die 401-Erkennung
+ * `fetch` (ueber den gemeinsamen Stub in test/api.ts) — die 401-Erkennung
  * sitzt in client.ts selbst und waere gegen einen Modul-Mock nicht pruefbar.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
@@ -13,7 +13,7 @@ import { render, screen, waitFor, cleanup } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom/vitest";
 import App from "./App";
-import { installApiStub, installAppEnvironment, type ApiStub } from "./test/api";
+import { installApiStub, installAppEnvironment, type ApiStub } from "../test/api";
 
 let api: ApiStub;
 

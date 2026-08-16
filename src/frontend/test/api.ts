@@ -21,7 +21,7 @@
  * puts the fetch globals into a single realm — see the explanation there.
  */
 import { vi } from "vitest";
-import type { paths } from "../api/schema";
+import type { paths } from "../src/api/schema";
 
 type HttpMethod = "get" | "post" | "put" | "delete" | "patch";
 
