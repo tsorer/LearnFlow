@@ -1,14 +1,26 @@
 /**
  * @vitest-environment jsdom
  *
- * Review zu T-39: die UI darf einen Schreibvorgang erst bestaetigen, wenn er
- * angekommen ist, und ihn nicht doppelt absetzen. Beide Wege laufen heute gegen
- * den 501-Platzhalter (T-30, T-37) und ab der Umsetzung gegen echte Daten — die
- * Bestaetigung ist der Teil, der jetzt schon stimmen muss.
+ * From the T-39 review: the UI may confirm a write only once it has actually
+ * arrived, and must not send it twice. That confirmation is the part which has
+ * to be right before the endpoints even exist.
  *
- * Wie session.test.tsx gegen den gemeinsamen fetch-Stub (test/api.ts)
- * statt gegen einen Modul-Mock: geprueft wird, was tatsaechlich ueber die
- * Leitung geht.
+ * Each of the two write paths is checked against two failure cases:
+ *
+ *   - a status the spec carries permanently (422 resp. 404). That one survives
+ *     T-30 and T-37.
+ *   - the 501 placeholder, which both endpoints actually return today. It is
+ *     the only answer users currently get to see, and without this case the
+ *     corresponding messages would have no test at all.
+ *
+ * The 501 case has a built-in expiry date: as soon as T-30 resp. T-37 takes the
+ * code out of the spec, the typed routes reject it and the test stops
+ * compiling. That is deliberate — it surfaces in exactly the commit that also
+ * has to remove the 501 branch in ChatView resp. MessageBubble. Delete both
+ * together then; do not swap the status code.
+ *
+ * Like session.test.tsx, this runs against the shared fetch stub (test/api.ts)
+ * rather than a module mock: what is asserted is what goes over the wire.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, cleanup, fireEvent, act } from "@testing-library/react";
@@ -46,7 +58,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("Admin-Parameter (T-37)", () => {
+describe("admin parameters (T-37)", () => {
   async function openPanel() {
     authRoutes("admin");
     api.route("get", "/api/admin/config", 200, { config: { top_k: "20" } });
@@ -55,20 +67,36 @@ describe("Admin-Parameter (T-37)", () => {
     await userEvent.click(await screen.findByRole("button", { name: /parameter/i }));
   }
 
-  it("meldet kein Gespeichert, wenn der Schreibvorgang scheitert", async () => {
-    // Der Kern des Befunds: `.catch(() => {})` liess das gruene Haekchen auch
-    // dann erscheinen, wenn die config-Tabelle nie etwas gesehen hat — der
-    // Admin haette gegen eine Schwelle gearbeitet, die nicht gesetzt ist.
+  it("reports no success when the write fails", async () => {
+    // The core of the finding: `.catch(() => {})` showed the green check even
+    // when the config table had never seen anything — the admin would go on
+    // working against a threshold that is not set.
+    await openPanel();
+    // 422 rather than the 501 placeholder: T-37 takes 501 out of the spec, 422
+    // ("unknown key or invalid value") stays. That way the test survives the
+    // implementation instead of failing against the typed routes.
+    api.route("put", "/api/admin/config", 422, { detail: "Unbekannter Schluessel" });
+
+    await userEvent.click(screen.getByRole("button", { name: /^speichern$/i }));
+
+    expect(await screen.findByText(/konnten nicht gespeichert werden/i)).toBeInTheDocument();
+    // Match the check mark, not /gespeichert/i: the error message contains that
+    // word itself ("konnten nicht gespeichert werden").
+    expect(screen.queryByText(/✓ Gespeichert/)).not.toBeInTheDocument();
+  });
+
+  it("names the 501 placeholder while T-37 is open", async () => {
+    // Goes away once T-37 removes 501 from the spec — see the file header.
     await openPanel();
     api.route("put", "/api/admin/config", 501, { detail: "Not implemented (T-37)" });
 
     await userEvent.click(screen.getByRole("button", { name: /^speichern$/i }));
 
     expect(await screen.findByText(/noch nicht speicherbar/i)).toBeInTheDocument();
-    expect(screen.queryByText(/gespeichert/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/✓ Gespeichert/)).not.toBeInTheDocument();
   });
 
-  it("meldet Gespeichert, wenn der Schreibvorgang durchgeht", async () => {
+  it("reports success when the write goes through", async () => {
     await openPanel();
     api.route("put", "/api/admin/config", 200, { config: { top_k: "20" } });
 
@@ -78,11 +106,11 @@ describe("Admin-Parameter (T-37)", () => {
   });
 });
 
-describe("Feedback (T-30)", () => {
+describe("feedback (T-30)", () => {
   const FEEDBACK = "/api/answers/{answer_id}/feedback" as const;
   const feedbackCalls = () => api.count("post", FEEDBACK);
 
-  /** Meldet einen Learner an und stellt eine Frage, bis die Daumen stehen. */
+  /** Signs a learner in and asks a question, until the thumbs are on screen. */
   async function askQuestion() {
     authRoutes("learner");
     api.route("post", "/api/query", 200, {
@@ -101,14 +129,14 @@ describe("Feedback (T-30)", () => {
     return await screen.findByRole("button", { name: /^hilfreich$/i });
   }
 
-  it("sendet nur einen POST, solange der erste noch laeuft", async () => {
+  it("sends only one POST while the first is still in flight", async () => {
     const thumbUp = await askQuestion();
     api.route("post", FEEDBACK, 204);
     api.hold();
 
-    // `feedback` ist in diesem Fenster noch null und taugt nicht als Sperre —
-    // ohne `submitting` waeren das zwei Zeilen zur selben answer_id, die
-    // dritte davon mit widersprechendem `helpful`.
+    // `feedback` is still null inside this window and is useless as a lock —
+    // without `submitting` these would be two rows for the same answer_id, the
+    // third of them with a contradicting `helpful`.
     fireEvent.click(thumbUp);
     fireEvent.click(thumbUp);
     fireEvent.click(screen.getByRole("button", { name: /nicht hilfreich/i }));
@@ -119,9 +147,28 @@ describe("Feedback (T-30)", () => {
     expect(feedbackCalls()).toBe(1);
   });
 
-  it("laesst nach einem Fehlschlag eine erneute Bewertung zu", async () => {
-    // Die Sperre darf nicht latchen: ein 501 heute heisst nicht, dass der
-    // Nutzer nach T-30 nicht mehr bewerten darf.
+  it("allows another rating after a failure", async () => {
+    // The lock must not latch: a failed write does not mean the user is no
+    // longer allowed to rate.
+    //
+    // 404 rather than the 501 placeholder: T-30 takes 501 out of the spec for
+    // this endpoint (leaving 204/401/404/400), and the typed routes would then
+    // rightly reject the line. 404 stays in the contract permanently, so the
+    // test survives the switch.
+    const thumbUp = await askQuestion();
+    api.route("post", FEEDBACK, 404, { detail: "Antwort nicht gefunden" });
+
+    await userEvent.click(thumbUp);
+
+    expect(await screen.findByText(/konnte nicht gespeichert werden/i)).toBeInTheDocument();
+    expect(thumbUp).toBeEnabled();
+
+    await userEvent.click(thumbUp);
+    expect(feedbackCalls()).toBe(2);
+  });
+
+  it("names the 501 placeholder while T-30 is open", async () => {
+    // Goes away once T-30 removes 501 from the spec — see the file header.
     const thumbUp = await askQuestion();
     api.route("post", FEEDBACK, 501, { detail: "Not implemented (T-30)" });
 
@@ -129,8 +176,5 @@ describe("Feedback (T-30)", () => {
 
     expect(await screen.findByText(/noch nicht verfügbar/i)).toBeInTheDocument();
     expect(thumbUp).toBeEnabled();
-
-    await userEvent.click(thumbUp);
-    expect(feedbackCalls()).toBe(2);
   });
 });
