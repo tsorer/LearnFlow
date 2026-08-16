@@ -98,13 +98,18 @@ export interface ApiStub {
   /** The most recent request to one endpoint. */
   last<P extends SpecPath>(method: SpecMethod<P>, path: P): RecordedRequest | undefined;
   /**
-   * Holds every answer until `release()`. The window in which a request is
-   * still in flight is where double submits live, so tests need to open it
-   * deliberately. Requests are recorded on arrival, so `count()` stays usable
-   * while responses are held.
+   * Holds answers until `release()`. The window in which a request is still in
+   * flight is where double submits and out-of-order responses live, so tests
+   * need to open it deliberately. Requests are recorded on arrival, so
+   * `count()` stays usable while responses are held.
+   *
+   * Without arguments this covers every endpoint. Narrowing it to one lets a
+   * test stall a reload while another call goes through — the shape of a race
+   * where a stale response lands last. Loosely typed on purpose: this steers
+   * the test, it is not part of the contract the routes are checked against.
    */
-  hold(): void;
-  release(): void;
+  hold(method?: string, path?: string): void;
+  release(method?: string, path?: string): void;
 }
 
 /**
@@ -134,8 +139,10 @@ interface Route {
 export function installApiStub(): ApiStub {
   const routes: Route[] = [];
   const recorded: RecordedRequest[] = [];
-  let gate: Promise<void> | null = null;
-  let openGate: () => void = () => {};
+  const gates: { method?: string; path?: string; promise: Promise<void>; open: () => void }[] = [];
+
+  const gatesFor = (method: string, path: string) =>
+    gates.filter(g => (!g.method || g.method === method) && (!g.path || g.path === path));
 
   async function stub(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
     // openapi-fetch hands over a single Request; a bare fetch(url, init) is
@@ -163,7 +170,10 @@ export function installApiStub(): ApiStub {
     if (type.includes("multipart/form-data")) entry.form = await request.formData();
     else if (type.includes("application/json")) entry.json = await request.json();
 
-    if (gate) await gate;
+    // Captured before awaiting: a gate opened later must not retroactively
+    // stall a request that was already free to answer.
+    const waiting = gatesFor(request.method, answer.path);
+    if (waiting.length) await Promise.all(waiting.map(g => g.promise));
 
     return new Response(answer.body === undefined ? null : JSON.stringify(answer.body), {
       status: answer.status,
@@ -202,19 +212,28 @@ export function installApiStub(): ApiStub {
       const hits = matching(method as string, path as string);
       return hits[hits.length - 1];
     },
-    hold: () => {
-      // A second hold() without a release() in between would replace openGate
-      // and strand the first promise, so anything already waiting would hang
-      // until the test times out. Holding twice simply keeps the first gate.
-      if (gate) return;
-      gate = new Promise<void>(resolve => {
-        openGate = () => {
-          gate = null;
-          resolve();
-        };
+    hold: (method, path) => {
+      const key = { method: method?.toUpperCase(), path };
+      // Holding the same target twice would strand the first promise, and
+      // anything already waiting on it would hang until the test times out.
+      if (gates.some(g => g.method === key.method && g.path === key.path)) return;
+      let open = () => {};
+      const promise = new Promise<void>(resolve => {
+        open = resolve;
       });
+      gates.push({ ...key, promise, open });
     },
-    release: () => openGate(),
+    release: (method, path) => {
+      // Without arguments this releases everything, which is what afterEach
+      // needs so a held request cannot outlive its test.
+      const upper = method?.toUpperCase();
+      for (const gate of [...gates]) {
+        if ((method === undefined || gate.method === upper) && (path === undefined || gate.path === path)) {
+          gate.open();
+          gates.splice(gates.indexOf(gate), 1);
+        }
+      }
+    },
   };
 }
 

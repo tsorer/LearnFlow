@@ -213,6 +213,50 @@ describe("Upload", () => {
     expect(api.count("post", "/api/documents")).toBe(1);
   });
 
+  it("sends the rest of the batch after one file fails, and names each failure", async () => {
+    // The loop used to abort on the first error, so files after it were never
+    // sent — and nothing said so. The user saw one message, a list containing
+    // the files before the failure, and assumed the rest had arrived.
+    show();
+    await waitFor(() => expect(api.count("get", "/api/documents")).toBe(1));
+    api.route("post", "/api/documents", 413, { detail: "Zu gross" });
+
+    drop([file("a.pdf"), file("b.pdf"), file("c.pdf")]);
+
+    await waitFor(() => expect(api.count("post", "/api/documents")).toBe(3));
+    for (const name of ["a.pdf", "b.pdf", "c.pdf"]) {
+      expect(await screen.findByText(new RegExp(name.replace(".", "\\.")))).toBeInTheDocument();
+    }
+  });
+
+  it("does not resurrect a deleted document when a stale reload lands afterwards", async () => {
+    // A poll started before the delete and answering after it would overwrite
+    // the optimistic removal with a list that still contains the document.
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    api.route("get", "/api/documents", 200, [doc("korpus.pdf", "processing")]);
+    api.route("delete", "/api/documents/{document_id}", 204);
+
+    show();
+    expect(await screen.findByText("korpus.pdf")).toBeInTheDocument();
+
+    // Second poll goes out and is stalled — it still carries the old list.
+    api.hold("get");
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000);
+    });
+    await waitFor(() => expect(api.count("get", "/api/documents")).toBe(2));
+
+    fireEvent.click(screen.getByRole("button", { name: /löschen/i }));
+    await waitFor(() => expect(api.count("delete", "/api/documents/{document_id}")).toBe(1));
+
+    api.release("get");
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    expect(screen.queryByText("korpus.pdf")).not.toBeInTheDocument();
+  });
+
   it("polls while a document is processing and stops once it is available", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     api.route("get", "/api/documents", 200, [doc("korpus.pdf", "processing")]);

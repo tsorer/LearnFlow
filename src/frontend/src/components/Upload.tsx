@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { AuthUser, Document } from "../types";
 import { api } from "../api/client";
 
@@ -43,7 +43,23 @@ export default function Upload({ user, onClose }: Props) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [dragging, setDragging] = useState(false);
 
-  const load = () => api.listDocuments(user.token).then(setDocs).catch(() => {});
+  // Only the newest writer may set `docs`. Four of them race: the initial
+  // effect, the poll chain, the reload after an upload and the optimistic
+  // removal on delete. Chaining the poll serialises it against itself but not
+  // against the others, and a response that started earlier and lands later
+  // would overwrite a newer list — an uploaded document disappears again, a
+  // finished one flips back to "Verarbeitung…", a deleted one reappears.
+  const writer = useRef(0);
+
+  const load = () => {
+    const seq = ++writer.current;
+    return api
+      .listDocuments(user.token)
+      .then(next => {
+        if (seq === writer.current) setDocs(next);
+      })
+      .catch(() => {});
+  };
   useEffect(() => { load(); }, []);
 
   // Poll while the worker still has something in flight. Keyed off the boolean,
@@ -105,13 +121,19 @@ export default function Upload({ user, onClose }: Props) {
     setUploading(true);
     try {
       for (const file of accepted) {
-        await api.uploadDocument(file, "default", user.token);
+        try {
+          await api.uploadDocument(file, "default", user.token);
+        } catch (err) {
+          // Per file, not per batch: a failure on the second of three must not
+          // stop the third from being sent — the user would see one error, a
+          // list containing the first file, and nothing at all about the third.
+          // Appended and named, because overwriting would swallow both the
+          // rejections from above and the earlier failures of this batch.
+          const reason = err instanceof Error ? err.message : "Upload fehlgeschlagen";
+          rejected.push(`${file.name}: ${reason}`);
+          setError(rejected.join(" · "));
+        }
       }
-    } catch (err) {
-      // Appended, not assigned: overwriting would swallow the rejections above,
-      // and the file that was skipped is exactly what the user needs to know.
-      rejected.push(err instanceof Error ? err.message : "Upload fehlgeschlagen");
-      setError(rejected.join(" · "));
     } finally {
       // Outside the try on purpose: when the second of two files fails, the
       // first one is already on the server. Without this reload it stays
@@ -144,8 +166,11 @@ export default function Upload({ user, onClose }: Props) {
   };
 
   const handleDelete = async (id: string) => {
+    // Claims a sequence number like load() does, so a reload that was already
+    // in flight cannot land afterwards and resurrect the removed row.
+    const seq = ++writer.current;
     await api.deleteDocument(id, user.token).catch(() => {});
-    setDocs(prev => prev.filter(d => d.id !== id));
+    if (seq === writer.current) setDocs(prev => prev.filter(d => d.id !== id));
   };
 
   return (
