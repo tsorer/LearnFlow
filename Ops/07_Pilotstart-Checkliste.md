@@ -50,18 +50,31 @@ Nur kontrollieren:
 SELECT key, value FROM config ORDER BY key;
 ```
 
-Nachjustieren (empirisch nach Pilot-Erfahrung):
+Nachjustieren (empirisch nach Pilot-Erfahrung) — **die beiden Konfidenz-Bänder in einer
+Transaktion**, siehe Hinweis unten:
 
 ```sql
 -- Konfidenz-Bänder (ADR-008 · US-02)
+BEGIN;
 UPDATE config SET value = '0.75' WHERE key = 'confidence_threshold_high';
 UPDATE config SET value = '0.45' WHERE key = 'confidence_threshold_medium';
+COMMIT;
 -- Stale-Schwelle (US-06)
 UPDATE config SET value = '90'   WHERE key = 'stale_days';
 ```
 
 > Änderungen wirken sofort — die Werte werden pro Anfrage gelesen, kein Service-Neustart nötig.
 > Nach dem Pilotstart sind sie über die Admin-Seite (US-11) ohne Deployment anpassbar.
+
+> **Warum `BEGIN; … COMMIT;`** (Migration `0009`, ADR-008 Nachtrag 2026-08-16): Die Datenbank
+> lehnt einen Konfidenz-Wert ab, der keine Zahl in [0, 1] ist (`0,90` mit Komma etwa), und
+> ebenso `medium` über `high`. Die Prüfung der Band-Reihenfolge ist auf das Transaktionsende
+> aufgeschoben. psql arbeitet ohne `BEGIN` im Autocommit — jedes `UPDATE` ist dann seine eigene
+> Transaktion, und beim **Senken beider Bänder** scheitert schon das erste, weil dazwischen
+> kurz `medium > high` gilt. Innerhalb einer Transaktion ist die Reihenfolge egal.
+>
+> Eine Fehlermeldung hier heisst: der Wert ist **nicht** gesetzt worden. Das ist Absicht —
+> früher fiel ein solcher Wert stillschweigend auf die lockereren Startwerte zurück.
 
 ---
 
