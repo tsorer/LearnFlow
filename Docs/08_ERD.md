@@ -167,6 +167,10 @@ Konfigurierbare Parameter (ADR-007 · ADR-008 · US-02 · US-06 · US-11):
 
 `changed_by` + `changed_at` erfüllen das US-11-Audit-Log-Kriterium (kein separates Log nötig).
 
+Die beiden Konfidenz-Bänder sind seit `0009` in der DB validiert (Wert numerisch in [0, 1] per
+`CHECK`, `medium <= high` per aufgeschobenem `CONSTRAINT TRIGGER`) — die Tabelle bleibt generisch
+Key/Value, die Regeln hängen am Key. Begründung: ADR-008, Nachtrag 2026-08-16.
+
 ### `feedback`
 Pseudonymisiert — kein `user_id`-Feld (US-03).
 
@@ -187,3 +191,4 @@ SHOULD-Priorität (US-07 / US-08). Eigenes Issue T-34, nicht im aktuellen Sprint
 | `0006_documents_status_default` | `documents.status`-Default auf `pending` | ✅ deployed |
 | `0007_chunking_config` | `config`: `chunk_size` · `chunk_overlap` | 🔵 T-12 |
 | `0008_confidence_thresholds` | `config`: `confidence_threshold_high` · `confidence_threshold_medium` | 🔵 T-24 |
+| `0009_config_threshold_constraints` | `config`: `CHECK` + `CONSTRAINT TRIGGER` auf den Konfidenz-Bändern | 🔵 #73 |
