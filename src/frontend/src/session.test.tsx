@@ -5,35 +5,17 @@
  * fuehrt zurueck auf /login.
  *
  * Anders als auth.test.tsx wird hier NICHT das api-Modul gemockt, sondern
- * `fetch` — die 401-Erkennung sitzt in client.ts selbst und waere gegen einen
- * Modul-Mock nicht pruefbar.
+ * `fetch` (ueber den gemeinsamen Stub in test/api.ts) — die 401-Erkennung
+ * sitzt in client.ts selbst und waere gegen einen Modul-Mock nicht pruefbar.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, waitFor, cleanup } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom/vitest";
 import App from "./App";
+import { installApiStub, installAppEnvironment, type ApiStub } from "../test/api";
 
-const routes = new Map<string, { status: number; body?: unknown }>();
-
-function route(method: string, path: string, status: number, body?: unknown) {
-  routes.set(`${method} /api${path}`, { status, body });
-}
-
-function fakeFetch(input: RequestInfo | URL, init?: RequestInit) {
-  // openapi-fetch passes a single Request; a bare fetch(url, init) is still
-  // possible, so both shapes are normalised here before matching a route.
-  const request = input instanceof Request ? input : new Request(String(input), init);
-  const key = `${request.method} ${new URL(request.url, "http://localhost").pathname}`;
-  const res = routes.get(key);
-  if (!res) throw new Error(`Nicht gemockte Anfrage: ${key}`);
-  return Promise.resolve(
-    new Response(res.body === undefined ? null : JSON.stringify(res.body), {
-      status: res.status,
-      headers: { "Content-Type": "application/json" },
-    }),
-  );
-}
+let api: ApiStub;
 
 /** Meldet den Seed-Learner an und wartet, bis ChatView steht. */
 async function login() {
@@ -43,11 +25,8 @@ async function login() {
 }
 
 beforeEach(() => {
-  routes.clear();
-  vi.stubGlobal("fetch", vi.fn(fakeFetch));
-  vi.stubGlobal("__BUILD_TIME__", new Date().toISOString());
-  Element.prototype.scrollIntoView = vi.fn();
-  window.history.pushState({}, "", "/");
+  api = installApiStub();
+  installAppEnvironment();
 });
 
 afterEach(() => {
@@ -57,10 +36,10 @@ afterEach(() => {
 
 describe("Session-Ablauf (T-40)", () => {
   it("leitet bei 401 auf einer geschuetzten Ansicht zurueck auf /login (AK 1, AK 3)", async () => {
-    route("POST", "/auth/login", 200, { access_token: "tok123", role: "learner" });
-    route("GET", "/auth/me", 200, { id: "u1", email: "lara@learnflow.ch", role: "learner" });
+    api.route("post", "/api/auth/login", 200, { access_token: "tok123", token_type: "bearer", role: "learner" });
+    api.route("get", "/api/auth/me", 200, { id: "u1", email: "lara@learnflow.ch", role: "learner" });
     // Token laeuft waehrend der Sitzung ab (T-06: 1 h Gueltigkeit).
-    route("POST", "/query", 401, { detail: "Not authenticated" });
+    api.route("post", "/api/query", 401, { detail: "Not authenticated" });
 
     render(<App />);
     await login();
@@ -79,7 +58,7 @@ describe("Session-Ablauf (T-40)", () => {
   });
 
   it("meldet einen 401 aus /auth/login weiterhin als falsches Passwort (AK 2)", async () => {
-    route("POST", "/auth/login", 401, { detail: "Ungueltige Zugangsdaten" });
+    api.route("post", "/api/auth/login", 401, { detail: "Ungueltige Zugangsdaten" });
 
     render(<App />);
     await login();
@@ -89,9 +68,9 @@ describe("Session-Ablauf (T-40)", () => {
   });
 
   it("blendet den Hinweis nach erneuter Anmeldung wieder aus", async () => {
-    route("POST", "/auth/login", 200, { access_token: "tok123", role: "learner" });
-    route("GET", "/auth/me", 200, { id: "u1", email: "lara@learnflow.ch", role: "learner" });
-    route("POST", "/query", 401, { detail: "Not authenticated" });
+    api.route("post", "/api/auth/login", 200, { access_token: "tok123", token_type: "bearer", role: "learner" });
+    api.route("get", "/api/auth/me", 200, { id: "u1", email: "lara@learnflow.ch", role: "learner" });
+    api.route("post", "/api/query", 401, { detail: "Not authenticated" });
 
     render(<App />);
     await login();
