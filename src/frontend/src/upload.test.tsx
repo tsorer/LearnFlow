@@ -1,9 +1,9 @@
 /**
  * @vitest-environment jsdom
  *
- * T-16: die Upload-UI. Gegen den gemeinsamen fetch-Stub (test/api.ts) —
- * geprueft wird, was tatsaechlich ueber die Leitung geht, in drei Faellen
- * gerade, dass nichts geht.
+ * T-16: the upload UI, against the shared fetch stub (test/api.ts). What is
+ * asserted is what actually goes over the wire — in several cases precisely
+ * that nothing does.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, cleanup, fireEvent, act, waitFor } from "@testing-library/react";
@@ -261,10 +261,10 @@ describe("Upload", () => {
     expect(screen.queryByText("korpus.pdf")).not.toBeInTheDocument();
   });
 
-  // AK 1 aus #23 verlangt beide Wege. Bis hierher ging jeder Test ueber den
-  // Drop, `handleInput` war damit ungedeckt — samt dem value-Reset und der
-  // disabled-Verdrahtung, die beide ihren eigenen Bug schon hatten.
-  describe("Klick-Pfad", () => {
+  // AK 1 of #23 asks for both ways in. Every test above goes through the drop,
+  // which left handleInput uncovered — including the value reset and the
+  // disabled wiring, each of which had a bug of its own.
+  describe("click path", () => {
     it("uploads a file chosen through the file picker", async () => {
       show();
       await waitFor(() => expect(api.count("get", "/api/documents")).toBe(1));

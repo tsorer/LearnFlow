@@ -151,7 +151,7 @@ export function installApiStub(): ApiStub {
     const url = new URL(request.url, "http://localhost");
 
     const answer = routes.find(r => r.method === request.method && r.pattern.test(url.pathname));
-    if (!answer) throw new Error(`Nicht gemockte Anfrage: ${request.method} ${url.pathname}`);
+    if (!answer) throw new Error(`Unmocked request: ${request.method} ${url.pathname}`);
 
     // Pushed before the body is parsed, so count() is correct synchronously —
     // a test that clicks three times and asserts immediately must not race the
