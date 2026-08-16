@@ -107,6 +107,7 @@ class Answer(Base):
 
 class Feedback(Base):
     __tablename__ = "feedback"
+    __table_args__ = (Index("ix_feedback_answer_id", "answer_id"),)
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     answer_id: Mapped[uuid.UUID] = mapped_column(
