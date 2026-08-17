@@ -5,19 +5,21 @@
  * arrived, and must not send it twice. That confirmation is the part which has
  * to be right before the endpoints even exist.
  *
- * Each of the two write paths is checked against two failure cases:
+ * Each write path is checked against two failure cases:
  *
  *   - a status the spec carries permanently (422 resp. 404). That one survives
- *     T-30 and T-37.
- *   - the 501 placeholder, which both endpoints actually return today. It is
- *     the only answer users currently get to see, and without this case the
- *     corresponding messages would have no test at all.
+ *     T-37 (and survived T-30, below).
+ *   - while a path's endpoint is still a placeholder, the 501 it actually
+ *     returns today — the only answer users currently get to see, and
+ *     without this case the corresponding message would have no test at all.
  *
- * The 501 case has a built-in expiry date: as soon as T-30 resp. T-37 takes the
- * code out of the spec, the typed routes reject it and the test stops
- * compiling. That is deliberate — it surfaces in exactly the commit that also
- * has to remove the 501 branch in ChatView resp. MessageBubble. Delete both
- * together then; do not swap the status code.
+ * The 501 case has a built-in expiry date: as soon as an endpoint's real
+ * implementation takes the code out of the spec, the typed routes reject it
+ * and the test stops compiling. That is deliberate — it surfaces in exactly
+ * the commit that also has to remove the matching 501 branch in ChatView
+ * resp. MessageBubble. Delete both together then; do not swap the status
+ * code. T-30 already went through this (see the feedback block below); T-37
+ * (admin config) has not yet.
  *
  * Like session.test.tsx, this runs against the shared fetch stub (test/api.ts)
  * rather than a module mock: what is asserted is what goes over the wire.
@@ -167,14 +169,4 @@ describe("feedback (T-30)", () => {
     expect(feedbackCalls()).toBe(2);
   });
 
-  it("names the 501 placeholder while T-30 is open", async () => {
-    // Goes away once T-30 removes 501 from the spec — see the file header.
-    const thumbUp = await askQuestion();
-    api.route("post", FEEDBACK, 501, { detail: "Not implemented (T-30)" });
-
-    await userEvent.click(thumbUp);
-
-    expect(await screen.findByText(/noch nicht verfügbar/i)).toBeInTheDocument();
-    expect(thumbUp).toBeEnabled();
-  });
 });

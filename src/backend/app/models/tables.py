@@ -109,8 +109,15 @@ class Feedback(Base):
     __tablename__ = "feedback"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    # unique: one rating per answer (upsert on repeat submission) -- a retry, a
+    # second tab, or a component remount must update the same row instead of
+    # writing an unpseudonymisable duplicate that inflates T-32's aggregation.
     answer_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("answers.id", ondelete="CASCADE"), nullable=False
+        UUID(as_uuid=True),
+        ForeignKey("answers.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True,
     )
     helpful: Mapped[bool] = mapped_column(Boolean, nullable=False)
     category: Mapped[str | None] = mapped_column(String(100), nullable=True)

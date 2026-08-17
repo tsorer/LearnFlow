@@ -241,6 +241,15 @@ export interface paths {
                     };
                     content?: never;
                 };
+                /** @description Kategorie passt nicht zu helpful (vier Gründe für 👍, fünf für 👎 — US-03) */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
                 /** @description Nicht authentifiziert */
                 401: {
                     headers: {
@@ -252,15 +261,6 @@ export interface paths {
                 };
                 /** @description Antwort nicht gefunden */
                 404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Noch nicht implementiert (T-30) — siehe /api/query */
-                501: {
                     headers: {
                         [name: string]: unknown;
                     };

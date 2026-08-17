@@ -159,8 +159,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        '501':
-          description: Noch nicht implementiert (T-30) — siehe /api/query
+        '400':
+          description: >-
+            Kategorie passt nicht zu helpful (vier Gründe für 👍,
+            fünf für 👎 — US-03)
           content:
             application/json:
               schema:
