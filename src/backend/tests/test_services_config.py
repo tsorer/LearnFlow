@@ -6,6 +6,7 @@ import pytest
 from app.services.config import (
     DEFAULT_CONFIDENCE_THRESHOLD_HIGH,
     DEFAULT_CONFIDENCE_THRESHOLD_MEDIUM,
+    ConfigurationError,
     read_confidence_thresholds,
 )
 
@@ -51,28 +52,54 @@ async def test_missing_single_key_keeps_the_other_database_value() -> None:
     assert thresholds.medium == 0.6
 
 
-async def test_non_numeric_value_falls_back_instead_of_raising(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
+# The three cases from issue #73: each one is somebody trying to tighten the
+# bands. None of them may end up at the looser start values (ADR-008).
+
+
+async def test_german_decimal_comma_raises_instead_of_loosening() -> None:
+    db = make_db((("confidence_threshold_high", "0,90"), ("confidence_threshold_medium", "0,80")))
+
+    with pytest.raises(ConfigurationError, match="confidence_threshold_high"):
+        await read_confidence_thresholds(db)
+
+
+async def test_transposed_digits_raise_instead_of_loosening() -> None:
+    """high='0.09' is numeric and in range — only the band order catches it."""
+    db = make_db((("confidence_threshold_high", "0.09"), ("confidence_threshold_medium", "0.90")))
+
+    with pytest.raises(ConfigurationError, match="liegt über"):
+        await read_confidence_thresholds(db)
+
+
+async def test_inverted_bands_raise_instead_of_loosening() -> None:
+    db = make_db((("confidence_threshold_high", "0.85"), ("confidence_threshold_medium", "0.95")))
+
+    with pytest.raises(ConfigurationError, match="liegt über"):
+        await read_confidence_thresholds(db)
+
+
+async def test_non_numeric_value_raises() -> None:
     db = make_db((("confidence_threshold_high", "hoch"), ("confidence_threshold_medium", "0.5")))
 
+    with pytest.raises(ConfigurationError, match="keine Zahl"):
+        await read_confidence_thresholds(db)
+
+
+@pytest.mark.parametrize("raw", ["1.5", "-0.1"])
+async def test_value_outside_the_unit_interval_raises(raw: str) -> None:
+    db = make_db((("confidence_threshold_high", raw),))
+
+    with pytest.raises(ConfigurationError, match=r"\[0, 1\]"):
+        await read_confidence_thresholds(db)
+
+
+async def test_equal_bands_are_accepted() -> None:
+    """medium == high is the invariant's boundary, not a violation."""
+    db = make_db((("confidence_threshold_high", "0.6"), ("confidence_threshold_medium", "0.6")))
+
     thresholds = await read_confidence_thresholds(db)
 
-    assert thresholds.high == DEFAULT_CONFIDENCE_THRESHOLD_HIGH
-    assert thresholds.medium == 0.5
-    assert "confidence_threshold_high" in caplog.text
-
-
-async def test_inverted_bands_fall_back_to_both_defaults(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    db = make_db((("confidence_threshold_high", "0.3"), ("confidence_threshold_medium", "0.9")))
-
-    thresholds = await read_confidence_thresholds(db)
-
-    assert thresholds.high == DEFAULT_CONFIDENCE_THRESHOLD_HIGH
-    assert thresholds.medium == DEFAULT_CONFIDENCE_THRESHOLD_MEDIUM
-    assert caplog.records
+    assert (thresholds.high, thresholds.medium) == (0.6, 0.6)
 
 
 async def test_change_takes_effect_on_the_next_call_without_restart() -> None:

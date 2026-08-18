@@ -3,7 +3,7 @@
 | Feld          | Inhalt                                |
 | ------------- | ------------------------------------- |
 | **Status**    | Accepted                              |
-| **Datum**     | 2026-05-31 · aktualisiert 2026-06-03  |
+| **Datum**     | 2026-05-31 · aktualisiert 2026-06-03, 2026-08-16 |
 | **Verfasser** | LearnFlow-Team (Frank, Niklaus, Reto, Christoph) |
 
 ---
@@ -66,6 +66,27 @@ Der **angezeigte** Konfidenzwert ist eine gewichtete Kombination aus Retrieval-K
 | **Niedrig / unterdrückt** | unter Schwelle / ungedeckt | „Weiss ich nicht" (+ optional nächstliegende Quellen, ohne generierten Inhalt) |
 
 Unterdrückte Antworten liefern eine **standardisierte** „Weiss ich nicht"-Meldung — nie generierten Fließtext.
+
+### Nachtrag 2026-08-16 — Wo die Schwellen validiert werden (Issue #73)
+
+Der erste Reader (T-24) hat jeden unlesbaren oder invertierten `config`-Wert auf die Startwerte 0.75/0.45 zurückfallen lassen. Das ist in der Richtung, die zählt, **fail-open**: wer strenger stellen will und sich vertippt (deutsches Dezimalkomma `0,90`, Zahlendreher `0.09`, vertauschte Bänder), bekommt die *lockereren* Startwerte — bei einer Log-Warnung, die im Betrieb niemand liest. Zwei verschiedene Situationen wurden gleich behandelt:
+
+| Situation                  | Bedeutung                          | Antwort                          |
+| -------------------------- | ---------------------------------- | -------------------------------- |
+| Zeile fehlt                | Niemand hat etwas anderes gewollt  | Default — dafür ist er da        |
+| Zeile da, aber kaputt      | Jemand wollte etwas, es ging schief | Schreiben ablehnen, Lesen wirft  |
+
+**Entscheid: Die Strenge liegt in der Datenbank, nicht im Anwendungscode.** Es gibt zwei Schreibpfade — die Admin-API (T-37) und direktes `psql`, das die Pilotstart-Checkliste ausdrücklich vorsieht. Eine Validierung in T-37 liefe am zweiten vorbei, deshalb sitzt sie eine Ebene tiefer und deckt beide ab (Migration `0009`):
+
+1. **Pro Zeile: `CHECK`-Constraint** `ck_config_confidence_threshold_value` — für Keys `confidence_threshold_%` muss der Wert der Form `0.x` / `1.0` genügen (numerisch *und* im Bereich [0, 1] in einem Regex, weil PostgreSQL die Auswertungsreihenfolge innerhalb eines `AND` nicht garantiert und ein `value::numeric` sonst als Cast-Fehler statt als Constraint-Verletzung erscheinen kann).
+2. **Über Zeilen hinweg: `CONSTRAINT TRIGGER`** `trg_config_confidence_band_order` — `medium <= high` betrifft zwei Zeilen, und `CHECK` ist in PostgreSQL zeilenweise und erlaubt keine Subqueries. `DEFERRABLE INITIALLY DEFERRED`, damit beide Werte in *einer* Transaktion in beliebiger Reihenfolge gesetzt werden können.
+3. **Reader wirft** (`ConfigurationError`): ein vorhandener, aber nicht interpretierbarer Wert führt nicht mehr zu einem anderen, lockereren Wert. Ein **fehlender** Key fällt weiterhin auf den Default zurück — unverändert. Nach 1. + 2. ist der Wurf praktisch unerreichbar; er ist die Absicherung gegen einen Schreibpfad an der DB vorbei, nicht der Normalfall. Der Aufrufer (T-26) übersetzt ihn in „Weiss ich nicht", nicht in einen 500er — fail-closed bleibt fail-closed.
+
+**Typisierte Spalten statt Key/Value** wurden verworfen: die `config`-Tabelle ist bewusst generisch (`stale_days`, `chunk_size`, `chunk_overlap`, künftig das Embedding-Modell aus T-42), und ein Umbau der Tabellenform zöge all das mit. Der Preis des gewählten Wegs ist, dass key-spezifische Regeln in einer generischen Tabelle stehen; der `CASE`-Block in `0009` ist deshalb um weitere Keys erweiterbar (T-42 braucht dieselbe Mechanik für `embedding_dimensions <= 2000`).
+
+**Folge für den `psql`-Pfad:** Werden *beide* Bänder gesenkt, verletzt das erste `UPDATE` in psql-Autocommit die Invariante — jedes Statement ist dort seine eigene Transaktion, `DEFERRABLE` greift nicht. `Ops/07_Pilotstart-Checkliste.md` klammert die beiden `UPDATE`s deshalb in `BEGIN; … COMMIT;`.
+
+Dieselbe Haltung gilt bereits für die Chunking-Parameter (`app/services/chunking.py`: ein unbrauchbares `chunk_size` wirft, statt still weiterzurechnen).
 
 ---
 
