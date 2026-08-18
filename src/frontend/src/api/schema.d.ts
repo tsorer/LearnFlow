@@ -191,8 +191,17 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description Noch nicht implementiert (T-17). Der Endpoint existiert als Dummy, damit Vertrag und Implementierung deckungsgleich bleiben; er liefert bewusst keine erfundene Antwort. Entfällt mit der Implementierung. */
-                501: {
+                /** @description Frage fehlt oder verletzt die Längengrenzen (3 bis 1000 Zeichen). */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ValidationError"];
+                    };
+                };
+                /** @description Retrieval nicht verfügbar (Embedding-Provider oder Datenbank). Kein fachliches Ergebnis, sondern ein Infrastrukturfehler — bewusst nicht als Unterdrückung getarnt (ADR-008). */
+                503: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -555,7 +564,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description Noch nicht implementiert (T-37) — siehe /api/query */
+                /** @description Noch nicht implementiert (T-37) */
                 501: {
                     headers: {
                         [name: string]: unknown;
@@ -619,7 +628,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description Noch nicht implementiert (T-37) — siehe /api/query */
+                /** @description Noch nicht implementiert (T-37) */
                 501: {
                     headers: {
                         [name: string]: unknown;
@@ -686,6 +695,15 @@ export interface components {
             /** @description Menschenlesbare Fehlerbeschreibung */
             detail: string;
         };
+        /** @description FastAPIs Schema-Validierung. Bewusst nicht `Error`: hier ist `detail` eine Liste von Einzelfehlern, kein String — ein Client, der beide gleich behandelt, liest den falschen Typ. */
+        ValidationError: {
+            detail: {
+                /** @description Pfad zum beanstandeten Feld, z. B. ["body", "question"] */
+                loc: (string | number)[];
+                msg: string;
+                type: string;
+            }[];
+        };
         LoginRequest: {
             /** Format: email */
             email: string;
@@ -713,7 +731,7 @@ export interface components {
              */
             session_id?: string | null;
         };
-        /** @description Antwort der Konfidenz-Pipeline (ADR-008). Bei `suppressed` steht in `message` die Weiss-ich-nicht-Antwort und `citations` bleibt leer. */
+        /** @description Antwort der Konfidenz-Pipeline (ADR-008). Bei `suppressed` steht in `message` die standardisierte Weiss-ich-nicht-Antwort, nie generierter Fliesstext; `citations` darf die nächstliegenden Quellen enthalten, damit die Frage präzisiert werden kann (ADR-008, Band «Niedrig»). */
         QueryResponse: {
             /** Format: uuid */
             session_id: string;
@@ -724,8 +742,11 @@ export interface components {
             answer_id: string;
             /** @description true, wenn eine Stufe der Pipeline unterdrückt hat */
             suppressed: boolean;
-            /** @description Welche Stufe unterdrückt hat (ADR-008) */
-            suppression_reason?: string | null;
+            /**
+             * @description Welche Stufe unterdrückt hat (ADR-008). Geschlossene Menge, damit das Frontend jeden Wert beschriften kann statt den technischen Schlüssel anzuzeigen; T-18 ergänzt hier `citation_coverage` und `self_check`.
+             * @enum {string|null}
+             */
+            suppression_reason?: "retrieval_gate" | "retrieval_confidence" | "generation_not_implemented" | "configuration_error" | null;
             /** @description Antworttext, oder die Weiss-ich-nicht-Meldung bei Unterdrückung */
             message?: string | null;
             /** @description Vorschlag zur Präzisierung der Frage */

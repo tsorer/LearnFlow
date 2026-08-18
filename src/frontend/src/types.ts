@@ -9,6 +9,7 @@ import type {
   DebugInfo,
   DocumentResponse,
   LLMCallInfo,
+  QueryResponse,
   Role,
   StageInfo,
 } from "./api/client";
@@ -17,6 +18,13 @@ import type {
 // Citation are needed internally only (AuthUser resp. Message); anyone needing
 // them directly takes them from ./api/client.
 export type { ChunkDebugInfo, ConfidenceInfo, DebugInfo, LLMCallInfo, StageInfo };
+
+/**
+ * The closed set of `suppression_reason` values, straight from the spec enum —
+ * so a reason added in openapi.yaml breaks the label map at compile time
+ * instead of surfacing the raw key to the user.
+ */
+export type SuppressionReason = NonNullable<QueryResponse["suppression_reason"]>;
 
 /** A document as the API returns it. */
 export type Document = DocumentResponse;
@@ -39,7 +47,7 @@ export interface Message {
   content: string;
   answer_id?: string;
   suppressed?: boolean;
-  suppression_reason?: string | null;
+  suppression_reason?: SuppressionReason | null;
   citations?: Citation[];
   confidence?: ConfidenceInfo | null;
   debug?: DebugInfo | null;

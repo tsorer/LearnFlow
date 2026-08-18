@@ -1,4 +1,4 @@
-"""Runtime thresholds read from the `config` table (ADR-008, T-24).
+"""Runtime thresholds read from the `config` table (ADR-007/ADR-008, T-24).
 
 The confidence band limits must be recalibratable without a deployment and
 without a service restart (US-02, US-11), so they are read from the database
@@ -28,6 +28,22 @@ DEFAULT_CONFIDENCE_THRESHOLD_HIGH = 0.75
 DEFAULT_CONFIDENCE_THRESHOLD_MEDIUM = 0.45
 
 CONFIDENCE_THRESHOLD_KEYS = ("confidence_threshold_high", "confidence_threshold_medium")
+
+DEFAULT_SIMILARITY_THRESHOLD = 0.35
+DEFAULT_MIN_RETRIEVAL_CONFIDENCE = 0.40
+DEFAULT_MIN_CITATION_COVERAGE = 0.50
+DEFAULT_RETRIEVAL_TOP_K = 20
+DEFAULT_CONTEXT_TOP_N = 5
+DEFAULT_RRF_K = 60
+
+PIPELINE_KEYS = (
+    "similarity_threshold",
+    "min_retrieval_confidence",
+    "min_citation_coverage",
+    "retrieval_top_k",
+    "context_top_n",
+    "rrf_k",
+)
 
 
 class ConfigurationError(Exception):
@@ -83,6 +99,57 @@ async def read_confidence_thresholds(db: AsyncSession) -> ConfidenceThresholds:
     return ConfidenceThresholds(high=high, medium=medium)
 
 
+@dataclass(frozen=True)
+class PipelineConfig:
+    """Retrieval parameters (ADR-007) and stage thresholds (ADR-008).
+
+    Retrieval and the gates it feeds are read together because one request
+    needs all of them and they are all rows of the same table — splitting them
+    into two readers would buy nothing but a second round-trip.
+    `min_citation_coverage` is stage 2 and therefore unused until T-18; it is
+    already surfaced in the admin debug view, where an operator calibrating the
+    pipeline needs to see every threshold, not just the ones that ran.
+
+    All values are hypotheses to be calibrated against the eval dataset
+    (ADR-009), which is exactly why they live in `config` and not in Settings.
+    """
+
+    similarity_threshold: float
+    min_retrieval_confidence: float
+    min_citation_coverage: float
+    retrieval_top_k: int
+    context_top_n: int
+    rrf_k: int
+
+
+async def read_pipeline_config(db: AsyncSession) -> PipelineConfig:
+    """Load the retrieval and gate parameters from `config`.
+
+    Uncached for the same reason as the confidence bands above: one six-row
+    lookup is irrelevant next to the embedding round-trip it precedes.
+
+    Raises:
+        ConfigurationError: a row is present but not a usable parameter.
+    """
+    result = await db.execute(select(Config.key, Config.value).where(Config.key.in_(PIPELINE_KEYS)))
+    values: dict[str, str] = {key: value for key, value in result.all()}
+
+    return PipelineConfig(
+        similarity_threshold=_as_threshold(
+            values, "similarity_threshold", DEFAULT_SIMILARITY_THRESHOLD
+        ),
+        min_retrieval_confidence=_as_threshold(
+            values, "min_retrieval_confidence", DEFAULT_MIN_RETRIEVAL_CONFIDENCE
+        ),
+        min_citation_coverage=_as_threshold(
+            values, "min_citation_coverage", DEFAULT_MIN_CITATION_COVERAGE
+        ),
+        retrieval_top_k=_as_count(values, "retrieval_top_k", DEFAULT_RETRIEVAL_TOP_K),
+        context_top_n=_as_count(values, "context_top_n", DEFAULT_CONTEXT_TOP_N),
+        rrf_k=_as_count(values, "rrf_k", DEFAULT_RRF_K),
+    )
+
+
 def _as_threshold(values: dict[str, str], key: str, default: float) -> float:
     raw = values.get(key)
     if raw is None:
@@ -98,5 +165,30 @@ def _as_threshold(values: dict[str, str], key: str, default: float) -> float:
 
     if not 0.0 <= value <= 1.0:
         raise ConfigurationError(f"config: {key} liegt ausserhalb von [0, 1] ({raw!r})")
+
+    return value
+
+
+def _as_count(values: dict[str, str], key: str, default: int) -> int:
+    """The same contract as `_as_threshold`, for the counts (ADR-008, Nachtrag).
+
+    Separate from the thresholds because the valid range differs — these are
+    candidate counts and an RRF constant, not values in [0, 1] — but the
+    fail-closed rule is identical: a missing row takes the default, a present
+    but unusable one raises rather than silently retrieving with a different
+    `top_k` than the operator asked for.
+    """
+    raw = values.get(key)
+    if raw is None:
+        logger.debug("config: %s nicht gesetzt — Default %s", key, default)
+        return default
+
+    try:
+        value = int(raw)
+    except ValueError as exc:
+        raise ConfigurationError(f"config: {key} ist keine ganze Zahl ({raw!r})") from exc
+
+    if value < 1:
+        raise ConfigurationError(f"config: {key} muss positiv sein ({raw!r})")
 
     return value
