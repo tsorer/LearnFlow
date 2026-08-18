@@ -302,6 +302,36 @@ schon Gate-Unterdrückung) im laufenden Stack durchspielen und das Ergebnis im P
 **Reihenfolge-Empfehlung:** T-19 direkt nach T-18 einplanen, damit die Lücke aus
 Entscheidungspunkt A kurz bleibt.
 
+## 8a. Abweichungen bei der Umsetzung (2026-08-18)
+
+Der T-17-Branch hatte sich beim Rebase gegenüber Abschnitt 1 bewegt. Zwei Annahmen des Plans
+gelten deshalb nicht mehr:
+
+1. **Die Spec-Änderung ist keine reine Beschreibung.** T-17 hat `suppression_reason` als
+   geschlossenes Enum deklariert. `generation_not_implemented` wird durch `generation_refused`
+   ersetzt, das ist eine Schema-Änderung — `schema.d.ts` ändert sich mit, und der Kommentar in
+   `query.py` verlangt den passenden Frontend-Label im selben PR. `MessageBubble.tsx` ist
+   deshalb Teil dieses PRs, anders als in Entscheidungspunkt C angenommen. Ohne die Anpassung
+   wäre `npm run check` rot: die Label-Map ist als `Record<SuppressionReason, string>` typisiert.
+2. **Neuer Pfad `configuration_error`.** T-17 übersetzt eine unbrauchbare Schwelle in eine
+   unterdrückte Antwort statt in einen 500 und leitet jeden Ausgang durch
+   `_persist_and_respond`. Dieser Helfer bekommt in T-18 zwei Parameter (`answer_text`,
+   `suppressed`) statt der bisher fest verdrahteten Werte.
+
+3. **Nachtrag aus dem Review (2026-08-18).** Vier Befunde sind in den PR eingeflossen:
+   `finish_reason == "length"` wird ausgewertet und führt zum neuen Grund
+   `generation_truncated` (fail-closed, ADR-008); im Admin-Panel war der Composite-Block an
+   feste Stufen-Indizes gebunden und rendert seit T-17 nie — jetzt an Stage-IDs verankert; das
+   Citation-Badge verglich die noch nicht berechneten 0.0 gegen die Schwelle und färbte jede
+   korrekte Antwort rot; und das Unterdrückungs-Badge hing an `m.confidence`, womit
+   `configuration_error` als einziger Grund unsichtbar war. Nicht übernommen: Gate über die
+   Top-`n` (dokumentierter Entscheid in ADR-007, Kalibrierungsfrage), fehlende Prüfung
+   `context_top_n <= retrieval_top_k` (Folge-Issue, Wirkung ≤ 0.067 am Score) und das
+   Rate-Limit (bereits als T-45 offen).
+
+Unverändert gültig: Kontextreihenfolge, `Citation.index`, die 503-Semantik und die
+Scope-Abgrenzung gegen T-19/T-23/T-25.
+
 ## 9. Definition of Done — Prüfung gegen die Akzeptanzkriterien
 
 | Kriterium | Nachweis |

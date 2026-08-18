@@ -1,4 +1,4 @@
-"""POST /query — the contract T-17 owes the frontend (US-01, ADR-008)."""
+"""POST /query — the contract T-17/T-18 owe the frontend (US-01, ADR-008)."""
 
 import uuid
 from datetime import UTC, datetime
@@ -14,12 +14,17 @@ from app.main import app
 from app.models.tables import User
 from app.routers.query import (
     REASON_CONFIGURATION_ERROR,
-    REASON_GENERATION_PENDING,
+    REASON_GENERATION_REFUSED,
+    REASON_GENERATION_TRUNCATED,
     REASON_NO_MATCH,
     REASON_WEAK_EVIDENCE,
+    STEP_GROUNDING,
 )
 from app.services.config import ConfigurationError, PipelineConfig
+from app.services.generation import GenerationResult, build_prompt
 from app.services.retrieval import RetrievalHit, RetrievalOutcome
+
+ANSWER = "Der AI Act regelt Hochrisiko-Systeme [1]."
 
 CONFIG = PipelineConfig(
     similarity_threshold=0.35,
@@ -70,11 +75,24 @@ def make_outcome(*scores: float) -> RetrievalOutcome:
     )
 
 
+def make_generate(answer: str | None = ANSWER, truncated: bool = False) -> AsyncMock:
+    """A stand-in for the generation step; `answer=None` is the model refusing."""
+    return AsyncMock(
+        return_value=GenerationResult(
+            answer=answer,
+            truncated=truncated,
+            prompt="SYSTEM … Kontext … Frage …",
+            raw_response=answer or "WEISS_NICHT",
+        )
+    )
+
+
 async def post_query(
     monkeypatch: pytest.MonkeyPatch,
     outcome: RetrievalOutcome | Exception,
     role: str = "learner",
     question: str = "Was regelt der EU AI Act?",
+    generate: AsyncMock | None = None,
 ) -> Any:
     monkeypatch.setattr(
         "app.routers.query.read_pipeline_config", AsyncMock(return_value=CONFIG)
@@ -85,6 +103,9 @@ async def post_query(
         else AsyncMock(return_value=outcome)
     )
     monkeypatch.setattr("app.routers.query.retrieve", retrieve)
+    monkeypatch.setattr(
+        "app.routers.query.generate_answer", generate if generate is not None else make_generate()
+    )
 
     app.dependency_overrides[get_current_user] = lambda: make_user(role)
     app.dependency_overrides[get_db] = lambda: make_db()
@@ -125,7 +146,7 @@ async def test_strong_retrieval_returns_numbered_citations(
     r = await post_query(monkeypatch, make_outcome(0.9, 0.8, 0.7, 0.6, 0.5))
 
     body = r.json()
-    assert body["suppression_reason"] == REASON_GENERATION_PENDING
+    assert body["suppression_reason"] is None
     assert [c["index"] for c in body["citations"]] == [1, 2, 3, 4, 5]
     assert body["confidence"]["retrieval_score"] >= CONFIG.min_retrieval_confidence
     # Whitespace collapsed so the excerpt is readable next to the answer.
@@ -133,15 +154,19 @@ async def test_strong_retrieval_returns_numbered_citations(
     assert body["citations"][0]["page"] == 7
 
 
-async def test_answer_stays_suppressed_until_generation_exists(
+async def test_a_generated_answer_is_delivered_with_its_sources(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """T-17 must never deliver an answer text — there is no generation yet."""
+    """Past both gates the answer is the message — no placeholder text (T-18)."""
     r = await post_query(monkeypatch, make_outcome(0.95, 0.94, 0.93, 0.92, 0.91))
 
     body = r.json()
-    assert body["suppressed"] is True
+    assert body["suppressed"] is False
+    assert body["message"] == ANSWER
+    assert body["citations"]
+    # Stage 2 has not run: T-19 fills this, T-23 turns `score` into a composite.
     assert body["confidence"]["citation_coverage"] == 0.0
+    assert body["confidence"]["score"] == body["confidence"]["retrieval_score"]
     assert body["answer_id"]
     assert body["session_id"]
 
@@ -161,8 +186,8 @@ async def test_debug_shows_the_pipeline_to_an_admin(monkeypatch: pytest.MonkeyPa
         "retrieval_confidence",
     ]
     assert all(stage["passed"] for stage in debug["stages"])
-    assert debug["llm_calls"] == []  # T-17 reaches no LLM at all
-    assert debug["self_check_ran"] is False
+    assert [call["step"] for call in debug["llm_calls"]] == [STEP_GROUNDING]
+    assert debug["self_check_ran"] is False  # stage 3 arrives with T-25
     assert debug["similarity_threshold"] == CONFIG.similarity_threshold
     assert debug["min_citation_coverage"] == CONFIG.min_citation_coverage
     assert debug["dense_above_threshold"] == 2
@@ -235,3 +260,99 @@ async def test_a_programming_error_is_not_dressed_up_as_a_provider_outage(
     """A TypeError is a bug, not an outage — it must not become a polite 503."""
     with pytest.raises(TypeError):
         await post_query(monkeypatch, TypeError("kaputt"))
+# --- generation (T-18) -----------------------------------------------------
+
+
+async def test_no_llm_call_below_the_retrieval_gate(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The gate exists to spend nothing on an out-of-corpus question (ADR-007)."""
+    generate = make_generate()
+    await post_query(monkeypatch, make_outcome(0.30, 0.21), generate=generate)
+
+    generate.assert_not_awaited()
+
+
+async def test_no_llm_call_when_the_confidence_stage_suppresses(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Stage 1 decides before the provider is reached, not after."""
+    generate = make_generate()
+    await post_query(monkeypatch, make_outcome(0.36, 0.35), generate=generate)
+
+    generate.assert_not_awaited()
+
+
+async def test_a_refusal_is_suppressed_and_keeps_its_sources(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The model reported no coverage: standardised text, never its own wording."""
+    r = await post_query(
+        monkeypatch, make_outcome(0.9, 0.8, 0.7), generate=make_generate(answer=None)
+    )
+
+    body = r.json()
+    assert body["suppressed"] is True
+    assert body["suppression_reason"] == REASON_GENERATION_REFUSED
+    assert "WEISS_NICHT" not in body["message"]
+    # The sources are real, only the coverage is missing.
+    assert len(body["citations"]) == 3
+
+
+async def test_generation_failure_is_an_outage_not_a_dont_know(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A dead provider must not look like a suppressed answer — and must not leak."""
+    generate = AsyncMock(side_effect=RuntimeError("api_base=https://secret.internal key=sk-123"))
+    r = await post_query(monkeypatch, make_outcome(0.9, 0.8), generate=generate)
+
+    assert r.status_code == 503
+    assert "sk-123" not in r.text
+    assert "secret.internal" not in r.text
+
+
+async def test_the_admin_debug_carries_the_grounding_call(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    r = await post_query(monkeypatch, make_outcome(0.9, 0.8), role="admin")
+
+    call = r.json()["debug"]["llm_calls"][0]
+    assert call["step"] == STEP_GROUNDING
+    assert call["prompt"]
+    assert call["response"] == ANSWER
+
+
+async def test_the_prompt_numbers_the_chunks_like_the_citations(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """[1] in the answer has to mean citations[0] — one list, numbered once."""
+    captured: dict[str, str] = {}
+
+    async def render(question: str, context: list[RetrievalHit]) -> GenerationResult:
+        system, user = build_prompt(question, context)
+        captured["user"] = user
+        joined = system + chr(10) + chr(10) + user
+        return GenerationResult(
+            answer=ANSWER, truncated=False, prompt=joined, raw_response=ANSWER
+        )
+
+    r = await post_query(
+        monkeypatch, make_outcome(0.9, 0.8, 0.7), generate=AsyncMock(side_effect=render)
+    )
+
+    for citation in r.json()["citations"]:
+        assert f"[{citation['index']}] ({citation['filename']}" in captured["user"]
+
+
+async def test_a_truncated_answer_is_withheld_whole(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Cut off at the token cap, the last claim may have lost its [n] (ADR-008)."""
+    r = await post_query(
+        monkeypatch,
+        make_outcome(0.9, 0.8),
+        generate=make_generate(answer=None, truncated=True),
+    )
+
+    body = r.json()
+    assert body["suppressed"] is True
+    assert body["suppression_reason"] == REASON_GENERATION_TRUNCATED
+    # Distinguishable from a refusal: the sources fit, the question was too broad.
+    assert body["suppression_reason"] != REASON_GENERATION_REFUSED
+    assert len(body["citations"]) == 2
