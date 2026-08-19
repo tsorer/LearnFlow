@@ -374,6 +374,27 @@ describe("Frage-UI", () => {
     expect(screen.queryByText("Erste Frage zum Korpus")).not.toBeInTheDocument();
   });
 
+  it("cannot reset the chat out from under an answer that is still coming", async () => {
+    // The reset would win the click and lose the race: `send` holds sessionId
+    // and messages across the await, so the landing response puts the old
+    // session id back and appends its answer to a transcript that no longer
+    // carries the question. Closed by disabling, like the other two controls.
+    const field = await openChat();
+    api.hold("post", "/api/query");
+
+    await userEvent.type(field, "Was regelt der EU AI Act?");
+    await send();
+
+    expect(await screen.findByRole("status")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /neuer chat/i })).toBeDisabled();
+
+    api.release("post", "/api/query");
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /neuer chat/i })).toBeEnabled(),
+    );
+  });
+
   it("hides the chat-only controls while the document view is open", async () => {
     // Both used to sit in the header regardless: "Neuer Chat" cleared a
     // transcript nobody could see, and "⚙ Parameter" flipped its arrow over a

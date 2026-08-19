@@ -365,9 +365,12 @@ function CitationEntry({ citation }: { citation: Citation }) {
       aria-expanded={expanded}
       aria-label={label}
       style={{
+        // fontFamily, not the `font` shorthand: `font: inherit` would reset
+        // font-size along with it and, applied after fontSize in key order,
+        // silently undo the 12px the label below relies on.
         background: "var(--blue-lt)", border: "none", borderRadius: 8,
         padding: "8px 12px", fontSize: 12, textAlign: "left", width: "100%",
-        cursor: "pointer", display: "block", font: "inherit",
+        cursor: "pointer", display: "block", fontFamily: "inherit",
       }}
     >
       <div style={{ fontWeight: 700, color: "var(--navy)", marginBottom: 4 }}>

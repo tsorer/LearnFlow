@@ -153,10 +153,7 @@ export default function ChatView({ user, onLogout }: Props) {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
   };
 
-  // Leaves the document view too: the label promises a chat, so pressing it
-  // has to land in one. Without this the transcript was cleared behind a view
-  // that shows none of it, and the loss only surfaced on the way back.
-  const newChat = () => { setMessages([]); setSessionId(null); setShowUpload(false); };
+  const newChat = () => { setMessages([]); setSessionId(null); };
 
   return (
     <div style={{ display: "flex", height: "100vh", flexDirection: "column" }}>
@@ -182,8 +179,15 @@ export default function ChatView({ user, onLogout }: Props) {
               {showParams ? "⚙ Parameter ▲" : "⚙ Parameter ▼"}
             </button>
           )}
+          {/* Disabled while an answer is on its way, like the textarea and the
+              send button: `send` holds `sessionId` and `messages` across the
+              await, so a reset in that window is undone when the response
+              lands — the old session id returns and the answer is appended to
+              a transcript that no longer holds its question. */}
           {!showUpload && (
-            <button className="secondary" style={{ fontSize: 12 }} onClick={newChat}>Neuer Chat</button>
+            <button className="secondary" style={{ fontSize: 12 }} onClick={newChat} disabled={busy}>
+              Neuer Chat
+            </button>
           )}
           <span style={{ fontSize: 12, color: "rgba(255,255,255,.5)" }}>{user.email}</span>
           <button className="secondary" style={{ fontSize: 12 }} onClick={onLogout}>Abmelden</button>
