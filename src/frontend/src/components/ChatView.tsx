@@ -132,10 +132,16 @@ export default function ChatView({ user, onLogout }: Props) {
         confidence: res.confidence,
         debug: res.debug,
       }]);
-    } catch {
+    } catch (err) {
+      // US-01 asks for a clear message when retrieval is unreachable, and
+      // T-17 gave that case its own status: 503 is an outage the user can only
+      // wait out, everything else is worth retrying now. Neither invents an
+      // answer — the bubble stays `suppressed`.
       setMessages(prev => [...prev, {
         role: "assistant",
-        content: "Fehler beim Abrufen der Antwort. Bitte versuche es erneut.",
+        content: err instanceof ApiError && err.status === 503
+          ? "Die Suche ist derzeit nicht erreichbar. Bitte versuche es in einigen Minuten erneut."
+          : "Fehler beim Abrufen der Antwort. Bitte versuche es erneut.",
         suppressed: true,
       }]);
     } finally {

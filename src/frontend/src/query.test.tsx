@@ -339,4 +339,31 @@ describe("Frage-UI", () => {
     expect(screen.getByRole("button", { name: /\[2\] ai-act\.pdf · S\. 2/ })).toBeInTheDocument();
   });
 
+  // --- US-01: a failing service must not look like an answer ----------------
+
+  it("names an unreachable retrieval service as the outage it is", async () => {
+    // 503 is the status T-17 gave a provider or database failure precisely so
+    // it would not be dressed up as a suppressed answer — the UI has to keep
+    // that distinction rather than flatten it into "try again".
+    api.route("post", "/api/query", 503, { detail: "Retrieval ist derzeit nicht verfügbar." });
+    const field = await openChat();
+
+    await userEvent.type(field, "Was regelt der EU AI Act?");
+    await send();
+
+    expect(await screen.findByText(/derzeit nicht erreichbar/)).toBeInTheDocument();
+    expect(screen.queryByText(/Passende Quellen/)).not.toBeInTheDocument();
+  });
+
+  it("falls back to a retryable message for any other failure", async () => {
+    api.route("post", "/api/query", 422, {
+      detail: [{ loc: ["body", "question"], msg: "too short", type: "value_error" }],
+    });
+    const field = await openChat();
+
+    await userEvent.type(field, "Was regelt der EU AI Act?");
+    await send();
+
+    expect(await screen.findByText(/Bitte versuche es erneut/)).toBeInTheDocument();
+  });
 });
