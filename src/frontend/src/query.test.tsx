@@ -22,7 +22,7 @@ import {
   validateQuestion,
 } from "./components/ChatView";
 import { installApiStub, installAppEnvironment, type ApiStub } from "../test/api";
-import type { Citation, QueryResponse } from "./api/client";
+import type { Citation, QueryResponse, Role } from "./api/client";
 
 let api: ApiStub;
 
@@ -53,17 +53,17 @@ function answer(overrides: Partial<QueryResponse> = {}): QueryResponse {
   };
 }
 
-/** Signs in the seed learner and waits until the question UI stands. */
-async function openChat() {
+/** Signs in and waits until the question UI stands. */
+async function openChat(role: Role = "learner") {
   api.route("post", "/api/auth/login", 200, {
     access_token: "tok123",
     token_type: "bearer",
-    role: "learner",
+    role,
   });
   api.route("get", "/api/auth/me", 200, {
     id: "u1",
     email: "lara@learnflow.ch",
-    role: "learner",
+    role,
   });
   render(<App />);
   await userEvent.type(screen.getByLabelText(/e-mail/i), "lara@learnflow.ch");
@@ -353,6 +353,41 @@ describe("Frage-UI", () => {
 
     expect(await screen.findByText(/derzeit nicht erreichbar/)).toBeInTheDocument();
     expect(screen.queryByText(/Passende Quellen/)).not.toBeInTheDocument();
+  });
+
+  // --- Header: no control that acts on a view you cannot see ---------------
+
+  it("starts a fresh session after Neuer Chat", async () => {
+    const field = await openChat();
+    await userEvent.type(field, "Erste Frage zum Korpus");
+    await send();
+    await waitFor(() => expect(api.count("post", "/api/query")).toBe(1));
+
+    await userEvent.click(screen.getByRole("button", { name: /neuer chat/i }));
+    await userEvent.type(screen.getByLabelText("Frage"), "Unabhaengige zweite Frage");
+    await send();
+
+    // Not "sess-1": a new chat that keeps the old session id would thread the
+    // previous questions into it once T-18 uses the history.
+    await waitFor(() => expect(api.count("post", "/api/query")).toBe(2));
+    expect(api.last("post", "/api/query")?.json).toMatchObject({ session_id: null });
+    expect(screen.queryByText("Erste Frage zum Korpus")).not.toBeInTheDocument();
+  });
+
+  it("hides the chat-only controls while the document view is open", async () => {
+    // Both used to sit in the header regardless: "Neuer Chat" cleared a
+    // transcript nobody could see, and "⚙ Parameter" flipped its arrow over a
+    // panel that only renders in the chat branch.
+    api.route("get", "/api/admin/config", 200, { config: { top_k: "20" } });
+    api.route("get", "/api/documents", 200, []);
+    await openChat("admin");
+    expect(screen.getByRole("button", { name: /neuer chat/i })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: /^dokumente$/i }));
+
+    expect(await screen.findByRole("button", { name: /^chat$/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /neuer chat/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /parameter/i })).not.toBeInTheDocument();
   });
 
   it("falls back to a retryable message for any other failure", async () => {

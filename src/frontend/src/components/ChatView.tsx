@@ -153,7 +153,10 @@ export default function ChatView({ user, onLogout }: Props) {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
   };
 
-  const newChat = () => { setMessages([]); setSessionId(null); };
+  // Leaves the document view too: the label promises a chat, so pressing it
+  // has to land in one. Without this the transcript was cleared behind a view
+  // that shows none of it, and the loss only surfaced on the way back.
+  const newChat = () => { setMessages([]); setSessionId(null); setShowUpload(false); };
 
   return (
     <div style={{ display: "flex", height: "100vh", flexDirection: "column" }}>
@@ -170,12 +173,18 @@ export default function ChatView({ user, onLogout }: Props) {
               {showUpload ? "Chat" : "Dokumente"}
             </button>
           )}
-          {isAdmin && (
+          {/* Both hidden in the document view, because neither acts on it: the
+              parameter panel and the transcript live in the chat branch, so
+              from here the buttons only flipped an arrow resp. cleared
+              something invisible. */}
+          {isAdmin && !showUpload && (
             <button className="secondary" style={{ fontSize: 12 }} onClick={() => setShowParams(v => !v)}>
               {showParams ? "⚙ Parameter ▲" : "⚙ Parameter ▼"}
             </button>
           )}
-          <button className="secondary" style={{ fontSize: 12 }} onClick={newChat}>Neuer Chat</button>
+          {!showUpload && (
+            <button className="secondary" style={{ fontSize: 12 }} onClick={newChat}>Neuer Chat</button>
+          )}
           <span style={{ fontSize: 12, color: "rgba(255,255,255,.5)" }}>{user.email}</span>
           <button className="secondary" style={{ fontSize: 12 }} onClick={onLogout}>Abmelden</button>
         </div>
