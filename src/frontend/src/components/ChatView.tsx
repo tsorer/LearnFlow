@@ -34,6 +34,22 @@ export const MAX_QUESTION_CHARS = 1000;
 // enough to the limit that finding out only on send would mean rewriting.
 const COUNTER_VISIBLE_FROM = MAX_QUESTION_CHARS - 100;
 
+// Ties the textarea to its hint via aria-describedby.
+const INPUT_ERROR_ID = "question-error";
+
+/**
+ * The question's length as the backend counts it.
+ *
+ * Spread, not `.length`: a JavaScript string is UTF-16, so an emoji or any
+ * other character outside the BMP counts as two. Python's `len()` — which is
+ * what pydantic applies to `question` — counts code points, so `"🙂".length`
+ * is 2 on this side and 1 on the other. Iterating the string yields code
+ * points and puts both ends on the same number.
+ */
+function questionLength(question: string): number {
+  return [...question].length;
+}
+
 /**
  * The reason a question cannot be sent, or null when it can.
  *
@@ -42,7 +58,7 @@ const COUNTER_VISIBLE_FROM = MAX_QUESTION_CHARS - 100;
  * 1000-character question with a trailing newline the backend then refuses.
  */
 export function validateQuestion(question: string): string | null {
-  const { length } = question.trim();
+  const length = questionLength(question.trim());
   if (length < MIN_QUESTION_CHARS) {
     return `Die Frage braucht mindestens ${MIN_QUESTION_CHARS} Zeichen.`;
   }
@@ -319,6 +335,10 @@ export default function ChatView({ user, onLogout }: Props) {
                   placeholder="Frage stellen… (Enter zum Senden)"
                   aria-label="Frage"
                   aria-invalid={inputError !== ""}
+                  // role="alert" announces the hint once, when it appears.
+                  // Returning to the field later would say nothing about why it
+                  // is invalid, so the message is also its description.
+                  aria-describedby={inputError ? INPUT_ERROR_ID : undefined}
                   disabled={busy}
                   rows={2}
                   style={{ resize: "none", flex: 1 }}
@@ -332,15 +352,17 @@ export default function ChatView({ user, onLogout }: Props) {
                 </button>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginTop: 6, minHeight: 16 }}>
-                <span role="alert" style={{ fontSize: 12, color: "var(--red)", fontWeight: 600 }}>
+                <span id={INPUT_ERROR_ID} role="alert" style={{ fontSize: 12, color: "var(--red)", fontWeight: 600 }}>
                   {inputError}
                 </span>
-                {input.trim().length > COUNTER_VISIBLE_FROM && (
+                {/* Counted the same way as the check that rejects it, or the
+                    counter would say 998 while the send is refused at 1001. */}
+                {questionLength(input.trim()) > COUNTER_VISIBLE_FROM && (
                   <span style={{
                     fontSize: 12, whiteSpace: "nowrap",
-                    color: input.trim().length > MAX_QUESTION_CHARS ? "var(--red)" : "var(--muted)",
+                    color: questionLength(input.trim()) > MAX_QUESTION_CHARS ? "var(--red)" : "var(--muted)",
                   }}>
-                    {input.trim().length} / {MAX_QUESTION_CHARS}
+                    {questionLength(input.trim())} / {MAX_QUESTION_CHARS}
                   </span>
                 )}
               </div>

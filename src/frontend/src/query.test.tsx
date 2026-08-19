@@ -115,6 +115,16 @@ describe("validateQuestion", () => {
     expect(validateQuestion("a".repeat(over))).toMatch(new RegExp(String(over)));
   });
 
+  it("counts an emoji once, as the backend does", () => {
+    // A JavaScript string is UTF-16 and `"🙂".length` is 2; pydantic applies
+    // Python's len(), which counts code points. Counting units here would
+    // refuse a question the API would still have accepted.
+    const emoji = "🙂".repeat(MAX_QUESTION_CHARS);
+
+    expect(validateQuestion(emoji)).toBeNull();
+    expect(validateQuestion("🙂")).toMatch(new RegExp(`${MIN_QUESTION_CHARS} Zeichen`));
+  });
+
   it("measures the trimmed question, because that is what gets sent", () => {
     // Both directions of the same trim: padding must not rescue a short
     // question, and must not sink one that fits once it is stripped.
@@ -205,6 +215,21 @@ describe("Frage-UI", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent(/höchstens 1000 Zeichen/);
     expect(api.count("post", "/api/query")).toBe(0);
+  });
+
+  it("points the field at its hint, so the reason survives a refocus", async () => {
+    // role="alert" announces the hint once, when it appears. Without the
+    // description a screen reader returning to the field reports "invalid"
+    // and nothing about why.
+    const field = await openChat();
+    expect(field).not.toHaveAttribute("aria-describedby");
+
+    await userEvent.type(field, "ab");
+    await send();
+
+    const hint = await screen.findByRole("alert");
+    expect(field).toHaveAttribute("aria-describedby", hint.id);
+    expect(hint).toHaveTextContent(/mindestens 3 Zeichen/);
   });
 
   it("keeps the rejected question so it can be fixed instead of retyped", async () => {
