@@ -37,14 +37,20 @@ function citation(index: number, filename: string, excerpt = "Ein Auszug."): Cit
   };
 }
 
-/** Typed against the spec, so a response the API could never send fails here. */
+/**
+ * Typed against the spec, so a response the API could never send fails here —
+ * which is what caught this fixture: it described the placeholder T-17 left
+ * behind (suppressed, `generation_not_implemented`, "Quellen gefunden, Antwort
+ * folgt"), and T-18 removed both the reason from the enum and the state from
+ * the endpoint. The default is now the answer /api/query actually returns.
+ */
 function answer(overrides: Partial<QueryResponse> = {}): QueryResponse {
   return {
     session_id: "sess-1",
     answer_id: "ans-1",
-    suppressed: true,
-    suppression_reason: "generation_not_implemented",
-    message: "Passende Quellen wurden gefunden.",
+    suppressed: false,
+    suppression_reason: null,
+    message: "SKOS verlangt je Sprache genau ein prefLabel.",
     refinement_hint: null,
     citations: [citation(1, "skos.pdf")],
     confidence: { score: 0.76, retrieval_score: 0.76, citation_coverage: 0 },
@@ -377,7 +383,7 @@ describe("Frage-UI", () => {
     await send();
 
     expect(await screen.findByText(/derzeit nicht erreichbar/)).toBeInTheDocument();
-    expect(screen.queryByText(/Passende Quellen/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/prefLabel/)).not.toBeInTheDocument();
   });
 
   // --- Header: no control that acts on a view you cannot see ---------------
