@@ -1,0 +1,950 @@
+<title>Zwei Schleifen, ein Tool</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=JetBrains+Mono:ital,wght@0,400;0,700;1,400&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap">
+
+<style>
+/* ── Tokens ─────────────────────────────────────────────────── */
+:root {
+  --ground:   #EDEDE8;
+  --surface:  #F7F7F3;
+  --sunken:   #E3E3DC;
+  --ink:      #16181A;
+  --muted:    #5C6067;
+  --faint:    #8A8E93;
+  --rule:     rgba(22, 24, 26, .16);
+  --hair:     rgba(22, 24, 26, .10);
+
+  --sdk:      #2F4B9B;
+  --sdk-soft: rgba(47, 75, 155, .10);
+  --raw:      #A84B24;
+  --raw-soft: rgba(168, 75, 36, .10);
+  --warn:     #8A5A00;
+
+  --code-c:   #7C8189;   /* Kommentar */
+  --code-s:   #4B6A2F;   /* String    */
+  --code-k:   #8A3A6B;   /* Keyword   */
+
+  --shadow:   0 1px 0 rgba(22,24,26,.05), 0 8px 24px -18px rgba(22,24,26,.5);
+
+  --display: "Bricolage Grotesque", "Trebuchet MS", sans-serif;
+  --body:    "Newsreader", Georgia, "Times New Roman", serif;
+  --mono:    "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:   #131518;
+    --surface:  #1B1E22;
+    --sunken:   #0D0F11;
+    --ink:      #E9E9E4;
+    --muted:    #9BA1A9;
+    --faint:    #767C84;
+    --rule:     rgba(233, 233, 228, .18);
+    --hair:     rgba(233, 233, 228, .10);
+
+    --sdk:      #86A3EE;
+    --sdk-soft: rgba(134, 163, 238, .13);
+    --raw:      #E28D5B;
+    --raw-soft: rgba(226, 141, 91, .13);
+    --warn:     #D9A544;
+
+    --code-c:   #71777F;
+    --code-s:   #9CBE78;
+    --code-k:   #D48CB8;
+
+    --shadow:   0 1px 0 rgba(0,0,0,.4), 0 10px 30px -20px #000;
+  }
+}
+
+:root[data-theme="dark"] {
+  --ground:   #131518;
+  --surface:  #1B1E22;
+  --sunken:   #0D0F11;
+  --ink:      #E9E9E4;
+  --muted:    #9BA1A9;
+  --faint:    #767C84;
+  --rule:     rgba(233, 233, 228, .18);
+  --hair:     rgba(233, 233, 228, .10);
+
+  --sdk:      #86A3EE;
+  --sdk-soft: rgba(134, 163, 238, .13);
+  --raw:      #E28D5B;
+  --raw-soft: rgba(226, 141, 91, .13);
+  --warn:     #D9A544;
+
+  --code-c:   #71777F;
+  --code-s:   #9CBE78;
+  --code-k:   #D48CB8;
+
+  --shadow:   0 1px 0 rgba(0,0,0,.4), 0 10px 30px -20px #000;
+}
+
+/* ── Grundgerüst ────────────────────────────────────────────── */
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 17px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+.deck {
+  height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-snap-type: y mandatory;
+  scroll-behavior: smooth;
+}
+@media (prefers-reduced-motion: reduce) {
+  .deck { scroll-behavior: auto; }
+}
+
+.slide {
+  scroll-snap-align: start;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 28px;
+  padding: 72px clamp(20px, 5vw, 88px) 88px;
+  border-bottom: 1px solid var(--hair);
+  position: relative;
+}
+
+/* ── Kopfzeile je Slide ─────────────────────────────────────── */
+.eyebrow {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.eyebrow .num { color: var(--ink); font-weight: 700; }
+.eyebrow .bar {
+  flex: 1;
+  height: 1px;
+  background: var(--rule);
+  transform: translateY(-3px);
+}
+
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; }
+
+h2 {
+  font-size: clamp(30px, 4.4vw, 52px);
+  font-weight: 800;
+  letter-spacing: -.02em;
+  line-height: 1.04;
+  max-width: 20ch;
+}
+
+.lede {
+  max-width: 62ch;
+  font-size: clamp(17px, 1.5vw, 20px);
+  color: var(--muted);
+}
+.lede strong { color: var(--ink); font-weight: 500; }
+
+/* ── Titelslide ─────────────────────────────────────────────── */
+.title-slide { justify-content: center; gap: 0; }
+.title-slide h1 {
+  font-size: clamp(46px, 10vw, 128px);
+  font-weight: 800;
+  letter-spacing: -.045em;
+  line-height: .92;
+  max-width: 14ch;
+  margin: 24px 0 0;
+}
+.title-slide .sub {
+  margin-top: 30px;
+  max-width: 52ch;
+  font-size: clamp(18px, 2vw, 23px);
+  color: var(--muted);
+}
+.filepair {
+  margin-top: 46px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 18px;
+  font-family: var(--mono);
+  font-size: clamp(13px, 1.4vw, 16px);
+}
+.filepair .f {
+  padding: 7px 13px;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+}
+.filepair .f.sdk { color: var(--sdk); }
+.filepair .f.raw { color: var(--raw); }
+.filepair .vs { color: var(--faint); letter-spacing: .1em; }
+
+.colophon {
+  position: absolute;
+  left: clamp(20px, 5vw, 88px);
+  bottom: 56px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+/* ── Diptychon: die tragende Struktur ───────────────────────── */
+.dip {
+  display: grid;
+  grid-template-columns: 1fr 1px 1fr;
+  gap: 0 clamp(20px, 3vw, 44px);
+  align-items: start;
+}
+.dip > .divider { background: var(--rule); align-self: stretch; }
+
+.side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+
+.side-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+.side-head .dot { width: 9px; height: 9px; border-radius: 50%; background: currentColor; flex: none; }
+.side-head .file { font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--faint); }
+.sdk-side .side-head { color: var(--sdk); }
+.raw-side .side-head { color: var(--raw); }
+
+.claim {
+  font-family: var(--display);
+  font-size: clamp(19px, 2.1vw, 26px);
+  font-weight: 700;
+  letter-spacing: -.015em;
+  line-height: 1.15;
+  text-wrap: balance;
+}
+.side p { margin: 0; color: var(--muted); max-width: 46ch; }
+.side p strong { color: var(--ink); font-weight: 500; }
+
+/* ── Code ───────────────────────────────────────────────────── */
+pre {
+  margin: 0;
+  padding: 16px 18px;
+  background: var(--surface);
+  border: 1px solid var(--hair);
+  border-left: 3px solid var(--rule);
+  border-radius: 3px;
+  overflow-x: auto;
+  box-shadow: var(--shadow);
+}
+.sdk-side pre { border-left-color: var(--sdk); }
+.raw-side pre { border-left-color: var(--raw); }
+
+code, pre {
+  font-family: var(--mono);
+  font-size: clamp(11.5px, 1.05vw, 13.5px);
+  line-height: 1.65;
+  font-variant-ligatures: none;
+}
+p code, li code, td code, .claim code {
+  background: var(--sunken);
+  padding: .1em .38em;
+  border-radius: 2px;
+  font-size: .86em;
+}
+.c { color: var(--code-c); font-style: italic; }
+.s { color: var(--code-s); }
+.k { color: var(--code-k); }
+.hl { background: var(--sdk-soft); border-radius: 2px; padding: 0 3px; font-weight: 700; }
+.raw-side .hl { background: var(--raw-soft); }
+
+/* ── Der gemeinsame Kern (Slide 3) ──────────────────────────── */
+.core {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px clamp(20px, 6vw, 90px);
+  align-items: stretch;
+  max-width: 1000px;
+}
+.core-box {
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  padding: 18px 20px;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.core-box .tag {
+  font-family: var(--mono); font-size: 11px; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--faint);
+}
+.core-box .name { font-family: var(--mono); font-size: 15px; font-weight: 700; }
+.core-box .note { font-size: 15px; color: var(--muted); }
+.core-box.sdk-box { border-color: var(--sdk); }
+.core-box.raw-box { border-color: var(--raw); }
+.core-box.shared {
+  grid-column: 1 / -1;
+  border-width: 2px;
+  border-style: dashed;
+  align-items: flex-start;
+  background: var(--sunken);
+}
+.core-arrows {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(20px, 6vw, 90px);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--faint);
+  text-align: center;
+}
+
+/* ── Tabelle ────────────────────────────────────────────────── */
+.tablewrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 3px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; min-width: 720px; font-size: 14px; }
+th, td { text-align: left; padding: 9px 16px; border-bottom: 1px solid var(--hair); vertical-align: top; }
+tbody tr:last-child td { border-bottom: 0; }
+thead th {
+  font-family: var(--mono); font-size: 11px; letter-spacing: .1em;
+  text-transform: uppercase; font-weight: 700;
+  border-bottom: 1px solid var(--rule);
+  position: sticky; top: 0; background: var(--surface);
+}
+thead th:nth-child(2) { color: var(--sdk); }
+thead th:nth-child(3) { color: var(--raw); }
+td:first-child { font-family: var(--display); font-weight: 500; white-space: nowrap; }
+td code { font-size: 12px; }
+tbody tr:hover { background: var(--sunken); }
+.flag { color: var(--warn); font-weight: 700; }
+
+/* ── Vor/Nachteile ──────────────────────────────────────────── */
+.pro-con { display: flex; flex-direction: column; gap: 16px; }
+.pc-block h3 {
+  font-size: 13px; font-family: var(--mono); font-weight: 700;
+  letter-spacing: .1em; text-transform: uppercase;
+  padding-bottom: 6px; margin-bottom: 10px;
+  border-bottom: 1px solid currentColor;
+}
+.sdk-side .pc-block h3 { color: var(--sdk); }
+.raw-side .pc-block h3 { color: var(--raw); }
+ul.tight { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+ul.tight li { position: relative; padding-left: 20px; color: var(--muted); max-width: 46ch; font-size: 16px; }
+ul.tight li::before {
+  content: "";
+  position: absolute; left: 2px; top: .62em;
+  width: 8px; height: 1px; background: var(--faint);
+}
+ul.tight li strong { color: var(--ink); font-weight: 500; }
+ul.minus li::before { background: var(--warn); height: 1px; }
+
+/* ── Karten (Was das SDK mehr kann) ─────────────────────────── */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(255px, 1fr));
+  gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.card {
+  background: var(--surface);
+  padding: 20px 22px 22px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.card .kicker {
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: .13em;
+  text-transform: uppercase; color: var(--sdk);
+}
+.card h3 { font-size: 19px; font-weight: 700; letter-spacing: -.015em; }
+.card p { margin: 0; font-size: 15px; color: var(--muted); }
+
+.counter-card {
+  background: var(--raw-soft);
+  border: 1px solid var(--raw);
+  border-radius: 3px;
+  padding: 18px 22px;
+  display: flex; flex-direction: column; gap: 6px;
+  max-width: 760px;
+}
+.counter-card .kicker { color: var(--raw); font-family: var(--mono); font-size: 10.5px; letter-spacing: .13em; text-transform: uppercase; }
+.counter-card p { margin: 0; color: var(--ink); }
+
+/* ── Callouts ───────────────────────────────────────────────── */
+.callout {
+  border-left: 3px solid var(--warn);
+  background: var(--surface);
+  padding: 14px 18px;
+  border-radius: 0 3px 3px 0;
+  max-width: 860px;
+}
+.callout .label {
+  font-family: var(--mono); font-size: 11px; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--warn); font-weight: 700;
+}
+.callout p { margin: 4px 0 0; color: var(--ink); }
+
+/* ── Dateiliste (Slide 2) ───────────────────────────────────── */
+.files { display: flex; flex-direction: column; gap: 0; max-width: 940px; }
+.file-row {
+  display: grid;
+  grid-template-columns: minmax(190px, 250px) 1fr;
+  gap: 10px 26px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--hair);
+  align-items: baseline;
+}
+.file-row .fname { font-family: var(--mono); font-size: 13.5px; }
+.file-row .fdesc { color: var(--muted); font-size: 15.5px; }
+.file-row.mark .fname { font-weight: 700; }
+.file-row.mark.sdk-row .fname { color: var(--sdk); }
+.file-row.mark.raw-row .fname { color: var(--raw); }
+.file-row.mark .fdesc { color: var(--ink); }
+
+/* ── Fazit ──────────────────────────────────────────────────── */
+.verdict { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; max-width: 1000px; }
+.verdict-box { border-top: 3px solid; padding: 16px 0 0; display: flex; flex-direction: column; gap: 8px; }
+.verdict-box.v-raw { border-color: var(--raw); }
+.verdict-box.v-sdk { border-color: var(--sdk); }
+.verdict-box .where { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; }
+.v-raw .where { color: var(--raw); }
+.v-sdk .where { color: var(--sdk); }
+.verdict-box h3 { font-size: 22px; font-weight: 700; letter-spacing: -.015em; }
+.verdict-box p { margin: 0; color: var(--muted); font-size: 15.5px; }
+
+.closing {
+  font-family: var(--display);
+  font-size: clamp(22px, 3vw, 34px);
+  font-weight: 700;
+  letter-spacing: -.02em;
+  line-height: 1.2;
+  max-width: 26ch;
+  text-wrap: balance;
+}
+
+/* ── Navigation ─────────────────────────────────────────────── */
+.progress {
+  position: fixed; left: 0; bottom: 0; height: 2px;
+  background: var(--sdk); width: 0;
+  transition: width .28s ease;
+  z-index: 10;
+}
+@media (prefers-reduced-motion: reduce) { .progress { transition: none; } }
+
+.pager {
+  position: fixed;
+  right: clamp(14px, 3vw, 30px);
+  bottom: clamp(14px, 3vw, 26px);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .1em;
+  color: var(--faint);
+  background: var(--ground);
+  padding: 5px 9px;
+  border: 1px solid var(--hair);
+  border-radius: 2px;
+  font-variant-numeric: tabular-nums;
+  z-index: 10;
+}
+.hint {
+  position: fixed;
+  left: clamp(14px, 3vw, 30px);
+  bottom: clamp(14px, 3vw, 26px);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--faint);
+  z-index: 10;
+  transition: opacity .4s ease;
+}
+.hint.gone { opacity: 0; pointer-events: none; }
+
+:focus-visible { outline: 2px solid var(--sdk); outline-offset: 3px; }
+
+/* ── Schmale Viewports ──────────────────────────────────────── */
+@media (max-width: 860px) {
+  .dip { grid-template-columns: 1fr; gap: 34px; }
+  .dip > .divider { height: 1px; width: 100%; }
+  .core { grid-template-columns: 1fr; }
+  .core-arrows { display: none; }
+  .slide { justify-content: flex-start; padding-top: 56px; gap: 22px; }
+  .file-row { grid-template-columns: 1fr; gap: 2px; }
+  .hint { display: none; }
+}
+</style>
+
+<div class="deck" id="deck">
+
+  <!-- 01 ─────────────────────────────────────────────────── -->
+  <section class="slide title-slide">
+    <div class="eyebrow"><span>Modul&nbsp;5B · Tag&nbsp;1</span><span class="bar"></span><span>Agentic</span></div>
+    <h1>Zwei Schleifen, ein Tool</h1>
+    <p class="sub">Dasselbe Tool, zweimal angebunden: einmal mit dem Claude&nbsp;Agent&nbsp;SDK, einmal mit einer handgeschriebenen Schleife über das OpenAI-Interface.</p>
+    <div class="filepair">
+      <span class="f sdk">third_agent.py</span>
+      <span class="vs">↔</span>
+      <span class="f raw">fourth_agent.py</span>
+    </div>
+    <div class="colophon">LearnFlow · Niklaus/Modul5BTag1</div>
+  </section>
+
+  <!-- 02 ─────────────────────────────────────────────────── -->
+  <section class="slide">
+    <div class="eyebrow"><span class="num">02</span><span>Was auf dem Tisch liegt</span><span class="bar"></span></div>
+    <h2>Sieben Dateien, eine Steigerung</h2>
+    <div class="files">
+      <div class="file-row"><span class="fname">confidence.py</span><span class="fdesc">reine Logik — kein SDK, kein Netz, kein Key. Testbar mit <code>python test_confidence.py</code></span></div>
+      <div class="file-row"><span class="fname">first_agent.py</span><span class="fdesc">SDK, nur eingebaute Tools (<code>Read</code>). Preset <code>claude_code</code> zieht CLAUDE.md herein</span></div>
+      <div class="file-row"><span class="fname">second_agent.py</span><span class="fdesc">SDK, erstes eigenes Tool: <code>celsius_to_f</code> über einen In-Process-MCP-Server</span></div>
+      <div class="file-row mark sdk-row"><span class="fname">third_agent.py</span><span class="fdesc">SDK + eigenes Tool über <code>confidence.assess()</code></span></div>
+      <div class="file-row mark raw-row"><span class="fname">fourth_agent.py</span><span class="fdesc">dasselbe Tool ohne SDK — LiteLLM, Schleife von Hand</span></div>
+      <div class="file-row"><span class="fname">comment_checker.py</span><span class="fdesc">SDK mit zwei Tools, davor ein deterministischer Python-Filter</span></div>
+      <div class="file-row"><span class="fname">dod-checker.md</span><span class="fdesc">Subagent — Frontmatter plus Prompt, keine Zeile Python</span></div>
+    </div>
+    <p class="lede">Die Präsentation vergleicht die beiden markierten Dateien. Sie lösen <strong>dieselbe Aufgabe mit demselben Tool</strong> — unterschiedlich ist nur der Transport.</p>
+  </section>
+
+  <!-- 03 ─────────────────────────────────────────────────── -->
+  <section class="slide">
+    <div class="eyebrow"><span class="num">03</span><span>Die Konstante</span><span class="bar"></span></div>
+    <h2>Was sich <em>nicht</em> ändert, ist der Punkt</h2>
+    <div class="core">
+      <div class="core-box sdk-box">
+        <span class="tag">Wrapper A</span>
+        <span class="name">third_agent.py</span>
+        <span class="note">Schema · Aufruf · Fehlerbehandlung. Keine Fachlogik.</span>
+      </div>
+      <div class="core-box raw-box">
+        <span class="tag">Wrapper B</span>
+        <span class="name">fourth_agent.py</span>
+        <span class="note">Schema · Aufruf · Fehlerbehandlung. Keine Fachlogik.</span>
+      </div>
+      <div class="core-arrows"><span>importiert ↓</span><span>importiert ↓</span></div>
+      <div class="core-box shared">
+        <span class="tag">Fachlogik, unverändert</span>
+        <span class="name">confidence.py → assess()</span>
+        <span class="note">ADR-008, fail-closed. Standardbibliothek, keine Projekt-Importe, kein I/O. <code>test_confidence.py</code> deckt beide Anbindungen ab.</span>
+      </div>
+    </div>
+    <p class="lede">Weil der Wrapper keine Logik enthält, kostet der Wechsel SDK&nbsp;→&nbsp;OpenAI <strong>nichts an Fachlogik</strong>. Genau dafür trennt man Logik vom Transport.</p>
+  </section>
+
+  <!-- 04 ─────────────────────────────────────────────────── -->
+  <section class="slide">
+    <div class="eyebrow"><span class="num">04</span><span>Unterschied 1 · Die Schleife</span><span class="bar"></span></div>
+    <h2>Wer hält die Agent-Schleife</h2>
+    <div class="dip">
+      <div class="side sdk-side">
+        <div class="side-head"><span class="dot"></span>SDK<span class="file">third_agent.py</span></div>
+        <p class="claim">Das SDK hält sie.</p>
+<pre><code><span class="k">async for</span> msg <span class="k">in</span> query(prompt=PROMPTS[case], options=opts):
+    <span class="k">if</span> isinstance(msg, AssistantMessage):
+        <span class="k">for</span> block <span class="k">in</span> msg.content:
+            <span class="k">if</span> isinstance(block, ToolUseBlock):
+                print(<span class="s">f"&gt;&gt;&gt; TOOL-CALL: {block.name}"</span>)
+            <span class="k">elif</span> isinstance(block, TextBlock):
+                print(block.text)
+    <span class="k">elif</span> isinstance(msg, ResultMessage):
+        print(msg.total_cost_usd)</code></pre>
+        <p>Du konsumierst einen Strom typisierter Nachrichten. Tool-Aufruf, Ergebnis und Verlauf laufen unter der Oberfläche.</p>
+      </div>
+      <div class="divider"></div>
+      <div class="side raw-side">
+        <div class="side-head"><span class="dot"></span>Rohbau<span class="file">fourth_agent.py</span></div>
+        <p class="claim">Du hältst sie.</p>
+<pre><code><span class="k">for</span> turn <span class="k">in</span> range(<span class="s">1</span>, MAX_TURNS + <span class="s">1</span>):
+    response = <span class="k">await</span> litellm.acompletion(
+        model=MODEL, messages=messages, tools=TOOLS)
+    message = response.choices[<span class="s">0</span>].message
+
+    <span class="c"># MUSS zurück in den Verlauf — sonst weiss das Modell</span>
+    <span class="c"># in der nächsten Runde nichts von seinem Tool-Call</span>
+    <span class="hl">messages.append(json.loads(message.model_dump_json(</span>
+        <span class="hl">exclude_none=True)))</span>
+
+    <span class="k">if not</span> message.tool_calls:
+        print(message.content); <span class="k">return</span></code></pre>
+        <p>Jeder Schritt steht da — inklusive der klassischen Fehlerquelle: <strong>die Assistant-Nachricht selbst anhängen</strong>.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 05 ─────────────────────────────────────────────────── -->
+  <section class="slide">
+    <div class="eyebrow"><span class="num">05</span><span>Unterschied 2 · Das Schema</span><span class="bar"></span></div>
+    <h2>Generiert oder von Hand geschrieben</h2>
+    <div class="dip">
+      <div class="side sdk-side">
+        <div class="side-head"><span class="dot"></span>SDK<span class="file">aus der Signatur</span></div>
+<pre><code><span class="k">@tool</span>(
+    <span class="s">"confidence_score"</span>,
+    <span class="s">"Beurteilt fail-closed, ob eine RAG-Antwort "</span>
+    <span class="s">"ausgeliefert werden darf. IMMER aufrufen …"</span>,
+    {
+        <span class="s">"max_similarity"</span>: Annotated[
+            float, <span class="s">"Similarity des besten Chunks, 0.0–1.0"</span>],
+        <span class="s">"mean_top_n_similarity"</span>: Annotated[float, <span class="s">"…"</span>],
+        <span class="s">"chunks_above_threshold"</span>: Annotated[int, <span class="s">"…"</span>],
+    },
+)
+<span class="k">async def</span> confidence_score(args): ...</code></pre>
+        <p>Typ, Beschreibung und JSON-Schema kommen aus einer Quelle. <strong>Eine Stelle zu pflegen.</strong></p>
+      </div>
+      <div class="divider"></div>
+      <div class="side raw-side">
+        <div class="side-head"><span class="dot"></span>Rohbau<span class="file">~40 Zeilen JSON</span></div>
+<pre><code>TOOLS = [{<span class="s">"type"</span>: <span class="s">"function"</span>, <span class="s">"function"</span>: {
+  <span class="s">"name"</span>: <span class="s">"confidence_score"</span>,
+  <span class="s">"description"</span>: <span class="s">"Beurteilt fail-closed, …"</span>,
+  <span class="s">"parameters"</span>: {
+    <span class="s">"type"</span>: <span class="s">"object"</span>,
+    <span class="s">"properties"</span>: {
+      <span class="s">"max_similarity"</span>: {<span class="s">"type"</span>: <span class="s">"number"</span>,
+        <span class="s">"description"</span>: <span class="s">"Similarity des besten Chunks…"</span>},
+      <span class="c">… zwei weitere …</span>
+    },
+    <span class="hl">"required"</span>: [<span class="s">"max_similarity"</span>, …],
+    <span class="hl">"additionalProperties"</span>: False,
+}}}]</code></pre>
+        <p>Genau das geht über die Leitung. <strong>Doppelt gepflegt</strong> — Signatur hier, Schema dort.</p>
+      </div>
+    </div>
+    <p class="lede">Identisch in beiden: der <strong>description</strong>-Text. Er ist der Teil, der das Modell steuert — und er überträgt sich wörtlich.</p>
+  </section>
+
+  <!-- 06 ─────────────────────────────────────────────────── -->
+  <section class="slide">
+    <div class="eyebrow"><span class="num">06</span><span>Unterschied 3 · Registrierung</span><span class="bar"></span></div>
+    <h2>MCP-Server gegen Handler-Dictionary</h2>
+    <div class="dip">
+      <div class="side sdk-side">
+        <div class="side-head"><span class="dot"></span>SDK<span class="file">In-Process-MCP</span></div>
+<pre><code>learnflow = create_sdk_mcp_server(
+    name=<span class="s">"learnflow"</span>, version=<span class="s">"1.0.0"</span>,
+    tools=[confidence_score])
+
+opts = ClaudeAgentOptions(
+    mcp_servers={<span class="s">"learnflow"</span>: learnflow},
+    allowed_tools=[<span class="hl">"mcp__learnflow__confidence_score"</span>],
+    <span class="c">#              mcp__&lt;schlüssel&gt;__&lt;tool-name&gt;</span>
+)</code></pre>
+        <p><code>allowed_tools</code> ist eine <strong>echte Schranke</strong> — was nicht drinsteht, existiert für das Modell nicht.</p>
+      </div>
+      <div class="divider"></div>
+      <div class="side raw-side">
+        <div class="side-head"><span class="dot"></span>Rohbau<span class="file">Name → Funktion</span></div>
+<pre><code>HANDLERS = {<span class="s">"confidence_score"</span>: run_confidence_score}
+
+<span class="k">def</span> dispatch(name, arguments_json):
+    handler = HANDLERS.get(name)
+    <span class="k">if</span> handler <span class="k">is</span> None:
+        <span class="k">return</span> json.dumps({<span class="s">"error"</span>: <span class="s">f"unbekannt: {name}"</span>})
+    <span class="k">try</span>:
+        arguments = json.loads(arguments_json)
+        <span class="k">return</span> json.dumps(handler(**arguments))
+    <span class="k">except</span> (json.JSONDecodeError, TypeError) <span class="k">as</span> exc:
+        <span class="k">return</span> json.dumps({<span class="s">"error"</span>: <span class="s">f"{exc}"</span>})</code></pre>
+        <p>Trivial — aber du schreibst es. Und es gibt <strong>nichts zu beschränken</strong>: was im Array steht, ist erlaubt.</p>
+      </div>
+    </div>
+    <div class="callout">
+      <span class="label">Stille Fehlerquelle</span>
+      <p>Ein Vertipper in <code>mcp__&lt;schlüssel&gt;__&lt;tool&gt;</code> wirft keinen Fehler — das Tool wird stumm nie aufgerufen. Deshalb prüft <code>smoke_third_agent.py</code> genau diesen Namensvertrag, bevor ein bezahlter Lauf startet.</p>
+    </div>
+  </section>
+
+  <!-- 07 ─────────────────────────────────────────────────── -->
+  <section class="slide">
+    <div class="eyebrow"><span class="num">07</span><span>Unterschied 4 · Ergebnis &amp; Verlauf</span><span class="bar"></span></div>
+    <h2>Wie das Ergebnis zurückkommt</h2>
+    <div class="dip">
+      <div class="side sdk-side">
+        <div class="side-head"><span class="dot"></span>SDK<span class="file">content-Blöcke</span></div>
+<pre><code><span class="k">return</span> {<span class="s">"content"</span>: [{<span class="s">"type"</span>: <span class="s">"text"</span>,
+                <span class="s">"text"</span>: json.dumps(payload)}]}
+
+<span class="c"># Fehlerfall — das Modell darf korrigieren:</span>
+<span class="k">return</span> {
+    <span class="s">"content"</span>: [{<span class="s">"type"</span>: <span class="s">"text"</span>,
+                 <span class="s">"text"</span>: <span class="s">f"Ungültige Parameter: {exc}"</span>}],
+    <span class="hl">"is_error": True</span>,
+}</code></pre>
+        <p>Zuordnung und Verlauf macht das SDK. Fehler haben ein <strong>eigenes Feld</strong>.</p>
+      </div>
+      <div class="divider"></div>
+      <div class="side raw-side">
+        <div class="side-head"><span class="dot"></span>Rohbau<span class="file">role: tool</span></div>
+<pre><code><span class="k">for</span> call <span class="k">in</span> message.tool_calls:
+    content = dispatch(call.function.name,
+                       call.function.arguments)
+    messages.append({
+        <span class="s">"role"</span>: <span class="s">"tool"</span>,
+        <span class="hl">"tool_call_id": call.id</span>,   <span class="c"># so ordnet das</span>
+        <span class="s">"content"</span>: content,      <span class="c"># Modell zu</span>
+    })</code></pre>
+        <p>Zuordnung über die ID. Fehler sind ein normales Ergebnis — als JSON mit <code>error</code>-Schlüssel.</p>
+      </div>
+    </div>
+    <p class="lede">Beim Anthropic-Protokoll wäre das stattdessen ein <code>tool_result</code>-Block in einer User-Nachricht. Zwei Protokolle, dieselbe Idee — <strong>das SDK versteckt beide</strong>.</p>
+  </section>
+
+  <!-- 08 ─────────────────────────────────────────────────── -->
+  <section class="slide">
+    <div class="eyebrow"><span class="num">08</span><span>Unterschied 5 · Leitplanken</span><span class="bar"></span></div>
+    <h2>Was den Lauf stoppt, bevor er teuer wird</h2>
+    <div class="dip">
+      <div class="side sdk-side">
+        <div class="side-head"><span class="dot"></span>SDK<span class="file">Optionen</span></div>
+<pre><code>opts = ClaudeAgentOptions(
+    model=<span class="s">"claude-sonnet-4-6"</span>,
+    max_turns=<span class="s">5</span>,
+    <span class="hl">max_budget_usd=0.20</span>,   <span class="c"># hart: bricht ab</span>
+)
+
+<span class="c"># Kosten kommen fertig:</span>
+<span class="k">elif</span> isinstance(msg, ResultMessage):
+    print(<span class="s">f"${msg.total_cost_usd:.4f}"</span>)</code></pre>
+        <p><strong>Turns und Geld</strong> sind begrenzt. Beides eine Zeile Konfiguration.</p>
+      </div>
+      <div class="divider"></div>
+      <div class="side raw-side">
+        <div class="side-head"><span class="dot"></span>Rohbau<span class="file">Konstante</span></div>
+<pre><code>MAX_TURNS = <span class="s">5</span>   <span class="c"># nur Turns, kein Budget</span>
+
+<span class="k">try</span>:
+    cost += litellm.completion_cost(response)
+<span class="k">except</span> Exception:
+    <span class="c"># Schätzung fehlt für manche Modelle —</span>
+    <span class="c"># kein Grund abzubrechen.</span>
+    <span class="hl">pass</span></code></pre>
+        <p>Kosten werden <strong>geschätzt, nicht begrenzt</strong>. Die Schätzung darf ausfallen.</p>
+      </div>
+    </div>
+    <div class="callout">
+      <span class="label">Konsequenz</span>
+      <p>Im Rohbau können fünf teure Turns durchlaufen; die Kosten erfährst du danach. Wer dort eine harte Obergrenze will, baut sie selbst — etwa Abbruch, sobald <code>cost</code> eine Schwelle reisst.</p>
+    </div>
+  </section>
+
+  <!-- 09 ─────────────────────────────────────────────────── -->
+  <section class="slide">
+    <div class="eyebrow"><span class="num">09</span><span>Gegenüberstellung</span><span class="bar"></span></div>
+    <h2>Zeile für Zeile</h2>
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>Aspekt</th><th>third_agent.py · SDK</th><th>fourth_agent.py · Rohbau</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Agent-Schleife</td><td><code>async for msg in query(…)</code> — eingebaut</td><td><code>for turn in range(1, MAX_TURNS+1)</code> — selbst</td></tr>
+          <tr><td>Tool-Definition</td><td><code>@tool(…, {"x": Annotated[float, "…"]})</code></td><td>~40 Zeilen JSON-Schema von Hand</td></tr>
+          <tr><td>Registrierung</td><td><code>create_sdk_mcp_server(…)</code></td><td><code>HANDLERS = {name: funktion}</code></td></tr>
+          <tr><td>Freigabe</td><td><code>allowed_tools=[…]</code> — echte Schranke</td><td>keine — was in <code>TOOLS</code> steht, ist erlaubt</td></tr>
+          <tr><td>Namensvertrag</td><td><code>mcp__&lt;key&gt;__&lt;tool&gt;</code> · Vertipper = stumm</td><td>Name ist Name</td></tr>
+          <tr><td>Rückgabeformat</td><td><code>{"content": […], "is_error": True}</code></td><td>JSON-String in <code>{"role": "tool", …}</code></td></tr>
+          <tr><td>Verlaufspflege</td><td>SDK hält <code>messages</code></td><td><code>messages.append(…)</code> — Antwort <em>und</em> Ergebnis</td></tr>
+          <tr><td>Turn-Limit</td><td><code>max_turns=5</code> als Option</td><td><code>MAX_TURNS = 5</code> plus eigene Schleife</td></tr>
+          <tr><td>Kostenlimit</td><td><code>max_budget_usd=0.20</code> — hart</td><td><span class="flag">keins</span> — nur Schätzung im <code>except: pass</code></td></tr>
+          <tr><td>Kostenausweis</td><td><code>ResultMessage.total_cost_usd</code></td><td>selbst summiert, nicht für jedes Modell verfügbar</td></tr>
+          <tr><td>Fehlerbehandlung</td><td><code>is_error: True</code> → Modell korrigiert</td><td>Fehler-JSON als normales Tool-Ergebnis</td></tr>
+          <tr><td>Eingebaute Tools</td><td><code>Read</code>, <code>Grep</code>, <code>Glob</code>, <code>Bash</code></td><td><span class="flag">keine</span></td></tr>
+          <tr><td>Modell / Provider</td><td>Claude — <code>claude-sonnet-4-6</code></td><td>beliebig — <code>LLM_MODEL</code>, default <code>gpt-4o-mini</code></td></tr>
+          <tr><td>Abhängigkeit</td><td>Claude-CLI / Node im Hintergrund</td><td>nur Python + <code>litellm</code></td></tr>
+          <tr><td>Key-Handling</td><td>über die Claude-Installation</td><td><code>OPENAI_API_KEY</code> + eigenes <code>load_local_env()</code></td></tr>
+          <tr><td>Transport-Code</td><td>ca. 45 Zeilen</td><td>ca. 95 Zeilen</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 10 ─────────────────────────────────────────────────── -->
+  <section class="slide">
+    <div class="eyebrow"><span class="num">10</span><span>Bilanz</span><span class="bar"></span></div>
+    <h2>Vorteile und Nachteile</h2>
+    <div class="dip">
+      <div class="side sdk-side">
+        <div class="side-head"><span class="dot"></span>SDK<span class="file">third_agent.py</span></div>
+        <div class="pro-con">
+          <div class="pc-block">
+            <h3>Dafür</h3>
+            <ul class="tight">
+              <li>Schleife, Verlauf und Kostenzählung <strong>geschenkt</strong></li>
+              <li>Schema aus der Signatur — keine Doppelpflege</li>
+              <li><strong>Hartes Budget-Limit</strong> statt Schätzung</li>
+              <li>Freigabeliste als Sicherheitsgrenze</li>
+              <li>Typisierter Strom macht Debuggen sichtbar</li>
+            </ul>
+          </div>
+          <div class="pc-block">
+            <h3>Dagegen</h3>
+            <ul class="tight minus">
+              <li>An Claude gebunden — <strong>kollidiert mit ADR-004</strong></li>
+              <li>Zusätzliche Laufzeit-Abhängigkeit</li>
+              <li>Verlauf ist nicht dein Objekt: kürzen, injizieren, persistieren geht nicht ohne Weiteres</li>
+              <li>Stille Fehlerquelle im <code>mcp__</code>-Namen</li>
+              <li>Verhalten der Schleife bleibt Blackbox</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="side raw-side">
+        <div class="side-head"><span class="dot"></span>Rohbau<span class="file">fourth_agent.py</span></div>
+        <div class="pro-con">
+          <div class="pc-block">
+            <h3>Dafür</h3>
+            <ul class="tight">
+              <li><strong>Provider-frei</strong> — passt exakt auf den LearnFlow-Backend-Stack</li>
+              <li>Voller Zugriff auf <code>messages</code>: kürzen, speichern, in die DB legen</li>
+              <li>Nichts Verborgenes — jeder Schritt steht da</li>
+              <li>Reine Python-Abhängigkeit, im Container problemlos</li>
+            </ul>
+          </div>
+          <div class="pc-block">
+            <h3>Dagegen</h3>
+            <ul class="tight minus">
+              <li>Doppelt so viel Transport-Code, den du pflegst und testest</li>
+              <li>Schema doppelt gepflegt</li>
+              <li><strong>Kein Budget-Limit</strong> — nur Turns</li>
+              <li>Kostenschätzung kann stumm ausfallen</li>
+              <li>Verlaufspflege ist die klassische Fehlerquelle</li>
+              <li>Keine eingebauten Tools, kein Freigabe-Gate</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 11 ─────────────────────────────────────────────────── -->
+  <section class="slide">
+    <div class="eyebrow"><span class="num">11</span><span>Die Kernfrage</span><span class="bar"></span></div>
+    <h2>Was kann das SDK mehr</h2>
+    <p class="lede">Nicht „müsste man nachbauen“ — sondern das, was <code>fourth_agent.py</code> prinzipiell nicht hat.</p>
+    <div class="cards">
+      <div class="card">
+        <span class="kicker">Werkzeugkasten</span>
+        <h3>Eingebaute Tools</h3>
+        <p><code>Read</code>, <code>Grep</code>, <code>Glob</code>, <code>Bash</code>, Datei-Edits. <code>first_agent.py</code> liest eine Projektdatei, ohne dass ein Tool geschrieben wurde. Im Rohbau ist das dein Code — samt Pfad-Absicherung.</p>
+      </div>
+      <div class="card">
+        <span class="kicker">Grenze</span>
+        <h3>Freigabeliste</h3>
+        <p><code>allowed_tools</code> schränkt wirklich ein. <code>comment_checker.py</code> nutzt das ausschliessend: kein <code>Read</code>, kein <code>Bash</code> — das Modell sieht nur zwei Tools. Im Rohbau gibt es nichts zu beschränken, weil es nichts gibt.</p>
+      </div>
+      <div class="card">
+        <span class="kicker">Kontext</span>
+        <h3>Projekt als Preset</h3>
+        <p><code>system_prompt={"type":"preset","preset":"claude_code"}</code> plus <code>cwd</code> zieht CLAUDE.md und die Projektkonventionen herein. Im Rohbau: Dateien selbst finden, lesen, in den Prompt bauen.</p>
+      </div>
+      <div class="card">
+        <span class="kicker">Komposition</span>
+        <h3>Subagents als Markdown</h3>
+        <p><code>dod-checker.md</code> ist Frontmatter (<code>tools:</code>, <code>model: inherit</code>) plus Prompt. Ein Agent, den du schreibst, indem du eine Datei anlegst.</p>
+      </div>
+      <div class="card">
+        <span class="kicker">Kostenkontrolle</span>
+        <h3>Hartes Budget</h3>
+        <p><code>max_budget_usd</code> bricht ab. Im Rohbau erfährst du die Kosten erst hinterher — und nur, wenn die Schätzung für das Modell existiert.</p>
+      </div>
+      <div class="card">
+        <span class="kicker">Dauer</span>
+        <h3>Sessions und Kontext</h3>
+        <p>Verwaltung über den einzelnen Lauf hinaus. Im SDK vorhanden, in Modul&nbsp;5B nicht genutzt — im Rohbau baust du sie gegen dein eigenes <code>messages</code>-Array.</p>
+      </div>
+    </div>
+    <div class="counter-card">
+      <span class="kicker">Umgekehrt</span>
+      <p>Der Rohbau kann eines, was das SDK nicht kann: <strong>den Provider wechseln.</strong> Für LearnFlow ist das kein Detail, sondern ADR-004.</p>
+    </div>
+  </section>
+
+  <!-- 12 ─────────────────────────────────────────────────── -->
+  <section class="slide">
+    <div class="eyebrow"><span class="num">12</span><span>Fazit</span><span class="bar"></span></div>
+    <h2>Beides — nur nicht am selben Ort</h2>
+    <div class="verdict">
+      <div class="verdict-box v-raw">
+        <span class="where">Produktivcode · src/backend</span>
+        <h3>Der Rohbau</h3>
+        <p>LiteLLM ist die Schicht, die LearnFlow laut ADR-004 ohnehin fährt: MVP OpenAI Direct → Prod Azure OpenAI EU. Der Wechsel des Providers ist dort eine Anforderung, kein Komfort.</p>
+      </div>
+      <div class="verdict-box v-sdk">
+        <span class="where">Entwickler-Werkzeuge · am Repo</span>
+        <h3>Das SDK</h3>
+        <p><code>comment_checker.py</code> als Pre-Commit-Hook, <code>dod-checker</code> vor dem PR. Genau dort machen die eingebauten Tools, die Freigabeliste und der Projektkontext den Nutzen aus.</p>
+      </div>
+    </div>
+    <p class="closing">Und über beidem steht dieselbe unveränderte <code>confidence.py</code>.</p>
+    <p class="lede">Die interessantere Architektur ist ohnehin <code>comment_checker.py</code>: Python entscheidet, was eindeutig ist — gratis und deterministisch; das Modell nur die Zweifelsfälle. Bei sauberem Staging läuft <strong>kein Modell</strong>. Diese Arbeitsteilung gilt unabhängig davon, ob darunter das SDK oder OpenAI steckt.</p>
+  </section>
+
+</div>
+
+<div class="progress" id="progress"></div>
+<div class="pager" id="pager">01 / 12</div>
+<div class="hint" id="hint">↑ ↓ blättern</div>
+
+<script>
+(function () {
+  var deck = document.getElementById('deck');
+  var slides = Array.prototype.slice.call(deck.querySelectorAll('.slide'));
+  var progress = document.getElementById('progress');
+  var pager = document.getElementById('pager');
+  var hint = document.getElementById('hint');
+  var current = 0;
+
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+
+  function render() {
+    pager.textContent = pad(current + 1) + ' / ' + pad(slides.length);
+    progress.style.width = ((current + 1) / slides.length * 100) + '%';
+  }
+
+  var observer = new IntersectionObserver(function (entries) {
+    entries.forEach(function (entry) {
+      if (entry.isIntersecting) {
+        current = slides.indexOf(entry.target);
+        render();
+      }
+    });
+  }, { root: deck, threshold: 0.55 });
+
+  slides.forEach(function (s) { observer.observe(s); });
+
+  function go(index) {
+    var target = Math.max(0, Math.min(slides.length - 1, index));
+    var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    slides[target].scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+    hint.classList.add('gone');
+  }
+
+  document.addEventListener('keydown', function (e) {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    switch (e.key) {
+      case 'ArrowDown': case 'ArrowRight': case 'PageDown': case ' ':
+        e.preventDefault(); go(current + 1); break;
+      case 'ArrowUp': case 'ArrowLeft': case 'PageUp':
+        e.preventDefault(); go(current - 1); break;
+      case 'Home': e.preventDefault(); go(0); break;
+      case 'End': e.preventDefault(); go(slides.length - 1); break;
+    }
+  });
+
+  render();
+  setTimeout(function () { hint.classList.add('gone'); }, 6000);
+})();
+</script>

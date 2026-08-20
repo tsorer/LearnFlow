@@ -126,8 +126,16 @@ Dieselbe Haltung gilt bereits für die Chunking-Parameter (`app/services/chunkin
 ## Offene Punkte / nächste Schritte
 
 1. **Spike-Eval (Woche 1):** Schwellen (Retrieval-Konfidenz, Citation-Coverage, Band-Grenzen, Self-Check-Triggerbereich) gegen ein Eval-Dataset kalibrieren — inkl. Messung von Halluzinationsrate und „Weiss ich nicht"-Quote. Gemeinsame Abhängigkeit mit ADR-007 zur noch fehlenden **Eval-Strategie** (Kandidat für ein eigenes ADR/Spike-Deliverable).
-2. **Citation-Format festlegen:** maschinell prüfbares Referenzformat im Grounding-Prompt (ADR-007), damit Stufe 2 deterministisch parsen kann.
+2. ~~**Citation-Format festlegen:**~~ **erledigt (T-18, 2026-08-18)** — Referenzformat `[n]` und Verweigerungs-Sentinel `WEISS_NICHT` stehen im Grounding-Prompt-Kontrakt (ADR-007, Präzisierung T-18). `n` entspricht `Citation.index`, damit Stufe 2 deterministisch parsen kann.
 3. Schwellen nach dem Spike als „Accepted" fixieren.
+4. **Zwischenstand der Pipeline (T-18, 2026-08-18):** Umgesetzt sind Stufe 0 und Stufe 1;
+   die Generierung läuft nur, wenn beide passieren. Stufe 2 (Citation-Check, T-19) und
+   Stufe 3 (Self-Check, T-25) fehlen noch. Bis dahin bleibt `citation_coverage` 0.0, der
+   angezeigte `score` ist die Retrieval-Konfidenz allein (das Komposit kommt mit T-23), und
+   eine ausgelieferte Antwort ruht auf den beiden vorgelagerten Gates plus dem
+   Grounding-Prompt. Das ist bewusst schwächer als der Endzustand dieses ADR — deshalb folgt
+   T-19 unmittelbar auf T-18, und im MVP werden keine echten internen Dokumente verarbeitet
+   (ADR-004).
 
 ---
 

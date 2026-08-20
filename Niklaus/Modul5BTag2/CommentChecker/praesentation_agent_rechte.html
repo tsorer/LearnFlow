@@ -1,0 +1,457 @@
+<title>Zwei Agenten, drei Schranken</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+/* ── Tokens ─────────────────────────────────────────────────── */
+:root {
+  --ground:  #E9EBEA;
+  --surface: #F4F6F5;
+  --sunken:  #DDE0DE;
+  --ink:     #171A19;
+  --muted:   #565C59;
+  --faint:   #848A87;
+  --rule:    rgba(23, 26, 25, .18);
+  --hair:    rgba(23, 26, 25, .09);
+
+  --accent:  #1D6B5F;
+  --accent-soft: rgba(29, 107, 95, .10);
+  --alert:   #A33B26;
+  --alert-soft: rgba(163, 59, 38, .10);
+
+  --code-c:  #7B817E;
+  --code-s:  #55663F;
+
+  --display: "Familjen Grotesk", "Segoe UI", sans-serif;
+  --body:    "IBM Plex Sans", "Segoe UI", sans-serif;
+  --mono:    "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:  #16191A;
+    --surface: #1E2223;
+    --sunken:  #0F1213;
+    --ink:     #E7EAE8;
+    --muted:   #9BA3A0;
+    --faint:   #767D7A;
+    --rule:    rgba(231, 234, 232, .20);
+    --hair:    rgba(231, 234, 232, .10);
+
+    --accent:  #5FBBA8;
+    --accent-soft: rgba(95, 187, 168, .13);
+    --alert:   #E0785C;
+    --alert-soft: rgba(224, 120, 92, .13);
+
+    --code-c:  #757C79;
+    --code-s:  #A8BE84;
+  }
+}
+
+:root[data-theme="dark"] {
+  --ground:  #16191A;
+  --surface: #1E2223;
+  --sunken:  #0F1213;
+  --ink:     #E7EAE8;
+  --muted:   #9BA3A0;
+  --faint:   #767D7A;
+  --rule:    rgba(231, 234, 232, .20);
+  --hair:    rgba(231, 234, 232, .10);
+
+  --accent:  #5FBBA8;
+  --accent-soft: rgba(95, 187, 168, .13);
+  --alert:   #E0785C;
+  --alert-soft: rgba(224, 120, 92, .13);
+
+  --code-c:  #757C79;
+  --code-s:  #A8BE84;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+.deck {
+  height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-snap-type: y mandatory;
+  scroll-behavior: smooth;
+}
+@media (prefers-reduced-motion: reduce) { .deck { scroll-behavior: auto; } }
+
+.slide {
+  scroll-snap-align: start;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 26px;
+  padding: 64px clamp(20px, 5vw, 84px) 84px;
+  border-bottom: 1px solid var(--hair);
+}
+
+/* ── Kopf ───────────────────────────────────────────────────── */
+.eyebrow {
+  display: flex; align-items: baseline; gap: 14px;
+  font-family: var(--mono); font-size: 11px;
+  letter-spacing: .16em; text-transform: uppercase; color: var(--faint);
+}
+.eyebrow .num { color: var(--accent); font-weight: 600; }
+.eyebrow .bar { flex: 1; height: 1px; background: var(--rule); transform: translateY(-3px); }
+
+h1, h2 { font-family: var(--display); margin: 0; text-wrap: balance; }
+h2 {
+  font-size: clamp(28px, 4.2vw, 50px);
+  font-weight: 700; letter-spacing: -.02em; line-height: 1.05; max-width: 21ch;
+}
+.lede { max-width: 64ch; font-size: clamp(16px, 1.4vw, 19px); color: var(--muted); }
+.lede strong { color: var(--ink); font-weight: 600; }
+
+/* ── Titel ──────────────────────────────────────────────────── */
+.title-slide { gap: 0; }
+.title-slide h1 {
+  font-size: clamp(42px, 9vw, 112px);
+  font-weight: 700; letter-spacing: -.04em; line-height: .94;
+  max-width: 15ch; margin: 22px 0 0;
+}
+.title-slide .sub {
+  margin-top: 26px; max-width: 54ch;
+  font-size: clamp(17px, 1.9vw, 22px); color: var(--muted);
+}
+.title-meta {
+  margin-top: 40px; display: flex; flex-wrap: wrap; gap: 10px;
+  font-family: var(--mono); font-size: 12px;
+}
+.title-meta span {
+  padding: 6px 12px; border: 1px solid var(--rule); border-radius: 2px; color: var(--muted);
+}
+
+/* ── Verschachtelte Kästen: das tragende Bild ───────────────── */
+.nest { display: flex; flex-direction: column; gap: 0; max-width: 880px; }
+.box {
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  padding: 14px 16px;
+  background: var(--surface);
+  display: flex; flex-direction: column; gap: 10px;
+}
+.box + .box { margin-top: 0; }
+.box .lvl {
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  font-family: var(--mono); font-size: 11px;
+  letter-spacing: .12em; text-transform: uppercase; color: var(--accent); font-weight: 600;
+}
+.box .lvl .rolle {
+  letter-spacing: 0; text-transform: none; color: var(--muted); font-weight: 400;
+}
+.box.inner { background: var(--ground); }
+.box.deepest { background: var(--sunken); }
+
+/* Tool-Chips: gefüllt = erlaubt, Umriss+Strich = gesperrt */
+.chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.chip {
+  font-family: var(--mono); font-size: 11.5px;
+  padding: 4px 10px; border-radius: 2px;
+  border: 1px solid var(--accent); color: var(--accent);
+  background: var(--accent-soft);
+}
+.chip.aus {
+  border-color: var(--rule); color: var(--faint);
+  background: transparent; text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+.chip.warn { border-color: var(--alert); color: var(--alert); background: var(--alert-soft); }
+
+/* ── Rollen-Tabelle ─────────────────────────────────────────── */
+.tablewrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 3px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 14.5px; }
+th, td { text-align: left; padding: 10px 16px; border-bottom: 1px solid var(--hair); vertical-align: top; }
+tbody tr:last-child td { border-bottom: 0; }
+thead th {
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em;
+  text-transform: uppercase; font-weight: 600; color: var(--accent);
+  border-bottom: 1px solid var(--rule);
+}
+td:first-child { font-weight: 600; white-space: nowrap; }
+td code, li code, p code, .lede code {
+  font-family: var(--mono); font-size: .87em;
+  background: var(--sunken); padding: .1em .38em; border-radius: 2px;
+}
+.num-cell { font-variant-numeric: tabular-nums; }
+
+/* ── Zwei Spalten ───────────────────────────────────────────── */
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(18px, 3vw, 40px); align-items: start; }
+.col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.col h3 {
+  font-family: var(--mono); font-size: 11px; font-weight: 600;
+  letter-spacing: .12em; text-transform: uppercase; margin: 0;
+  padding-bottom: 7px; border-bottom: 1px solid currentColor; color: var(--accent);
+}
+.col.warnung h3 { color: var(--alert); }
+
+ul.tight { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 9px; }
+ul.tight li { position: relative; padding-left: 19px; color: var(--muted); max-width: 48ch; }
+ul.tight li::before {
+  content: ""; position: absolute; left: 2px; top: .68em;
+  width: 8px; height: 1px; background: var(--accent);
+}
+.col.warnung ul.tight li::before { background: var(--alert); }
+ul.tight li strong { color: var(--ink); font-weight: 600; }
+
+/* ── Kosten-Zahlen ──────────────────────────────────────────── */
+.zahlen { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 1px; background: var(--rule); border: 1px solid var(--rule); border-radius: 3px; overflow: hidden; }
+.zahl { background: var(--surface); padding: 18px 20px; display: flex; flex-direction: column; gap: 3px; }
+.zahl .k { font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--faint); }
+.zahl .v {
+  font-family: var(--display); font-size: clamp(26px, 3.4vw, 40px); font-weight: 700;
+  letter-spacing: -.02em; font-variant-numeric: tabular-nums; line-height: 1.1;
+}
+.zahl .v.gut { color: var(--accent); }
+.zahl .n { font-size: 13.5px; color: var(--muted); }
+
+/* ── Learnings ──────────────────────────────────────────────── */
+.learn { display: flex; flex-direction: column; gap: 0; max-width: 940px; }
+.learn-row {
+  display: grid; grid-template-columns: 34px 1fr; gap: 0 18px;
+  padding: 13px 0; border-bottom: 1px solid var(--hair); align-items: baseline;
+}
+.learn-row:last-child { border-bottom: 0; }
+.learn-row .i {
+  font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.learn-row .t { font-size: 15.5px; color: var(--muted); }
+.learn-row .t b { color: var(--ink); font-weight: 600; }
+
+.callout {
+  border-left: 3px solid var(--alert); background: var(--surface);
+  padding: 13px 17px; border-radius: 0 3px 3px 0; max-width: 820px;
+}
+.callout .label {
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: .13em;
+  text-transform: uppercase; color: var(--alert); font-weight: 600;
+}
+.callout p { margin: 4px 0 0; }
+
+/* ── Navigation ─────────────────────────────────────────────── */
+.progress { position: fixed; left: 0; bottom: 0; height: 2px; background: var(--accent); width: 0; transition: width .28s ease; z-index: 10; }
+@media (prefers-reduced-motion: reduce) { .progress { transition: none; } }
+.pager {
+  position: fixed; right: clamp(14px, 3vw, 28px); bottom: clamp(14px, 3vw, 24px);
+  font-family: var(--mono); font-size: 11px; letter-spacing: .1em; color: var(--faint);
+  background: var(--ground); padding: 5px 9px; border: 1px solid var(--hair);
+  border-radius: 2px; font-variant-numeric: tabular-nums; z-index: 10;
+}
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+@media (max-width: 820px) {
+  .two { grid-template-columns: 1fr; }
+  .slide { justify-content: flex-start; padding-top: 52px; gap: 20px; }
+}
+</style>
+
+<div class="deck" id="deck">
+
+  <!-- 01 -->
+  <section class="slide title-slide">
+    <div class="eyebrow"><span>CommentChecker</span><span class="bar"></span><span>Modul 5B · Tag 2</span></div>
+    <h1>Zwei Agenten, drei Schranken</h1>
+    <p class="sub">Wie Rollen, Rechte und Kosten in einem Pre-Commit-Agent zusammenhängen — und was drei scharfe Läufe darüber gelehrt haben.</p>
+    <div class="title-meta">
+      <span>Haupt-Agent · Sonnet</span>
+      <span>Subagent · Haiku</span>
+      <span>2 Tools</span>
+      <span>3 Min</span>
+    </div>
+  </section>
+
+  <!-- 02 -->
+  <section class="slide">
+    <div class="eyebrow"><span class="num">02</span><span>Das Konstrukt</span><span class="bar"></span></div>
+    <h2>Vier Ebenen, jede enger als die darüber</h2>
+    <div class="nest">
+      <div class="box">
+        <div class="lvl">Session <span class="rolle">— gilt für alles darin, Subagenten eingeschlossen</span></div>
+        <div class="chips">
+          <span class="chip aus">skills</span>
+          <span class="chip aus">setting_sources</span>
+          <span class="chip">strict_mcp_config</span>
+          <span class="chip">max_budget_usd 0.30</span>
+        </div>
+
+        <div class="box inner">
+          <div class="lvl">Haupt-Agent <span class="rolle">— Sonnet · urteilt</span></div>
+          <div class="chips">
+            <span class="chip">staged_comments</span>
+            <span class="chip">Agent</span>
+            <span class="chip aus">Read</span>
+            <span class="chip aus">Bash</span>
+            <span class="chip aus">Write</span>
+          </div>
+
+          <div class="box deepest">
+            <div class="lvl">Subagent <span class="rolle">— Haiku · übersetzt</span></div>
+            <div class="chips">
+              <span class="chip">language_signals</span>
+              <span class="chip aus">staged_comments</span>
+              <span class="chip aus">Agent</span>
+              <span class="chip aus">Bash</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="lede">Der Subagent sieht den Staging-Bereich <strong>gar nicht</strong>. Er bearbeitet nur den Text, den der Haupt-Agent ihm im Auftrag übergibt.</p>
+  </section>
+
+  <!-- 03 -->
+  <section class="slide">
+    <div class="eyebrow"><span class="num">03</span><span>Aufgabenverteilung</span><span class="bar"></span></div>
+    <h2>Jede Rolle bekommt, was nur sie kann</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Wer</th><th>Aufgabe</th><th>weil</th></tr></thead>
+        <tbody>
+          <tr><td>Python</td><td>Umlaute, Stoppwörter, transliterierte Formen finden</td><td>deterministisch, sofort, gratis</td></tr>
+          <tr><td>Tools</td><td>Fakten liefern — Staging lesen, Signale rechnen</td><td>entscheiden nichts, haben keine Meinung</td></tr>
+          <tr><td>Sonnet</td><td>Zweifelsfälle beurteilen, Bericht schreiben</td><td>braucht Urteil, kommt selten vor</td></tr>
+          <tr><td>Haiku</td><td>englische Fassungen schreiben und gegenprüfen</td><td>Routine, kommt oft vor</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="lede">Dieselbe Trennlinie zweimal gezogen: erst <strong>Python ↔ Modell</strong> (was eindeutig ist ↔ was Urteil braucht), dann <strong>Sonnet ↔ Haiku</strong> (urteilen ↔ ausführen).</p>
+  </section>
+
+  <!-- 04 -->
+  <section class="slide">
+    <div class="eyebrow"><span class="num">04</span><span>Minimal Permission</span><span class="bar"></span></div>
+    <h2>Verfügbarkeit ist nicht Erlaubnis</h2>
+    <div class="two">
+      <div class="col">
+        <h3>Die Unterscheidung</h3>
+        <ul class="tight">
+          <li><code>tools</code> — welche eingebauten Tools es <strong>überhaupt gibt</strong></li>
+          <li><code>allowed_tools</code> — welche davon <strong>ohne Rückfrage</strong> laufen dürfen</li>
+          <li>Steht ein Tool nicht in <code>allowed_tools</code>, ist es trotzdem im Kontext und kann angefordert werden</li>
+          <li>MCP-Tools sind über <code>mcp_servers</code> verfügbar — <code>allowed_tools</code> regelt nur die Rückfrage</li>
+        </ul>
+      </div>
+      <div class="col warnung">
+        <h3>Vier Quellen, einzeln zu schliessen</h3>
+        <ul class="tight">
+          <li><code>tools=["Agent"]</code> — nur das Delegations-Tool</li>
+          <li><code>skills=[]</code> — <strong><code>None</code> heisst nicht „aus", sondern „alles"</strong></li>
+          <li><code>setting_sources=[]</code> — nichts von der Platte</li>
+          <li><code>strict_mcp_config=True</code> — kein fremdes <code>.mcp.json</code></li>
+        </ul>
+      </div>
+    </div>
+    <div class="callout">
+      <span class="label">Ehrlich bleiben</span>
+      <p>Der Haupt-Agent <em>kann</em> <code>language_signals</code> aufrufen, obwohl der Prompt ihm die Rolle nicht zuweist. Ihn wirklich fernzuhalten bräuchte zwei getrennte MCP-Server. Die Rollentrennung ist beim Subagenten <strong>durchgesetzt</strong>, beim Haupt-Agenten nur <strong>beschrieben</strong>.</p>
+    </div>
+  </section>
+
+  <!-- 05 -->
+  <section class="slide">
+    <div class="eyebrow"><span class="num">05</span><span>Kosten</span><span class="bar"></span></div>
+    <h2>Billig ist, was gar nicht erst läuft</h2>
+    <div class="zahlen">
+      <div class="zahl"><span class="k">kein Fund</span><span class="v gut">$0.00</span><span class="n">Modell wird nicht aufgerufen — der Normalfall</span></div>
+      <div class="zahl"><span class="k">--alle</span><span class="v gut">$0.00</span><span class="n">nur die deterministische Hälfte, für die CI</span></div>
+      <div class="zahl"><span class="k">Lauf mit Fehler</span><span class="v">$0.1598</span><span class="n">9 Turns, 3 Delegationen, ohne Gegenprobe</span></div>
+      <div class="zahl"><span class="k">Lauf repariert</span><span class="v gut">$0.0618</span><span class="n">3 Turns, 1 Delegation, Gegenprobe gelaufen</span></div>
+    </div>
+    <div class="two">
+      <div class="col">
+        <h3>Was spart</h3>
+        <ul class="tight">
+          <li>Kein Fund → <strong>kein Modell</strong>. Python hat schon geantwortet</li>
+          <li>Übersetzen läuft auf <strong>Haiku</strong>, nicht auf Sonnet</li>
+          <li>Das Modell sieht nur die Funde, nie das Repo — es kann gar nicht teuer suchen</li>
+          <li>Deckel auf beiden Ebenen: <code>max_turns</code>, <code>max_budget_usd</code>, <code>sub.maxTurns</code></li>
+        </ul>
+      </div>
+      <div class="col warnung">
+        <h3>Was nicht spart</h3>
+        <ul class="tight">
+          <li>Die Einstufung <code>sicher</code> spart <strong>nicht den Aufruf</strong> — nur das Nachdenken darin</li>
+          <li>Ein falsch gesetztes Recht kostet doppelt: Wiederholungen plus Ergebnis ohne Prüfung</li>
+          <li>Bei fünf Kommentaren kostet die Delegation mehr, als Haiku spart. Sie lohnt bei vielen</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 06 -->
+  <section class="slide">
+    <div class="eyebrow"><span class="num">06</span><span>Learnings</span><span class="bar"></span></div>
+    <h2>Sechs Dinge, die ein Lauf gelehrt hat</h2>
+    <div class="learn">
+      <div class="learn-row"><span class="i">01</span><span class="t"><b><code>allowed_tools</code> ist keine Verfügbarkeitsliste.</b> Ein Agent mit <code>allowed_tools=["Read","Grep"]</code> rief trotzdem <code>Agent</code> auf. Der Filter heisst <code>tools</code>, der Skill-Schalter heisst <code>skills</code>.</span></div>
+      <div class="learn-row"><span class="i">02</span><span class="t"><b><code>allowed_tools</code> gilt für die ganze Session — Subagent inklusive.</b> <code>AgentDefinition.tools</code> sagt nur, was er <em>sieht</em>. Fehlte die Erlaubnis, durfte der Übersetzer seine Gegenprobe nicht aufrufen und lieferte ungeprüft.</span></div>
+      <div class="learn-row"><span class="i">03</span><span class="t"><b><code>None</code> heisst nicht „aus".</b> Bei <code>skills</code> und <code>setting_sources</code> bedeutet es „CLI-Standard", also alles. Ein vergessenes Feld sieht aus wie ein geschlossenes.</span></div>
+      <div class="learn-row"><span class="i">04</span><span class="t"><b><code>agents=</code> ohne <code>Agent</code> in <code>tools</code> ist tote Konfiguration.</b> Sieht nach Fähigkeit aus, ist unerreichbar — und meldet nichts. Dieselbe stille Falle wie ein Vertipper im <code>mcp__</code>-Namen.</span></div>
+      <div class="learn-row"><span class="i">05</span><span class="t"><b>Eine Zusicherung, die kein Test prüft, ist eine Absicht.</b> „Das Modell bekommt kein Read und kein Bash" stand im Docstring, lange bevor es stimmte. Jetzt prüft es der Trockenlauf.</span></div>
+      <div class="learn-row"><span class="i">06</span><span class="t"><b>Gezählte Pfade brechen still.</b> <code>parent.parent.parent</code> nach einem Umzug: Git läuft im falschen Verzeichnis, meldet leeren Staging-Bereich statt Fehler — grün, ohne geprüft zu haben.</span></div>
+    </div>
+    <p class="lede">Ein roter Lauf hat mehr gezeigt als drei grüne. Und das Muster hinter allen sechs ist dasselbe: <strong>was nicht geprüft wird, gilt nicht — es steht nur da.</strong></p>
+  </section>
+
+</div>
+
+<div class="progress" id="progress"></div>
+<div class="pager" id="pager">01 / 06</div>
+
+<script>
+(function () {
+  var deck = document.getElementById('deck');
+  var slides = Array.prototype.slice.call(deck.querySelectorAll('.slide'));
+  var progress = document.getElementById('progress');
+  var pager = document.getElementById('pager');
+  var current = 0;
+
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function render() {
+    pager.textContent = pad(current + 1) + ' / ' + pad(slides.length);
+    progress.style.width = ((current + 1) / slides.length * 100) + '%';
+  }
+
+  var observer = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      if (e.isIntersecting) { current = slides.indexOf(e.target); render(); }
+    });
+  }, { root: deck, threshold: 0.55 });
+  slides.forEach(function (s) { observer.observe(s); });
+
+  function go(i) {
+    var t = Math.max(0, Math.min(slides.length - 1, i));
+    var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    slides[t].scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+  }
+
+  document.addEventListener('keydown', function (e) {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    switch (e.key) {
+      case 'ArrowDown': case 'ArrowRight': case 'PageDown': case ' ':
+        e.preventDefault(); go(current + 1); break;
+      case 'ArrowUp': case 'ArrowLeft': case 'PageUp':
+        e.preventDefault(); go(current - 1); break;
+      case 'Home': e.preventDefault(); go(0); break;
+      case 'End': e.preventDefault(); go(slides.length - 1); break;
+    }
+  });
+
+  render();
+})();
+</script>

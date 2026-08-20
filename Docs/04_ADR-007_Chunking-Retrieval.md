@@ -80,6 +80,33 @@ Kalibrierung im Eval-Spike.
 
 Das LLM erhält ausschliesslich die `n` gefilterten Chunks als Kontext, mit der strikten Instruktion: **nur aus dem bereitgestellten Kontext antworten**, jede Aussage mit Quellen-Referenz belegen, und bei fehlender Deckung explizit „Weiss ich nicht" ausgeben. Damit ist die Retrieval-Ausgabe das einzige Wissensfundament der Antwort.
 
+**Präzisierung (T-18).** Der Kontrakt ist implementiert (`app/services/generation.py`) und
+legt die beiden Punkte fest, die ADR-008 als offen führte:
+
+- **Referenzformat `[n]`.** Die Kontext-Abschnitte sind ab 1 in Kontextreihenfolge nummeriert,
+  und `n` ist dieselbe Zahl wie `Citation.index` in der API-Antwort — Antworttext und
+  Quellenliste werden aus derselben Liste nummeriert. Damit ist die Referenz maschinell
+  prüfbar, was Stufe 2 (T-19) voraussetzt.
+- **Verweigerung als Sentinel.** Deckt der Kontext die Frage nicht, antwortet das Modell
+  ausschliesslich mit `WEISS_NICHT`. Ein Freitext-„weiss ich nicht" wäre von einer Antwort
+  nicht unterscheidbar; das Sentinel macht die Verweigerung zu einer Unterdrückung mit
+  standardisiertem Text (ADR-008) statt zu einer kurzen Antwort. Eine leere Antwort zählt
+  ebenfalls als Verweigerung — fail-closed.
+
+- **Abgeschnittene Antwort zählt nicht als Antwort.** Meldet der Provider, dass die Antwort am
+  Token-Limit endete, wird sie unterdrückt statt gekürzt ausgeliefert: die letzte Aussage kann
+  genau die `[n]` verloren haben, die sie belegt hätte. Eigener Unterdrückungsgrund, weil der
+  nächste Schritt ein anderer ist als bei fehlender Deckung — engere Frage statt anderer Frage.
+
+Zusätzlich weist der System-Prompt die Kontext-Abschnitte ausdrücklich als **Material, nicht
+als Anweisungen** aus: der Korpus besteht aus hochgeladenen Dokumenten, deren Text selbst
+Anweisungen enthalten kann.
+
+Prompt-Text, Sentinel und Generierungsparameter stehen im Code, nicht in der `config`-Tabelle:
+eine Prompt-Änderung verändert das Verhalten der gesamten Zuverlässigkeitskette und gehört
+durch Review und Eval (ADR-009), nicht durch eine Config-Zeile. `temperature = 0` ist aus
+demselben Grund fixiert — ohne reproduzierbare Generierung misst das Eval-Gate Rauschen.
+
 ### 5. Re-Ranking — bewusst out-of-scope für den MVP
 
 Ein Cross-Encoder-Re-Ranker ist der stärkste zusätzliche Präzisionshebel, würde aber entweder PyTorch ins Backend zurückholen (gegen ADR-005) oder einen weiteren Provider erfordern. Für den MVP wird darauf verzichtet; die Retrieval-Schnittstelle wird jedoch so geschnitten, dass ein Re-Ranking-Schritt **zwischen Fusion und Gate** ohne Architekturumbau nachgerüstet werden kann.

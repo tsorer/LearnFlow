@@ -200,7 +200,7 @@ export interface paths {
                         "application/json": components["schemas"]["ValidationError"];
                     };
                 };
-                /** @description Retrieval nicht verfügbar (Embedding-Provider oder Datenbank). Kein fachliches Ergebnis, sondern ein Infrastrukturfehler — bewusst nicht als Unterdrückung getarnt (ADR-008). */
+                /** @description Retrieval oder Antwortgenerierung nicht verfügbar (LLM- bzw. Embedding-Provider oder Datenbank). Kein fachliches Ergebnis, sondern ein Infrastrukturfehler — bewusst nicht als Unterdrückung getarnt (ADR-008). */
                 503: {
                     headers: {
                         [name: string]: unknown;
@@ -743,10 +743,10 @@ export interface components {
             /** @description true, wenn eine Stufe der Pipeline unterdrückt hat */
             suppressed: boolean;
             /**
-             * @description Welche Stufe unterdrückt hat (ADR-008). Geschlossene Menge, damit das Frontend jeden Wert beschriften kann statt den technischen Schlüssel anzuzeigen; T-18 ergänzt hier `citation_coverage` und `self_check`.
+             * @description Welche Stufe unterdrückt hat (ADR-008). Geschlossene Menge, damit das Frontend jeden Wert beschriften kann statt den technischen Schlüssel anzuzeigen; T-19 und T-25 ergänzen hier `citation_coverage` und `self_check`.
              * @enum {string|null}
              */
-            suppression_reason?: "retrieval_gate" | "retrieval_confidence" | "generation_not_implemented" | "configuration_error" | null;
+            suppression_reason?: "retrieval_gate" | "retrieval_confidence" | "generation_refused" | "generation_truncated" | "configuration_error" | null;
             /** @description Antworttext, oder die Weiss-ich-nicht-Meldung bei Unterdrückung */
             message?: string | null;
             /** @description Vorschlag zur Präzisierung der Frage */
