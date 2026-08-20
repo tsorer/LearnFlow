@@ -46,12 +46,21 @@ MAX_ANSWER_TOKENS = 800
 FINISH_TRUNCATED = "length"
 
 # LiteLLM defaults to 600 s. There is no streaming (ADR-002), so every second here
-# is a second the user spends in front of a spinner.
+# is a second the user spends in front of a spinner. Deliberately *not* clamped to
+# the 10 s of the Performance-NFA: a timeout is a ceiling, not a budget, and
+# cutting at 10 s would turn the slowest legitimate answers into 503s — better
+# metric, worse product. p95 tolerates a tail; it does not tolerate a doubled one,
+# which is what MAX_RETRIES is about.
 TIMEOUT_SECONDS = 30.0
 
-# One retry, not the worker's two: this call sits inside a synchronous request and
-# each attempt adds its full timeout to the wait.
-MAX_RETRIES = 1
+# No retry, unlike the worker's two: there nobody waits on the embedding batch,
+# here the user does. Without streaming a second attempt doubles precisely the slow
+# case, and provider degradation is correlated across requests — so the tail moves
+# as a block rather than as an independent outlier, which is what shifts the p95
+# the NFA is measured on (T-22, #29). A transient 429 becomes a 503 that the user
+# can repeat at a moment they choose. The number itself belongs to T-22, which
+# measures the distribution instead of guessing at it.
+MAX_RETRIES = 0
 
 SYSTEM_PROMPT = f"""Du bist der Lern-Assistent von LearnFlow. Du beantwortest die Frage \
 ausschliesslich aus den nummerierten Kontext-Abschnitten.

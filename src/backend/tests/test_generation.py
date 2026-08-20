@@ -15,6 +15,7 @@ from app.config import settings
 from app.services.generation import (
     FINISH_TRUNCATED,
     MAX_ANSWER_TOKENS,
+    MAX_RETRIES,
     REFUSAL_SENTINEL,
     TEMPERATURE,
     build_prompt,
@@ -185,6 +186,9 @@ async def test_call_is_deterministic_and_uses_the_configured_model(
     assert recorder.last["temperature"] == TEMPERATURE == 0.0
     assert recorder.last["max_tokens"] == MAX_ANSWER_TOKENS
     assert [message["role"] for message in recorder.last["messages"]] == ["system", "user"]
+    # No retry in the interactive path: a second attempt doubles the slow case the
+    # Performance-NFA is measured on (T-22). The worker retries, this does not.
+    assert recorder.last["num_retries"] == MAX_RETRIES == 0
 
 
 async def test_empty_endpoint_settings_are_passed_as_none(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -18,7 +18,7 @@ const PARAM_LABELS: Record<string, string> = {
 };
 
 // Keyed by the spec enum (see SuppressionReason): a reason added in
-// openapi.yaml — T-18 brings citation_coverage and self_check — fails the type
+// openapi.yaml — T-19 and T-25 bring citation_coverage and self_check — fails the type
 // check here instead of rendering the raw key in the badge.
 const suppressLabels: Record<SuppressionReason, string> = {
   retrieval_gate:       "Keine Chunks über Schwellwert",
@@ -425,8 +425,15 @@ export default function MessageBubble({ message: m, token }: Props) {
             Composite: {pct(m.confidence.score)}
           </span>
           {(() => {
-            const minRet = d?.params_used?.min_retrieval_confidence ?? 0.55;
-            const retFail = m.confidence!.retrieval_score < minRet;
+            // Coloured only against a threshold we actually have. params_used is
+            // filled for admins alone, and the invented fallback (0.55, while the
+            // backend default is 0.40) painted every learner's answer red whose
+            // score sat between the two — for a stage that had passed it. Same
+            // reason the citation badge below stays neutral: no colour against a
+            // number nobody measured. The real display for learners is the
+            // confidence band of US-02 (T-27), not a raw threshold.
+            const minRet = d?.params_used?.min_retrieval_confidence ?? null;
+            const retFail = minRet !== null && m.confidence!.retrieval_score < minRet;
             // Citation coverage is 0.0 because stage 2 does not exist yet (T-19),
             // not because nothing was covered. Comparing it against the threshold
             // painted every correct answer with a red "0 %" for a check that never
