@@ -23,6 +23,7 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.tables import DocumentStatus
 from app.services.config import PipelineConfig
 from app.services.embedding import embed_texts
 
@@ -68,9 +69,11 @@ MIN_TSQUERY_TERM_LENGTH = 2
 _EMBEDDING = "CAST(CAST(:embedding AS text) AS vector)"
 
 # Only chunks of fully indexed documents in the caller's area are searchable.
-# A document still in 'processing' has some of its chunks written and would
-# otherwise answer questions from a fragment of itself.
-_VISIBLE = "d.status = 'available' AND d.area = :area AND c.embedding IS NOT NULL"
+# A document still being indexed has some of its chunks written and would
+# otherwise answer questions from a fragment of itself. The status is bound
+# rather than spelled into the SQL so it comes from DocumentStatus, the one
+# place the values are named (models/tables.py).
+_VISIBLE = "d.status = :status AND d.area = :area AND c.embedding IS NOT NULL"
 
 _COLUMNS = (
     "c.id AS chunk_id, c.document_id, c.content, c.page, c.heading, d.filename, "
@@ -149,6 +152,7 @@ async def retrieve(
         "embedding": json.dumps(embedding),
         "area": area,
         "top_k": config.retrieval_top_k,
+        "status": DocumentStatus.available,
     }
 
     # Sequential, not asyncio.gather: an AsyncSession holds a single asyncpg

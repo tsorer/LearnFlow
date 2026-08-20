@@ -28,6 +28,22 @@ class UserRole(str, Enum):
     admin = "admin"
 
 
+class DocumentStatus(str, Enum):
+    """The stages a document passes through, mirroring the `DocumentStatus`
+    enum of openapi.yaml — the values are part of the API contract, not an
+    internal detail. `tests/test_openapi_spec.py` keeps the two in step.
+
+    Written by the API on upload (pending) and by the worker as it indexes;
+    `available` is what makes a document's chunks visible to retrieval
+    (`app/services/retrieval.py`).
+    """
+
+    pending = "pending"
+    processing = "processing"
+    available = "available"
+    failed = "failed"
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -41,12 +57,18 @@ class User(Base):
 
 class Document(Base):
     __tablename__ = "documents"
+    # One document per filename and area (T-15): an upload of a name that is
+    # already there replaces it. Declared here as well as in migration 0013 so
+    # the model's metadata describes the schema that actually exists.
+    __table_args__ = (Index("ix_documents_area_filename", "area", "filename", unique=True),)
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     filename: Mapped[str] = mapped_column(String(255), nullable=False)
     content_type: Mapped[str] = mapped_column(String(100), nullable=False)
     content: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
-    status: Mapped[str] = mapped_column(String(20), nullable=False, server_default="pending")
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, server_default=DocumentStatus.pending.value
+    )
     area: Mapped[str] = mapped_column(String(100), nullable=False, server_default="default")
     uploaded_by: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True

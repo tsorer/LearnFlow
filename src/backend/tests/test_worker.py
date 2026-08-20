@@ -10,10 +10,25 @@ import pytest
 from pgqueuer.models import Job
 
 from app.exceptions import UserFacingError
+from app.models.tables import DocumentStatus
 from app.services.parsing import MARKDOWN_CONTENT_TYPE
-from worker.main import make_job_handler, process_document, read_chunk_config
+from worker.main import Superseded, make_job_handler, process_document, read_chunk_config
 
 MARKDOWN = b"# Titel\n\nErster Absatz.\n\nZweiter Absatz."
+
+
+# The document's updated_at, which a run carries as its version token: read
+# together with the content, it has to match again before anything is published
+# (T-15 — an upload replacing the document in between moves it).
+VERSION = datetime(2026, 8, 19, 8, 0, tzinfo=UTC)
+
+# The failed-update carries the same token, so a run that fails after a
+# replacement cannot report its failure on the new version. The IS NULL branch
+# covers failures from before the version was read.
+FAILED_UPDATE = (
+    "UPDATE documents SET status = $4, error_message = $2 "
+    "WHERE id = $1 AND ($3::timestamptz IS NULL OR updated_at = $3)"
+)
 
 
 @pytest.fixture(autouse=True)
@@ -56,11 +71,16 @@ def make_conn(
     content: bytes = MARKDOWN,
     content_type: str = MARKDOWN_CONTENT_TYPE,
     config: Sequence[tuple[str, str]] = (("chunk_size", "512"), ("chunk_overlap", "64")),
+    version: datetime = VERSION,
 ) -> AsyncMock:
     conn = AsyncMock()
     # transaction() is a sync call returning an async context manager.
     conn.transaction = MagicMock(return_value=AsyncMock())
-    conn.fetchrow.return_value = {"content": content, "content_type": content_type}
+    conn.fetchrow.return_value = {
+        "content": content,
+        "content_type": content_type,
+        "updated_at": version,
+    }
     conn.fetch.return_value = [{"key": key, "value": value} for key, value in config]
     return conn
 
@@ -76,8 +96,9 @@ async def test_process_document_writes_chunks_and_marks_available() -> None:
     await process_document(conn, make_job(document_id))
 
     assert executed(conn)[0] == (
-        "UPDATE documents SET status = 'processing' WHERE id = $1",
+        "UPDATE documents SET status = $2 WHERE id = $1",
         document_id,
+        DocumentStatus.processing,
     )
 
     sql, rows = conn.executemany.await_args.args
@@ -97,12 +118,73 @@ async def test_process_document_writes_chunks_and_marks_available() -> None:
         "Titel",
     )
 
-    assert executed(conn)[-1] == (
-        "UPDATE documents SET status = 'available', chunk_count = $2, "
-        "error_message = NULL WHERE id = $1",
+    assert conn.fetchval.await_args.args == (
+        "UPDATE documents SET status = $4, chunk_count = $2, "
+        "error_message = NULL WHERE id = $1 AND updated_at = $3 RETURNING id",
         document_id,
         1,
+        VERSION,
+        DocumentStatus.available,
     )
+
+
+async def test_a_document_replaced_while_indexing_is_not_published() -> None:
+    """T-15's race: an upload replaces the document while this job is embedding.
+
+    The chunks this run wrote belong to the version the upload just discarded,
+    and the replacement enqueued a job of its own. Publishing here would put the
+    superseded content back into the index under a document the owner has
+    already replaced — with nothing anywhere to notice it by. The guarded UPDATE
+    matches no row, and unwinding the transaction takes the chunks with it.
+    """
+    document_id = str(uuid.uuid4())
+    conn = make_conn()
+    # No row left carrying the updated_at this run read.
+    conn.fetchval.return_value = None
+
+    await process_document(conn, make_job(document_id))
+
+    # The guarded publish ran and matched nothing, and the transaction was left
+    # through the exception — which is what discards the chunks written in it.
+    # Asserting on the exit rather than on "no chunks written": the writes
+    # happen, the rollback is what takes them back.
+    assert conn.fetchval.await_count == 1
+    assert conn.transaction.return_value.__aexit__.await_args.args[0] is Superseded
+    # And it is not an error: the replacement's job owns the index now, so
+    # nothing marks this document failed.
+    assert DocumentStatus.failed not in [arg for call in executed(conn) for arg in call]
+
+
+async def test_the_version_read_with_the_content_is_the_one_published() -> None:
+    """The token has to come from the same read as the content. Taken from a
+    second query, an upload landing between the two would leave the run indexing
+    the old bytes under the new version's token — and publishing them."""
+    document_id = str(uuid.uuid4())
+    conn = make_conn(version=datetime(2026, 8, 19, 9, 30, tzinfo=UTC))
+
+    await process_document(conn, make_job(document_id))
+
+    assert "updated_at" in conn.fetchrow.await_args.args[0]
+    assert conn.fetchval.await_args.args[3] == datetime(2026, 8, 19, 9, 30, tzinfo=UTC)
+
+
+async def test_a_failure_after_a_replacement_leaves_the_new_version_alone() -> None:
+    """Counterpart on the error path: the failure belongs to the version this
+    run read. Reported without the condition, it would show the new version as
+    'failed' while its own job is still queued."""
+    document_id = str(uuid.uuid4())
+    conn = make_conn()
+
+    async def fail(texts: list[str]) -> list[list[float]]:
+        raise UserFacingError("Embedding hat 3 statt 1536 Dimensionen")
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr("worker.main.embed_texts", fail)
+        with pytest.raises(UserFacingError):
+            await process_document(conn, make_job(document_id))
+
+    assert executed(conn)[-1][0] == FAILED_UPDATE
+    assert executed(conn)[-1][3] == VERSION
 
 
 async def test_process_document_replaces_previous_chunks() -> None:
@@ -190,9 +272,11 @@ async def test_embedding_failure_marks_the_document_failed(
     conn.executemany.assert_not_awaited()
     assert ("DELETE FROM chunks WHERE document_id = $1", document_id) not in executed(conn)
     assert executed(conn)[-1] == (
-        "UPDATE documents SET status = 'failed', error_message = $2 WHERE id = $1",
+        FAILED_UPDATE,
         document_id,
         "Verarbeitung fehlgeschlagen",
+        VERSION,
+        DocumentStatus.failed,
     )
     # documents.error_message is served to every knowledge_owner and admin by
     # GET /documents — nothing from the provider may end up in it.
@@ -225,9 +309,11 @@ async def test_foreign_error_deriving_from_valueerror_stays_out_of_error_message
         await process_document(conn, make_job(document_id))
 
     assert executed(conn)[-1] == (
-        "UPDATE documents SET status = 'failed', error_message = $2 WHERE id = $1",
+        FAILED_UPDATE,
         document_id,
         "Verarbeitung fehlgeschlagen",
+        VERSION,
+        DocumentStatus.failed,
     )
     assert not any(secret in str(call) for call in executed(conn))
 
@@ -248,9 +334,11 @@ async def test_user_facing_error_reaches_error_message(
         await process_document(conn, make_job(document_id))
 
     assert executed(conn)[-1] == (
-        "UPDATE documents SET status = 'failed', error_message = $2 WHERE id = $1",
+        FAILED_UPDATE,
         document_id,
         "Embedding hat 3 statt 1536 Dimensionen",
+        VERSION,
+        DocumentStatus.failed,
     )
 
 
@@ -263,9 +351,11 @@ async def test_process_document_without_extractable_text_fails() -> None:
 
     conn.executemany.assert_not_awaited()
     assert executed(conn)[-1] == (
-        "UPDATE documents SET status = 'failed', error_message = $2 WHERE id = $1",
+        FAILED_UPDATE,
         document_id,
         "Kein extrahierbarer Text gefunden",
+        None,
+        DocumentStatus.failed,
     )
 
 
@@ -301,9 +391,11 @@ async def test_process_document_sets_failed_for_missing_document() -> None:
         await process_document(conn, make_job(document_id))
 
     assert executed(conn)[-1] == (
-        "UPDATE documents SET status = 'failed', error_message = $2 WHERE id = $1",
+        FAILED_UPDATE,
         document_id,
         f"Dokument {document_id} nicht gefunden",
+        None,
+        DocumentStatus.failed,
     )
 
 
@@ -335,7 +427,9 @@ async def test_non_numeric_chunk_config_fails_with_a_configuration_message() -> 
         await process_document(conn, make_job(document_id))
 
     assert executed(conn)[-1] == (
-        "UPDATE documents SET status = 'failed', error_message = $2 WHERE id = $1",
+        FAILED_UPDATE,
         document_id,
         "Chunk-Konfiguration ungültig: chunk_size ist keine ganze Zahl ('fünfhundert')",
+        None,
+        DocumentStatus.failed,
     )
