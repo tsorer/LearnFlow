@@ -399,6 +399,24 @@ describe("Frage-UI", () => {
     expect(screen.queryByText("Erste Frage zum Korpus")).not.toBeInTheDocument();
   });
 
+  it("carries no rejected question into the new chat", async () => {
+    // The reset dropped the transcript and the session but left the field
+    // alone, so a question refused for its length — and the red hint naming
+    // that length — survived into a chat that had nothing to do with either.
+    const field = await openChat();
+    await userEvent.type(field, "ab");
+    await send();
+    expect(await screen.findByRole("alert")).toHaveTextContent(/mindestens 3 Zeichen/);
+
+    await userEvent.click(screen.getByRole("button", { name: /neuer chat/i }));
+
+    // The hint element stays mounted — it reserves its line so the layout does
+    // not jump — so what has to go is its text, and with it the description.
+    expect(screen.getByLabelText("Frage")).toHaveValue("");
+    expect(screen.getByRole("alert")).toBeEmptyDOMElement();
+    expect(screen.getByLabelText("Frage")).not.toHaveAttribute("aria-describedby");
+  });
+
   it("cannot reset the chat out from under an answer that is still coming", async () => {
     // The reset would win the click and lose the race: `send` holds sessionId
     // and messages across the await, so the landing response puts the old

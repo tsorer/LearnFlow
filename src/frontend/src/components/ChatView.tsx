@@ -169,7 +169,15 @@ export default function ChatView({ user, onLogout }: Props) {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
   };
 
-  const newChat = () => { setMessages([]); setSessionId(null); };
+  // The draft and its hint belong to the chat being discarded. Keeping them
+  // while the transcript goes would open the "new" chat on a question the user
+  // never sent and a reason that refers to nothing on screen.
+  const newChat = () => {
+    setMessages([]);
+    setSessionId(null);
+    setInput("");
+    setInputError("");
+  };
 
   return (
     <div style={{ display: "flex", height: "100vh", flexDirection: "column" }}>
