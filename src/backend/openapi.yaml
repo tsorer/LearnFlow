@@ -125,9 +125,10 @@ paths:
                 $ref: '#/components/schemas/ValidationError'
         '503':
           description: >
-            Retrieval nicht verfügbar (Embedding-Provider oder Datenbank). Kein
-            fachliches Ergebnis, sondern ein Infrastrukturfehler — bewusst nicht
-            als Unterdrückung getarnt (ADR-008).
+            Retrieval oder Antwortgenerierung nicht verfügbar (LLM- bzw.
+            Embedding-Provider oder Datenbank). Kein fachliches Ergebnis,
+            sondern ein Infrastrukturfehler — bewusst nicht als Unterdrückung
+            getarnt (ADR-008).
           content:
             application/json:
               schema:
@@ -523,12 +524,13 @@ components:
           description: >
             Welche Stufe unterdrückt hat (ADR-008). Geschlossene Menge, damit
             das Frontend jeden Wert beschriften kann statt den technischen
-            Schlüssel anzuzeigen; T-18 ergänzt hier `citation_coverage` und
-            `self_check`.
+            Schlüssel anzuzeigen; T-19 und T-25 ergänzen hier
+            `citation_coverage` und `self_check`.
           enum:
             - retrieval_gate
             - retrieval_confidence
-            - generation_not_implemented
+            - generation_refused
+            - generation_truncated
             - configuration_error
         message:
           type: string

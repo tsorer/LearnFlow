@@ -18,13 +18,14 @@ const PARAM_LABELS: Record<string, string> = {
 };
 
 // Keyed by the spec enum (see SuppressionReason): a reason added in
-// openapi.yaml — T-18 brings citation_coverage and self_check — fails the type
+// openapi.yaml — T-19 and T-25 bring citation_coverage and self_check — fails the type
 // check here instead of rendering the raw key in the badge.
 const suppressLabels: Record<SuppressionReason, string> = {
-  retrieval_gate:             "Keine Chunks über Schwellwert",
-  retrieval_confidence:       "Retrieval-Konfidenz zu tief",
-  generation_not_implemented: "Quellen gefunden — Antwort folgt (T-18)",
-  configuration_error:        "Suche nicht korrekt konfiguriert",
+  retrieval_gate:       "Keine Chunks über Schwellwert",
+  retrieval_confidence: "Retrieval-Konfidenz zu tief",
+  generation_refused:   "Antwort nicht durch Quellen gedeckt",
+  generation_truncated: "Antwort abgebrochen, zurückgehalten",
+  configuration_error:  "Suche nicht korrekt konfiguriert",
 };
 
 function pct(v: number) { return `${Math.round(v * 100)}%`; }
@@ -250,10 +251,17 @@ function DebugPanel({ debug, confidence }: { debug: DebugInfo; confidence: Confi
 
         {/* Pipeline stages interleaved with LLM calls and Composite */}
         {debug.stages.map((s, i) => {
-          const groundingCall = i === 1 ? debug.llm_calls.find(c => c.step === "grounding") : null;
-          const selfCheckCall = i === 3 ? debug.llm_calls.find(c => c.step === "self_check") : null;
-          // Insert Composite Score between Citation (i=2) and Self-Check (i=3)
-          const showComposite = i === 2;
+          // Anchored on the stage id, not on its position: the backend ships two
+          // stages today and four once T-19 and T-25 land, and the fixed indices
+          // this used to carry meant the Composite block rendered in neither case.
+          const groundingCall = s.id === "retrieval_confidence" ? debug.llm_calls.find(c => c.step === "grounding") : null;
+          const selfCheckCall = s.id === "self_check" ? debug.llm_calls.find(c => c.step === "self_check") : null;
+          // Composite Score belongs after the citation stage; while that stage does
+          // not exist it goes after the last one, so the breakdown stays visible.
+          const hasCitationStage = debug.stages.some(x => x.id === "citation_coverage");
+          const showComposite = hasCitationStage
+            ? s.id === "citation_coverage"
+            : i === debug.stages.length - 1;
           return (
             <div key={s.id}>
               <PipelineStep num={i < 3 ? i + 1 : i + 2} stage={s} isLast={false} />
@@ -276,7 +284,7 @@ function DebugPanel({ debug, confidence }: { debug: DebugInfo; confidence: Confi
                         background: dotColor, color: "#fff",
                         fontSize: 9, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center",
                         boxShadow: `0 0 0 2px ${dotShadow}`,
-                      }}>4</div>
+                      }}>{i + 2}</div>
                       <div style={{ flex: 1, width: 2, background: "var(--border)", minHeight: 10 }} />
                     </div>
                     <div style={{ flex: 1, paddingLeft: 10, paddingBottom: 10 }}>
@@ -404,9 +412,12 @@ export default function MessageBubble({ message: m, token }: Props) {
         {m.content}
       </div>
 
-      {/* Metric bar — thresholds from actual query params, not hardcoded */}
-      {m.confidence && (
+      {/* Metric bar — thresholds from actual query params, not hardcoded.
+          Not gated on m.confidence: configuration_error returns confidence null,
+          and its badge is the only thing telling the user why nothing came back. */}
+      {(m.confidence || m.suppression_reason) && (
         <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+          {m.confidence && (<>
           <span style={{
             background: "var(--blue-lt)", color: "var(--navy)",
             borderRadius: 20, padding: "2px 10px", fontSize: 11, fontWeight: 700,
@@ -414,10 +425,19 @@ export default function MessageBubble({ message: m, token }: Props) {
             Composite: {pct(m.confidence.score)}
           </span>
           {(() => {
-            const minRet = d?.params_used?.min_retrieval_confidence ?? 0.55;
-            const minCit = d?.params_used?.min_citation_coverage ?? 0.50;
-            const retFail = m.confidence!.retrieval_score < minRet;
-            const citFail = m.confidence!.citation_coverage < minCit;
+            // Coloured only against a threshold we actually have. params_used is
+            // filled for admins alone, and the invented fallback (0.55, while the
+            // backend default is 0.40) painted every learner's answer red whose
+            // score sat between the two — for a stage that had passed it. Same
+            // reason the citation badge below stays neutral: no colour against a
+            // number nobody measured. The real display for learners is the
+            // confidence band of US-02 (T-27), not a raw threshold.
+            const minRet = d?.params_used?.min_retrieval_confidence ?? null;
+            const retFail = minRet !== null && m.confidence!.retrieval_score < minRet;
+            // Citation coverage is 0.0 because stage 2 does not exist yet (T-19),
+            // not because nothing was covered. Comparing it against the threshold
+            // painted every correct answer with a red "0 %" for a check that never
+            // ran, so the badge stays neutral and says so until T-19 measures it.
             return (
               <>
                 <span style={{
@@ -429,14 +449,14 @@ export default function MessageBubble({ message: m, token }: Props) {
                 </span>
                 <span style={{
                   fontSize: 11, padding: "2px 8px", borderRadius: 20, fontWeight: 600,
-                  background: citFail ? "var(--red-lt)" : "var(--blue-lt)",
-                  color: citFail ? "var(--red)" : "var(--navy)",
+                  background: "var(--bg)", color: "var(--muted)",
                 }}>
-                  Citation: {pct(m.confidence!.citation_coverage)}
+                  Citation: offen (T-19)
                 </span>
               </>
             );
           })()}
+          </>)}
           {m.suppression_reason && (
             <span style={{
               fontSize: 11, padding: "2px 8px", borderRadius: 20, fontWeight: 600,

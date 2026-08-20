@@ -1,16 +1,16 @@
-"""POST /query — hybrid retrieval and the deterministic gates (T-17).
+"""POST /query — hybrid retrieval, the deterministic gates, generation (T-17/T-18).
 
-What this endpoint does *not* do yet is generate an answer: that is T-18. Until
-then every response is `suppressed`, and `message` is one of three constant
-texts. No generated prose, no invented citation — ADR-008 is fail-closed with a
-0 % hallucination target, and the one thing that must never reach a user is a
-plausible-sounding answer nobody produced.
-
-What it does do is real: the question is embedded, both searches run, the
+The order is the point. The question is embedded, both searches run, the
 candidates are fused, and stages 0 and 1 decide whether the found sources are
-solid enough to be worth showing. `citations` and `confidence.retrieval_score`
-are therefore already meaningful; T-18 replaces the placeholder message with a
-grounded answer and adds stages 2 and 3.
+solid enough to spend an LLM call on. Only then is an answer generated, and only
+from those chunks — a question that fails either gate never reaches the provider
+at all (ADR-007).
+
+Two stages of ADR-008 are still missing: the citation/grounding check (stage 2,
+T-19) and the self-check (stage 3, T-25). Until they land, `citation_coverage`
+stays 0.0, `confidence.score` is the retrieval score alone, and a delivered
+answer rests on the two gates in front of it plus the grounding prompt — which
+is why T-19 follows directly on T-18.
 """
 
 import logging
@@ -33,6 +33,7 @@ from app.services.confidence import (
 )
 from app.services.confidence import RetrievalDetail as ConfidenceDetail
 from app.services.config import ConfigurationError, PipelineConfig, read_pipeline_config
+from app.services.generation import GenerationResult, generate_answer
 from app.services.retrieval import RANK_ABSENT, RetrievalHit, RetrievalOutcome, retrieve
 
 logger = logging.getLogger(__name__)
@@ -54,9 +55,16 @@ MESSAGE_WEAK_EVIDENCE = (
     "Die gefundenen Stellen sind zu schwach belegt für eine verlässliche Antwort. "
     "Die nächstliegenden Quellen sind unten aufgeführt."
 )
-MESSAGE_GENERATION_PENDING = (
-    "Passende Quellen wurden gefunden; die Antwortgenerierung ist noch nicht "
-    "aktiv. Bitte nutze bis dahin die aufgeführten Quellen."
+MESSAGE_GENERATION_REFUSED = (
+    "Die gefundenen Stellen decken deine Frage nicht ab. "
+    "Die nächstliegenden Quellen sind unten aufgeführt."
+)
+# A truncated answer is withheld whole rather than shown up to the cut: its last
+# claim may have lost the citation that was about to back it. The hint is a
+# different one than above — here the sources fit, the question was too broad.
+MESSAGE_GENERATION_TRUNCATED = (
+    "Die Antwort wurde unvollständig abgebrochen und deshalb zurückgehalten. "
+    "Bitte stelle eine engere Frage; die gefundenen Quellen sind unten aufgeführt."
 )
 MESSAGE_CONFIGURATION_ERROR = (
     "Die Suche ist derzeit nicht korrekt konfiguriert und liefert deshalb keine "
@@ -68,13 +76,18 @@ MESSAGE_CONFIGURATION_ERROR = (
 # touching openapi.yaml and MessageBubble.tsx in the same PR.
 REASON_NO_MATCH = "retrieval_gate"
 REASON_WEAK_EVIDENCE = "retrieval_confidence"
-REASON_GENERATION_PENDING = "generation_not_implemented"
+REASON_GENERATION_REFUSED = "generation_refused"
+REASON_GENERATION_TRUNCATED = "generation_truncated"
 REASON_CONFIGURATION_ERROR = "configuration_error"
 
-# Stage identifiers are the contract of the admin debug view; T-18 appends
-# "citation_coverage" and "self_check" to this sequence.
+# Stage identifiers are the contract of the admin debug view; T-19 and T-25
+# append "citation_coverage" and "self_check" to this sequence.
 STAGE_RETRIEVAL_GATE = "retrieval_gate"
 STAGE_RETRIEVAL_CONFIDENCE = "retrieval_confidence"
+
+# The admin view matches this exact string to place the call inside the pipeline
+# (MessageBubble.tsx); T-25 adds "self_check" beside it.
+STEP_GROUNDING = "grounding"
 
 
 class QueryRequest(BaseModel):
@@ -186,6 +199,8 @@ async def create_query(
             question=request.question,
             reason=REASON_CONFIGURATION_ERROR,
             message=MESSAGE_CONFIGURATION_ERROR,
+            answer_text=None,
+            suppressed=True,
             citations=[],
             # No thresholds means no scores were computed — reporting 0.0 would
             # claim a measurement that never happened.
@@ -218,12 +233,28 @@ async def create_query(
     )
     confidence_passed = gate_passed and detail.result >= config.min_retrieval_confidence
 
+    # The one place an LLM is reached, and only from the third branch: the two
+    # gates above are the deterministic, free part of the defence, and ADR-007
+    # requires them to decide *before* a provider is called, not after.
+    generation: GenerationResult | None = None
+    reason: str | None
+    message: str
+
     if not gate_passed:
         reason, message = REASON_NO_MATCH, MESSAGE_NO_MATCH
     elif not confidence_passed:
         reason, message = REASON_WEAK_EVIDENCE, MESSAGE_WEAK_EVIDENCE
     else:
-        reason, message = REASON_GENERATION_PENDING, MESSAGE_GENERATION_PENDING
+        generation = await _generate(request.question, outcome.context, user)
+        if generation.truncated:
+            reason, message = REASON_GENERATION_TRUNCATED, MESSAGE_GENERATION_TRUNCATED
+        elif generation.answer is None:
+            # The model itself reported the context does not cover the question.
+            # Its wording is dropped for the standardised text (ADR-008): a
+            # refusal is a suppression, not a short answer.
+            reason, message = REASON_GENERATION_REFUSED, MESSAGE_GENERATION_REFUSED
+        else:
+            reason, message = None, generation.answer
 
     # Nothing above the threshold means nothing worth pointing at — showing the
     # closest misses would invite reading them as an answer (ADR-008: no
@@ -233,7 +264,7 @@ async def create_query(
 
     # citation_coverage is 0.0, not null: the spec requires the field and stage
     # 2 has not run, so nothing about this answer is covered by a citation yet.
-    # `score` is the retrieval score alone until T-18 combines the two — no
+    # `score` is the retrieval score alone until T-23 combines the two — no
     # composite weight is invented here, there is no config key for one.
     confidence = ConfidenceInfo(
         score=detail.result, retrieval_score=detail.result, citation_coverage=0.0
@@ -245,14 +276,40 @@ async def create_query(
         question=request.question,
         reason=reason,
         message=message,
+        answer_text=generation.answer if generation else None,
+        # A suppressed answer always names the stage that suppressed it, so the
+        # two fields cannot drift apart into "suppressed without a reason".
+        suppressed=reason is not None,
         citations=citations,
         confidence=confidence,
-        # Only admins see the pipeline internals: chunk contents would otherwise
-        # leak the full source text past the excerpt the citation shows.
-        debug=_to_debug(outcome, detail, config, gate_passed, confidence_passed)
+        # Only admins see the pipeline internals: chunk contents and the rendered
+        # prompt would otherwise leak the full source text past the excerpt the
+        # citation shows.
+        debug=_to_debug(outcome, detail, config, gate_passed, confidence_passed, generation)
         if user.role == "admin"
         else None,
     )
+
+
+async def _generate(
+    question: str, context: list[RetrievalHit], user: User
+) -> GenerationResult:
+    """Call the provider, turning an outage into a 503 rather than a non-answer."""
+    try:
+        return await generate_answer(question, context)
+    except (TypeError, AttributeError, NameError, ImportError):
+        # Same split as the retrieval call above: broken code is a 500, a broken
+        # dependency is a 503.
+        raise
+    except Exception:
+        # The provider message is logged, never returned — it carries api_base,
+        # deployment names and, on an auth failure, a fragment of the key.
+        logger.exception("Antwortgenerierung fehlgeschlagen für user_id=%s", user.id)
+        raise HTTPException(  # noqa: B904
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Die Antwortgenerierung ist derzeit nicht verfügbar. "
+            "Bitte später erneut versuchen.",
+        )
 
 
 async def _persist_and_respond(
@@ -260,8 +317,10 @@ async def _persist_and_respond(
     db: AsyncSession,
     session: QuerySession,
     question: str,
-    reason: str,
+    reason: str | None,
     message: str,
+    answer_text: str | None,
+    suppressed: bool,
     citations: list[Citation],
     confidence: ConfidenceInfo | None,
     debug: DebugInfo | None,
@@ -272,16 +331,21 @@ async def _persist_and_respond(
     error: `answer_id` is a required field and the target of the feedback
     foreign key, so a response without a persisted row would hand the client an
     id that POST /answers/{id}/feedback rejects.
+
+    `answer_text` is the generated text and stays None for every suppressed
+    answer: the column is what a later evaluation reads, and storing the
+    standardised "Weiss ich nicht" there would make suppressions look like
+    answers the pipeline produced.
     """
     answer = Answer(
         id=uuid.uuid4(),
         session_id=session.id,
         question=question,
-        answer_text=None,
+        answer_text=answer_text,
         confidence_score=confidence.score if confidence else None,
         citation_coverage=None,
         retrieval_confidence=confidence.retrieval_score if confidence else None,
-        suppressed=True,
+        suppressed=suppressed,
     )
     db.add(answer)
     await db.commit()
@@ -289,9 +353,7 @@ async def _persist_and_respond(
     return QueryResponse(
         session_id=session.id,
         answer_id=answer.id,
-        # Always true in T-17: without a generated answer there is nothing to
-        # deliver, whatever the retrieval found.
-        suppressed=True,
+        suppressed=suppressed,
         suppression_reason=reason,
         message=message,
         # TODO (T-26): Requirements §71 asks for a refinement hint after a
@@ -335,8 +397,8 @@ def _to_citations(hits: list[RetrievalHit]) -> list[Citation]:
             filename=hit.filename,
             page=hit.page,
             excerpt=_excerpt(hit.content),
-            # 1-based: `index` is the footnote number the answer text will cite
-            # as [1], [2], … once T-18 generates one.
+            # 1-based: `index` is the footnote number the answer text cites as
+            # [1], [2], … — build_prompt() numbers the same list the same way.
             index=position,
         )
         for position, hit in enumerate(hits, start=1)
@@ -356,6 +418,7 @@ def _to_debug(
     config: PipelineConfig,
     gate_passed: bool,
     confidence_passed: bool,
+    generation: GenerationResult | None,
 ) -> DebugInfo:
     context_ids = {hit.chunk_id for hit in outcome.context}
     threshold = config.similarity_threshold
@@ -414,8 +477,19 @@ def _to_debug(
                 ),
             ),
         ],
-        # Empty by construction, not by omission: T-17 reaches no LLM at all.
-        llm_calls=[],
+        # Empty by construction below either gate, not by omission: that the
+        # list is empty is what makes "kein LLM-Aufruf" (ADR-007) visible in the
+        # admin view instead of merely asserted in a test.
+        llm_calls=[]
+        if generation is None
+        else [
+            LLMCallInfo(
+                step=STEP_GROUNDING,
+                label="Antwortgenerierung (Grounding-Prompt, ADR-007)",
+                prompt=generation.prompt,
+                response=generation.raw_response,
+            )
+        ],
         similarity_threshold=config.similarity_threshold,
         min_retrieval_confidence=config.min_retrieval_confidence,
         min_citation_coverage=config.min_citation_coverage,

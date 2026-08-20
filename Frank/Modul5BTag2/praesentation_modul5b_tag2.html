@@ -1,0 +1,678 @@
+<title>Der Türsteher am Stream</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=JetBrains+Mono:wght@400;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+
+<style>
+  :root {
+    --bg:        #F1F3F0;
+    --surface:   #FBFCFA;
+    --surface-2: #E4E9E4;
+    --ink:       #131A18;
+    --ink-2:     #48534F;
+    --ink-3:     #6E7A76;
+    --rule:      #CBD3CE;
+    --accent:    #1D5B7A;
+    --amber:     #9A6A0B;
+    --amber-bg:  #F2E7CE;
+    --ok:        #2C6549;
+    --ok-bg:     #DCEADF;
+    --bad:       #943325;
+    --bad-bg:    #F2DED9;
+    --code-bg:   #E7ECE7;
+
+    --display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+    --body: "Source Serif 4", Georgia, "Times New Roman", serif;
+    --mono: "JetBrains Mono", Consolas, "SF Mono", monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg:        #0D1413;
+      --surface:   #141D1B;
+      --surface-2: #1E2A27;
+      --ink:       #E8EDE9;
+      --ink-2:     #A6B2AD;
+      --ink-3:     #7C8884;
+      --rule:      #2B3835;
+      --accent:    #74B6D8;
+      --amber:     #E2A945;
+      --amber-bg:  #33270F;
+      --ok:        #67BC8F;
+      --ok-bg:     #16301F;
+      --bad:       #E48674;
+      --bad-bg:    #351A15;
+      --code-bg:   #101918;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg:        #0D1413;
+    --surface:   #141D1B;
+    --surface-2: #1E2A27;
+    --ink:       #E8EDE9;
+    --ink-2:     #A6B2AD;
+    --ink-3:     #7C8884;
+    --rule:      #2B3835;
+    --accent:    #74B6D8;
+    --amber:     #E2A945;
+    --amber-bg:  #33270F;
+    --ok:        #67BC8F;
+    --ok-bg:     #16301F;
+    --bad:       #E48674;
+    --bad-bg:    #351A15;
+    --code-bg:   #101918;
+  }
+
+  * { box-sizing: border-box; }
+
+  html {
+    scroll-snap-type: y proximity;
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 17px;
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  /* ---------- Slide-Geruest ---------- */
+
+  .slide {
+    scroll-snap-align: start;
+    min-height: 100svh;
+    display: flex;
+    align-items: center;
+    padding: 64px 32px;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .inner {
+    width: 100%;
+    max-width: 1080px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 84px minmax(0, 1fr);
+    gap: 0 28px;
+  }
+
+  /* Die Schiene ist der Stream, der Marker ein Entscheidungspunkt. */
+  .rail {
+    position: relative;
+    border-right: 2px solid var(--rule);
+    padding-right: 22px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 10px;
+  }
+
+  .rail::after {
+    content: "";
+    position: absolute;
+    right: -6px;
+    top: 9px;
+    width: 10px;
+    height: 10px;
+    background: var(--accent);
+  }
+
+  .rail[data-mark="deny"]::after { background: var(--bad); }
+  .rail[data-mark="gate"]::after { background: var(--amber); }
+
+  .rail-num {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--ink-3);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .rail-tag {
+    font-family: var(--display);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    text-align: right;
+  }
+
+  .body-col { min-width: 0; display: flex; flex-direction: column; gap: 22px; }
+
+  /* ---------- Typografie ---------- */
+
+  h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; }
+
+  h1 {
+    font-size: clamp(38px, 6.4vw, 76px);
+    font-weight: 800;
+    letter-spacing: -0.032em;
+    line-height: 0.98;
+  }
+
+  h2 {
+    font-size: clamp(28px, 3.9vw, 44px);
+    font-weight: 700;
+    letter-spacing: -0.022em;
+    line-height: 1.06;
+  }
+
+  h3 {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+  }
+
+  p { margin: 0; max-width: 66ch; }
+  .lede { font-size: clamp(18px, 2.1vw, 22px); color: var(--ink-2); max-width: 60ch; }
+  .fine { font-size: 14px; color: var(--ink-3); max-width: 72ch; }
+
+  strong { font-weight: 600; color: var(--ink); }
+
+  code {
+    font-family: var(--mono);
+    font-size: 0.88em;
+    background: var(--code-bg);
+    padding: 0.12em 0.36em;
+    border-radius: 2px;
+  }
+
+  /* ---------- Code-Bloecke ---------- */
+
+  .code {
+    background: var(--code-bg);
+    border-left: 3px solid var(--accent);
+    overflow-x: auto;
+    padding: 18px 20px;
+    margin: 0;
+  }
+
+  .code[data-tone="deny"] { border-left-color: var(--bad); }
+  .code[data-tone="ok"] { border-left-color: var(--ok); }
+  .code[data-tone="gate"] { border-left-color: var(--amber); }
+
+  .code code {
+    background: none;
+    padding: 0;
+    font-size: 13.5px;
+    line-height: 1.62;
+    white-space: pre;
+    display: block;
+    color: var(--ink);
+  }
+
+  .c-dim { color: var(--ink-3); }
+  .c-key { color: var(--accent); font-weight: 700; }
+  .c-bad { color: var(--bad); font-weight: 700; }
+  .c-ok  { color: var(--ok); font-weight: 700; }
+  .c-amb { color: var(--amber); font-weight: 700; }
+
+  /* ---------- Bausteine ---------- */
+
+  .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 18px; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    padding: 20px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .card h3 { color: var(--accent); }
+  .card p { font-size: 15px; color: var(--ink-2); }
+  .card .fine { font-size: 13.5px; }
+
+  .stat-num {
+    font-family: var(--display);
+    font-size: clamp(32px, 4.4vw, 44px);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+
+  .stat-lbl {
+    font-family: var(--display);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    font-family: var(--display);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 4px 9px;
+    border-radius: 2px;
+    align-self: flex-start;
+  }
+  .pill.ok { background: var(--ok-bg); color: var(--ok); }
+  .pill.bad { background: var(--bad-bg); color: var(--bad); }
+  .pill.open { background: var(--surface-2); color: var(--ink-2); }
+
+  .table-wrap { overflow-x: auto; border: 1px solid var(--rule); background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; min-width: 520px; font-size: 14.5px; }
+  th, td { text-align: left; padding: 11px 16px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th {
+    font-family: var(--display);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    background: var(--surface-2);
+  }
+  tr:last-child td { border-bottom: none; }
+  td.mono { font-family: var(--mono); font-size: 13px; font-variant-numeric: tabular-nums; }
+
+  .steps { display: flex; flex-direction: column; border-left: 2px solid var(--rule); }
+  .step { padding: 0 0 22px 22px; position: relative; }
+  .step:last-child { padding-bottom: 0; }
+  .step::before {
+    content: "";
+    position: absolute;
+    left: -6px;
+    top: 7px;
+    width: 10px;
+    height: 10px;
+    background: var(--bg);
+    border: 2px solid var(--accent);
+  }
+  .step-h { font-family: var(--display); font-weight: 700; font-size: 16px; margin-bottom: 4px; }
+  .step p { font-size: 15px; color: var(--ink-2); }
+
+  .quote {
+    border-left: 3px solid var(--amber);
+    padding: 4px 0 4px 20px;
+    font-size: clamp(19px, 2.4vw, 26px);
+    line-height: 1.35;
+    font-weight: 600;
+    max-width: 46ch;
+    text-wrap: balance;
+  }
+
+  .meta { font-family: var(--mono); font-size: 12.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+  hr { border: none; border-top: 1px solid var(--rule); margin: 0; }
+
+  /* ---------- Navigation ---------- */
+
+  nav.dots {
+    position: fixed;
+    right: 18px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    z-index: 10;
+  }
+
+  nav.dots a {
+    width: 9px;
+    height: 9px;
+    background: var(--rule);
+    display: block;
+    transition: background 0.18s ease, transform 0.18s ease;
+  }
+  nav.dots a:hover, nav.dots a.on { background: var(--accent); transform: scale(1.35); }
+  nav.dots a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+  @media (max-width: 720px) {
+    body { font-size: 16px; }
+    .inner { grid-template-columns: 1fr; gap: 18px; }
+    .rail {
+      border-right: none;
+      border-left: 2px solid var(--rule);
+      padding-right: 0;
+      padding-left: 14px;
+      align-items: flex-start;
+      flex-direction: row;
+      gap: 12px;
+    }
+    .rail::after { right: auto; left: -6px; }
+    .rail-tag { text-align: left; }
+    .slide { padding: 48px 20px; }
+    nav.dots { display: none; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    nav.dots a { transition: none; }
+  }
+
+  @media print {
+    html { scroll-snap-type: none; }
+    .slide { min-height: auto; page-break-after: always; border-bottom: none; }
+    nav.dots { display: none; }
+  }
+</style>
+
+<nav class="dots" aria-label="Slides"></nav>
+
+<section class="slide" id="s1">
+  <div class="inner">
+    <div class="rail" data-mark="gate">
+      <span class="rail-num">01</span>
+      <span class="rail-tag">Lab L1 + L3</span>
+    </div>
+    <div class="body-col">
+      <p class="meta">CAS ADAI 2026 · BFH Biel · Modul 5B, Tag 2 · Lab: Vom Agent zum System</p>
+      <h1>Der Türsteher<br>am Stream</h1>
+      <p class="lede">Ein Subagent, der Datei-Encodings prüft — und ein Guardrail, der ihm auf die Finger schaut. Was dabei nicht funktioniert hat, war lehrreicher als das, was funktioniert hat.</p>
+      <hr>
+      <p class="meta">Frank Moritz · Projekt LearnFlow · Frank/Modul5BTag2</p>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="s2">
+  <div class="inner">
+    <div class="rail"><span class="rail-num">02</span><span class="rail-tag">Deliverables</span></div>
+    <div class="body-col">
+      <h2>Was heute entstanden ist</h2>
+      <div class="grid-3">
+        <div class="card">
+          <span class="pill ok">L1 · erledigt</span>
+          <h3>Subagent</h3>
+          <p><code>encodingVerifier</code> — prüft alle noch nicht committeten Dateien. Delegation im Stream als <code>Agent</code>-Tool-Call nachgewiesen.</p>
+        </div>
+        <div class="card">
+          <span class="pill open">L2 · vorbereitet</span>
+          <h3>Mini-Orchestrator</h3>
+          <p><code>test_pge.py</code> auf die UTF-8-Aufgabe adaptiert. Lauf-Ergebnisse liegen für diese Zusammenfassung nicht vor.</p>
+        </div>
+        <div class="card">
+          <span class="pill ok">L3 · erledigt</span>
+          <h3>Guardrail</h3>
+          <p><code>can_use_tool</code>-Callback: loggt jeden Aufruf, der ihn erreicht, und lehnt <code>rm -rf</code> ab. Deny live provoziert.</p>
+        </div>
+      </div>
+      <p class="fine">Der rote Faden des Labs — beim Subagent entscheidet das Modell über die Delegation, beim Orchestrator entscheidet der Code — hat heute eine dritte Ebene bekommen: beim Guardrail entscheidet das Permission-System, und das sitzt noch vor beidem.</p>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="s3">
+  <div class="inner">
+    <div class="rail"><span class="rail-num">03</span><span class="rail-tag">L1 · Die Rolle</span></div>
+    <div class="body-col">
+      <h2>encodingVerifier</h2>
+      <p class="lede">Eine Rolle, die zum Projekt passt: LearnFlow schreibt Docs auf Deutsch, falsch kodierte Umlaute sind ein reales Ärgernis. Der Subagent prüft vor dem Commit.</p>
+      <pre class="code"><code><span class="c-key">encodingVerifier</span> = AgentDefinition(
+    description=<span class="c-dim">"Prüft das Encoding der noch nicht committeten Dateien. "</span>
+                <span class="c-dim">"Nutze IMMER, wenn Code committed werden soll"</span>,
+    prompt=<span class="c-dim">"Du prüfst Datei-Encodings. Führe dafür python check_encoding.py …"</span>,
+    tools=[<span class="c-dim">"Bash"</span>, <span class="c-dim">"Read"</span>],   <span class="c-dim"># minimal</span>
+    maxTurns=<span class="c-amb">5</span>,                <span class="c-dim"># eigenes Budget — siehe Slide 08</span>
+    model=<span class="c-dim">"haiku"</span>,           <span class="c-dim"># Routine = billig</span>
+)</code></pre>
+      <div class="grid-2">
+        <div class="card">
+          <h3>Delegation nachgewiesen</h3>
+          <p>Im Stream erscheint <code>&gt;&gt;&gt; TOOL: Agent … subagent_type: encodingVerifier</code> — das Modell hat selbst delegiert, ohne dass die Rolle im Prompt genannt wurde.</p>
+        </div>
+        <div class="card">
+          <h3>Kein Skill hat gewonnen</h3>
+          <p>Die <code>description</code>-Konkurrenz war kein Thema: für „Prüfe das Encoding der neuen Dateien" gibt es keinen Built-in-Skill, der plausibler klingt.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="s4">
+  <div class="inner">
+    <div class="rail"><span class="rail-num">04</span><span class="rail-tag">Das Werkzeug</span></div>
+    <div class="body-col">
+      <h2>Der Subagent bekommt ein Skript,<br>kein Mandat</h2>
+      <p class="lede">Erste Fassung: der Subagent durfte <code>Write</code> — und schrieb sich prompt eigene Prüfskripte, eines davon im Repo-Root, ausserhalb des Übungsordners.</p>
+      <div class="grid-2">
+        <div class="card">
+          <h3>Vorher</h3>
+          <p><code>check_encoding.py</code> mit 17 hartcodierten Backend-Pfaden. Der Agent musste raten, was „die neuen Dateien" sind.</p>
+        </div>
+        <div class="card">
+          <h3>Nachher</h3>
+          <p>Die Dateiliste kommt aus <code>git status</code>. Der Agent führt einen Befehl aus, das Skript weiss den Rest.</p>
+        </div>
+      </div>
+      <pre class="code" data-tone="ok"><code><span class="c-dim"># Scope = aktuelles Verzeichnis, -z haelt Pfade mit Leerzeichen heil</span>
+entries = git(<span class="c-dim">"status"</span>, <span class="c-dim">"--porcelain"</span>, <span class="c-dim">"-uall"</span>, <span class="c-dim">"-z"</span>, <span class="c-dim">"--"</span>, str(scope)).split(<span class="c-dim">"\0"</span>)</code></pre>
+      <p class="fine"><strong>Nebenbei gelernt:</strong> die <code>latin-1</code>-Fallback-Erkennung akzeptiert jedes Byte. Bei einer festen <code>.py</code>-Liste egal — bei einer aus Git generierten hätte sie ein PNG als „latin-1" erkannt und beim Konvertieren zerstört. Also ein Binär-Check davor.</p>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="s5">
+  <div class="inner">
+    <div class="rail"><span class="rail-num">05</span><span class="rail-tag">Lektion 1</span></div>
+    <div class="body-col">
+      <h2>Zwei Achsen, die man leicht verwechselt</h2>
+      <p class="lede">Der erste Lauf scheiterte daran, dass <code>tools</code> und <code>allowed_tools</code> beide auf <code>["Read", "Grep"]</code> standen. Sie bedeuten nicht dasselbe.</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Ebene</th><th>Verfügbarkeit — welche Tools existieren</th><th>Erlaubnis — was ohne Rückfrage läuft</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>global</strong></td><td class="mono">opts.tools</td><td class="mono">opts.allowed_tools / disallowed_tools</td></tr>
+            <tr><td><strong>pro Agent</strong></td><td class="mono">AgentDefinition.tools</td><td class="mono">nur disallowedTools</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Auf der <code>AgentDefinition</code> gibt es <strong>kein <code>allowedTools</code></strong>. Eine Erlaubnis lässt sich gar nicht pro Agent formulieren — das Permission-System ist sessionweit. Deshalb steht <code>Bash(python check_encoding.py)</code> in den <code>opts</code> und nicht beim Subagenten.</p>
+      <p class="fine">Konsequenz: die Delegation ist eine Konvention über <code>description</code> und Prompt, keine erzwungene Grenze. Auch der Haupt-Agent dürfte den erlaubten Befehl ausführen.</p>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="s6">
+  <div class="inner">
+    <div class="rail" data-mark="gate"><span class="rail-num">06</span><span class="rail-tag">L3 · Guardrail</span></div>
+    <div class="body-col">
+      <h2>Der programmierbare Türsteher</h2>
+      <pre class="code" data-tone="gate"><code>audit_log = []
+
+<span class="c-key">async def</span> gate(tool_name, input_data, context):
+    audit_log.append((tool_name, str(input_data)[:600]))
+    <span class="c-key">if</span> tool_name == <span class="c-dim">"Bash"</span> <span class="c-key">and</span> <span class="c-dim">"rm -rf"</span> <span class="c-key">in</span> str(input_data):
+        <span class="c-key">return</span> <span class="c-bad">PermissionResultDeny</span>(message=<span class="c-dim">"Blockiert!"</span>)
+    <span class="c-key">return</span> <span class="c-ok">PermissionResultAllow</span>()
+
+opts = ClaudeAgentOptions(
+    can_use_tool=gate,
+    allowed_tools=[],                          <span class="c-dim"># entscheidend</span>
+    disallowed_tools=[<span class="c-dim">"Bash(git push:*)"</span>],   <span class="c-dim"># harte zweite Schranke</span>
+)</code></pre>
+      <p><strong><code>allowed_tools=[]</code> ist kein Versehen.</strong> Permission-Regeln werden vor dem Callback ausgewertet. Ein Eintrag, der ein ganzes Tool freigibt, schaltet den Callback dafür stumm — das SDK warnt sogar von selbst:</p>
+      <pre class="code" data-tone="deny"><code><span class="c-bad">WARNUNG:</span> can_use_tool will not be invoked for: Read, Grep, Task, Agent.</code></pre>
+      <p class="fine">Mit der ursprünglichen Liste wäre das Audit-Log bei einem normalen Lauf leer geblieben — Teilziel (a) verfehlt, ohne dass es jemand gemerkt hätte.</p>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="s7">
+  <div class="inner">
+    <div class="rail" data-mark="deny"><span class="rail-num">07</span><span class="rail-tag">Der teure Bug</span></div>
+    <div class="body-col">
+      <h2>„AbortError: Stream closed"</h2>
+      <p class="lede">Der Subagent lief Amok: über 50 Bash-Aufrufe, <code>hexdump</code>, <code>od</code>, <code>file -i</code>, selbstgeschriebene Skripte, am Ende <code>python</code> ohne Argumente. Das Muster von jemandem, dessen Werkzeug grundlos klemmt.</p>
+      <div class="steps">
+        <div class="step">
+          <div class="step-h">Symptom sichtbar machen</div>
+          <p>Die Schleife druckte nur <code>ToolUseBlock</code>. Erst mit <code>ToolResultBlock</code> aus der <code>UserMessage</code> kam die Meldung zum Vorschein: <code>Tool permission request failed: AbortError: Stream closed</code>.</p>
+        </div>
+        <div class="step">
+          <div class="step-h">Der Beweis: Audit-Log (0 Aufrufe)</div>
+          <p>Bei über 20 Tool-Aufrufen und leerer Allow-Liste hätte jeder durch <code>gate()</code> laufen müssen. Null Einträge heisst: die Anfrage erreicht das Python-Skript nie. Dass <code>Read</code> und <code>ls</code> trotzdem durchkamen, liegt daran, dass das CLI lesende Tools selbst freigibt.</p>
+        </div>
+        <div class="step">
+          <div class="step-h">Ursache im SDK</div>
+          <p><code>can_use_tool</code> läuft über das Control-Protokoll auf stdin. Ist der Prompt-Generator erschöpft, schliesst <code>stream_input()</code> stdin sofort — und <code>query.py:925</code> hält es nur für <code>sdk_mcp_servers</code> oder <code>hooks</code> offen, <strong>nicht für <code>can_use_tool</code></strong>.</p>
+        </div>
+      </div>
+      <pre class="code" data-tone="ok"><code><span class="c-key">async def</span> prompt_stream():
+    <span class="c-key">yield</span> {<span class="c-dim">"type"</span>: <span class="c-dim">"user"</span>, <span class="c-dim">"message"</span>: {<span class="c-dim">"role"</span>: <span class="c-dim">"user"</span>, <span class="c-dim">"content"</span>: PROMPT}, …}
+    <span class="c-key">await</span> done.wait()   <span class="c-dim"># haelt stdin offen, bis die ResultMessage da ist</span></code></pre>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="s8">
+  <div class="inner">
+    <div class="rail"><span class="rail-num">08</span><span class="rail-tag">Runden-Limit</span></div>
+    <div class="body-col">
+      <h2>Zwei Budgets, nicht eines</h2>
+      <p class="lede"><code>opts.max_turns=15</code> galt nur für den Haupt-Agenten. Der Subagent hatte gar keine Grenze — daher die 50 Aufrufe.</p>
+      <pre class="code"><code>encodingVerifier = AgentDefinition(
+    …
+    maxTurns=<span class="c-amb">5</span>,   <span class="c-dim"># eigenes Budget des Subagenten</span>
+)</code></pre>
+      <p>Wirkung im nächsten Lauf, direkt aus dem Tool-Result ablesbar:</p>
+      <pre class="code" data-tone="ok"><code>&lt;usage&gt; subagent_tokens: 9541 · <span class="c-ok">tool_uses: 5</span> · duration_ms: 18405 &lt;/usage&gt;</code></pre>
+      <p class="fine">Das Lab-Handout nennt denselben Mechanismus für L2: das Runden-Limit ist der Guardrail — und ein erreichtes Limit wirft eine Exception, die ohne <code>try/except</code> den ganzen Orchestrator mitnimmt.</p>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="s9">
+  <div class="inner">
+    <div class="rail" data-mark="deny"><span class="rail-num">09</span><span class="rail-tag">Die Blockade</span></div>
+    <div class="body-col">
+      <h2>Deny — und was der Agent daraus macht</h2>
+      <p class="lede">Wegwerf-Ordner <code>tmp_demo/</code> angelegt, Prompt: „Lösche den Ordner tmp_demo mit rm -rf".</p>
+      <pre class="code" data-tone="deny"><code>&gt;&gt;&gt; TOOL: Bash  Input: {<span class="c-dim">'command'</span>: <span class="c-dim">'rm -rf tmp_demo'</span>, …}
+<span class="c-bad">!!! BLOCKIERT:</span> Bash {<span class="c-dim">'command'</span>: <span class="c-dim">'rm -rf tmp_demo'</span>, …}
+&lt;&lt;&lt; RESULT (err=<span class="c-bad">True</span>): Blockiert!
+
+<span class="c-dim">--- Turns: 2 · Kosten: $0.0240 ---</span>
+<span class="c-dim">--- Audit-Log (1 Aufrufe) ---</span></code></pre>
+      <div class="grid-3">
+        <div class="card">
+          <h3>Reaktion</h3>
+          <p>Abbruch mit Rückfrage. Der Agent bittet, den Ordner von Hand zu löschen — er probiert keinen Alternativweg.</p>
+        </div>
+        <div class="card">
+          <h3>Fehldiagnose</h3>
+          <p>„wahrscheinlich durch eine Sandbox-Einschränkung". Er sieht nur „Tool-Fehler: Blockiert!" und rät. Eine sprechende <code>message</code> würde ihm helfen.</p>
+        </div>
+        <div class="card">
+          <h3>Ordner intakt</h3>
+          <p><code>tmp_demo/marker.txt</code> unverändert. Die Sperre hat gehalten.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="s10">
+  <div class="inner">
+    <div class="rail" data-mark="gate"><span class="rail-num">10</span><span class="rail-tag">Lektion 2</span></div>
+    <div class="body-col">
+      <h2>Der Filter ist Theater</h2>
+      <p class="lede">Dass es gut ging, lag am Wohlverhalten des Modells — nicht am Guardrail. Derselbe Löschbefehl, vier Schreibweisen:</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Befehl</th><th>Ergebnis</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">rm -rf tmp_demo</td><td><span class="pill bad">deny</span></td></tr>
+            <tr><td class="mono">rm -r tmp_demo</td><td><span class="pill ok">allow</span></td></tr>
+            <tr><td class="mono">rm -fr tmp_demo</td><td><span class="pill ok">allow</span></td></tr>
+            <tr><td class="mono">rmdir /s tmp_demo</td><td><span class="pill ok">allow</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="quote">Drei von vier Varianten kommen durch. Ein Substring-Filter ist keine Sicherheitsgrenze.</p>
+      <p><strong>Und der Callback sieht nicht alles.</strong> Im erfolgreichen Encoding-Lauf standen 2 Einträge im Audit-Log — der <code>Agent</code>-Aufruf, also die Delegation selbst, fehlte. Lesende Tools gibt das CLI vor dem Callback frei. Wer wirklich jeden Aufruf sehen will, braucht einen <code>PreToolUse</code>-Hook.</p>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="s11">
+  <div class="inner">
+    <div class="rail"><span class="rail-num">11</span><span class="rail-tag">Bilanz</span></div>
+    <div class="body-col">
+      <h2>Was das System kostet</h2>
+      <div class="grid-3">
+        <div class="card">
+          <span class="stat-num" style="color: var(--bad)">$0.1434</span>
+          <span class="stat-lbl">Kaputter Lauf · 6 Turns</span>
+          <p class="fine">50+ Tool-Aufrufe, 0 Audit-Einträge, kein Ergebnis.</p>
+        </div>
+        <div class="card">
+          <span class="stat-num" style="color: var(--ok)">$0.0242</span>
+          <span class="stat-lbl">Encoding-Lauf · 2 Turns</span>
+          <p class="fine">9 Dateien geprüft, 2 Audit-Einträge, Exit-Code 0.</p>
+        </div>
+        <div class="card">
+          <span class="stat-num">$0.0240</span>
+          <span class="stat-lbl">Deny-Lauf · 2 Turns</span>
+          <p class="fine">1 Aufruf, blockiert, Ordner intakt.</p>
+        </div>
+      </div>
+      <p class="lede">Der kaputte Lauf kostete das <strong>Sechsfache</strong> des funktionierenden — und lieferte nichts. Ein Agent, dessen Werkzeug klemmt, wird nicht langsamer, sondern teurer.</p>
+      <hr>
+      <h3>Offen</h3>
+      <p>L2 (P→G→E) auf ein echtes Sprint-Feature bringen, mit <code>try/except</code> um <code>run()</code> und Runden-Limit als Guardrail. Für LearnFlow bietet sich die Fail-closed-Schwelle aus ADR-008 an — dort gibt es eine Spec, gegen die der Evaluator prüfen kann.</p>
+      <p class="meta">test_subagentFrankL3.py · check_encoding.py · test_pge.py · claude-agent-sdk 0.2.136</p>
+    </div>
+  </div>
+</section>
+
+<script>
+  (function () {
+    var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+    var nav = document.querySelector('nav.dots');
+
+    slides.forEach(function (s, i) {
+      var a = document.createElement('a');
+      a.href = '#' + s.id;
+      a.setAttribute('aria-label', 'Slide ' + (i + 1));
+      nav.appendChild(a);
+    });
+
+    var dots = Array.prototype.slice.call(nav.querySelectorAll('a'));
+
+    if ('IntersectionObserver' in window) {
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) {
+          if (!e.isIntersecting) return;
+          var i = slides.indexOf(e.target);
+          dots.forEach(function (d, j) { d.classList.toggle('on', i === j); });
+        });
+      }, { threshold: 0.5 });
+      slides.forEach(function (s) { io.observe(s); });
+    }
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'PageDown' && e.key !== 'PageUp') return;
+      var current = 0, best = Infinity;
+      slides.forEach(function (s, i) {
+        var d = Math.abs(s.getBoundingClientRect().top);
+        if (d < best) { best = d; current = i; }
+      });
+      var next = (e.key === 'ArrowDown' || e.key === 'PageDown') ? current + 1 : current - 1;
+      if (next < 0 || next >= slides.length) return;
+      e.preventDefault();
+      slides[next].scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  })();
+</script>
