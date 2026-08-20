@@ -18,13 +18,15 @@ const PARAM_LABELS: Record<string, string> = {
 };
 
 // Keyed by the spec enum (see SuppressionReason): a reason added in
-// openapi.yaml — T-19 and T-25 bring citation_coverage and self_check — fails the type
-// check here instead of rendering the raw key in the badge.
+// openapi.yaml — T-25 brings self_check — fails the type check here instead of
+// rendering the raw key in the badge.
 const suppressLabels: Record<SuppressionReason, string> = {
   retrieval_gate:       "Keine Chunks über Schwellwert",
   retrieval_confidence: "Retrieval-Konfidenz zu tief",
   generation_refused:   "Antwort nicht durch Quellen gedeckt",
   generation_truncated: "Antwort abgebrochen, zurückgehalten",
+  citation_coverage:    "Zu wenig Aussagen belegt",
+  citation_invalid:     "Antwort nannte eine erfundene Quelle",
   configuration_error:  "Suche nicht korrekt konfiguriert",
 };
 
@@ -251,8 +253,8 @@ function DebugPanel({ debug, confidence }: { debug: DebugInfo; confidence: Confi
 
         {/* Pipeline stages interleaved with LLM calls and Composite */}
         {debug.stages.map((s, i) => {
-          // Anchored on the stage id, not on its position: the backend ships two
-          // stages today and four once T-19 and T-25 land, and the fixed indices
+          // Anchored on the stage id, not on its position: the backend ships
+          // three stages today and four once T-25 lands, and the fixed indices
           // this used to carry meant the Composite block rendered in neither case.
           const groundingCall = s.id === "retrieval_confidence" ? debug.llm_calls.find(c => c.step === "grounding") : null;
           const selfCheckCall = s.id === "self_check" ? debug.llm_calls.find(c => c.step === "self_check") : null;
