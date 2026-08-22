@@ -18,14 +18,20 @@ import httpx
 import pytest
 
 from app.config import settings
+from seed_users import USERS
 
 BASE_URL = os.environ.get("E2E_BASE_URL", "http://webapp")
 
-# Seed user from seed_users.py — a knowledge_owner, not Lara: uploading and
-# deleting documents needs that role. Kept in its own module so this file's
-# single login doesn't compete with test_login_flow.py's rate-limit budget.
-EMAIL = "stefan@learnflow.local"
-PASSWORD = "changeme5"
+# Taken from the seed script rather than copied: seed_users.py is where these
+# dev credentials are defined, and a copy here would be a second plaintext
+# password in the repository as well as a second place to keep in sync. Any
+# knowledge_owner will do — uploading and deleting is what needs the role.
+#
+# E2E_OWNER_* wins where it is set, so the suite also runs against a stack whose
+# seed passwords have been replaced (Pilotstart-Checkliste 1.7).
+_SEED_OWNER = next(u for u in USERS if u["role"] == "knowledge_owner")
+EMAIL = os.environ.get("E2E_OWNER_EMAIL", _SEED_OWNER["email"])
+PASSWORD = os.environ.get("E2E_OWNER_PASSWORD", _SEED_OWNER["password"])
 
 
 @pytest.fixture(scope="module")
@@ -62,10 +68,13 @@ async def test_delete_document_cascades_to_chunks(
 ) -> None:
     headers = {"Authorization": f"Bearer {token}"}
 
+    # Unique per run: since T-15 an upload of a filename that already exists
+    # replaces that document and answers 200, so a row left behind by an
+    # aborted run would fail the assertion below.
     upload = client.post(
         "/api/documents",
         headers=headers,
-        files={"file": ("cascade-test.md", b"# cascade test", "text/markdown")},
+        files={"file": (f"cascade-test-{uuid.uuid4()}.md", b"# cascade test", "text/markdown")},
         data={"area": "default"},
     )
     assert upload.status_code == 201, upload.text

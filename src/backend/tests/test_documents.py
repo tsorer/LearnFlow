@@ -14,9 +14,19 @@ from app.models.tables import User
 from app.routers.documents import PILOT_AREA
 
 
-def make_db() -> AsyncMock:
+def make_db(existing: object | None = None) -> AsyncMock:
+    """A session whose queries return no rows unless a test says otherwise.
+
+    `existing` is what the filename lookup of the upload finds (T-15): None for
+    a first upload, a Document for one that replaces it. Without an explicit
+    result a bare AsyncMock would answer `scalar_one_or_none()` with a truthy
+    Mock — every upload test would take the replace branch.
+    """
     db = AsyncMock()
     db.add = MagicMock()  # AsyncSession.add() is synchronous on the real session
+    result = MagicMock()
+    result.scalar_one_or_none.return_value = existing
+    db.execute = AsyncMock(return_value=result)
     return db
 
 
@@ -59,6 +69,8 @@ async def test_upload_success_returns_201(filename: str) -> None:
     assert body["chunk_count"] == 0
     assert body["error_message"] is None
     assert "id" in body
+    # Nothing has replaced this document yet, so both timestamps are the upload.
+    assert body["updated_at"] == body["created_at"]
     db.add.assert_called_once()
     db.commit.assert_awaited_once()
 
@@ -107,9 +119,111 @@ async def test_upload_unknown_area_returns_400() -> None:
     db.add.assert_not_called()
 
 
+def statements(db: AsyncMock) -> list[tuple[str, dict]]:
+    """SQL and bound parameters of everything the route executed.
+
+    A mocked session answers every statement the same way, so the tests that
+    only read the response body stay green even if the filename filter or the
+    chunk deletion were dropped. These assertions look at the statements
+    themselves.
+    """
+    rendered = []
+    for call in db.execute.await_args_list:
+        compiled = call.args[0].compile(dialect=postgresql.dialect())
+        params = dict(compiled.params)
+        # text() statements carry their values in the second argument, not in
+        # the statement itself.
+        if len(call.args) > 1 and isinstance(call.args[1], dict):
+            params.update(call.args[1])
+        rendered.append((str(compiled), params))
+    return rendered
+
+
+def only(db: AsyncMock, fragment: str) -> tuple[str, dict]:
+    matches = [(sql, params) for sql, params in statements(db) if fragment in sql]
+    assert len(matches) == 1, f"expected exactly one {fragment!r}, got {len(matches)}"
+    return matches[0]
+
+
+async def test_upload_looks_the_filename_up_in_the_pilot_area() -> None:
+    db = make_db()
+
+    await _post_upload("notes.pdf", b"content", db)
+
+    sql, params = only(db, "FROM documents")
+    assert "documents.filename = " in sql
+    assert "documents.area = " in sql
+    assert {"notes.pdf", PILOT_AREA} <= set(params.values())
+    # Serialises two uploads of the same name; without it both would find no
+    # predecessor and create a document each.
+    assert "FOR UPDATE" in sql
+
+
+async def test_upload_existing_filename_replaces_and_returns_200() -> None:
+    existing = make_document(status="failed")
+    existing.chunk_count = 7
+    existing.error_message = "Verarbeitung fehlgeschlagen"
+    existing.validated_at = datetime.now(UTC)
+    db = make_db(existing=existing)
+
+    r = await _post_upload(existing.filename, b"zweite fassung", db)
+
+    assert r.status_code == 200
+    body = r.json()
+    # Same row, same id: the frontend polls it and answers reference it.
+    assert body["id"] == str(existing.id)
+    assert body["status"] == "pending"
+    assert body["chunk_count"] == 0
+    assert body["error_message"] is None
+    # created_at stays with the first upload, updated_at moves to this one —
+    # that pair is how the list tells a replaced document from a new one.
+    assert datetime.fromisoformat(body["created_at"]) == existing.created_at
+    assert datetime.fromisoformat(body["updated_at"]) > existing.created_at
+    assert existing.content == b"zweite fassung"
+    # The replacement has not been validated, whatever its predecessor reached.
+    assert existing.validated_at is None
+    db.add.assert_not_called()
+    db.commit.assert_awaited_once()
+
+
+async def test_upload_replacement_deletes_the_previous_chunks() -> None:
+    """The acceptance criterion the response body cannot show: the embeddings of
+    the replaced version leave the database with the upload, not with the
+    re-indexing run that may still fail."""
+    existing = make_document(status="available")
+    db = make_db(existing=existing)
+
+    await _post_upload(existing.filename, b"zweite fassung", db)
+
+    _, params = only(db, "DELETE FROM chunks")
+    assert existing.id in params.values()
+
+
+async def test_upload_of_a_new_filename_deletes_no_chunks() -> None:
+    db = make_db()
+
+    r = await _post_upload("notes.pdf", b"content", db)
+
+    assert r.status_code == 201
+    assert not [sql for sql, _ in statements(db) if "DELETE FROM chunks" in sql]
+
+
+async def test_upload_replacement_re_indexes_the_existing_document() -> None:
+    existing = make_document(status="available")
+    db = make_db(existing=existing)
+
+    await _post_upload(existing.filename, b"zweite fassung", db)
+
+    _, params = only(db, "INSERT INTO pgqueuer")
+    assert str(existing.id) in params["payload"].decode()
+
+
 def make_document(status: str = "processing", area: str = PILOT_AREA) -> object:
     from app.models.tables import Document
 
+    # A document uploaded once and never replaced: both timestamps are the same
+    # moment, as they are on a fresh insert.
+    uploaded_at = datetime.now(UTC)
     return Document(
         id=uuid.uuid4(),
         filename="notes.pdf",
@@ -120,7 +234,8 @@ def make_document(status: str = "processing", area: str = PILOT_AREA) -> object:
         uploaded_by=uuid.uuid4(),
         chunk_count=0,
         error_message=None,
-        created_at=datetime.now(UTC),
+        created_at=uploaded_at,
+        updated_at=uploaded_at,
     )
 
 

@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from app.models.tables import DocumentStatus
 from app.services.config import PipelineConfig
 from app.services.retrieval import (
     RANK_ABSENT,
@@ -193,3 +194,6 @@ async def test_retrieve_binds_the_embedding_as_a_json_literal(
     assert params["embedding"] == "[0.1, 0.2]"
     assert params["area"] == "default"
     assert params["top_k"] == CONFIG.retrieval_top_k
+    # The visibility filter binds the status instead of spelling it into the
+    # SQL — only fully indexed documents are searchable (ADR-007/ADR-008).
+    assert params["status"] == DocumentStatus.available

@@ -22,15 +22,23 @@ from collections.abc import Iterator
 import httpx
 import pytest
 
+from seed_users import USERS
+
 # The default is the service name on the edge network: the test runs inside the
 # api container and reaches nginx at http://webapp — identical locally and in CI.
 BASE_URL = os.environ.get("E2E_BASE_URL", "http://webapp")
 
-# Seed user from seed_users.py. These are throwaway credentials of a throwaway
-# stack (CI container or local development environment).
-EMAIL = "lara@learnflow.local"
-PASSWORD = "changeme6"
+# Taken from the seed script rather than copied: seed_users.py is where these
+# dev credentials are defined, and a copy here would be a second plaintext
+# password in the repository as well as a second place to keep in sync. The
+# learner is the role under test below.
+#
+# E2E_LEARNER_* wins where it is set, so the suite also runs against a stack
+# whose seed passwords have been replaced (Pilotstart-Checkliste 1.7).
 ROLE = "learner"
+_SEED_LEARNER = next(u for u in USERS if u["role"] == ROLE)
+EMAIL = os.environ.get("E2E_LEARNER_EMAIL", _SEED_LEARNER["email"])
+PASSWORD = os.environ.get("E2E_LEARNER_PASSWORD", _SEED_LEARNER["password"])
 
 # Fixed instead of uuid4(): the value ends up in the test id, which must stay
 # stable across runs (--last-failed, flakiness history in CI).

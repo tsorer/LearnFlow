@@ -3,6 +3,8 @@ from pathlib import Path
 from openapi_spec_validator import validate
 from openapi_spec_validator.readers import read_from_filename
 
+from app.models.tables import DocumentStatus
+
 SPEC_PATH = Path(__file__).parent.parent / "openapi.yaml"
 
 # Endpoints from US-01..US-05 and US-11. Completeness against the
@@ -35,6 +37,17 @@ def test_all_us_endpoints_present():
     for path, method in EXPECTED_OPERATIONS:
         assert path in paths, f"Pfad fehlt in der Spec: {path}"
         assert method in paths[path], f"Methode {method.upper()} fehlt fuer {path}"
+
+
+def test_document_status_enum_matches_the_model():
+    """The status values are part of the contract, so they exist twice: as the
+    DocumentStatus schema the frontend types are generated from, and as the enum
+    the API and the worker write. A value added on one side only would reach the
+    database without any client being able to render it (ADR-010)."""
+    spec, _ = read_from_filename(str(SPEC_PATH))
+    assert {s.value for s in DocumentStatus} == set(
+        spec["components"]["schemas"]["DocumentStatus"]["enum"]
+    )
 
 
 def test_auth_and_upload_schemas_defined():

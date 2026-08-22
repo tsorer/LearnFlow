@@ -154,6 +154,13 @@ async def test_documents_post_with_correct_role_is_authorized() -> None:
     user_id = str(uuid4())
     db = make_active_user_db(user_id, "knowledge_owner")
     db.add = MagicMock()
+    # The route runs two queries: the user lookup of get_current_user, then the
+    # filename lookup of T-15. Answering the second one with the User again
+    # would send the request down the replace branch with a User as document.
+    user_result = db.execute.return_value
+    no_document = MagicMock()
+    no_document.scalar_one_or_none.return_value = None
+    db.execute = AsyncMock(side_effect=[user_result, no_document, MagicMock(), MagicMock()])
     app.dependency_overrides[get_db] = lambda: db
     token = create_access_token(user_id, "knowledge_owner")
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
