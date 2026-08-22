@@ -80,9 +80,11 @@ class Document(Base):
     # the content and refuses to publish an indexing run whose row no longer
     # carries the same value (worker/main.py, mark_available). `onupdate` moves
     # it on *any* ORM write to this row, so a future route that writes a
-    # Document for an unrelated reason — the validation of US-08 is the obvious
-    # candidate — would make a job that is indexing this document right now
-    # discard its work silently, logged as info and reported as nothing.
+    # Document for an unrelated reason would make a job that is indexing this
+    # document right now discard its work silently, logged as info and reported
+    # as nothing. The reaper of T-43 is the nearest such writer: it exists to
+    # move rows out of a stuck 'processing', and its own criterion is that a
+    # document currently being processed stays untouched.
     # A write that does not mean "this is a new version of the file" therefore
     # has to preserve updated_at, or the guard needs a column of its own.
     updated_at: Mapped[datetime] = mapped_column(

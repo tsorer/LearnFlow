@@ -211,7 +211,7 @@ async def _replace(
     document.status = DocumentStatus.pending
     document.chunk_count = 0
     document.error_message = None
-    # The new version has not been through validation (US-08), whatever the
+    # The new version has not been through validation (US-06), whatever the
     # replaced one had reached.
     document.validated_at = None
     document.uploaded_by = user.id
