@@ -555,3 +555,28 @@ async def test_the_admin_debug_names_the_invented_reference(
     assert stage["passed"] is False
     assert "[9]" in stage["detail"]
     assert stage["threshold"] == CONFIG.min_citation_coverage
+
+
+async def test_the_debug_stage_agrees_with_the_suppression_decision(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The admin panel must never show "passed" for an answer that was withheld.
+
+    Both readings used to compare the coverage against the threshold on their
+    own. A coverage sitting exactly on the threshold is where a `<`/`>=` drift
+    between them would surface first, so that is the case pinned here.
+    """
+    on_threshold = "Eine erste belegte Aussage [1]. Eine zweite Aussage voellig ohne Beleg."
+
+    r = await post_query(
+        monkeypatch,
+        make_outcome(0.95, 0.94, 0.93),
+        role="admin",
+        generate=make_generate(answer=on_threshold),
+    )
+
+    body = r.json()
+    stage = next(s for s in body["debug"]["stages"] if s["id"] == "citation_coverage")
+    assert body["suppressed"] is False
+    assert stage["passed"] is True
+    assert stage["value"] == CONFIG.min_citation_coverage
