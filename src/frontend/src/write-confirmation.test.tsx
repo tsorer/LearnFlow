@@ -5,21 +5,15 @@
  * arrived, and must not send it twice. That confirmation is the part which has
  * to be right before the endpoints even exist.
  *
- * Each write path is checked against two failure cases:
- *
- *   - a status the spec carries permanently (422 resp. 404). That one survives
- *     T-37 (and survived T-30, below).
- *   - while a path's endpoint is still a placeholder, the 501 it actually
- *     returns today — the only answer users currently get to see, and
- *     without this case the corresponding message would have no test at all.
- *
- * The 501 case has a built-in expiry date: as soon as an endpoint's real
- * implementation takes the code out of the spec, the typed routes reject it
- * and the test stops compiling. That is deliberate — it surfaces in exactly
- * the commit that also has to remove the matching 501 branch in ChatView
- * resp. MessageBubble. Delete both together then; do not swap the status
- * code. T-30 already went through this (see the feedback block below); T-37
- * (admin config) has not yet.
+ * Each write path is checked against the status the spec carries
+ * permanently (422 resp. 404) plus the success case. Both admin config
+ * (T-37) and feedback (T-30) used to also carry a 501-placeholder case here,
+ * for the only answer users could see while the endpoint didn't exist yet;
+ * both are implemented now; the 501 branches in ChatView and MessageBubble
+ * and their tests were removed in the same commits that took 501 out of the
+ * spec for each path. A future placeholder endpoint should get the same
+ * treatment: the 501 case is temporary by construction and goes with the
+ * branch that reads it.
  *
  * Like session.test.tsx, this runs against the shared fetch stub (test/api.ts)
  * rather than a module mock: what is asserted is what goes over the wire.
@@ -74,9 +68,6 @@ describe("admin parameters (T-37)", () => {
     // when the config table had never seen anything — the admin would go on
     // working against a threshold that is not set.
     await openPanel();
-    // 422 rather than the 501 placeholder: T-37 takes 501 out of the spec, 422
-    // ("unknown key or invalid value") stays. That way the test survives the
-    // implementation instead of failing against the typed routes.
     api.route("put", "/api/admin/config", 422, { detail: "Unbekannter Schluessel" });
 
     await userEvent.click(screen.getByRole("button", { name: /^speichern$/i }));
@@ -84,17 +75,6 @@ describe("admin parameters (T-37)", () => {
     expect(await screen.findByText(/konnten nicht gespeichert werden/i)).toBeInTheDocument();
     // Match the check mark, not /gespeichert/i: the error message contains that
     // word itself ("konnten nicht gespeichert werden").
-    expect(screen.queryByText(/✓ Gespeichert/)).not.toBeInTheDocument();
-  });
-
-  it("names the 501 placeholder while T-37 is open", async () => {
-    // Goes away once T-37 removes 501 from the spec — see the file header.
-    await openPanel();
-    api.route("put", "/api/admin/config", 501, { detail: "Not implemented (T-37)" });
-
-    await userEvent.click(screen.getByRole("button", { name: /^speichern$/i }));
-
-    expect(await screen.findByText(/noch nicht speicherbar/i)).toBeInTheDocument();
     expect(screen.queryByText(/✓ Gespeichert/)).not.toBeInTheDocument();
   });
 
