@@ -1,0 +1,38 @@
+(adai) PS C:\Projekte\BFH\LearnFlow\Reto\Modul5BTag2> python pge_upload_validierung.py
+=== PLANNER ===
+## Spec — `ist_upload_gueltig`
+
+### Zweck
+Validiert einen Datei-Upload gegen ADR-003 (Format + Größe) **vor** dem Persistieren; gibt strukturiert zurück, ob der Upload zulässig ist und warum nicht.
+
+---
+
+### Inputs
+
+| Parameter | Typ | Bedeutung |
+|---|---|---|
+| `dateiname` | `str` | Dateiname **oder** Pfad; nur die Endung (letztes `.suffix`) wird geprüft |
+| `groesse_bytes` | `int` | Rohe Byte-A
+
+=== GENERATOR (Runde 1) ===
+Ich benötige Schreibberechtigung für das Verzeichnis `C:\Projekte\BFH\LearnFlow\Reto\Modul5BTag2`. Bitte erteile die Erlaubnis, dann schreibe ich die Datei.
+
+Hier ist der fertige Code zur Vorschau:
+
+```python
+from pathlib import Path
+
+MAX_GROESSE_BYTES = 10 * 1024 * 1024  # ADR-003
+ERLAUBTE_ENDUNGEN = {".pdf", ".docx", ".md"}
+
+
+def ist_upload_gueltig(dateiname: str, groesse_bytes: int) -> tuple[bo
+
+=== EVALUATOR (Runde 1) ===
+FAIL: `(".pdf", 100)` — Spec erwartet `(True, "")`, Code liefert `(False, "Datei hat keine erkennbare Endung …")`.
+
+**Ursache:** `pathlib.Path(".pdf").suffix` gibt in Python `""` zurück (dotfile-Semantik: Stem = `.pdf`, kein Suffix). Der Guard `if suffix == ""` greift daher fälschlicherweise an, obw
+
+=== GENERATOR (Runde 2) ===
+FAIL: abgebrochen (Claude Code returned an error result: Reached maximum number of turns (5))
+(adai) PS C:\Projekte\BFH\LearnFlow\Reto\Modul5BTag2>

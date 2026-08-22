@@ -1,0 +1,33 @@
+(adai) PS C:\Projekte\BFH\LearnFlow\Reto\Modul5BTag2> python pge_upload_validierung.py
+=== PLANNER ===
+## Spec — `ist_upload_gueltig`
+
+### Kontext
+ADR-003: Dokumente werden als `bytea` in PostgreSQL gespeichert, Limit **10 MB**, Formate **.pdf / .docx / .md**.
+
+---
+
+### Inputs
+
+| Parameter | Typ | Bedeutung |
+|---|---|---|
+| `dateiname` | `str` | Originaldateiname inkl. Endung (z. B. `"Bericht.PDF"`, `""`, `"archiv.tar.gz"`) |
+| `groesse_bytes` | `int` | Dateigröße in Bytes, vom Aufrufer geliefert
+
+=== GENERATOR (Runde 1) ===
+Bitte erlaube Schreibzugriff auf das Verzeichnis. Sobald du das tust, kann ich die Datei anlegen. Hier der fertige Code zur direkten Übernahme:
+
+```python
+ERLAUBTE_ENDUNGEN = {".pdf", ".docx", ".md"}
+MAX_GROESSE_BYTES = 10 * 1024 * 1024
+
+
+def ist_upload_gueltig(dateiname: str, groesse_bytes: int) -> tuple[bool, str]:
+    if not dateiname or not dateiname.strip():
+        return False, "Dateiname d
+
+=== EVALUATOR (Runde 1) ===
+PASS
+
+*** PASS in Runde 1 ***
+(adai) PS C:\Projekte\BFH\LearnFlow\Reto\Modul5BTag2>

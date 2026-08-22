@@ -1,0 +1,70 @@
+(adai) PS C:\Projekte\BFH\LearnFlow\Reto\Modul5BTag2> python subagent_api_kritiker.py --ohne-namen
+=== Prompt (ohne Rollennamen) ===
+Prüfe bitte, ob C:\Projekte\BFH\LearnFlow\src\backend\openapi.yaml und C:\Projekte\BFH\LearnFlow\src\backend\app\routers\documents.py zusammenpassen.
+
+>>> TOOL: Agent  Input: {'description': 'OpenAPI vs Router Konsistenzprüfung', 'subagent_type': 'api-kri
+>>> TOOL: Read  Input: {'file_path': 'C:\\Projekte\\BFH\\LearnFlow\\src\\backend\\app\\routers\\documen
+>>> TOOL: Read  Input: {'file_path': 'C:\\Projekte\\BFH\\LearnFlow\\src\\backend\\openapi.yaml'}
+>>> TOOL: Read  Input: {'file_path': 'C:\\Projekte\\BFH\\LearnFlow\\src\\backend\\app\\models\\tables.p
+>>> TOOL: Grep  Input: {'pattern': 'test_rbac|DocumentResponse|document', 'path': 'C:\\Projekte\\BFH\\L
+>>> TOOL: Read  Input: {'file_path': 'C:\\Projekte\\BFH\\LearnFlow\\src\\backend\\tests\\test_openapi_s
+>>> TOOL: Read  Input: {'file_path': 'C:\\Projekte\\BFH\\LearnFlow\\src\\backend\\tests\\test_documents
+>>> TOOL: Read  Input: {'file_path': 'C:\\Projekte\\BFH\\LearnFlow\\src\\backend\\tests\\test_rbac.py'}
+>>> TOOL: Grep  Input: {'pattern': 'DocumentStatus|status.*enum', 'path': 'C:\\Projekte\\BFH\\LearnFlow
+>>> TOOL: Grep  Input: {'pattern': 'class DocumentStatus|Literal\\[.*pending.*\\]', 'path': 'C:\\Projek
+>>> TOOL: Grep  Input: {'pattern': 'DocumentResponse|to_response', 'path': 'C:\\Projekte\\BFH\\LearnFlo
+>>> TOOL: Read  Input: {'file_path': 'C:\\Projekte\\BFH\\LearnFlow\\src\\backend\\app\\routers\\documen
+## Ergebnis der Prüfung: `documents.py` ↔ `openapi.yaml`
+
+**Gesamtbefund: 7 von 8 Kategorien vollständig konform — 1 Minor-Issue gefunden.**
+
+---
+
+### ✅ Alles in Ordnung
+
+| Kategorie | Detail |
+|---|---|
+| Endpoints (Vollständigkeit) | Alle 4 Endpoints beidseitig vorhanden (`GET /documents`, `POST /documents`, `GET /{id}`, `DELETE /{id}`) |
+| HTTP-Methoden & Pfade | Exakte Übereinstimmung |
+| Pfadparameter | `document_id` als UUID korrekt |
+| Query-Parameter | Keine in Spec, keine im Code |
+| Request-Body | `file` (binary/UploadFile) + `area` (string, default "default") stimmen überein |
+| HTTP-Statuscodes | Alle Codes (200, 201, 204, 400, 401, 403, 404, 413, 415) implementiert und getestet |
+| Authentifizierung | Alle Endpoints nutzen `require_knowledge_owner` → entspricht `bearerAuth` in der Spec |
+
+---
+
+### ⚠️ Minor-Issue: Type-Safety-Lücke bei `DocumentResponse.status`
+
+**Datei:** `app/routers/documents.py`, Zeile ~33
+**Severity:** Niedrig (funktional korrekt, aber ADR-010-Lücke)
+
+Die **Spec** definiert `status` als striktes Enum:
+```yaml
+DocumentStatus:
+  type: string
+  enum: [pending, processing, available, failed]
+```
+
+Der **Code** akzeptiert jeden beliebigen String:
+```python
+class DocumentResponse(BaseModel):
+    status: str  # ← kein Enum erzwungen
+```
+
+**Empfehlung** — schnellste Lösung mit `Literal`:
+```python
+from typing import Literal
+
+class DocumentResponse(BaseModel):
+    status: Literal["pending", "processing", "available", "failed"]
+```
+
+Oder eine `DocumentStatus`-Enum-Klasse (z. B. in `app/models/enums.py`) anlegen und referenzieren. In der Praxis werden nur gültige Werte gesetzt, aber `mypy` könnte das aktuell nicht validieren.
+
+---
+
+**Soll ich das Minor-Issue direkt beheben?**
+
+--- Turns: 2 · Kosten: $0.2448 ---
+(adai) PS C:\Projekte\BFH\LearnFlow\Reto\Modul5BTag2>
