@@ -2,21 +2,27 @@ import { useRef, useState } from "react";
 import type { Message, ChunkDebugInfo, StageInfo, LLMCallInfo, DebugInfo, ConfidenceInfo, SuppressionReason } from "../types";
 import { api, type FeedbackCategory } from "../api/client";
 
-// Order and values match the FeedbackCategory enum in openapi.yaml: the first
-// four apply to a thumbs-up, the remaining five to a thumbs-down (US-03).
-const POSITIVE_CATEGORIES: { value: FeedbackCategory; label: string }[] = [
-  { value: "verstaendlich",       label: "Verständlich" },
-  { value: "vollstaendig",        label: "Vollständig" },
-  { value: "hilfreich_fuer_code", label: "Hilfreich für Code" },
-  { value: "quelle_passt_gut",    label: "Quelle passt gut" },
-];
-const NEGATIVE_CATEGORIES: { value: FeedbackCategory; label: string }[] = [
-  { value: "faktisch_falsch",     label: "Faktisch falsch" },
-  { value: "unvollstaendig",      label: "Unvollständig" },
-  { value: "veraltet",            label: "Veraltet" },
-  { value: "unverstaendlich",     label: "Unverständlich" },
-  { value: "quelle_stimmt_nicht", label: "Quelle stimmt nicht" },
-];
+// Keyed by the FeedbackCategory enum in openapi.yaml, one entry per value
+// (US-03: the first four apply to a thumbs-up, the remaining five to a
+// thumbs-down). `Record<FeedbackCategory, …>` — not two hand-picked arrays —
+// is what makes this exhaustive: an enum value added on either side without a
+// matching entry here fails the build instead of silently missing from the
+// picker, the same guarantee app/routers/feedback.py already has at import
+// time for its own category split.
+const CATEGORY_META: Record<FeedbackCategory, { label: string; helpful: boolean }> = {
+  verstaendlich:       { label: "Verständlich",       helpful: true },
+  vollstaendig:        { label: "Vollständig",        helpful: true },
+  hilfreich_fuer_code: { label: "Hilfreich für Code",  helpful: true },
+  quelle_passt_gut:    { label: "Quelle passt gut",    helpful: true },
+  faktisch_falsch:     { label: "Faktisch falsch",     helpful: false },
+  unvollstaendig:      { label: "Unvollständig",       helpful: false },
+  veraltet:            { label: "Veraltet",            helpful: false },
+  unverstaendlich:     { label: "Unverständlich",      helpful: false },
+  quelle_stimmt_nicht: { label: "Quelle stimmt nicht", helpful: false },
+};
+const CATEGORY_ENTRIES = Object.entries(CATEGORY_META) as [FeedbackCategory, { label: string; helpful: boolean }][];
+const categoriesFor = (helpful: boolean) => CATEGORY_ENTRIES.filter(([, meta]) => meta.helpful === helpful);
+
 const COMMENT_MAX_LENGTH = 500;
 
 
@@ -562,11 +568,11 @@ export default function MessageBubble({ message: m, token }: Props) {
               padding: "8px 10px", display: "flex", flexDirection: "column", gap: 6,
             }}>
               <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-                {(pendingThumb ? POSITIVE_CATEGORIES : NEGATIVE_CATEGORIES).map(c => (
-                  <button key={c.value} onClick={() => setCategory(c.value)}
-                    className={category === c.value ? "primary" : "secondary"}
+                {categoriesFor(pendingThumb).map(([value, meta]) => (
+                  <button key={value} onClick={() => setCategory(value)}
+                    className={category === value ? "primary" : "secondary"}
                     style={{ fontSize: 11, padding: "2px 9px" }}>
-                    {c.label}
+                    {meta.label}
                   </button>
                 ))}
               </div>
