@@ -132,16 +132,21 @@ describe("feedback (T-30)", () => {
   }
 
   it("sends only one POST while the first is still in flight", async () => {
+    // T-31: a thumb click only opens the category picker; the POST fires on
+    // "Absenden", once a category is picked.
     const thumbUp = await askQuestion();
+    await userEvent.click(thumbUp);
+    await userEvent.click(screen.getByRole("button", { name: /^verständlich$/i }));
+    const send = screen.getByRole("button", { name: /^absenden$/i });
+
     api.route("post", FEEDBACK, 204);
     api.hold();
 
     // `feedback` is still null inside this window and is useless as a lock —
-    // without `submitting` these would be two rows for the same answer_id, the
-    // third of them with a contradicting `helpful`.
+    // without `submitting` these would be two rows for the same answer_id.
+    fireEvent.click(send);
+    fireEvent.click(send);
     fireEvent.click(thumbUp);
-    fireEvent.click(thumbUp);
-    fireEvent.click(screen.getByRole("button", { name: /nicht hilfreich/i }));
 
     expect(feedbackCalls()).toBe(1);
 
@@ -161,12 +166,43 @@ describe("feedback (T-30)", () => {
     api.route("post", FEEDBACK, 404, { detail: "Antwort nicht gefunden" });
 
     await userEvent.click(thumbUp);
+    await userEvent.click(screen.getByRole("button", { name: /^verständlich$/i }));
+    const send = screen.getByRole("button", { name: /^absenden$/i });
+    await userEvent.click(send);
 
     expect(await screen.findByText(/konnte nicht gespeichert werden/i)).toBeInTheDocument();
-    expect(thumbUp).toBeEnabled();
+    expect(send).toBeEnabled();
 
-    await userEvent.click(thumbUp);
+    await userEvent.click(send);
     expect(feedbackCalls()).toBe(2);
+  });
+
+  it("shows the category picker matching the chosen thumb, and a confirmation on success", async () => {
+    const thumbUp = await askQuestion();
+
+    // Thumbs-up: the four positive categories from US-03, not the five
+    // negative ones.
+    await userEvent.click(thumbUp);
+    expect(screen.getByRole("button", { name: /^verständlich$/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^faktisch falsch$/i })).not.toBeInTheDocument();
+
+    // Switching to thumbs-down swaps the picker to the five negative categories.
+    await userEvent.click(screen.getByRole("button", { name: /^nicht hilfreich$/i }));
+    expect(screen.getByRole("button", { name: /^faktisch falsch$/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^verständlich$/i })).not.toBeInTheDocument();
+
+    // "Absenden" stays disabled until a category is picked.
+    const send = screen.getByRole("button", { name: /^absenden$/i });
+    expect(send).toBeDisabled();
+
+    await userEvent.click(screen.getByRole("button", { name: /^unvollständig$/i }));
+    expect(send).toBeEnabled();
+
+    api.route("post", FEEDBACK, 204);
+    await userEvent.click(send);
+
+    expect(await screen.findByText(/danke für dein feedback/i)).toBeInTheDocument();
+    expect(api.last("post", FEEDBACK)?.json).toEqual({ helpful: false, category: "unvollstaendig", comment: null });
   });
 
 });
