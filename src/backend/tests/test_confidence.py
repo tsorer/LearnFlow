@@ -287,3 +287,23 @@ def test_the_letter_pair_abbreviations_still_hold_a_sentence_together() -> None:
 
         assert detail.segments == 1, answer
         assert detail.coverage == 1.0, answer
+
+
+def test_the_abbreviations_shared_with_the_chunker_do_not_split() -> None:
+    """Vocabulary carried over from chunking.py, where it was counted on the corpus.
+
+    The two modules keep separate lists on purpose — chunking reads PDF text
+    layers, this reads generated answers — but a form attested in one is worth
+    having in the other. A missing abbreviation splits one sentence in two and
+    leaves the second half unbacked: fail-closed, yet it suppresses a correct
+    answer over a full stop that never ended a sentence.
+    """
+    for answer in (
+        "Betroffen sind Anbieter, Betreiber etc. und sie muessen dies beachten [1].",
+        "Massgebend ist Art. 5 Bst. b der Richtlinie und daraus folgt dies [1].",
+        "Der Ablauf ist in Abb. 3 dargestellt und dort genauer erlaeutert [1].",
+    ):
+        detail = check_citations(answer, CONTEXT_SIZE)
+
+        assert detail.segments == 1, answer
+        assert detail.coverage == 1.0, answer

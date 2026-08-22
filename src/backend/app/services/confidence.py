@@ -133,10 +133,28 @@ _LETTER_PAIR_ABBREVIATION = re.compile(r"(?:^|\s)[^\W\d_]\.\s*[^\W\d_]\.\s*$")
 
 # German abbreviations that end in a period without ending a sentence. The
 # single-letter halves of "z. B." and friends are handled by the pair above.
+#
+# `app/services/chunking.py` keeps a second list for the same language, and the
+# two are deliberately not shared. That module splits the *document* text of a
+# PDF layer, where a line break is a layout artifact to be ignored; this one
+# splits *generated* answers, where a line break is a bullet and therefore a
+# hard segment boundary. Its list is also case-sensitive and carries "B" and "S"
+# as entries of their own, which is right for chunking and wrong here — reusing
+# it would stop "Anhang B." from ending a sentence and let the next sentence's
+# citation back an unbacked claim. The failure costs differ too: a missed split
+# costs chunking a suboptimal boundary and costs this stage a delivered
+# unbacked statement.
+#
+# What the two lists *should* share is vocabulary, and in that direction the
+# corpus-counted entries of chunking.py win: a missing abbreviation splits one
+# sentence into two here, and the second half comes out unbacked. That is
+# fail-closed but needlessly suppresses correct answers, so the forms attested
+# there are carried over.
 _ABBREVIATIONS = frozenset(
     {
-        "abs", "art", "bspw", "bzw", "ca", "evtl", "ff", "gem", "ggf", "inkl",
-        "kap", "lit", "nr", "sog", "usw", "vgl", "ziff",
+        "abb", "abs", "art", "bspw", "bst", "buchst", "bzw", "ca", "etc",
+        "evtl", "ff", "gem", "ggf", "inkl", "kap", "lit", "nr", "sog", "tab",
+        "usw", "vgl", "ziff",
     }
 )
 

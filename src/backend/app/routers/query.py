@@ -273,6 +273,7 @@ async def create_query(
     # nothing". Only a text that was actually generated has segments that could
     # be covered, so the distinction is kept all the way into the answers row.
     citation: CitationDetail | None = None
+    citation_passed = False
     reason: str | None
     message: str
 
@@ -295,11 +296,19 @@ async def create_query(
             # the model is a fabricated source, and no coverage figure — not even
             # a perfect one — makes that deliverable.
             citation = check_citations(generation.answer, len(outcome.context))
+            # One evaluation, reused by the debug view below — the same shape as
+            # `gate_passed` and `confidence_passed` above. Recomputing it there
+            # would let the admin panel and the actual decision drift apart on
+            # the next change to the threshold semantics.
+            #
+            # `>=`, so that a coverage exactly on the threshold still passes —
+            # the same reading of the configured value as stages 0 and 1.
+            citation_passed = (
+                citation.valid and citation.coverage >= config.min_citation_coverage
+            )
             if not citation.valid:
                 reason, message = REASON_CITATION_INVALID, MESSAGE_CITATION_INVALID
-            # `<`, so that a coverage exactly on the threshold still passes — the
-            # same reading of the configured value as stages 0 and 1 (ADR-008).
-            elif citation.coverage < config.min_citation_coverage:
+            elif not citation_passed:
                 reason, message = REASON_CITATION_COVERAGE, MESSAGE_CITATION_COVERAGE
             else:
                 reason, message = None, generation.answer
@@ -343,7 +352,14 @@ async def create_query(
         # prompt would otherwise leak the full source text past the excerpt the
         # citation shows.
         debug=_to_debug(
-            outcome, detail, config, gate_passed, confidence_passed, generation, citation
+            outcome,
+            detail,
+            config,
+            gate_passed,
+            confidence_passed,
+            generation,
+            citation,
+            citation_passed,
         )
         if user.role == "admin"
         else None,
@@ -504,6 +520,7 @@ def _to_debug(
     confidence_passed: bool,
     generation: GenerationResult | None,
     citation: CitationDetail | None,
+    citation_passed: bool,
 ) -> DebugInfo:
     context_ids = {hit.chunk_id for hit in outcome.context}
     threshold = config.similarity_threshold
@@ -568,9 +585,8 @@ def _to_debug(
                 # earlier one suppressed, and also after a refusal or a
                 # truncation, where there is no answer to measure.
                 ran=citation is not None,
-                passed=citation is not None
-                and citation.valid
-                and citation.coverage >= config.min_citation_coverage,
+                # Taken from the handler, not recomputed — see the note there.
+                passed=citation_passed,
                 value=citation.coverage if citation else None,
                 threshold=config.min_citation_coverage,
                 detail=_citation_detail_text(citation, len(outcome.context)),

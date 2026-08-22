@@ -275,7 +275,10 @@ function DebugPanel({ debug, confidence }: { debug: DebugInfo; confidence: Confi
         </div>
 
         {/* Pipeline stages interleaved with LLM calls and Composite */}
-        {debug.stages.map((s, i) => {
+        {(() => {
+        // Hoisted out of the map below: the answer is the same for every stage.
+        const hasCitationStage = debug.stages.some(x => x.id === "citation_coverage");
+        return debug.stages.map((s, i) => {
           // Anchored on the stage id, not on its position: the backend ships
           // three stages today and four once T-25 lands, and the fixed indices
           // this used to carry meant the Composite block rendered in neither case.
@@ -283,7 +286,6 @@ function DebugPanel({ debug, confidence }: { debug: DebugInfo; confidence: Confi
           const selfCheckCall = s.id === "self_check" ? debug.llm_calls.find(c => c.step === "self_check") : null;
           // Composite Score belongs after the citation stage; while that stage does
           // not exist it goes after the last one, so the breakdown stays visible.
-          const hasCitationStage = debug.stages.some(x => x.id === "citation_coverage");
           const showComposite = hasCitationStage
             ? s.id === "citation_coverage"
             : i === debug.stages.length - 1;
@@ -344,7 +346,8 @@ function DebugPanel({ debug, confidence }: { debug: DebugInfo; confidence: Confi
               {selfCheckCall && <LLMCallNode call={selfCheckCall} isLast={false} />}
             </div>
           );
-        })}
+        });
+        })()}
 
         {/* Active params for this query */}
         <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid var(--border)" }}>
