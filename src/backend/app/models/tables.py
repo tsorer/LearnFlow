@@ -76,6 +76,15 @@ class Document(Base):
     chunk_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # Read as a version token, not just as a timestamp: the worker takes it with
+    # the content and refuses to publish an indexing run whose row no longer
+    # carries the same value (worker/main.py, mark_available). `onupdate` moves
+    # it on *any* ORM write to this row, so a future route that writes a
+    # Document for an unrelated reason — the validation of US-08 is the obvious
+    # candidate — would make a job that is indexing this document right now
+    # discard its work silently, logged as info and reported as nothing.
+    # A write that does not mean "this is a new version of the file" therefore
+    # has to preserve updated_at, or the guard needs a column of its own.
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

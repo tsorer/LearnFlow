@@ -23,11 +23,10 @@ MARKDOWN = b"# Titel\n\nErster Absatz.\n\nZweiter Absatz."
 VERSION = datetime(2026, 8, 19, 8, 0, tzinfo=UTC)
 
 # The failed-update carries the same token, so a run that fails after a
-# replacement cannot report its failure on the new version. The IS NULL branch
-# covers failures from before the version was read.
+# replacement cannot report its failure on the new version.
 FAILED_UPDATE = (
     "UPDATE documents SET status = $4, error_message = $2 "
-    "WHERE id = $1 AND ($3::timestamptz IS NULL OR updated_at = $3)"
+    "WHERE id = $1 AND updated_at = $3"
 )
 
 
@@ -168,23 +167,43 @@ async def test_the_version_read_with_the_content_is_the_one_published() -> None:
     assert conn.fetchval.await_args.args[3] == datetime(2026, 8, 19, 9, 30, tzinfo=UTC)
 
 
-async def test_a_failure_after_a_replacement_leaves_the_new_version_alone() -> None:
+@pytest.mark.parametrize("failing_step", ["embedding", "chunk config", "chunking"])
+async def test_every_failure_after_the_read_reports_on_the_version_it_read(
+    failing_step: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Counterpart on the error path: the failure belongs to the version this
-    run read. Reported without the condition, it would show the new version as
-    'failed' while its own job is still queued."""
+    run read, whatever it was that failed.
+
+    Reported without the version condition, a run that fails after the document
+    was replaced flips a row to 'failed' that the replacement's job has by then
+    indexed successfully — and fail-closed retrieval (ADR-008) drops it from
+    every answer, with no error anywhere to notice it by.
+
+    Parametrised over where it goes wrong, because that is what the review on
+    #87 caught: the version used to come out of the chunking, so only failures
+    *after* it — the embedding — were covered, while the two inside it silently
+    fell back to matching the row by id alone.
+    """
     document_id = str(uuid.uuid4())
     conn = make_conn()
 
-    async def fail(texts: list[str]) -> list[list[float]]:
-        raise UserFacingError("Embedding hat 3 statt 1536 Dimensionen")
+    if failing_step == "embedding":
 
-    with pytest.MonkeyPatch.context() as patch:
-        patch.setattr("worker.main.embed_texts", fail)
-        with pytest.raises(UserFacingError):
-            await process_document(conn, make_job(document_id))
+        async def fail(texts: list[str]) -> list[list[float]]:
+            raise UserFacingError("Embedding hat 3 statt 1536 Dimensionen")
 
-    assert executed(conn)[-1][0] == FAILED_UPDATE
-    assert executed(conn)[-1][3] == VERSION
+        monkeypatch.setattr("worker.main.embed_texts", fail)
+    elif failing_step == "chunk config":
+        conn = make_conn(config=(("chunk_size", "fünfhundert"), ("chunk_overlap", "64")))
+    else:
+        conn = make_conn(content=b"   \n\n  ")
+
+    with pytest.raises(UserFacingError):
+        await process_document(conn, make_job(document_id))
+
+    sql, _, _, version, _ = executed(conn)[-1]
+    assert sql == FAILED_UPDATE
+    assert version == VERSION
 
 
 async def test_process_document_replaces_previous_chunks() -> None:
@@ -354,7 +373,7 @@ async def test_process_document_without_extractable_text_fails() -> None:
         FAILED_UPDATE,
         document_id,
         "Kein extrahierbarer Text gefunden",
-        None,
+        VERSION,
         DocumentStatus.failed,
     )
 
@@ -430,6 +449,6 @@ async def test_non_numeric_chunk_config_fails_with_a_configuration_message() -> 
         FAILED_UPDATE,
         document_id,
         "Chunk-Konfiguration ungültig: chunk_size ist keine ganze Zahl ('fünfhundert')",
-        None,
+        VERSION,
         DocumentStatus.failed,
     )
