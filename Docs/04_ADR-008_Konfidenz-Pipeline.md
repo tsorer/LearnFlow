@@ -3,7 +3,7 @@
 | Feld          | Inhalt                                |
 | ------------- | ------------------------------------- |
 | **Status**    | Accepted                              |
-| **Datum**     | 2026-05-31 · aktualisiert 2026-06-03, 2026-08-16 |
+| **Datum**     | 2026-05-31 · aktualisiert 2026-06-03, 2026-08-16, 2026-08-20 |
 | **Verfasser** | LearnFlow-Team (Frank, Niklaus, Reto, Christoph) |
 
 ---
@@ -88,6 +88,22 @@ Der erste Reader (T-24) hat jeden unlesbaren oder invertierten `config`-Wert auf
 
 Dieselbe Haltung gilt bereits für die Chunking-Parameter (`app/services/chunking.py`: ein unbrauchbares `chunk_size` wirft, statt still weiterzurechnen).
 
+### Nachtrag 2026-08-20 — Wie Stufe 2 misst (T-19)
+
+Stufe 2 ist oben als „Anteil belegter Antwort-Segmente" beschrieben. Was ein Segment ist und wann eine Referenz gilt, war damit nicht entschieden; ohne diese drei Festlegungen ist die Coverage keine reproduzierbare Zahl, sondern eine Auslegungsfrage. Sie stehen deshalb hier und nicht nur im Code (`app/services/confidence.py`).
+
+1. **Segment = Satz oder Listenpunkt.** Gesplittet wird an `.!?` plus Leerraum, mit einer Liste deutscher Abkürzungen (`Art.`, `Abs.`, `z. B.`, `d. h.`, …), damit „gemäss Art. 5 Abs. 2" nicht in drei unbelegte Segmente zerfällt. Ein **Zeilenumbruch ist eine harte Segmentgrenze**: Reparaturen am Satzsplit wirken nur innerhalb einer Zeile, sonst zöge ein Listenpunkt die Referenz des nächsten an sich. Ein **einzelner Grossbuchstabe vor dem Punkt ist keine Abkürzung** — „Anhang A." beendet einen Satz; nur das Buchstabenpaar („z. B.", „i. S. v.") hält ihn zusammen. Beide Regeln sind fail-open-Fallen, die in der Umsetzung zuerst falsch lagen: die eine liess eine unbelegte Aussage von der Referenz des Folgesatzes mittragen, die andere entwertete jeden Aufzählungspunkt ausser dem ersten. Eine Referenz, die *hinter* dem Satzpunkt steht („Aussage. [1]"), wird der Aussage davor zugerechnet — sonst erzeugt ein verschobenes Leerzeichen eine Unterdrückung und einen falschen Treffer zugleich. Fragmente unter vier Wörtern (Überschrift, „Fazit:", nackter Aufzählungspunkt) sind Struktur, keine Aussage: sie zählen weder als belegt noch als unbelegt. Eine Antwort ganz ohne wertbares Segment kommt damit auf Coverage 0.0 und wird unterdrückt, solange `min_citation_coverage` über 0 liegt.
+
+2. **Referenzformat.** Verbindlich ist `[n]` aus dem Grounding-Prompt, mehrfach als `[1][2]`. Die Komma-Form `[1, 2]` wird toleriert, weil jeder Index darin einzeln validiert wird und eine Unterdrückung wegen Zeichensetzung nichts gewinnt. Die Bereichsform `[1-3]` wird **nicht** aufgelöst: das hiesse, der Antwort Referenzen gutzuschreiben, die das Modell nie geschrieben hat. Nicht-numerische Klammern (`[sic]`) sind weder Referenz noch Erfindung und werden ignoriert.
+
+3. **Zwei Unterdrückungsgründe statt einem.** `citation_coverage` ist eine Schwellenfrage und über `min_citation_coverage` kalibrierbar. `citation_invalid` — eine Referenz auf einen nie gelieferten Chunk — ist keine: das ist ein Modellfehler, der unabhängig von jeder Schwelle unterdrückt, auch bei sonst perfekter Coverage. Eine erfundene Referenz belegt zudem ihr eigenes Segment nicht. Die Trennung ist im API-Vertrag sichtbar (`suppression_reason`), weil ein Betreiber die beiden Fälle verschieden behandeln muss: das eine kalibriert man, das andere untersucht man.
+
+**Bekannte Grenze — eckige Zahlenklammern im Quelltext.** Stufe 2 kann eine zitierte `[12]` aus einem Dokument nicht von einer erfundenen Referenz unterscheiden; gäbe der Korpus solche Klammern her, würde eine korrekt belegte Antwort als `citation_invalid` unterdrückt. Der Fall wurde gegen den Korpus geprüft: 0 Treffer in EU AI Act und SAMW-Leitfaden (zusammen rund 945 000 Zeichen) sowie in den 206 geseedeten Chunks. Bewusst *nicht* entschärft — jede Lockerung („hohe Nummern sind wohl Zitate") entschuldigt genau die Halluzination, die Stufe 2 fangen soll, und die Fehlerrichtung ist Unterdrückung, die dieses ADR als akzeptablen Fehler führt. Kommt ein Dokument mit solcher Notation dazu, ist der Hebel der Grounding-Prompt (ADR-007/T-18) — dessen Änderung Review und Eval durchläuft — nicht eine Aufweichung der Prüfung.
+
+**Bewusst in Kauf genommen:** Regel 4 des Grounding-Prompts verlangt, dass das Modell benennt, was der Kontext *nicht* abdeckt. Dieser Satz trägt konstruktionsgemäss keine Referenz und senkt die Coverage. Ihn auszunehmen ginge nur über eine Klassifikation des Satzinhalts — und damit wäre Stufe 2 nicht mehr deterministisch, was ihr Hauptargument gegenüber Stufe 3 ist. Beim Startwert 0.50 ist genug Abstand; die Kalibrierung (offener Punkt 1) misst es.
+
+**Persistenz.** `answers.citation_coverage` bleibt `NULL`, wenn Stufe 2 nicht lief, und enthält sonst den gemessenen Wert — ein gespeichertes 0.0 wäre als „gemessen, nichts belegt" zu lesen und verfälschte die Kalibrierungsgrundlage. Im API-Feld `ConfidenceInfo.citation_coverage` fallen beide Fälle auf 0.0 zusammen, weil die Spec das Feld als nicht-nullable führt; unterscheidbar bleiben sie über `debug.stages`. Der von Stufe 2 zurückgehaltene Antworttext wird **nicht** gespeichert: `answer_text` ist, was die Pipeline ausgeliefert hat, und eine unterdrückte Antwort hat sie nicht.
+
 ---
 
 ## Konsequenzen
@@ -128,13 +144,11 @@ Dieselbe Haltung gilt bereits für die Chunking-Parameter (`app/services/chunkin
 1. **Spike-Eval (Woche 1):** Schwellen (Retrieval-Konfidenz, Citation-Coverage, Band-Grenzen, Self-Check-Triggerbereich) gegen ein Eval-Dataset kalibrieren — inkl. Messung von Halluzinationsrate und „Weiss ich nicht"-Quote. Gemeinsame Abhängigkeit mit ADR-007 zur noch fehlenden **Eval-Strategie** (Kandidat für ein eigenes ADR/Spike-Deliverable).
 2. ~~**Citation-Format festlegen:**~~ **erledigt (T-18, 2026-08-18)** — Referenzformat `[n]` und Verweigerungs-Sentinel `WEISS_NICHT` stehen im Grounding-Prompt-Kontrakt (ADR-007, Präzisierung T-18). `n` entspricht `Citation.index`, damit Stufe 2 deterministisch parsen kann.
 3. Schwellen nach dem Spike als „Accepted" fixieren.
-4. **Zwischenstand der Pipeline (T-18, 2026-08-18):** Umgesetzt sind Stufe 0 und Stufe 1;
-   die Generierung läuft nur, wenn beide passieren. Stufe 2 (Citation-Check, T-19) und
-   Stufe 3 (Self-Check, T-25) fehlen noch. Bis dahin bleibt `citation_coverage` 0.0, der
-   angezeigte `score` ist die Retrieval-Konfidenz allein (das Komposit kommt mit T-23), und
-   eine ausgelieferte Antwort ruht auf den beiden vorgelagerten Gates plus dem
-   Grounding-Prompt. Das ist bewusst schwächer als der Endzustand dieses ADR — deshalb folgt
-   T-19 unmittelbar auf T-18, und im MVP werden keine echten internen Dokumente verarbeitet
+4. **Zwischenstand der Pipeline (T-19, 2026-08-20):** Umgesetzt sind die Stufen 0, 1 und 2.
+   Es fehlt Stufe 3 (Self-Check, T-25), weshalb `self_check_ran` durchgehend `false` ist.
+   Der angezeigte `score` ist weiterhin die Retrieval-Konfidenz allein — das Komposit aus
+   Stufe 1 und Stufe 2 kommt mit T-23, und für dessen Gewichte gibt es noch keinen
+   `config`-Schlüssel. Im MVP werden weiterhin keine echten internen Dokumente verarbeitet
    (ADR-004).
 
 ---

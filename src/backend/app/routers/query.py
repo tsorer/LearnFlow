@@ -1,16 +1,17 @@
-"""POST /query — hybrid retrieval, the deterministic gates, generation (T-17/T-18).
+"""POST /query — hybrid retrieval, the deterministic gates, generation (T-17…T-19).
 
 The order is the point. The question is embedded, both searches run, the
 candidates are fused, and stages 0 and 1 decide whether the found sources are
 solid enough to spend an LLM call on. Only then is an answer generated, and only
 from those chunks — a question that fails either gate never reaches the provider
-at all (ADR-007).
+at all (ADR-007). Stage 2 then reads the generated text back and checks that it
+actually cites the chunks it was given; an answer that does not is suppressed
+here rather than delivered.
 
-Two stages of ADR-008 are still missing: the citation/grounding check (stage 2,
-T-19) and the self-check (stage 3, T-25). Until they land, `citation_coverage`
-stays 0.0, `confidence.score` is the retrieval score alone, and a delivered
-answer rests on the two gates in front of it plus the grounding prompt — which
-is why T-19 follows directly on T-18.
+One stage of ADR-008 is still missing: the self-check (stage 3, T-25), which is
+why `self_check_ran` is False throughout. `confidence.score` also remains the
+retrieval score alone — the composite of stages 1 and 2 is T-23, and there is no
+config key for its weights yet.
 """
 
 import logging
@@ -28,6 +29,8 @@ from app.services.confidence import (
     WEIGHT_EVIDENCE_DENSITY,
     WEIGHT_MEAN_SCORE,
     WEIGHT_TOP_SCORE,
+    CitationDetail,
+    check_citations,
     compute_retrieval_confidence,
     passes_retrieval_gate,
 )
@@ -66,6 +69,17 @@ MESSAGE_GENERATION_TRUNCATED = (
     "Die Antwort wurde unvollständig abgebrochen und deshalb zurückgehalten. "
     "Bitte stelle eine engere Frage; die gefundenen Quellen sind unten aufgeführt."
 )
+# Stage 2. Two texts, because the two cases send the user somewhere different:
+# thin coverage is a question that can be sharpened, an invented reference is a
+# fault the user cannot do anything about and that an admin has to see.
+MESSAGE_CITATION_COVERAGE = (
+    "Die erzeugte Antwort war nicht ausreichend durch die gefundenen Stellen belegt "
+    "und wird deshalb zurückgehalten. Die Quellen sind unten aufgeführt."
+)
+MESSAGE_CITATION_INVALID = (
+    "Die erzeugte Antwort hat sich auf eine Quelle berufen, die es nicht gibt, "
+    "und wird deshalb zurückgehalten. Die gefundenen Quellen sind unten aufgeführt."
+)
 MESSAGE_CONFIGURATION_ERROR = (
     "Die Suche ist derzeit nicht korrekt konfiguriert und liefert deshalb keine "
     "Antwort. Bitte wende dich an die Administration."
@@ -78,12 +92,16 @@ REASON_NO_MATCH = "retrieval_gate"
 REASON_WEAK_EVIDENCE = "retrieval_confidence"
 REASON_GENERATION_REFUSED = "generation_refused"
 REASON_GENERATION_TRUNCATED = "generation_truncated"
+REASON_CITATION_COVERAGE = "citation_coverage"
+REASON_CITATION_INVALID = "citation_invalid"
 REASON_CONFIGURATION_ERROR = "configuration_error"
 
-# Stage identifiers are the contract of the admin debug view; T-19 and T-25
-# append "citation_coverage" and "self_check" to this sequence.
+# Stage identifiers are the contract of the admin debug view; T-25 appends
+# "self_check" to this sequence. MessageBubble.tsx matches "citation_coverage"
+# by name to place the composite block after it, so the value is not free.
 STAGE_RETRIEVAL_GATE = "retrieval_gate"
 STAGE_RETRIEVAL_CONFIDENCE = "retrieval_confidence"
+STAGE_CITATION_COVERAGE = "citation_coverage"
 
 # The admin view matches this exact string to place the call inside the pipeline
 # (MessageBubble.tsx); T-25 adds "self_check" beside it.
@@ -205,6 +223,7 @@ async def create_query(
             # No thresholds means no scores were computed — reporting 0.0 would
             # claim a measurement that never happened.
             confidence=None,
+            citation=None,
             debug=None,
         )
 
@@ -237,6 +256,11 @@ async def create_query(
     # gates above are the deterministic, free part of the defence, and ADR-007
     # requires them to decide *before* a provider is called, not after.
     generation: GenerationResult | None = None
+    # None means stage 2 did not run — which is not the same as "ran and found
+    # nothing". Only a text that was actually generated has segments that could
+    # be covered, so the distinction is kept all the way into the answers row.
+    citation: CitationDetail | None = None
+    citation_passed = False
     reason: str | None
     message: str
 
@@ -254,7 +278,27 @@ async def create_query(
             # refusal is a suppression, not a short answer.
             reason, message = REASON_GENERATION_REFUSED, MESSAGE_GENERATION_REFUSED
         else:
-            reason, message = None, generation.answer
+            # Stage 2 (ADR-008). The validity check comes first and stands apart
+            # from the threshold: a reference to a chunk that was never handed to
+            # the model is a fabricated source, and no coverage figure — not even
+            # a perfect one — makes that deliverable.
+            citation = check_citations(generation.answer, len(outcome.context))
+            # One evaluation, reused by the debug view below — the same shape as
+            # `gate_passed` and `confidence_passed` above. Recomputing it there
+            # would let the admin panel and the actual decision drift apart on
+            # the next change to the threshold semantics.
+            #
+            # `>=`, so that a coverage exactly on the threshold still passes —
+            # the same reading of the configured value as stages 0 and 1.
+            citation_passed = (
+                citation.valid and citation.coverage >= config.min_citation_coverage
+            )
+            if not citation.valid:
+                reason, message = REASON_CITATION_INVALID, MESSAGE_CITATION_INVALID
+            elif not citation_passed:
+                reason, message = REASON_CITATION_COVERAGE, MESSAGE_CITATION_COVERAGE
+            else:
+                reason, message = None, generation.answer
 
     # Nothing above the threshold means nothing worth pointing at — showing the
     # closest misses would invite reading them as an answer (ADR-008: no
@@ -262,12 +306,16 @@ async def create_query(
     # there the sources are real, only the footing is thin.
     citations = [] if not gate_passed else _to_citations(outcome.context)
 
-    # citation_coverage is 0.0, not null: the spec requires the field and stage
-    # 2 has not run, so nothing about this answer is covered by a citation yet.
-    # `score` is the retrieval score alone until T-23 combines the two — no
-    # composite weight is invented here, there is no config key for one.
+    # 0.0 where stage 2 never ran: the spec requires the field and declares it
+    # non-nullable, so "not measured" and "measured as zero" share a value here.
+    # Which of the two it was is readable in debug.stages, and the answers row
+    # keeps them apart properly (NULL vs 0.0). `score` is the retrieval score
+    # alone until T-23 combines the two — no composite weight is invented here,
+    # there is no config key for one.
     confidence = ConfidenceInfo(
-        score=detail.result, retrieval_score=detail.result, citation_coverage=0.0
+        score=detail.result,
+        retrieval_score=detail.result,
+        citation_coverage=citation.coverage if citation else 0.0,
     )
 
     return await _persist_and_respond(
@@ -276,16 +324,30 @@ async def create_query(
         question=request.question,
         reason=reason,
         message=message,
-        answer_text=generation.answer if generation else None,
+        # Suppressed at stage 2 means there *is* generated text — and it still
+        # must not be stored: the column is what a later evaluation reads as
+        # "the answer the pipeline produced", and a withheld answer was not
+        # produced. Hence `reason is None`, not just `generation`.
+        answer_text=generation.answer if generation and reason is None else None,
         # A suppressed answer always names the stage that suppressed it, so the
         # two fields cannot drift apart into "suppressed without a reason".
         suppressed=reason is not None,
         citations=citations,
         confidence=confidence,
+        citation=citation,
         # Only admins see the pipeline internals: chunk contents and the rendered
         # prompt would otherwise leak the full source text past the excerpt the
         # citation shows.
-        debug=_to_debug(outcome, detail, config, gate_passed, confidence_passed, generation)
+        debug=_to_debug(
+            outcome,
+            detail,
+            config,
+            gate_passed,
+            confidence_passed,
+            generation,
+            citation,
+            citation_passed,
+        )
         if user.role == "admin"
         else None,
     )
@@ -323,6 +385,7 @@ async def _persist_and_respond(
     suppressed: bool,
     citations: list[Citation],
     confidence: ConfidenceInfo | None,
+    citation: CitationDetail | None,
     debug: DebugInfo | None,
 ) -> QueryResponse:
     """Write the answer row and build the response around its id.
@@ -343,7 +406,10 @@ async def _persist_and_respond(
         question=question,
         answer_text=answer_text,
         confidence_score=confidence.score if confidence else None,
-        citation_coverage=None,
+        # NULL where stage 2 did not run, unlike the response field above: a
+        # stored 0.0 would read as "measured, nothing covered" and quietly
+        # pollute the calibration this column exists for (ADR-009).
+        citation_coverage=citation.coverage if citation else None,
         retrieval_confidence=confidence.retrieval_score if confidence else None,
         suppressed=suppressed,
     )
@@ -412,6 +478,27 @@ def _excerpt(content: str) -> str:
     return collapsed[:EXCERPT_MAX_CHARS].rstrip() + "…"
 
 
+def _citation_detail_text(citation: CitationDetail | None, context_size: int) -> str:
+    """The stage-2 line of the admin view, in the terms an operator calibrates in."""
+    if citation is None:
+        return "Nicht ausgeführt, es wurde keine Antwort erzeugt"
+    if not citation.valid:
+        return (
+            f"Erfundene Referenz {_as_footnotes(citation.fabricated)} bei "
+            f"{context_size} Kontext-Chunks — unterdrückt unabhängig von der Coverage"
+        )
+    if citation.segments == 0:
+        return "Kein wertbares Antwort-Segment gefunden"
+    return (
+        f"{citation.covered} von {citation.segments} Segmenten belegt; "
+        f"verwendete Referenzen {_as_footnotes(citation.referenced) or '—'}"
+    )
+
+
+def _as_footnotes(indices: tuple[int, ...]) -> str:
+    return "".join(f"[{index}]" for index in indices)
+
+
 def _to_debug(
     outcome: RetrievalOutcome,
     detail: ConfidenceDetail,
@@ -419,6 +506,8 @@ def _to_debug(
     gate_passed: bool,
     confidence_passed: bool,
     generation: GenerationResult | None,
+    citation: CitationDetail | None,
+    citation_passed: bool,
 ) -> DebugInfo:
     context_ids = {hit.chunk_id for hit in outcome.context}
     threshold = config.similarity_threshold
@@ -475,6 +564,19 @@ def _to_debug(
                     if not gate_passed
                     else f"Score {detail.result} gegen Schwelle {config.min_retrieval_confidence}"
                 ),
+            ),
+            StageInfo(
+                id=STAGE_CITATION_COVERAGE,
+                name="Citation-Coverage (ADR-008, Stufe 2)",
+                # Runs on generated text only — the stage is skipped whenever an
+                # earlier one suppressed, and also after a refusal or a
+                # truncation, where there is no answer to measure.
+                ran=citation is not None,
+                # Taken from the handler, not recomputed — see the note there.
+                passed=citation_passed,
+                value=citation.coverage if citation else None,
+                threshold=config.min_citation_coverage,
+                detail=_citation_detail_text(citation, len(outcome.context)),
             ),
         ],
         # Empty by construction below either gate, not by omission: that the

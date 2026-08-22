@@ -743,10 +743,10 @@ export interface components {
             /** @description true, wenn eine Stufe der Pipeline unterdrückt hat */
             suppressed: boolean;
             /**
-             * @description Welche Stufe unterdrückt hat (ADR-008). Geschlossene Menge, damit das Frontend jeden Wert beschriften kann statt den technischen Schlüssel anzuzeigen; T-19 und T-25 ergänzen hier `citation_coverage` und `self_check`.
+             * @description Welche Stufe unterdrückt hat (ADR-008). Geschlossene Menge, damit das Frontend jeden Wert beschriften kann statt den technischen Schlüssel anzuzeigen; T-25 ergänzt hier `self_check`. Stufe 2 unterscheidet zwei Fälle, weil sie operativ Verschiedenes bedeuten: `citation_coverage` ist eine Schwellenfrage und über `min_citation_coverage` kalibrierbar, `citation_invalid` ist eine erfundene Referenz und damit ein Modellfehler, der unabhängig von jeder Schwelle unterdrückt.
              * @enum {string|null}
              */
-            suppression_reason?: "retrieval_gate" | "retrieval_confidence" | "generation_refused" | "generation_truncated" | "configuration_error" | null;
+            suppression_reason?: "retrieval_gate" | "retrieval_confidence" | "generation_refused" | "generation_truncated" | "citation_coverage" | "citation_invalid" | "configuration_error" | null;
             /** @description Antworttext, oder die Weiss-ich-nicht-Meldung bei Unterdrückung */
             message?: string | null;
             /** @description Vorschlag zur Präzisierung der Frage */
@@ -774,7 +774,10 @@ export interface components {
             score: number;
             /** Format: float */
             retrieval_score: number;
-            /** Format: float */
+            /**
+             * Format: float
+             * @description Anteil der Antwort-Segmente mit gültigem Beleg (ADR-008, Stufe 2). 0.0 heisst auch «Stufe 2 ist nicht gelaufen» — eine vor der Generierung unterdrückte Antwort hat keine Segmente, die belegt sein könnten. Ob die Stufe lief, steht in `debug.stages`.
+             */
             citation_coverage: number;
         };
         ChunkDebugInfo: {

@@ -18,15 +18,25 @@ const PARAM_LABELS: Record<string, string> = {
 };
 
 // Keyed by the spec enum (see SuppressionReason): a reason added in
-// openapi.yaml — T-19 and T-25 bring citation_coverage and self_check — fails the type
-// check here instead of rendering the raw key in the badge.
+// openapi.yaml — T-25 brings self_check — fails the type check here instead of
+// rendering the raw key in the badge.
 const suppressLabels: Record<SuppressionReason, string> = {
   retrieval_gate:       "Keine Chunks über Schwellwert",
   retrieval_confidence: "Retrieval-Konfidenz zu tief",
   generation_refused:   "Antwort nicht durch Quellen gedeckt",
   generation_truncated: "Antwort abgebrochen, zurückgehalten",
+  citation_coverage:    "Zu wenig Aussagen belegt",
+  citation_invalid:     "Antwort nannte eine erfundene Quelle",
   configuration_error:  "Suche nicht korrekt konfiguriert",
 };
+
+// The stage whose position anchors the Composite block below. Unlike the
+// suppression reasons above, this one is NOT type-checked: openapi.yaml declares
+// StageInfo.id as a plain string, because DebugInfo is explicitly outside the
+// functional contract. A typo here would compile and silently render the
+// Composite block in the wrong place, so the value lives in one spot.
+// Backend counterpart: STAGE_CITATION_COVERAGE in app/routers/query.py.
+const CITATION_STAGE_ID = "citation_coverage";
 
 function pct(v: number) { return `${Math.round(v * 100)}%`; }
 
@@ -250,17 +260,19 @@ function DebugPanel({ debug, confidence }: { debug: DebugInfo; confidence: Confi
         </div>
 
         {/* Pipeline stages interleaved with LLM calls and Composite */}
-        {debug.stages.map((s, i) => {
-          // Anchored on the stage id, not on its position: the backend ships two
-          // stages today and four once T-19 and T-25 land, and the fixed indices
+        {(() => {
+        // Hoisted out of the map below: the answer is the same for every stage.
+        const hasCitationStage = debug.stages.some(x => x.id === CITATION_STAGE_ID);
+        return debug.stages.map((s, i) => {
+          // Anchored on the stage id, not on its position: the backend ships
+          // three stages today and four once T-25 lands, and the fixed indices
           // this used to carry meant the Composite block rendered in neither case.
           const groundingCall = s.id === "retrieval_confidence" ? debug.llm_calls.find(c => c.step === "grounding") : null;
           const selfCheckCall = s.id === "self_check" ? debug.llm_calls.find(c => c.step === "self_check") : null;
           // Composite Score belongs after the citation stage; while that stage does
           // not exist it goes after the last one, so the breakdown stays visible.
-          const hasCitationStage = debug.stages.some(x => x.id === "citation_coverage");
           const showComposite = hasCitationStage
-            ? s.id === "citation_coverage"
+            ? s.id === CITATION_STAGE_ID
             : i === debug.stages.length - 1;
           return (
             <div key={s.id}>
@@ -319,7 +331,8 @@ function DebugPanel({ debug, confidence }: { debug: DebugInfo; confidence: Confi
               {selfCheckCall && <LLMCallNode call={selfCheckCall} isLast={false} />}
             </div>
           );
-        })}
+        });
+        })()}
 
         {/* Active params for this query */}
         <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid var(--border)" }}>
