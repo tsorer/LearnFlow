@@ -88,6 +88,17 @@ Der erste Reader (T-24) hat jeden unlesbaren oder invertierten `config`-Wert auf
 
 Dieselbe Haltung gilt bereits für die Chunking-Parameter (`app/services/chunking.py`: ein unbrauchbares `chunk_size` wirft, statt still weiterzurechnen).
 
+### Nachtrag 2026-08-22 — Welche Keys über die Admin-API schreibbar sind (T-37, Issue #44)
+
+Issue #44 liess offen, welche der elf `config`-Keys `PUT /admin/config` annehmen soll. Entschieden für T-37: schreibbar ist genau die Menge, die Migration `0012`s `CHECK`-Constraint bereits validiert — die beiden Konfidenz-Bänder plus die sechs Retrieval-Parameter aus ADR-007 (`similarity_threshold`, `min_retrieval_confidence`, `min_citation_coverage`, `retrieval_top_k`, `context_top_n`, `rrf_k`). Wer einen Key dort einträgt, bekommt Reader und Schreibpfad zusammen; die beiden hängen an derselben Konstante (`app/services/config.py`s `CONFIDENCE_THRESHOLD_KEYS`/`PIPELINE_KEYS`).
+
+Zwei Keys bleiben bewusst draussen, über `GET` weiter sichtbar, nur nicht schreibbar:
+
+- **`chunk_size`/`chunk_overlap`** (0007): eine Änderung wirkt erst nach vollständiger Re-Indexierung des Korpus — das widerspricht T-37s Akzeptanzkriterium „wirkt sofort ohne Neustart" wörtlich.
+- **`stale_days`** (0004, US-06): weder ein Reader noch eine DB-seitige Wertregel existieren dafür bisher — es gibt nichts, wogegen eine Schreib-Validierung prüfen könnte.
+
+Die Admin-Oberfläche (`ChatView.tsx`, `saveParams`) schickt `GET`s volle Antwort unverändert über `PUT` zurück, auch wenn nur ein Schwellenwert geändert wurde. Ein nicht schreibbarer Key ohne Wertänderung ist deshalb kein Fehler — nur eine echte Abweichung vom aktuellen Wert wird mit 422 abgelehnt. Ohne diese Ausnahme würde jede Speicherung allein durch die mitgeschickten nicht-schreibbaren Keys scheitern.
+
 ---
 
 ## Konsequenzen

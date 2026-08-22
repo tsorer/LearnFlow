@@ -564,20 +564,11 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description Noch nicht implementiert (T-37) */
-                501: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
             };
         };
         /**
          * Laufzeit-Konfiguration schreiben (US-11)
-         * @description Ersetzt die übergebenen Schlüssel; nicht genannte bleiben unverändert. Die Werte wirken ohne Neustart (ADR-008).
+         * @description Ersetzt die übergebenen Schlüssel; nicht genannte bleiben unverändert. Die Werte wirken ohne Neustart (ADR-008). Nur eine Teilmenge der über GET gelieferten Schlüssel ist schreibbar (Konfidenz-Bänder und die Retrieval-Parameter aus ADR-007); ein nicht schreibbarer Schlüssel mit unverändertem Wert wird stillschweigend akzeptiert, mit geändertem Wert abgelehnt — das erlaubt es einem Client, die volle GET-Antwort unverändert zurückzuschicken.
          */
         put: {
             parameters: {
@@ -619,17 +610,8 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description Unbekannter Schlüssel oder ungültiger Wert */
+                /** @description Unbekannter Schlüssel, ungültiger Wert, oder eine echte Änderung an einem nicht schreibbaren Schlüssel */
                 422: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Noch nicht implementiert (T-37) */
-                501: {
                     headers: {
                         [name: string]: unknown;
                     };
