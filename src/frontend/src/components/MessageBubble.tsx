@@ -30,6 +30,14 @@ const suppressLabels: Record<SuppressionReason, string> = {
   configuration_error:  "Suche nicht korrekt konfiguriert",
 };
 
+// The stage whose position anchors the Composite block below. Unlike the
+// suppression reasons above, this one is NOT type-checked: openapi.yaml declares
+// StageInfo.id as a plain string, because DebugInfo is explicitly outside the
+// functional contract. A typo here would compile and silently render the
+// Composite block in the wrong place, so the value lives in one spot.
+// Backend counterpart: STAGE_CITATION_COVERAGE in app/routers/query.py.
+const CITATION_STAGE_ID = "citation_coverage";
+
 function pct(v: number) { return `${Math.round(v * 100)}%`; }
 
 // ── Chunk bar ──────────────────────────────────────────────────────────────
@@ -254,7 +262,7 @@ function DebugPanel({ debug, confidence }: { debug: DebugInfo; confidence: Confi
         {/* Pipeline stages interleaved with LLM calls and Composite */}
         {(() => {
         // Hoisted out of the map below: the answer is the same for every stage.
-        const hasCitationStage = debug.stages.some(x => x.id === "citation_coverage");
+        const hasCitationStage = debug.stages.some(x => x.id === CITATION_STAGE_ID);
         return debug.stages.map((s, i) => {
           // Anchored on the stage id, not on its position: the backend ships
           // three stages today and four once T-25 lands, and the fixed indices
@@ -264,7 +272,7 @@ function DebugPanel({ debug, confidence }: { debug: DebugInfo; confidence: Confi
           // Composite Score belongs after the citation stage; while that stage does
           // not exist it goes after the last one, so the breakdown stays visible.
           const showComposite = hasCitationStage
-            ? s.id === "citation_coverage"
+            ? s.id === CITATION_STAGE_ID
             : i === debug.stages.length - 1;
           return (
             <div key={s.id}>

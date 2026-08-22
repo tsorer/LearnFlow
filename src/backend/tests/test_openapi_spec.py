@@ -3,6 +3,8 @@ from pathlib import Path
 from openapi_spec_validator import validate
 from openapi_spec_validator.readers import read_from_filename
 
+from app.routers import query
+
 SPEC_PATH = Path(__file__).parent.parent / "openapi.yaml"
 
 # Endpoints from US-01..US-05 and US-11. Completeness against the
@@ -42,3 +44,31 @@ def test_auth_and_upload_schemas_defined():
     schemas = spec["components"]["schemas"]
     for name in ("LoginRequest", "TokenResponse", "DocumentResponse"):
         assert name in schemas, f"Schema fehlt: {name}"
+
+
+def test_suppression_reasons_match_the_spec_enum():
+    """The wire values of `suppression_reason`, checked in both directions.
+
+    Nothing else pins the two sides together. The backend constants are plain
+    strings, and the frontend only type-checks its label map against the *spec*
+    — so a typo in a REASON_* constant ships a reason no label matches, and the
+    badge falls back to rendering the raw key at the user. The reverse gap is
+    just as quiet: an enum value the backend can never emit is a promise to the
+    frontend that nothing keeps.
+
+    Collected by prefix rather than listed, so a reason added for T-25 is
+    covered without anyone remembering this test.
+    """
+    spec, _ = read_from_filename(str(SPEC_PATH))
+    declared = set(
+        spec["components"]["schemas"]["QueryResponse"]["properties"]["suppression_reason"]["enum"]
+    )
+    emitted = {
+        value
+        for name, value in vars(query).items()
+        if name.startswith("REASON_") and isinstance(value, str)
+    }
+
+    assert emitted == declared, (
+        f"Nur im Code: {sorted(emitted - declared)} · nur in der Spec: {sorted(declared - emitted)}"
+    )
