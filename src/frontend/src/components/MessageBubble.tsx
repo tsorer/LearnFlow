@@ -553,9 +553,6 @@ export default function MessageBubble({ message: m, token }: Props) {
                   {helpful ? "👍" : "👎"}
                 </button>
               ))}
-              {feedbackError && (
-                <span style={{ fontSize: 11, color: "var(--red)" }}>{feedbackError}</span>
-              )}
             </div>
           )}
 
