@@ -23,6 +23,51 @@ const LLM_PARAM_DEFS = [
   { key: "llm_seed",        label: "Seed (Reproduzierb.)", min: 0,  max: 2147483647, step: 1,    hint: "Standard: zufällig — gleicher Seed → gleiche Antwort" },
 ] as const;
 
+// Mirrors QueryRequest in openapi.yaml (question: minLength 3, maxLength 1000).
+// Checked here as well as there because the backend answers a violation with a
+// 422 whose body is a list of field errors — it reaches the user as a generic
+// failure and says nothing about what to change (US-01).
+export const MIN_QUESTION_CHARS = 3;
+export const MAX_QUESTION_CHARS = 1000;
+
+// Below this the counter stays out of the way; above it the user is close
+// enough to the limit that finding out only on send would mean rewriting.
+const COUNTER_VISIBLE_FROM = MAX_QUESTION_CHARS - 100;
+
+// Ties the textarea to its hint via aria-describedby.
+const INPUT_ERROR_ID = "question-error";
+
+/**
+ * The question's length as the backend counts it.
+ *
+ * Spread, not `.length`: a JavaScript string is UTF-16, so an emoji or any
+ * other character outside the BMP counts as two. Python's `len()` — which is
+ * what pydantic applies to `question` — counts code points, so `"🙂".length`
+ * is 2 on this side and 1 on the other. Iterating the string yields code
+ * points and puts both ends on the same number.
+ */
+function questionLength(question: string): number {
+  return [...question].length;
+}
+
+/**
+ * The reason a question cannot be sent, or null when it can.
+ *
+ * Measured on the trimmed question because that is what `send` puts on the
+ * wire — validating the raw value would reject three spaces and accept a
+ * 1000-character question with a trailing newline the backend then refuses.
+ */
+export function validateQuestion(question: string): string | null {
+  const length = questionLength(question.trim());
+  if (length < MIN_QUESTION_CHARS) {
+    return `Die Frage braucht mindestens ${MIN_QUESTION_CHARS} Zeichen.`;
+  }
+  if (length > MAX_QUESTION_CHARS) {
+    return `Die Frage darf höchstens ${MAX_QUESTION_CHARS} Zeichen haben — aktuell ${length}.`;
+  }
+  return null;
+}
+
 interface Props { user: AuthUser; onLogout: () => void; }
 
 export default function ChatView({ user, onLogout }: Props) {
@@ -30,6 +75,7 @@ export default function ChatView({ user, onLogout }: Props) {
   const [input, setInput] = useState("");
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [inputError, setInputError] = useState("");
   const [showUpload, setShowUpload] = useState(false);
   const [showParams, setShowParams] = useState(false);
   const [params, setParams] = useState<Record<string, string>>({});
@@ -75,8 +121,16 @@ export default function ChatView({ user, onLogout }: Props) {
   const canUpload = user.role === "knowledge_owner" || user.role === "admin";
 
   const send = async () => {
+    if (busy) return;
     const q = input.trim();
-    if (!q || busy) return;
+    const invalid = validateQuestion(q);
+    if (invalid) {
+      // The input is kept, not cleared: a question that is 20 characters too
+      // long has to be shortenable, not retyped.
+      setInputError(invalid);
+      return;
+    }
+    setInputError("");
     setInput("");
     setBusy(true);
     setMessages(prev => [...prev, { role: "user", content: q }]);
@@ -94,10 +148,16 @@ export default function ChatView({ user, onLogout }: Props) {
         confidence: res.confidence,
         debug: res.debug,
       }]);
-    } catch {
+    } catch (err) {
+      // US-01 asks for a clear message when retrieval is unreachable, and
+      // T-17 gave that case its own status: 503 is an outage the user can only
+      // wait out, everything else is worth retrying now. Neither invents an
+      // answer — the bubble stays `suppressed`.
       setMessages(prev => [...prev, {
         role: "assistant",
-        content: "Fehler beim Abrufen der Antwort. Bitte versuche es erneut.",
+        content: err instanceof ApiError && err.status === 503
+          ? "Die Suche ist derzeit nicht erreichbar. Bitte versuche es in einigen Minuten erneut."
+          : "Fehler beim Abrufen der Antwort. Bitte versuche es erneut.",
         suppressed: true,
       }]);
     } finally {
@@ -109,7 +169,15 @@ export default function ChatView({ user, onLogout }: Props) {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
   };
 
-  const newChat = () => { setMessages([]); setSessionId(null); };
+  // The draft and its hint belong to the chat being discarded. Keeping them
+  // while the transcript goes would open the "new" chat on a question the user
+  // never sent and a reason that refers to nothing on screen.
+  const newChat = () => {
+    setMessages([]);
+    setSessionId(null);
+    setInput("");
+    setInputError("");
+  };
 
   return (
     <div style={{ display: "flex", height: "100vh", flexDirection: "column" }}>
@@ -126,12 +194,25 @@ export default function ChatView({ user, onLogout }: Props) {
               {showUpload ? "Chat" : "Dokumente"}
             </button>
           )}
-          {isAdmin && (
+          {/* Both hidden in the document view, because neither acts on it: the
+              parameter panel and the transcript live in the chat branch, so
+              from here the buttons only flipped an arrow resp. cleared
+              something invisible. */}
+          {isAdmin && !showUpload && (
             <button className="secondary" style={{ fontSize: 12 }} onClick={() => setShowParams(v => !v)}>
               {showParams ? "⚙ Parameter ▲" : "⚙ Parameter ▼"}
             </button>
           )}
-          <button className="secondary" style={{ fontSize: 12 }} onClick={newChat}>Neuer Chat</button>
+          {/* Disabled while an answer is on its way, like the textarea and the
+              send button: `send` holds `sessionId` and `messages` across the
+              await, so a reset in that window is undone when the response
+              lands — the old session id returns and the answer is appended to
+              a transcript that no longer holds its question. */}
+          {!showUpload && (
+            <button className="secondary" style={{ fontSize: 12 }} onClick={newChat} disabled={busy}>
+              Neuer Chat
+            </button>
+          )}
           <span style={{ fontSize: 12, color: "rgba(255,255,255,.5)" }}>{user.email}</span>
           <button className="secondary" style={{ fontSize: 12 }} onClick={onLogout}>Abmelden</button>
         </div>
@@ -152,8 +233,10 @@ export default function ChatView({ user, onLogout }: Props) {
                 </div>
               )}
               {messages.map((m, i) => <MessageBubble key={i} message={m} token={user.token} />)}
+              {/* role="status" so the wait is announced rather than only
+                  drawn — the answer takes seconds (NFA: p95 ≤ 10 s). */}
               {busy && (
-                <div style={{ color: "var(--muted)", fontSize: 13, padding: "8px 0" }}>
+                <div role="status" style={{ color: "var(--muted)", fontSize: 13, padding: "8px 0" }}>
                   Suche im Korpus…
                 </div>
               )}
@@ -248,20 +331,49 @@ export default function ChatView({ user, onLogout }: Props) {
             borderTop: "1px solid var(--border)", padding: "16px 24px",
             background: "var(--card)", flexShrink: 0,
           }}>
-            <div style={{ maxWidth: 760, margin: "0 auto", display: "flex", gap: 10 }}>
-              <textarea
-                value={input}
-                onChange={e => setInput(e.target.value)}
-                onKeyDown={handleKey}
-                placeholder="Frage stellen… (Enter zum Senden)"
-                disabled={busy}
-                rows={2}
-                style={{ resize: "none", flex: 1 }}
-              />
-              <button className="primary" onClick={send} disabled={busy || !input.trim()}
-                style={{ alignSelf: "flex-end", padding: "10px 18px" }}>
-                Senden
-              </button>
+            <div style={{ maxWidth: 760, margin: "0 auto" }}>
+              <div style={{ display: "flex", gap: 10 }}>
+                <textarea
+                  value={input}
+                  // Deliberately no `maxLength`: the attribute truncates a
+                  // pasted question silently, and US-01 asks for a hint rather
+                  // than for the tail to disappear unremarked.
+                  onChange={e => { setInput(e.target.value); setInputError(""); }}
+                  onKeyDown={handleKey}
+                  placeholder="Frage stellen… (Enter zum Senden)"
+                  aria-label="Frage"
+                  aria-invalid={inputError !== ""}
+                  // role="alert" announces the hint once, when it appears.
+                  // Returning to the field later would say nothing about why it
+                  // is invalid, so the message is also its description.
+                  aria-describedby={inputError ? INPUT_ERROR_ID : undefined}
+                  disabled={busy}
+                  rows={2}
+                  style={{ resize: "none", flex: 1 }}
+                />
+                {/* Enabled for anything non-empty, not only for a valid
+                    question: a disabled button rejects silently, and the whole
+                    point of the criterion is that the user is told why. */}
+                <button className="primary" onClick={send} disabled={busy || !input.trim()}
+                  style={{ alignSelf: "flex-end", padding: "10px 18px" }}>
+                  Senden
+                </button>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginTop: 6, minHeight: 16 }}>
+                <span id={INPUT_ERROR_ID} role="alert" style={{ fontSize: 12, color: "var(--red)", fontWeight: 600 }}>
+                  {inputError}
+                </span>
+                {/* Counted the same way as the check that rejects it, or the
+                    counter would say 998 while the send is refused at 1001. */}
+                {questionLength(input.trim()) > COUNTER_VISIBLE_FROM && (
+                  <span style={{
+                    fontSize: 12, whiteSpace: "nowrap",
+                    color: questionLength(input.trim()) > MAX_QUESTION_CHARS ? "var(--red)" : "var(--muted)",
+                  }}>
+                    {questionLength(input.trim())} / {MAX_QUESTION_CHARS}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </>

@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import type { Message, ChunkDebugInfo, StageInfo, LLMCallInfo, DebugInfo, ConfidenceInfo, SuppressionReason } from "../types";
-import { api } from "../api/client";
+import { api, type Citation } from "../api/client";
 
 
 const PARAM_LABELS: Record<string, string> = {
@@ -347,6 +347,58 @@ function DebugPanel({ debug, confidence }: { debug: DebugInfo; confidence: Confi
   );
 }
 
+// ── Source reference ───────────────────────────────────────────────────────
+
+// The API caps an excerpt at 400 characters (EXCERPT_MAX_CHARS in query.py),
+// which is several lines in this column. Clamped until asked for, so a list of
+// five sources stays scannable.
+const EXCERPT_CLAMP_LINES = 2;
+
+/**
+ * One clickable source reference (US-01, T-20).
+ *
+ * Clicking unfolds the full excerpt. That is deliberately a real behaviour and
+ * not a placeholder: T-21 (#28) hangs the document viewer off this same
+ * control, and until the backend can deliver a document's content there is
+ * nothing honest for a click to open. What T-20 owes is the reference the user
+ * can operate; what T-21 adds is where it leads.
+ */
+function CitationEntry({ citation }: { citation: Citation }) {
+  const [expanded, setExpanded] = useState(false);
+  const label = `[${citation.index}] ${citation.filename}${citation.page ? ` · S. ${citation.page}` : ""}`;
+
+  return (
+    <button
+      onClick={() => setExpanded(v => !v)}
+      aria-expanded={expanded}
+      aria-label={label}
+      style={{
+        // fontFamily, not the `font` shorthand: `font: inherit` would reset
+        // font-size along with it and, applied after fontSize in key order,
+        // silently undo the 12px the label below relies on.
+        background: "var(--blue-lt)", border: "none", borderRadius: 8,
+        padding: "8px 12px", fontSize: 12, textAlign: "left", width: "100%",
+        cursor: "pointer", display: "block", fontFamily: "inherit",
+      }}
+    >
+      <div style={{ fontWeight: 700, color: "var(--navy)", marginBottom: 4 }}>
+        {label} <span style={{ fontWeight: 400, color: "var(--muted)" }}>{expanded ? "▲" : "▼"}</span>
+      </div>
+      <div style={{
+        color: "var(--muted)", lineHeight: 1.45, fontSize: 12,
+        ...(expanded ? {} : {
+          display: "-webkit-box",
+          WebkitLineClamp: EXCERPT_CLAMP_LINES,
+          WebkitBoxOrient: "vertical" as const,
+          overflow: "hidden",
+        }),
+      }}>
+        {citation.excerpt}
+      </div>
+    </button>
+  );
+}
+
 // ── Main component ─────────────────────────────────────────────────────────
 interface Props { message: Message; token: string; }
 
@@ -477,16 +529,7 @@ export default function MessageBubble({ message: m, token }: Props) {
       {/* Sources */}
       {showSources && m.citations && (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          {m.citations.map(c => (
-            <div key={c.chunk_id} style={{
-              background: "var(--blue-lt)", borderRadius: 8, padding: "8px 12px", fontSize: 12,
-            }}>
-              <div style={{ fontWeight: 700, color: "var(--navy)", marginBottom: 4 }}>
-                [{c.index}] {c.filename}{c.page ? ` · S. ${c.page}` : ""}
-              </div>
-              <div style={{ color: "var(--muted)", lineHeight: 1.45 }}>{c.excerpt}</div>
-            </div>
-          ))}
+          {m.citations.map(c => <CitationEntry key={c.chunk_id} citation={c} />)}
         </div>
       )}
 
