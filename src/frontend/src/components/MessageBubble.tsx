@@ -1,6 +1,29 @@
 import { useRef, useState } from "react";
 import type { Message, ChunkDebugInfo, StageInfo, LLMCallInfo, DebugInfo, ConfidenceInfo, SuppressionReason } from "../types";
-import { api } from "../api/client";
+import { api, type FeedbackCategory } from "../api/client";
+
+// Keyed by the FeedbackCategory enum in openapi.yaml, one entry per value
+// (US-03: the first four apply to a thumbs-up, the remaining five to a
+// thumbs-down). `Record<FeedbackCategory, …>` — not two hand-picked arrays —
+// is what makes this exhaustive: an enum value added on either side without a
+// matching entry here fails the build instead of silently missing from the
+// picker, the same guarantee app/routers/feedback.py already has at import
+// time for its own category split.
+const CATEGORY_META: Record<FeedbackCategory, { label: string; helpful: boolean }> = {
+  verstaendlich:       { label: "Verständlich",       helpful: true },
+  vollstaendig:        { label: "Vollständig",        helpful: true },
+  hilfreich_fuer_code: { label: "Hilfreich für Code",  helpful: true },
+  quelle_passt_gut:    { label: "Quelle passt gut",    helpful: true },
+  faktisch_falsch:     { label: "Faktisch falsch",     helpful: false },
+  unvollstaendig:      { label: "Unvollständig",       helpful: false },
+  veraltet:            { label: "Veraltet",            helpful: false },
+  unverstaendlich:     { label: "Unverständlich",      helpful: false },
+  quelle_stimmt_nicht: { label: "Quelle stimmt nicht", helpful: false },
+};
+const CATEGORY_ENTRIES = Object.entries(CATEGORY_META) as [FeedbackCategory, { label: string; helpful: boolean }][];
+const categoriesFor = (helpful: boolean) => CATEGORY_ENTRIES.filter(([, meta]) => meta.helpful === helpful);
+
+const COMMENT_MAX_LENGTH = 500;
 
 
 const PARAM_LABELS: Record<string, string> = {
@@ -352,6 +375,11 @@ interface Props { message: Message; token: string; }
 
 export default function MessageBubble({ message: m, token }: Props) {
   const [feedback, setFeedback] = useState<boolean | null>(null);
+  // Thumb the picker is currently open for; null once a rating is stored or
+  // before either thumb has been clicked.
+  const [pendingThumb, setPendingThumb] = useState<boolean | null>(null);
+  const [category, setCategory] = useState<FeedbackCategory | null>(null);
+  const [comment, setComment] = useState("");
   const [feedbackError, setFeedbackError] = useState("");
   // A ref, not state: nothing renders from it, and a ref is already set when
   // the next click handler runs. State would only hold if React flushed the
@@ -360,24 +388,38 @@ export default function MessageBubble({ message: m, token }: Props) {
   const submitting = useRef(false);
   const [showSources, setShowSources] = useState(false);
 
-  // The previous 1-5 stars existed neither in the spec nor in the database:
-  // US-03 and the `feedback` table know a thumb plus category and free text.
-  // TODO (T-31): add the category picker and the free-text field — both are
-  // already in the contract and are still sent as null here.
-  const submitFeedback = async (helpful: boolean) => {
+  const selectThumb = (helpful: boolean) => {
+    if (feedback !== null || submitting.current) return;
+    setPendingThumb(helpful);
+    setCategory(null);
+    setFeedbackError("");
+  };
+
+  const cancelFeedback = () => {
+    if (submitting.current) return;
+    setPendingThumb(null);
+    setCategory(null);
+    setComment("");
+    setFeedbackError("");
+  };
+
+  const submitFeedback = async () => {
     // `feedback` only guards a stored rating — it is set after the await, so
     // during the request it is still null. Without `submitting` a double click
-    // (or 👍 then 👎 before the first answer) posts twice for the same
-    // answer_id; from T-30 on that is two rows with contradicting `helpful`,
-    // and the US-03 evaluation cannot tell which one the user meant.
-    if (!m.answer_id || feedback !== null || submitting.current) return;
+    // on "Absenden" posts twice for the same answer_id; from T-30 on that is
+    // two rows with contradicting `helpful`, and the US-03 evaluation cannot
+    // tell which one the user meant.
+    if (!m.answer_id || pendingThumb === null || category === null || feedback !== null || submitting.current) return;
     submitting.current = true;
     setFeedbackError("");
     try {
-      await api.submitFeedback(m.answer_id, helpful, null, null, token);
+      await api.submitFeedback(m.answer_id, pendingThumb, category, comment.trim() || null, token);
       // Marked only once it is actually stored — a rating the request could
       // still reject (404/400) must not latch the button as saved.
-      setFeedback(helpful);
+      setFeedback(pendingThumb);
+      setPendingThumb(null);
+      setCategory(null);
+      setComment("");
     } catch {
       setFeedbackError("Bewertung konnte nicht gespeichert werden.");
     } finally {
@@ -497,22 +539,68 @@ export default function MessageBubble({ message: m, token }: Props) {
 
       {/* Feedback */}
       {m.answer_id && !m.suppressed && (
-        <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-          <span style={{ fontSize: 11, color: "var(--muted)" }}>Hilfreich?</span>
-          {([true, false] as const).map(helpful => (
-            <button key={String(helpful)} onClick={() => submitFeedback(helpful)}
-              aria-label={helpful ? "Hilfreich" : "Nicht hilfreich"}
-              style={{
-                background: feedback === helpful ? "var(--blue)" : "transparent",
-                color: feedback === helpful ? "#fff" : "var(--muted)",
-                border: "1px solid var(--border)", borderRadius: 4,
-                padding: "1px 6px", fontSize: 11,
-              }}>
-              {helpful ? "👍" : "👎"}
-            </button>
-          ))}
-          {feedbackError && (
-            <span style={{ fontSize: 11, color: "var(--red)" }}>{feedbackError}</span>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {feedback !== null ? (
+            <span style={{ fontSize: 11, color: "var(--green)", fontWeight: 600 }}>
+              ✓ Danke für dein Feedback!
+            </span>
+          ) : (
+            <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+              <span style={{ fontSize: 11, color: "var(--muted)" }}>Hilfreich?</span>
+              {([true, false] as const).map(helpful => (
+                <button key={String(helpful)} onClick={() => selectThumb(helpful)}
+                  aria-label={helpful ? "Hilfreich" : "Nicht hilfreich"}
+                  style={{
+                    background: pendingThumb === helpful ? "var(--blue)" : "transparent",
+                    color: pendingThumb === helpful ? "#fff" : "var(--muted)",
+                    border: "1px solid var(--border)", borderRadius: 4,
+                    padding: "1px 6px", fontSize: 11,
+                  }}>
+                  {helpful ? "👍" : "👎"}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {pendingThumb !== null && (
+            <div style={{
+              background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8,
+              padding: "8px 10px", display: "flex", flexDirection: "column", gap: 6,
+            }}>
+              <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                {categoriesFor(pendingThumb).map(([value, meta]) => (
+                  <button key={value} onClick={() => setCategory(value)}
+                    className={category === value ? "primary" : "secondary"}
+                    style={{ fontSize: 11, padding: "2px 9px" }}>
+                    {meta.label}
+                  </button>
+                ))}
+              </div>
+              <textarea
+                value={comment}
+                onChange={e => setComment(e.target.value.slice(0, COMMENT_MAX_LENGTH))}
+                maxLength={COMMENT_MAX_LENGTH}
+                placeholder="Optional: Anmerkung ergänzen…"
+                rows={2}
+                style={{ resize: "none", fontSize: 12 }}
+              />
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <button className="primary" onClick={submitFeedback} disabled={category === null}
+                  style={{ fontSize: 11, padding: "2px 10px" }}>
+                  Absenden
+                </button>
+                <button className="secondary" onClick={cancelFeedback}
+                  style={{ fontSize: 11, padding: "2px 10px" }}>
+                  Abbrechen
+                </button>
+                <span style={{ fontSize: 10, color: "var(--muted)", marginLeft: "auto" }}>
+                  {comment.length}/{COMMENT_MAX_LENGTH}
+                </span>
+                {feedbackError && (
+                  <span style={{ fontSize: 11, color: "var(--red)" }}>{feedbackError}</span>
+                )}
+              </div>
+            </div>
           )}
         </div>
       )}

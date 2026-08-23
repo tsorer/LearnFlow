@@ -132,16 +132,21 @@ describe("feedback (T-30)", () => {
   }
 
   it("sends only one POST while the first is still in flight", async () => {
+    // T-31: a thumb click only opens the category picker; the POST fires on
+    // "Absenden", once a category is picked.
     const thumbUp = await askQuestion();
+    await userEvent.click(thumbUp);
+    await userEvent.click(screen.getByRole("button", { name: /^verständlich$/i }));
+    const send = screen.getByRole("button", { name: /^absenden$/i });
+
     api.route("post", FEEDBACK, 204);
     api.hold();
 
     // `feedback` is still null inside this window and is useless as a lock —
-    // without `submitting` these would be two rows for the same answer_id, the
-    // third of them with a contradicting `helpful`.
+    // without `submitting` these would be two rows for the same answer_id.
+    fireEvent.click(send);
+    fireEvent.click(send);
     fireEvent.click(thumbUp);
-    fireEvent.click(thumbUp);
-    fireEvent.click(screen.getByRole("button", { name: /nicht hilfreich/i }));
 
     expect(feedbackCalls()).toBe(1);
 
@@ -161,12 +166,79 @@ describe("feedback (T-30)", () => {
     api.route("post", FEEDBACK, 404, { detail: "Antwort nicht gefunden" });
 
     await userEvent.click(thumbUp);
+    await userEvent.click(screen.getByRole("button", { name: /^verständlich$/i }));
+    const send = screen.getByRole("button", { name: /^absenden$/i });
+    await userEvent.click(send);
 
     expect(await screen.findByText(/konnte nicht gespeichert werden/i)).toBeInTheDocument();
-    expect(thumbUp).toBeEnabled();
+    expect(send).toBeEnabled();
 
-    await userEvent.click(thumbUp);
+    await userEvent.click(send);
     expect(feedbackCalls()).toBe(2);
+  });
+
+  it("shows the category picker matching the chosen thumb, and a confirmation on success", async () => {
+    const thumbUp = await askQuestion();
+
+    // Thumbs-up: the four positive categories from US-03, not the five
+    // negative ones.
+    await userEvent.click(thumbUp);
+    expect(screen.getByRole("button", { name: /^verständlich$/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^faktisch falsch$/i })).not.toBeInTheDocument();
+
+    // Switching to thumbs-down swaps the picker to the five negative categories.
+    await userEvent.click(screen.getByRole("button", { name: /^nicht hilfreich$/i }));
+    expect(screen.getByRole("button", { name: /^faktisch falsch$/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^verständlich$/i })).not.toBeInTheDocument();
+
+    // "Absenden" stays disabled until a category is picked.
+    const send = screen.getByRole("button", { name: /^absenden$/i });
+    expect(send).toBeDisabled();
+
+    await userEvent.click(screen.getByRole("button", { name: /^unvollständig$/i }));
+    expect(send).toBeEnabled();
+
+    api.route("post", FEEDBACK, 204);
+    await userEvent.click(send);
+
+    expect(await screen.findByText(/danke für dein feedback/i)).toBeInTheDocument();
+    expect(api.last("post", FEEDBACK)?.json).toEqual({ helpful: false, category: "unvollstaendig", comment: null });
+  });
+
+  it("sends the trimmed free-text comment", async () => {
+    const thumbUp = await askQuestion();
+    await userEvent.click(thumbUp);
+    await userEvent.click(screen.getByRole("button", { name: /^verständlich$/i }));
+
+    // Leading/trailing whitespace must not reach the request — comment.trim()
+    // is the only thing standing between " " and an empty-but-truthy string.
+    await userEvent.type(screen.getByPlaceholderText(/anmerkung/i), "  Sehr hilfreich!  ");
+
+    api.route("post", FEEDBACK, 204);
+    await userEvent.click(screen.getByRole("button", { name: /^absenden$/i }));
+
+    expect(api.last("post", FEEDBACK)?.json).toEqual({
+      helpful: true, category: "verstaendlich", comment: "Sehr hilfreich!",
+    });
+  });
+
+  it("caps the free-text comment at 500 characters", async () => {
+    const thumbUp = await askQuestion();
+    await userEvent.click(thumbUp);
+    await userEvent.click(screen.getByRole("button", { name: /^verständlich$/i }));
+
+    const textarea = screen.getByPlaceholderText(/anmerkung/i) as HTMLTextAreaElement;
+    // fireEvent.change rather than userEvent.type: typing 501 characters one
+    // key at a time is the same input, just far slower to run.
+    fireEvent.change(textarea, { target: { value: "x".repeat(600) } });
+
+    expect(textarea.value).toHaveLength(500);
+    expect(screen.getByText("500/500")).toBeInTheDocument();
+
+    api.route("post", FEEDBACK, 204);
+    await userEvent.click(screen.getByRole("button", { name: /^absenden$/i }));
+
+    expect((api.last("post", FEEDBACK)?.json as { comment: string }).comment).toHaveLength(500);
   });
 
 });
