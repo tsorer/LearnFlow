@@ -337,18 +337,17 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        '501':
-          description: Noch nicht implementiert (T-37)
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
     put:
       tags: [admin]
       summary: Laufzeit-Konfiguration schreiben (US-11)
       description: >
         Ersetzt die übergebenen Schlüssel; nicht genannte bleiben unverändert.
-        Die Werte wirken ohne Neustart (ADR-008).
+        Die Werte wirken ohne Neustart (ADR-008). Nur eine Teilmenge der über
+        GET gelieferten Schlüssel ist schreibbar (Konfidenz-Bänder und die
+        Retrieval-Parameter aus ADR-007); ein nicht schreibbarer Schlüssel mit
+        unverändertem Wert wird stillschweigend akzeptiert, mit geändertem Wert
+        abgelehnt — das erlaubt es einem Client, die volle GET-Antwort
+        unverändert zurückzuschicken.
       requestBody:
         required: true
         content:
@@ -375,13 +374,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         '422':
-          description: Unbekannter Schlüssel oder ungültiger Wert
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '501':
-          description: Noch nicht implementiert (T-37)
+          description: >
+            Unbekannter Schlüssel, ungültiger Wert, oder eine echte Änderung an
+            einem nicht schreibbaren Schlüssel
           content:
             application/json:
               schema:
