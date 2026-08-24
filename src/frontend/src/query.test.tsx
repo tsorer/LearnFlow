@@ -386,6 +386,23 @@ describe("Frage-UI", () => {
     expect(screen.queryByText(/prefLabel/)).not.toBeInTheDocument();
   });
 
+  it("tells a rate limit from an outage and names the wait", async () => {
+    // T-45: 429 passes by itself within a minute, 503 does not. Flattening both
+    // into "Bitte versuche es erneut" tells the user to hammer a limit that is
+    // counting exactly those attempts.
+    api.route("post", "/api/query", 429, {
+      detail: "Zu viele Anfragen. Bitte warte einen Moment und versuche es erneut.",
+    });
+    const field = await openChat();
+
+    await userEvent.type(field, "Was regelt der EU AI Act?");
+    await send();
+
+    expect(await screen.findByText(/Zu viele Fragen in kurzer Zeit/)).toBeInTheDocument();
+    expect(screen.queryByText(/nicht erreichbar/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Fehler beim Abrufen/)).not.toBeInTheDocument();
+  });
+
   // --- Header: no control that acts on a view you cannot see ---------------
 
   it("starts a fresh session after Neuer Chat", async () => {
