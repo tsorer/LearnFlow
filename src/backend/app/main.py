@@ -33,9 +33,14 @@ def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded) -> Res
 
     slowapi's built-in handler returns `{"error": ...}`, which no other error response
     of this API uses. Header injection is what the built-in handler does too.
+
+    The text is German and free of the limit expression, like every other message
+    this API shows a user; the machine-readable part travels in the headers the
+    line below injects. `exc.detail` reads "10 per 1 minute" — useful in a log,
+    not in a sentence someone is meant to act on.
     """
     response = JSONResponse(
-        {"detail": f"Rate limit exceeded: {exc.detail}"},
+        {"detail": "Zu viele Anfragen. Bitte warte einen Moment und versuche es erneut."},
         status_code=429,
     )
     return limiter._inject_headers(response, request.state.view_rate_limit)
