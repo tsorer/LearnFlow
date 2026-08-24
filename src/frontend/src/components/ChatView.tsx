@@ -100,17 +100,13 @@ export default function ChatView({ user, onLogout }: Props) {
     try {
       await api.updateConfig(params, user.token);
       // Confirmed only once the write actually returned. Swallowing the
-      // rejection showed the green check while PUT /admin/config answers 501
-      // (T-37): the admin would go on believing a fail-closed threshold was
-      // stored that the config table never received (ADR-008).
+      // rejection showed the green check even when the config table never
+      // received it: the admin would go on believing a fail-closed threshold
+      // was stored that wasn't (ADR-008).
       setParamSaved(true);
       setTimeout(() => setParamSaved(false), 2000);
-    } catch (err) {
-      setParamError(
-        err instanceof ApiError && err.status === 501
-          ? "Parameter sind noch nicht speicherbar."
-          : "Parameter konnten nicht gespeichert werden.",
-      );
+    } catch {
+      setParamError("Parameter konnten nicht gespeichert werden.");
     }
   };
 

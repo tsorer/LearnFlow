@@ -23,7 +23,7 @@ export type DocumentResponse = Schemas["DocumentResponse"];
 type User = Schemas["User"];
 type TokenResponse = Schemas["TokenResponse"];
 export type QueryResponse = Schemas["QueryResponse"];
-type FeedbackCategory = Schemas["FeedbackCategory"];
+export type FeedbackCategory = Schemas["FeedbackCategory"];
 
 /** Carries the HTTP status so callers can tell 429 from 401 from 501. */
 export class ApiError extends Error {

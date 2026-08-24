@@ -88,9 +88,9 @@ Details: `Docs/04_ADR-00X_*.md`, `Docs/05_C4-*`, `Docs/06_Architecture-Draft.md`
 - **Spec und Code gehen zusammen** — `openapi.yaml` ist für beide Seiten verbindlich, in beide
    Richtungen. Ein neuer Endpoint braucht **im selben PR** drei Dinge, sonst ist die CI rot:
    1. den Eintrag in `openapi.yaml`,
-   2. eine Route im Backend — bei noch offener Umsetzung ein Platzhalter mit `501` und einem
-      `TODO (T-XX)`, Vorlage: `app/routers/admin.py`. Kein erfundener Beispielinhalt, ADR-008 ist
-      fail-closed,
+   2. eine Route im Backend — bei noch offener Umsetzung ein Platzhalter, der `501` mit einem
+      `TODO (T-XX)`-Kommentar zurückgibt, aber bereits die richtige Auth-Dependency trägt (kein
+      erfundener Beispielinhalt, ADR-008 ist fail-closed),
    3. die neu generierten Frontend-Typen: `make generate-api`, `src/frontend/src/api/schema.d.ts`
       mitcommitten.
    Wer die Spec ändert, macht Punkt 3 — nicht das Frontend-Team später. Die drei Checks dazu:

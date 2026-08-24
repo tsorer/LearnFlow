@@ -1,0 +1,74 @@
+(adai) PS C:\Projekte\BFH\LearnFlow\Reto\Modul5BTag2> python subagent_api_kritiker.py
+=== Prompt (mit Rollennamen) ===
+Lass den api-kritiker-Subagent C:\Projekte\BFH\LearnFlow\src\backend\openapi.yaml gegen C:\Projekte\BFH\LearnFlow\src\backend\app\routers\documents.py prüfen.
+
+>>> TOOL: Agent  Input: {'description': 'API-Kritiker: openapi.yaml vs. documents.py', 'subagent_type':
+>>> TOOL: Read  Input: {'file_path': 'C:\\Projekte\\BFH\\LearnFlow\\src\\backend\\app\\routers\\documen
+>>> TOOL: Read  Input: {'file_path': 'C:\\Projekte\\BFH\\LearnFlow\\src\\backend\\openapi.yaml'}
+>>> TOOL: Grep  Input: {'pattern': 'include_router|documents', 'path': 'C:\\Projekte\\BFH\\LearnFlow\\s
+>>> TOOL: Read  Input: {'file_path': 'C:\\Projekte\\BFH\\LearnFlow\\src\\backend\\app\\main.py'}
+>>> TOOL: Grep  Input: {'pattern': 'test_rbac|DocumentResponse|documents', 'path': 'C:\\Projekte\\BFH\\
+>>> TOOL: Read  Input: {'file_path': 'C:\\Projekte\\BFH\\LearnFlow\\src\\backend\\tests\\test_openapi_s
+>>> TOOL: Read  Input: {'file_path': 'C:\\Projekte\\BFH\\LearnFlow\\src\\backend\\tests\\test_rbac.py'}
+>>> TOOL: Grep  Input: {'pattern': '@router\\.(get|post|put|delete|patch)', 'path': 'C:\\Projekte\\BFH\
+>>> TOOL: Grep  Input: {'pattern': '^  /api/documents|^  /api/documents/', 'path': 'C:\\Projekte\\BFH\\
+>>> TOOL: Grep  Input: {'pattern': 'DocumentStatus|status.*enum|status.*str', 'path': 'C:\\Projekte\\BF
+>>> TOOL: Grep  Input: {'pattern': 'DocumentStatus|status_code.*4\\d\\d|status_code.*5\\d\\d', 'path':
+>>> TOOL: Read  Input: {'file_path': 'C:\\Projekte\\BFH\\LearnFlow\\src\\backend\\app\\routers\\documen
+>>> TOOL: Read  Input: {'file_path': 'C:\\Projekte\\BFH\\LearnFlow\\src\\backend\\openapi.yaml', 'offse
+>>> TOOL: Grep  Input: {'pattern': 'status.*=.*pending|status.*=.*processing|status.*=.*available|statu
+>>> TOOL: Read  Input: {'file_path': 'C:\\Projekte\\BFH\\LearnFlow\\src\\backend\\app\\models\\tables.p
+>>> TOOL: Read  Input: {'file_path': 'C:\\Projekte\\BFH\\LearnFlow\\src\\backend\\app\\routers\\documen
+>>> TOOL: Grep  Input: {'pattern': 'DocumentResponse|DocumentStatus', 'path': 'C:\\Projekte\\BFH\\Learn
+>>> TOOL: Grep  Input: {'pattern': 'DocumentResponse|DocumentStatus', 'path': 'C:\\Projekte\\BFH\\Learn
+>>> TOOL: Read  Input: {'file_path': 'C:\\Projekte\\BFH\\LearnFlow\\src\\frontend\\src\\api\\schema.d.t
+>>> TOOL: Read  Input: {'file_path': 'C:\\Projekte\\BFH\\LearnFlow\\src\\backend\\tests\\test_documents
+>>> TOOL: Read  Input: {'file_path': 'C:\\Projekte\\BFH\\LearnFlow\\src\\backend\\openapi.yaml', 'offse
+Der API-Kritiker hat die Prüfung abgeschlossen. Hier die Zusammenfassung:
+
+---
+
+## Ergebnis: `documents.py` ↔ `openapi.yaml`
+
+### ✅ Vollständig konform (beide Richtungen)
+
+Alle 4 Endpoints sind korrekt deklariert und implementiert:
+
+| Endpoint | Methode | Status-Codes | Parameter | Auth |
+|---|---|---|---|---|
+| `/documents` | GET | 200 ✓ | – | 401/403 ✓ |
+| `/documents` | POST | 201/400/413/415 ✓ | file, area ✓ | 401/403 ✓ |
+| `/documents/{id}` | GET | 200/404 ✓ | document_id ✓ | 401/403 ✓ |
+| `/documents/{id}` | DELETE | 204/404 ✓ | document_id ✓ | 401/403 ✓ |
+
+---
+
+### ⚠️ 1 Abweichung gefunden (Typ-Validierung)
+
+**`DocumentResponse.status` ist `str` statt Enum** — `documents.py` Zeile 33
+
+- **Spec** (`openapi.yaml`) definiert `DocumentStatus` als Enum: `{pending, processing, available, failed}`
+- **Router** deklariert `status: str` — Pydantic validiert den Wert **nicht** gegen die Enum-Werte
+- Folge: Ein ungültiger Wert wie `"unknown"` würde die API passieren und den generierten Frontend-Client (`schema.d.ts`) verwirren → verletzt **ADR-010**
+
+**Fix:** In `documents.py` ein `DocumentStatus`-Enum definieren und als Typ verwenden:
+
+```python
+from enum import Enum
+
+class DocumentStatus(str, Enum):
+    pending = "pending"
+    processing = "processing"
+    available = "available"
+    failed = "failed"
+
+class DocumentResponse(BaseModel):
+    status: DocumentStatus  # statt str
+```
+
+---
+
+Soll ich den Fix direkt anwenden?
+
+--- Turns: 2 · Kosten: $0.3446 ---
+(adai) PS C:\Projekte\BFH\LearnFlow\Reto\Modul5BTag2>
