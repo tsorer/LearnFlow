@@ -200,6 +200,15 @@ export interface paths {
                         "application/json": components["schemas"]["ValidationError"];
                     };
                 };
+                /** @description Zu viele Fragen (Rate Limit, 10/Minute pro Konto). Anders als beim Login zählt hier das angemeldete Konto und nicht die Client-IP — der Endpoint ist authentifiziert, und im Pilot teilen sich die Nutzer eine NAT-Adresse (Docs/03_QualityAttributes.md, Security). Schutz vor Schleifen und Missbrauch, keine Kostenobergrenze. */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
                 /** @description Retrieval oder Antwortgenerierung nicht verfügbar (LLM- bzw. Embedding-Provider oder Datenbank). Kein fachliches Ergebnis, sondern ein Infrastrukturfehler — bewusst nicht als Unterdrückung getarnt (ADR-008). */
                 503: {
                     headers: {

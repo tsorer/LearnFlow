@@ -111,7 +111,11 @@ async def test_login_rate_limited_after_five_attempts_per_ip(no_bcrypt: AsyncMoc
 
     r = await _login(db)
     assert r.status_code == 429
-    assert r.json()["detail"].startswith("Rate limit exceeded")
+    # Shared with /query (T-45): one German sentence for both, because both are
+    # shown to a user. The limit itself travels in the response headers.
+    assert r.json()["detail"] == (
+        "Zu viele Anfragen. Bitte warte einen Moment und versuche es erneut."
+    )
 
 
 async def test_rate_limit_counts_per_ip_not_per_account(no_bcrypt: AsyncMock) -> None:

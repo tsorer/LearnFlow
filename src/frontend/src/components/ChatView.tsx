@@ -68,6 +68,26 @@ export function validateQuestion(question: string): string | null {
   return null;
 }
 
+/**
+ * One sentence per outcome the API separates, because the next step differs.
+ *
+ * 429 (T-45) passes by itself and says how long to wait; 503 is an outage the
+ * user can only sit out (US-01); anything else is worth retrying now. Repeating
+ * the server's own German text would be worse than mapping the status here —
+ * the body says "warte einen Moment" for the login limit too, and cannot know
+ * that this one is about asking questions. None of the three invents an answer:
+ * the bubble stays `suppressed`.
+ */
+function failureMessage(err: unknown): string {
+  if (err instanceof ApiError && err.status === 429) {
+    return "Zu viele Fragen in kurzer Zeit. Bitte warte eine Minute und frage dann erneut.";
+  }
+  if (err instanceof ApiError && err.status === 503) {
+    return "Die Suche ist derzeit nicht erreichbar. Bitte versuche es in einigen Minuten erneut.";
+  }
+  return "Fehler beim Abrufen der Antwort. Bitte versuche es erneut.";
+}
+
 interface Props { user: AuthUser; onLogout: () => void; }
 
 export default function ChatView({ user, onLogout }: Props) {
@@ -145,15 +165,9 @@ export default function ChatView({ user, onLogout }: Props) {
         debug: res.debug,
       }]);
     } catch (err) {
-      // US-01 asks for a clear message when retrieval is unreachable, and
-      // T-17 gave that case its own status: 503 is an outage the user can only
-      // wait out, everything else is worth retrying now. Neither invents an
-      // answer — the bubble stays `suppressed`.
       setMessages(prev => [...prev, {
         role: "assistant",
-        content: err instanceof ApiError && err.status === 503
-          ? "Die Suche ist derzeit nicht erreichbar. Bitte versuche es in einigen Minuten erneut."
-          : "Fehler beim Abrufen der Antwort. Bitte versuche es erneut.",
+        content: failureMessage(err),
         suppressed: true,
       }]);
     } finally {
