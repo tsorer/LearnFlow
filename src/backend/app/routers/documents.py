@@ -49,6 +49,9 @@ def _to_response(document: Document) -> DocumentResponse:
         # outside the enum raises instead of reaching a client that has no type
         # for it. Only this router and the worker write the column, both from
         # DocumentStatus, so the only way to hit it is by editing the row by hand.
+        # The radius is deliberate: in GET /documents one such row takes the
+        # whole list down with it rather than the list serving a status no
+        # client can render (review on #87).
         status=DocumentStatus(document.status),
         area=document.area,
         chunk_count=document.chunk_count,
@@ -214,7 +217,18 @@ async def _replace(
     # The new version has not been through validation (US-06), whatever the
     # replaced one had reached.
     document.validated_at = None
+    # Moves with the content, like every other column here — the row describes
+    # the version it currently holds, and `created_at` is the one documented
+    # exception (spec: the first upload, surviving a replacement). So the pair
+    # reads as "in the corpus since T1, current text put there by this person";
+    # who uploaded the version that is gone is not kept (review on #87).
     document.uploaded_by = user.id
+    # quiz_questions of the replaced version are deliberately left alone. They
+    # hang off documents by FK like chunks do, so questions generated from a
+    # text that no longer exists survive this. Harmless while the table is
+    # empty (T-33 fills it first) and not this ticket's call: whether Stefan's
+    # approvals (US-07) survive a replacement is a decision for T-33 (#40),
+    # noted there.
     return document
 
 

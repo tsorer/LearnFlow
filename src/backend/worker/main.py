@@ -59,13 +59,15 @@ async def process_document(conn: asyncpg.Connection, job: Job) -> None:
     document_id = payload.get("document_id")
     log.info("Processing document job_id=%s document_id=%s", job.id, document_id)
 
-    await conn.execute(
-        "UPDATE documents SET status = $2 WHERE id = $1", document_id, DocumentStatus.processing
-    )
     # The version this run is about. None until the row is read — and only the
     # read itself can fail before that.
     version: datetime | None = None
     try:
+        # Reading before the first write, so every status this function sets
+        # carries the version condition. The other order left 'processing' as
+        # the one unguarded write in the file: a stale job — redelivered after a
+        # worker crash — would pull a document that is 'available' back into
+        # 'processing' and out of retrieval for the length of its run.
         row = await fetch_document(conn, document_id)
         # Captured here, not after the chunking: parsing and the chunk config
         # can both still throw, and a failure at that point belongs to this
@@ -73,6 +75,14 @@ async def process_document(conn: asyncpg.Connection, job: Job) -> None:
         # from the return value of the chunking left it None for exactly those
         # failures, which let them through the guard below (review on #87).
         version = row["updated_at"]
+        # row["updated_at"] rather than `version` for the same reason as below:
+        # the write is about the version this run read, and `version` is the
+        # variable the error path shares.
+        if not await mark_processing(conn, document_id, row["updated_at"]):
+            # Before the embedding, not after: a run that is already superseded
+            # here has nothing to contribute and no reason to spend a provider
+            # call finding that out.
+            raise Superseded
         chunks = await prepare_chunks(conn, row)
         # Embedding runs before the transaction opens, not inside it: it is
         # tens of seconds of HTTP, and an open transaction across that span
@@ -125,6 +135,24 @@ async def process_document(conn: asyncpg.Connection, job: Job) -> None:
             DocumentStatus.failed,
         )
         raise
+
+
+async def mark_processing(
+    conn: asyncpg.Connection, document_id: str, version: datetime
+) -> bool:
+    """Announce the run to the reader of GET /documents, under the same version
+    condition as every other status this worker writes.
+
+    False means an upload replaced the document between the read a moment ago
+    and this write — its own job will do the indexing, and this one stops here.
+    """
+    claimed = await conn.fetchval(
+        "UPDATE documents SET status = $2 WHERE id = $1 AND updated_at = $3 RETURNING id",
+        document_id,
+        DocumentStatus.processing,
+        version,
+    )
+    return claimed is not None
 
 
 async def mark_available(

@@ -94,10 +94,14 @@ async def test_process_document_writes_chunks_and_marks_available() -> None:
 
     await process_document(conn, make_job(document_id))
 
-    assert executed(conn)[0] == (
-        "UPDATE documents SET status = $2 WHERE id = $1",
+    # Read first, then claim: the processing write carries the version like
+    # every other status this worker sets.
+    assert conn.fetchrow.await_args.args[0].startswith("SELECT content")
+    assert conn.fetchval.await_args_list[0].args == (
+        "UPDATE documents SET status = $2 WHERE id = $1 AND updated_at = $3 RETURNING id",
         document_id,
         DocumentStatus.processing,
+        VERSION,
     )
 
     sql, rows = conn.executemany.await_args.args
@@ -117,7 +121,7 @@ async def test_process_document_writes_chunks_and_marks_available() -> None:
         "Titel",
     )
 
-    assert conn.fetchval.await_args.args == (
+    assert conn.fetchval.await_args_list[1].args == (
         "UPDATE documents SET status = $4, chunk_count = $2, "
         "error_message = NULL WHERE id = $1 AND updated_at = $3 RETURNING id",
         document_id,
@@ -138,8 +142,9 @@ async def test_a_document_replaced_while_indexing_is_not_published() -> None:
     """
     document_id = str(uuid.uuid4())
     conn = make_conn()
-    # No row left carrying the updated_at this run read.
-    conn.fetchval.return_value = None
+    # The run claims the document, and by the time it publishes no row carries
+    # the updated_at it read any more.
+    conn.fetchval.side_effect = [document_id, None]
 
     await process_document(conn, make_job(document_id))
 
@@ -147,7 +152,7 @@ async def test_a_document_replaced_while_indexing_is_not_published() -> None:
     # through the exception — which is what discards the chunks written in it.
     # Asserting on the exit rather than on "no chunks written": the writes
     # happen, the rollback is what takes them back.
-    assert conn.fetchval.await_count == 1
+    assert conn.executemany.await_count == 1
     assert conn.transaction.return_value.__aexit__.await_args.args[0] is Superseded
     # And it is not an error: the replacement's job owns the index now, so
     # nothing marks this document failed.
@@ -163,8 +168,11 @@ async def test_the_version_read_with_the_content_is_the_one_published() -> None:
 
     await process_document(conn, make_job(document_id))
 
+    read_version = datetime(2026, 8, 19, 9, 30, tzinfo=UTC)
     assert "updated_at" in conn.fetchrow.await_args.args[0]
-    assert conn.fetchval.await_args.args[3] == datetime(2026, 8, 19, 9, 30, tzinfo=UTC)
+    # Both guarded writes compare against the version that came with the bytes.
+    assert conn.fetchval.await_args_list[0].args[3] == read_version
+    assert conn.fetchval.await_args_list[1].args[3] == read_version
 
 
 @pytest.mark.parametrize("failing_step", ["embedding", "chunk config", "chunking"])
@@ -452,3 +460,29 @@ async def test_non_numeric_chunk_config_fails_with_a_configuration_message() -> 
         VERSION,
         DocumentStatus.failed,
     )
+
+
+async def test_the_worker_never_writes_updated_at() -> None:
+    """`updated_at` is the version token the guard compares against, and it only
+    means anything as long as the upload path is the one that moves it.
+
+    A worker statement that set it would make the guard compare a value the
+    worker moved itself — every run would look current, and the whole
+    construction would be decoration. The ORM side of the same invariant (a
+    future route writing a Document, where `onupdate` moves the column
+    unasked) is out of reach of a test; it is noted at the column and on #69.
+    """
+    document_id = str(uuid.uuid4())
+    conn = make_conn()
+
+    await process_document(conn, make_job(document_id))
+
+    writes = [
+        call.args[0]
+        for call in [*conn.execute.await_args_list, *conn.fetchval.await_args_list]
+        if "UPDATE documents" in call.args[0]
+    ]
+    assert writes, "no document write happened — the assertion below proves nothing"
+    for sql in writes:
+        assignments = sql.split(" WHERE ")[0]
+        assert "updated_at" not in assignments, sql
