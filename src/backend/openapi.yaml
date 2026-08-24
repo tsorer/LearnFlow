@@ -201,7 +201,7 @@ paths:
                 $ref: '#/components/schemas/Error'
     post:
       tags: [documents]
-      summary: Dokument in den Lernkorpus hochladen (US-04)
+      summary: Dokument hochladen; gleicher Dateiname ersetzt das bestehende (US-04, T-15)
       requestBody:
         required: true
         content:
@@ -209,8 +209,16 @@ paths:
             schema:
               $ref: '#/components/schemas/DocumentUploadRequest'
       responses:
+        '200':
+          description: >-
+            Bestehendes Dokument gleichen Namens ersetzt — gleiche id, alte Chunks
+            gelöscht, Neu-Indexierung läuft
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentResponse'
         '201':
-          description: Upload angenommen, Verarbeitung läuft
+          description: Neues Dokument angelegt, Verarbeitung läuft
           content:
             application/json:
               schema:
@@ -804,7 +812,7 @@ components:
 
     DocumentResponse:
       type: object
-      required: [id, filename, status, area, chunk_count, created_at]
+      required: [id, filename, status, area, chunk_count, created_at, updated_at]
       properties:
         id:
           type: string
@@ -821,6 +829,11 @@ components:
           type: string
           nullable: true
         created_at:
+          description: Zeitpunkt des ersten Uploads; überlebt eine Ersetzung (T-15)
+          type: string
+          format: date-time
+        updated_at:
+          description: Zeitpunkt des Uploads der aktuellen Fassung (T-15)
           type: string
           format: date-time
 

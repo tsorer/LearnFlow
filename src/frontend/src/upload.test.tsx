@@ -37,6 +37,7 @@ function doc(filename: string, status: Document["status"]): Document {
     chunk_count: status === "available" ? 3 : 0,
     error_message: null,
     created_at: "2026-08-15T10:00:00Z",
+    updated_at: "2026-08-15T10:00:00Z",
   };
 }
 

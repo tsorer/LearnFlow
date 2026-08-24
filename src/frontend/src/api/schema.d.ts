@@ -332,7 +332,7 @@ export interface paths {
             };
         };
         put?: never;
-        /** Dokument in den Lernkorpus hochladen (US-04) */
+        /** Dokument hochladen; gleicher Dateiname ersetzt das bestehende (US-04, T-15) */
         post: {
             parameters: {
                 query?: never;
@@ -346,7 +346,16 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description Upload angenommen, Verarbeitung läuft */
+                /** @description Bestehendes Dokument gleichen Namens ersetzt — gleiche id, alte Chunks gelöscht, Neu-Indexierung läuft */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DocumentResponse"];
+                    };
+                };
+                /** @description Neues Dokument angelegt, Verarbeitung läuft */
                 201: {
                     headers: {
                         [name: string]: unknown;
@@ -871,8 +880,16 @@ export interface components {
             area: string;
             chunk_count: number;
             error_message?: string | null;
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description Zeitpunkt des ersten Uploads; überlebt eine Ersetzung (T-15)
+             */
             created_at: string;
+            /**
+             * Format: date-time
+             * @description Zeitpunkt des Uploads der aktuellen Fassung (T-15)
+             */
+            updated_at: string;
         };
         DocumentList: components["schemas"]["DocumentResponse"][];
     };

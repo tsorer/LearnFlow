@@ -5,6 +5,7 @@ import json
 import logging
 import uuid
 from collections.abc import Awaitable, Callable
+from datetime import datetime
 
 import asyncpg
 from pgqueuer import QueueManager
@@ -13,6 +14,7 @@ from pgqueuer.models import Job
 
 from app.config import settings
 from app.exceptions import UserFacingError
+from app.models.tables import DocumentStatus
 from app.services.chunking import (
     DEFAULT_CHUNK_OVERLAP,
     DEFAULT_CHUNK_SIZE,
@@ -44,14 +46,44 @@ INSERT_CHUNK = (
 )
 
 
+class Superseded(Exception):
+    """Raised when the document was replaced while this job was indexing it.
+
+    Not a failure: the upload that replaced it (T-15) enqueued a job of its own,
+    and that job is the one whose result belongs in the index.
+    """
+
+
 async def process_document(conn: asyncpg.Connection, job: Job) -> None:
     payload = json.loads(job.payload or b"{}")
     document_id = payload.get("document_id")
     log.info("Processing document job_id=%s document_id=%s", job.id, document_id)
 
-    await conn.execute("UPDATE documents SET status = 'processing' WHERE id = $1", document_id)
+    # The version this run is about. None until the row is read — and only the
+    # read itself can fail before that.
+    version: datetime | None = None
     try:
-        chunks = await prepare_chunks(conn, document_id)
+        # Reading before the first write, so every status this function sets
+        # carries the version condition. The other order left 'processing' as
+        # the one unguarded write in the file: a stale job — redelivered after a
+        # worker crash — would pull a document that is 'available' back into
+        # 'processing' and out of retrieval for the length of its run.
+        row = await fetch_document(conn, document_id)
+        # Captured here, not after the chunking: parsing and the chunk config
+        # can both still throw, and a failure at that point belongs to this
+        # version just as much as a failed embedding does. Taking the version
+        # from the return value of the chunking left it None for exactly those
+        # failures, which let them through the guard below (review on #87).
+        version = row["updated_at"]
+        # row["updated_at"] rather than `version` for the same reason as below:
+        # the write is about the version this run read, and `version` is the
+        # variable the error path shares.
+        if not await mark_processing(conn, document_id, row["updated_at"]):
+            # Before the embedding, not after: a run that is already superseded
+            # here has nothing to contribute and no reason to spend a provider
+            # call finding that out.
+            raise Superseded
+        chunks = await prepare_chunks(conn, row)
         # Embedding runs before the transaction opens, not inside it: it is
         # tens of seconds of HTTP, and an open transaction across that span
         # would sit idle-in-transaction and hold back VACUUM on chunks.
@@ -62,13 +94,20 @@ async def process_document(conn: asyncpg.Connection, job: Job) -> None:
         embeddings = await embed_texts([chunk.content for chunk in chunks])
         async with conn.transaction():
             await store_chunks(conn, document_id, chunks, embeddings)
-            await conn.execute(
-                "UPDATE documents SET status = 'available', chunk_count = $2, "
-                "error_message = NULL WHERE id = $1",
-                document_id,
-                len(chunks),
-            )
+            # row["updated_at"], not `version`: the publish is about the version
+            # this run read, and taking it straight from the row says so without
+            # relying on a variable the error path shares.
+            if not await mark_available(conn, document_id, row["updated_at"], len(chunks)):
+                # Inside the transaction on purpose: unwinding it discards the
+                # chunks written a line earlier, which are the old version's.
+                raise Superseded
         log.info("Indexed document_id=%s chunks=%s", document_id, len(chunks))
+    except Superseded:
+        log.info(
+            "Discarded document_id=%s: replaced while this job was indexing it, "
+            "the replacement's own job owns the index now",
+            document_id,
+        )
     except Exception as exc:
         log.exception("Failed to process document_id=%s", document_id)
         # error_message is handed to every knowledge_owner and admin by GET
@@ -78,21 +117,88 @@ async def process_document(conn: asyncpg.Connection, job: Job) -> None:
         # auth failure, a fragment of the API key.
         message = str(exc) if isinstance(exc, UserFacingError) else "Verarbeitung fehlgeschlagen"
         await conn.execute(
-            "UPDATE documents SET status = 'failed', error_message = $2 WHERE id = $1",
+            # Same version condition as the success path: a run that fails after
+            # the document was replaced must not report its own failure on the
+            # new version, which is still waiting for its own job. Without the
+            # condition it would mark a document 'failed' that another run has
+            # meanwhile indexed successfully — and fail-closed retrieval
+            # (ADR-008) would drop it from every answer with nothing to see.
+            #
+            # No escape for version IS NULL: the only failure that early is a
+            # document that is not there, and `updated_at = NULL` matches no row
+            # — which is what should happen when there is no row to mark.
+            "UPDATE documents SET status = $4, error_message = $2 "
+            "WHERE id = $1 AND updated_at = $3",
             document_id,
             message,
+            version,
+            DocumentStatus.failed,
         )
         raise
 
 
-async def prepare_chunks(conn: asyncpg.Connection, document_id: str) -> list[Chunk]:
-    """Read, parse and chunk a document. Reads only — writes nothing."""
+async def mark_processing(
+    conn: asyncpg.Connection, document_id: str, version: datetime
+) -> bool:
+    """Announce the run to the reader of GET /documents, under the same version
+    condition as every other status this worker writes.
+
+    False means an upload replaced the document between the read a moment ago
+    and this write — its own job will do the indexing, and this one stops here.
+    """
+    claimed = await conn.fetchval(
+        "UPDATE documents SET status = $2 WHERE id = $1 AND updated_at = $3 RETURNING id",
+        document_id,
+        DocumentStatus.processing,
+        version,
+    )
+    return claimed is not None
+
+
+async def mark_available(
+    conn: asyncpg.Connection, document_id: str, version: datetime, chunk_count: int
+) -> bool:
+    """Publish this run's chunks, unless the document has been replaced since.
+
+    `updated_at` is the version token: the API sets it on every upload and every
+    replacement (`app/routers/documents.py`), and nothing else writes it — the
+    worker's own updates deliberately leave it alone. So a row whose updated_at
+    still matches the one read with the content is the version this job indexed.
+
+    Returns False when the row no longer matches, i.e. an upload replaced the
+    document while this job was embedding. Without the condition that run would
+    publish the superseded version's chunks over the new one's, and there is no
+    error anywhere to notice it by.
+    """
+    published = await conn.fetchval(
+        "UPDATE documents SET status = $4, chunk_count = $2, "
+        "error_message = NULL WHERE id = $1 AND updated_at = $3 RETURNING id",
+        document_id,
+        chunk_count,
+        version,
+        DocumentStatus.available,
+    )
+    return published is not None
+
+
+async def fetch_document(conn: asyncpg.Connection, document_id: str) -> asyncpg.Record:
+    """The row this run works on: content, its type, and the version token.
+
+    One statement, so `updated_at` describes the very bytes that come with it —
+    see `mark_available`, which refuses to publish under any other version. Kept
+    apart from the chunking below so the caller holds the version before the
+    first step that can fail with the row already read.
+    """
     row = await conn.fetchrow(
-        "SELECT content, content_type FROM documents WHERE id = $1", document_id
+        "SELECT content, content_type, updated_at FROM documents WHERE id = $1", document_id
     )
     if row is None:
         raise UserFacingError(f"Dokument {document_id} nicht gefunden")
+    return row
 
+
+async def prepare_chunks(conn: asyncpg.Connection, row: asyncpg.Record) -> list[Chunk]:
+    """Parse and chunk a document's content. Reads config only — writes nothing."""
     chunk_size, chunk_overlap = await read_chunk_config(conn)
     blocks = parse_document(bytes(row["content"]), row["content_type"])
     # Tokenizer passed explicitly: the worker owns the choice of encoding, the
