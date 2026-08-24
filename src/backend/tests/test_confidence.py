@@ -131,6 +131,32 @@ def test_a_reference_past_the_context_is_fabricated() -> None:
     assert detail.fabricated == (7,)
 
 
+def test_the_digit_count_does_not_decide_validity() -> None:
+    """Regression, review of PR #86: a bounded pattern let "[2026]" through.
+
+    The numbers are positional indices into the context list — 1..n, five by
+    default — so a four-digit bracket is exactly as invalid as a two-digit one.
+    While the pattern was bounded to three digits, "[2026]" matched nothing at
+    all: neither reference nor fabrication, `valid` stayed True, and the answer
+    shipped carrying a citation that pointed nowhere.
+    """
+    two_digits = check_citations("Der Anhang nennt weitere Ausnahmen dazu [12].", CONTEXT_SIZE)
+    four_digits = check_citations("Der Anhang nennt weitere Ausnahmen dazu [2026].", CONTEXT_SIZE)
+
+    assert two_digits.valid is False
+    assert four_digits.valid is False
+    assert four_digits.fabricated == (2026,)
+
+
+def test_a_mixed_bracket_keeps_the_legal_index_visible() -> None:
+    """"[1, 2345]" used to match nothing, taking the legitimate 1 down with it."""
+    detail = check_citations("Das ergibt sich aus zwei Stellen [1, 2345].", CONTEXT_SIZE)
+
+    assert detail.referenced == (1,)
+    assert detail.fabricated == (2345,)
+    assert detail.valid is False
+
+
 def test_reference_zero_is_fabricated() -> None:
     """The numbering starts at 1, so [0] is not an off-by-one to be forgiven."""
     detail = check_citations("Das steht so im Dokument [0].", CONTEXT_SIZE)

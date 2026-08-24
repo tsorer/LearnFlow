@@ -405,6 +405,27 @@ async def test_a_fabricated_reference_is_suppressed(monkeypatch: pytest.MonkeyPa
     assert body["message"] != answer
 
 
+async def test_a_four_digit_reference_is_suppressed_like_any_other(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """AK 2 must not depend on how many digits the invented number has.
+
+    Review of PR #86: with a three-digit bound this exact answer was delivered —
+    coverage 0.5 met the threshold and the "[2026]" was invisible to the check,
+    so it shipped with a citation pointing at nothing.
+    """
+    answer = "Die Frist betraegt 30 Tage [1]. Der Anhang nennt weitere Ausnahmen [2026]."
+
+    r = await post_query(
+        monkeypatch, make_outcome(0.9, 0.8, 0.7), generate=make_generate(answer=answer)
+    )
+
+    body = r.json()
+    assert body["suppressed"] is True
+    assert body["suppression_reason"] == REASON_CITATION_INVALID
+    assert body["message"] != answer
+
+
 async def test_an_invented_reference_beats_a_perfect_coverage(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

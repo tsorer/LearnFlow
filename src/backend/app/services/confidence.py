@@ -111,7 +111,16 @@ def compute_retrieval_confidence(
 # range form [1-3] is deliberately *not* tolerated: expanding it would credit
 # the answer with a reference the model never wrote, and a hyphen between digits
 # is also how a document number is written.
-_REFERENCE = re.compile(r"\[\s*(\d{1,3}(?:\s*,\s*\d{1,3})*)\s*\]")
+#
+# `\d+` and not a bounded `\d{1,3}` (review of PR #86): the digit count is not a
+# meaningful boundary here. These numbers are *our* positional indices into the
+# context list the prompt hands the model — 1..context_top_n, five by default —
+# not document ids and not years, so every value outside that range is equally
+# invalid whatever its length. A bounded pattern made "[2026]" invisible to the
+# check: neither a reference nor a fabrication, so `valid` stayed True and the
+# answer shipped, while the very same sentence with "[12]" was suppressed. That
+# split the fail-closed rule along the digit count of the invented number.
+_REFERENCE = re.compile(r"\[\s*(\d+(?:\s*,\s*\d+)*)\s*\]")
 
 # Split after .!? followed by whitespace. The whitespace is what makes "z.B."
 # safe without any list — no space, no boundary; only the spaced "z. B." needs
