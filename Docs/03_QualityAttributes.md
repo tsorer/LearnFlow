@@ -62,10 +62,23 @@ Interne Unternehmensdokumente im Korpus machen unbefugten Zugriff zu einem Busin
    ein kontobezogener Zähler liesse sich von jeder beliebigen IP aus auslösen und
    würde den echten Nutzer aussperren (Account-Lockout-DoS). Preis dafür ist, dass
    Nutzer hinter derselben NAT-Adresse sich ein Budget teilen — im Pilot akzeptiert.
-2. **Admin-Middleware für rollenbasierte Zugriffskontrolle** — URL-Zugriff ohne korrekte Rolle wird serverseitig abgewiesen.
-3. **Pseudonymisierung** von Feedback und Query-Logs; Cluster < 5 Fragen nicht anzeigen.
-4. **Auth-Schicht SSO-nachrüstbar** — ohne Umbau, wenn Post-MVP IdP-Anbindung kommt.
-5. **DSGVO:** OpenAI API verwendet API-Daten standardmässig nicht für Training (API ≠ ChatGPT WebUI). Für datenschutzkritische Deployments: Ollama (lokal) — ein Konfigurationseintrag.
+2. **`POST /api/query` rate-limitiert auf 10/Minute pro Konto** (JWT-`sub`), nicht
+   pro IP — bewusst anders herum als beim Login. Das Lockout-Argument von oben
+   greift hier nicht: Der Endpoint ist authentifiziert, fremde Kontingente
+   verbraucht also nur, wer bereits ein gültiges Token besitzt. Der NAT-Nachteil
+   wiegt umgekehrt schwerer als beim Login, weil Fragen der Normalfall sind und
+   nicht die Ausnahme — ein IP-Zähler liesse einen Vielfrager alle anderen im
+   selben Netz aussperren. Anlass ist der Preis pro Frage: seit T-18 kostet jede
+   ein Embedding und ein bis zwei LLM-Aufrufe (ADR-004, ADR-005). Bei p95 ≤ 10 s
+   ist die Grenze sequenziell kaum erreichbar, stoppt aber jede Schleife.
+   **Kein Budgetdeckel:** 10/Minute sind rechnerisch 14 400 Fragen pro Tag. Wer
+   Kosten pro Zeitraum begrenzen will, braucht ein Kontingent, nicht ein
+   Frequenzlimit. Wie beim Login lebt der Zähler im Speicher des `api`-Prozesses
+   und übersteht keinen Neustart.
+3. **Admin-Middleware für rollenbasierte Zugriffskontrolle** — URL-Zugriff ohne korrekte Rolle wird serverseitig abgewiesen.
+4. **Pseudonymisierung** von Feedback und Query-Logs; Cluster < 5 Fragen nicht anzeigen.
+5. **Auth-Schicht SSO-nachrüstbar** — ohne Umbau, wenn Post-MVP IdP-Anbindung kommt.
+6. **DSGVO:** OpenAI API verwendet API-Daten standardmässig nicht für Training (API ≠ ChatGPT WebUI). Für datenschutzkritische Deployments: Ollama (lokal) — ein Konfigurationseintrag.
 
 **Was passiert wenn wir Security ignorieren:**
 Interne Fachprozesse und Dokumente sind öffentlich zugänglich. DSGVO-Verletzung beendet den Piloten rechtlich, bevor er technisch scheitern kann.

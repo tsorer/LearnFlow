@@ -123,6 +123,17 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ValidationError'
+        '429':
+          description: >
+            Zu viele Fragen (Rate Limit, 10/Minute pro Konto). Anders als beim
+            Login zählt hier das angemeldete Konto und nicht die Client-IP —
+            der Endpoint ist authentifiziert, und im Pilot teilen sich die
+            Nutzer eine NAT-Adresse (Docs/03_QualityAttributes.md, Security).
+            Schutz vor Schleifen und Missbrauch, keine Kostenobergrenze.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '503':
           description: >
             Retrieval oder Antwortgenerierung nicht verfügbar (LLM- bzw.

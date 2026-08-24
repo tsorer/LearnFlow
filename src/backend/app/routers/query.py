@@ -16,12 +16,13 @@ is why T-19 follows directly on T-18.
 import logging
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
 from app.database import get_db
+from app.limiter import account_key, limiter
 from app.models.tables import Answer, QuerySession, User
 from app.routers.documents import PILOT_AREA
 from app.services.confidence import (
@@ -88,6 +89,14 @@ STAGE_RETRIEVAL_CONFIDENCE = "retrieval_confidence"
 # The admin view matches this exact string to place the call inside the pipeline
 # (MessageBubble.tsx); T-25 adds "self_check" beside it.
 STEP_GROUNDING = "grounding"
+
+# Every question costs an embedding call and, past both gates, one or two LLM
+# calls (ADR-004, ADR-005) — this is the only endpoint that spends provider
+# money. Ten a minute is out of reach for someone typing questions at the p95 of
+# 10 s the NFA sets (T-22), and stops a loop long before it becomes a bill.
+# Counted per account, not per address: see `account_key` and
+# Docs/03_QualityAttributes.md, Security.
+QUERY_RATE_LIMIT = "10/minute"
 
 
 class QueryRequest(BaseModel):
@@ -177,12 +186,16 @@ class QueryResponse(BaseModel):
 
 
 @router.post("", response_model=QueryResponse)
+@limiter.limit(QUERY_RATE_LIMIT, key_func=account_key)
 async def create_query(
-    request: QueryRequest,
+    # slowapi reads its key off the raw request and insists the argument be
+    # named `request`, so the body is `body` — the name auth.py already uses.
+    request: Request,
+    body: QueryRequest,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> QueryResponse:
-    session = await _resolve_session(request.session_id, user, db)
+    session = await _resolve_session(body.session_id, user, db)
 
     try:
         config = await read_pipeline_config(db)
@@ -196,7 +209,7 @@ async def create_query(
         return await _persist_and_respond(
             db=db,
             session=session,
-            question=request.question,
+            question=body.question,
             reason=REASON_CONFIGURATION_ERROR,
             message=MESSAGE_CONFIGURATION_ERROR,
             answer_text=None,
@@ -209,7 +222,7 @@ async def create_query(
         )
 
     try:
-        outcome = await retrieve(db, request.question, config, PILOT_AREA)
+        outcome = await retrieve(db, body.question, config, PILOT_AREA)
     except (TypeError, AttributeError, NameError, ImportError):
         # A bug must not masquerade as a provider outage: these signal broken
         # code, not a broken dependency, and belong in the logs and the CI as a
@@ -245,7 +258,7 @@ async def create_query(
     elif not confidence_passed:
         reason, message = REASON_WEAK_EVIDENCE, MESSAGE_WEAK_EVIDENCE
     else:
-        generation = await _generate(request.question, outcome.context, user)
+        generation = await _generate(body.question, outcome.context, user)
         if generation.truncated:
             reason, message = REASON_GENERATION_TRUNCATED, MESSAGE_GENERATION_TRUNCATED
         elif generation.answer is None:
@@ -273,7 +286,7 @@ async def create_query(
     return await _persist_and_respond(
         db=db,
         session=session,
-        question=request.question,
+        question=body.question,
         reason=reason,
         message=message,
         answer_text=generation.answer if generation else None,
