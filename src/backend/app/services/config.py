@@ -106,9 +106,10 @@ class PipelineConfig:
     Retrieval and the gates it feeds are read together because one request
     needs all of them and they are all rows of the same table — splitting them
     into two readers would buy nothing but a second round-trip.
-    `min_citation_coverage` is stage 2 and therefore unused until T-18; it is
-    already surfaced in the admin debug view, where an operator calibrating the
-    pipeline needs to see every threshold, not just the ones that ran.
+    `min_citation_coverage` is the stage-2 threshold (T-19). Like the others it
+    is surfaced in the admin debug view even when its stage did not run — an
+    operator calibrating the pipeline needs to see every threshold, not just the
+    ones that fired on this request.
 
     All values are hypotheses to be calibrated against the eval dataset
     (ADR-009), which is exactly why they live in `config` and not in Settings.

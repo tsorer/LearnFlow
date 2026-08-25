@@ -1,19 +1,26 @@
-"""Stages 0 and 1 of the confidence pipeline (ADR-008, T-17).
+"""The deterministic stages of the confidence pipeline (ADR-008, T-17/T-19).
 
-These are the two gates that decide whether a question ever reaches an LLM, so
-they are tested against exact numbers rather than ranges.
+Stages 0 and 1 are the two gates that decide whether a question ever reaches an
+LLM; stage 2 decides whether the answer it produced may be delivered. All three
+are tested against exact numbers rather than ranges — they are thresholds, and a
+test that tolerates a range would not notice one drifting.
 """
 
 from app.services.confidence import (
+    MIN_SEGMENT_WORDS,
     WEIGHT_EVIDENCE_DENSITY,
     WEIGHT_MEAN_SCORE,
     WEIGHT_TOP_SCORE,
+    check_citations,
     compute_retrieval_confidence,
     passes_retrieval_gate,
 )
 
 THRESHOLD = 0.35
 TOP_N = 5
+
+# Five chunks went to the model, so [1]..[5] are the legal references.
+CONTEXT_SIZE = 5
 
 
 def test_gate_passes_when_one_chunk_reaches_the_threshold() -> None:
@@ -78,3 +85,251 @@ def test_weak_retrieval_stays_below_the_seeded_gate() -> None:
     detail = compute_retrieval_confidence([0.36, 0.35], THRESHOLD, TOP_N)
 
     assert detail.result < 0.40
+
+
+# ── Stage 2: Grounding-/Citation-Check (T-19) ───────────────────────────────
+
+
+def test_every_sentence_backed_is_full_coverage() -> None:
+    detail = check_citations(
+        "Der EU AI Act regelt Hochrisiko-Systeme [1]. Er gilt ab 2026 [2].", CONTEXT_SIZE
+    )
+
+    assert detail.coverage == 1.0
+    assert (detail.segments, detail.covered) == (2, 2)
+    assert detail.referenced == (1, 2)
+    assert detail.valid is True
+
+
+def test_an_unbacked_sentence_halves_the_coverage() -> None:
+    detail = check_citations(
+        "Erste Aussage mit einem Beleg [1]. Zweite Aussage ganz ohne jeden Beleg.", CONTEXT_SIZE
+    )
+
+    assert detail.coverage == 0.5
+    assert (detail.segments, detail.covered) == (2, 1)
+
+
+def test_an_answer_without_any_reference_has_no_coverage() -> None:
+    """AK 1: an answer that cites nothing carries no source reference at all."""
+    detail = check_citations(
+        "Der EU AI Act regelt Hochrisiko-Systeme umfassend und im Detail.", CONTEXT_SIZE
+    )
+
+    assert detail.coverage == 0.0
+    assert detail.referenced == ()
+    # Still "valid": nothing was invented, there is simply nothing to check.
+    # The coverage threshold is what suppresses this one.
+    assert detail.valid is True
+
+
+def test_a_reference_past_the_context_is_fabricated() -> None:
+    """AK 2: [7] out of five delivered chunks points at a source that never existed."""
+    detail = check_citations("Das steht so im Dokument [7].", CONTEXT_SIZE)
+
+    assert detail.valid is False
+    assert detail.fabricated == (7,)
+
+
+def test_the_digit_count_does_not_decide_validity() -> None:
+    """Regression, review of PR #86: a bounded pattern let "[2026]" through.
+
+    The numbers are positional indices into the context list — 1..n, five by
+    default — so a four-digit bracket is exactly as invalid as a two-digit one.
+    While the pattern was bounded to three digits, "[2026]" matched nothing at
+    all: neither reference nor fabrication, `valid` stayed True, and the answer
+    shipped carrying a citation that pointed nowhere.
+    """
+    two_digits = check_citations("Der Anhang nennt weitere Ausnahmen dazu [12].", CONTEXT_SIZE)
+    four_digits = check_citations("Der Anhang nennt weitere Ausnahmen dazu [2026].", CONTEXT_SIZE)
+
+    assert two_digits.valid is False
+    assert four_digits.valid is False
+    assert four_digits.fabricated == (2026,)
+
+
+def test_a_mixed_bracket_keeps_the_legal_index_visible() -> None:
+    """"[1, 2345]" used to match nothing, taking the legitimate 1 down with it."""
+    detail = check_citations("Das ergibt sich aus zwei Stellen [1, 2345].", CONTEXT_SIZE)
+
+    assert detail.referenced == (1,)
+    assert detail.fabricated == (2345,)
+    assert detail.valid is False
+
+
+def test_reference_zero_is_fabricated() -> None:
+    """The numbering starts at 1, so [0] is not an off-by-one to be forgiven."""
+    detail = check_citations("Das steht so im Dokument [0].", CONTEXT_SIZE)
+
+    assert detail.valid is False
+
+
+def test_a_fabricated_reference_backs_nothing() -> None:
+    """An invented source must not count as a backing, on top of invalidating."""
+    detail = check_citations(
+        "Erste Aussage mit gutem Beleg [1]. Zweite Aussage mit erfundenem Beleg [9].",
+        CONTEXT_SIZE,
+    )
+
+    assert detail.coverage == 0.5  # the [9] segment counts as unbacked
+    assert detail.referenced == (1,)
+    assert detail.fabricated == (9,)
+    assert detail.valid is False
+
+
+def test_a_fabricated_reference_counts_from_a_segment_too_short_to_score() -> None:
+    """An invented source is a model failure wherever it stands."""
+    detail = check_citations("Eine erste, ausreichend lange Aussage [1].\nNein [9]", CONTEXT_SIZE)
+
+    assert detail.coverage == 1.0  # the short fragment never entered the count
+    assert detail.valid is False
+
+
+def test_multiple_references_on_one_statement() -> None:
+    detail = check_citations("Das ergibt sich aus mehreren Stellen [1][3].", CONTEXT_SIZE)
+
+    assert detail.coverage == 1.0
+    assert detail.referenced == (1, 3)
+
+
+def test_the_comma_form_is_tolerated_and_validated_per_index() -> None:
+    """[1, 2] is not what the prompt asks for, but each index is still checked."""
+    backed = check_citations("Das ergibt sich aus zwei Stellen [1, 2].", CONTEXT_SIZE)
+    assert backed.referenced == (1, 2)
+    assert backed.valid is True
+
+    invented = check_citations("Das ergibt sich aus zwei Stellen [1, 9].", CONTEXT_SIZE)
+    assert invented.fabricated == (9,)
+    assert invented.valid is False
+
+
+def test_a_non_numeric_bracket_is_neither_a_reference_nor_a_fabrication() -> None:
+    """"[sic]" is punctuation; reading it as an invented source would suppress prose."""
+    detail = check_citations("Die Vorschrift nennt das [sic] ausdruecklich so [1].", CONTEXT_SIZE)
+
+    assert detail.valid is True
+    assert detail.referenced == (1,)
+    assert detail.coverage == 1.0
+
+
+def test_german_abbreviations_do_not_split_a_sentence() -> None:
+    """Without the abbreviation list this is five segments, four of them unbacked."""
+    detail = check_citations(
+        "Gemaess Art. 5 Abs. 2 ist z. B. Social Scoring untersagt [1].", CONTEXT_SIZE
+    )
+
+    assert detail.segments == 1
+    assert detail.coverage == 1.0
+
+
+def test_a_reference_behind_the_full_stop_still_backs_its_claim() -> None:
+    """Models write "Aussage. [1]"; the [1] belongs to the sentence before it."""
+    detail = check_citations(
+        "Der Act regelt die Aufsicht nicht abschliessend. [1] Weitere Angaben fehlen [2].",
+        CONTEXT_SIZE,
+    )
+
+    assert (detail.segments, detail.covered) == (2, 2)
+    assert detail.coverage == 1.0
+
+
+def test_each_bullet_is_its_own_segment() -> None:
+    detail = check_citations(
+        "- Verbotene Praktiken sind abschliessend geregelt [1]\n"
+        "- Hochrisiko-Systeme brauchen eine Konformitaetsbewertung",
+        CONTEXT_SIZE,
+    )
+
+    assert (detail.segments, detail.covered) == (2, 1)
+    assert detail.coverage == 0.5
+
+
+def test_a_heading_neither_helps_nor_hurts_the_coverage() -> None:
+    """A structural fragment is not a claim, so it must not count as unbacked."""
+    detail = check_citations(
+        "Zusammenfassung\nDer Act regelt Hochrisiko-Systeme umfassend [1].", CONTEXT_SIZE
+    )
+
+    assert (detail.segments, detail.covered) == (1, 1)
+    assert detail.coverage == 1.0
+
+
+def test_an_answer_of_nothing_but_fragments_has_no_coverage() -> None:
+    """Fail-closed: no substantive segment means nothing was verifiably answered."""
+    short = " ".join(["Wort"] * (MIN_SEGMENT_WORDS - 1))
+    detail = check_citations(f"{short} [1]", CONTEXT_SIZE)
+
+    assert detail.segments == 0
+    assert detail.coverage == 0.0
+
+
+def test_an_empty_answer_has_no_coverage() -> None:
+    detail = check_citations("", CONTEXT_SIZE)
+
+    assert (detail.segments, detail.covered, detail.coverage) == (0, 0, 0.0)
+    assert detail.valid is True
+
+
+def test_a_bullets_own_leading_reference_stays_with_its_bullet() -> None:
+    """A line break is a segment boundary, so nothing moves across one.
+
+    Regression: the trailing-reference repair used to run over the flattened
+    list and pulled each bullet's "[n]" onto the bullet above it, leaving the
+    last one unbacked — two fully cited bullets came out at 0.5, exactly on the
+    seeded threshold.
+    """
+    detail = check_citations(
+        "- [1] Verbotene Praktiken sind abschliessend geregelt\n"
+        "- [2] Hochrisiko-Systeme brauchen eine Konformitaetsbewertung",
+        CONTEXT_SIZE,
+    )
+
+    assert (detail.segments, detail.covered) == (2, 2)
+    assert detail.coverage == 1.0
+
+
+def test_a_single_uppercase_letter_still_ends_a_sentence() -> None:
+    """Regression, and it was the fail-open direction.
+
+    "Anhang A." is not an abbreviation. Reading it as one glued the next
+    sentence on and let *its* citation back the unbacked claim in front of it.
+    """
+    detail = check_citations(
+        "Die Pflicht gilt fuer Anhang A. Weitere Pflichten folgen daraus [1].", CONTEXT_SIZE
+    )
+
+    assert detail.segments == 2
+    assert detail.coverage == 0.5
+
+
+def test_the_letter_pair_abbreviations_still_hold_a_sentence_together() -> None:
+    """The counterpart to the test above: "z. B." must not split."""
+    for answer in (
+        "Verboten ist z. B. Social Scoring nach diesen Vorgaben [1].",
+        "Das ist i. S. v. Artikel 3 zu verstehen und gilt so [1].",
+        "Betroffen sind u. a. Anbieter und Betreiber solcher Systeme [1].",
+    ):
+        detail = check_citations(answer, CONTEXT_SIZE)
+
+        assert detail.segments == 1, answer
+        assert detail.coverage == 1.0, answer
+
+
+def test_the_abbreviations_shared_with_the_chunker_do_not_split() -> None:
+    """Vocabulary carried over from chunking.py, where it was counted on the corpus.
+
+    The two modules keep separate lists on purpose — chunking reads PDF text
+    layers, this reads generated answers — but a form attested in one is worth
+    having in the other. A missing abbreviation splits one sentence in two and
+    leaves the second half unbacked: fail-closed, yet it suppresses a correct
+    answer over a full stop that never ended a sentence.
+    """
+    for answer in (
+        "Betroffen sind Anbieter, Betreiber etc. und sie muessen dies beachten [1].",
+        "Massgebend ist Art. 5 Bst. b der Richtlinie und daraus folgt dies [1].",
+        "Der Ablauf ist in Abb. 3 dargestellt und dort genauer erlaeutert [1].",
+    ):
+        detail = check_citations(answer, CONTEXT_SIZE)
+
+        assert detail.segments == 1, answer
+        assert detail.coverage == 1.0, answer
