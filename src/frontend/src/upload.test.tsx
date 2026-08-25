@@ -6,7 +6,7 @@
  * that nothing does.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { render, screen, cleanup, fireEvent, act, waitFor } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, act, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom/vitest";
 import Upload, { MAX_UPLOAD_BYTES, validateFile } from "./components/Upload";
@@ -28,7 +28,11 @@ function file(name: string, size = 32): File {
 const OVERSIZED = MAX_UPLOAD_BYTES + 1;
 
 /** Typed against the spec, so a document the API could never return fails here. */
-function doc(filename: string, status: Document["status"]): Document {
+function doc(
+  filename: string,
+  status: Document["status"],
+  uploaded_by: string | null = null,
+): Document {
   return {
     id: `id-${filename}`,
     filename,
@@ -38,6 +42,7 @@ function doc(filename: string, status: Document["status"]): Document {
     error_message: null,
     created_at: "2026-08-15T10:00:00Z",
     updated_at: "2026-08-15T10:00:00Z",
+    uploaded_by,
   };
 }
 
@@ -260,6 +265,70 @@ describe("Upload", () => {
     });
 
     expect(screen.queryByText("korpus.pdf")).not.toBeInTheDocument();
+  });
+
+  // #92: a document of the same name is replaced (T-15), so the upload asks
+  // first — the collision comes from the loaded list, the replacement notice
+  // from the 200 the API answers with.
+  describe("Ersetzungs-Rückfrage", () => {
+    it("asks before overwriting a document of the same name and can cancel", async () => {
+      api.route("get", "/api/documents", 200, [doc("korpus.pdf", "available", user.email)]);
+      show();
+      await screen.findByText("korpus.pdf");
+
+      drop([file("korpus.pdf")]);
+
+      const dialog = await screen.findByRole("dialog");
+      expect(within(dialog).getByText(/korpus\.pdf/)).toBeInTheDocument();
+
+      await userEvent.click(within(dialog).getByRole("button", { name: /abbrechen/i }));
+
+      // Cancelled: nothing goes over the wire, and the skip stays visible.
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(api.count("post", "/api/documents")).toBe(0);
+      expect(await screen.findByText(/Ersetzung abgebrochen/)).toBeInTheDocument();
+    });
+
+    it("uploads and reports the replacement once confirmed", async () => {
+      api.route("get", "/api/documents", 200, [doc("korpus.pdf", "available", user.email)]);
+      api.route("post", "/api/documents", 200, doc("korpus.pdf", "pending", user.email));
+      show();
+      await screen.findByText("korpus.pdf");
+
+      drop([file("korpus.pdf")]);
+      await userEvent.click(
+        within(await screen.findByRole("dialog")).getByRole("button", { name: /ersetzen/i }),
+      );
+
+      await waitFor(() => expect(api.count("post", "/api/documents")).toBe(1));
+      expect(await screen.findByText(/ersetzt das bestehende Dokument/)).toBeInTheDocument();
+    });
+
+    it("marks a document uploaded by someone else", async () => {
+      api.route("get", "/api/documents", 200, [
+        doc("korpus.pdf", "available", "andere@learnflow.ch"),
+      ]);
+      show();
+      await screen.findByText("korpus.pdf");
+
+      drop([file("korpus.pdf")]);
+
+      const dialog = await screen.findByRole("dialog");
+      expect(within(dialog).getByText(/anderen Person/)).toBeInTheDocument();
+      expect(within(dialog).getByText(/andere@learnflow\.ch/)).toBeInTheDocument();
+    });
+
+    it("does not prompt when the filename is new", async () => {
+      // List already holds one document; the dropped file has a different name.
+      api.route("get", "/api/documents", 200, [doc("bestand.pdf", "available", user.email)]);
+      show();
+      await screen.findByText("bestand.pdf");
+
+      drop([file("neu.pdf")]);
+
+      await waitFor(() => expect(api.count("post", "/api/documents")).toBe(1));
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
   });
 
   // AK 1 of #23 asks for both ways in. Every test above goes through the drop,
