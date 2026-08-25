@@ -134,6 +134,10 @@ class Answer(Base):
     confidence_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     citation_coverage: Mapped[float | None] = mapped_column(Float, nullable=True)
     retrieval_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # NULL means stage 3 never ran, which is the normal case — it only fires
+    # inside the trigger band (ADR-008, T-25). A default of false would make
+    # every skipped self-check look like a failed one.
+    self_check_passed: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     suppressed: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

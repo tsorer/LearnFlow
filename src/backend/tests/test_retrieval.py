@@ -22,6 +22,10 @@ CONFIG = PipelineConfig(
     similarity_threshold=0.35,
     min_retrieval_confidence=0.40,
     min_citation_coverage=0.50,
+    # Stage 3 is out of scope here; the band is carried only because
+    # PipelineConfig reads the whole config table in one go.
+    self_check_band_low=0.50,
+    self_check_band_high=0.75,
     retrieval_top_k=20,
     context_top_n=2,
     rrf_k=RRF_K,

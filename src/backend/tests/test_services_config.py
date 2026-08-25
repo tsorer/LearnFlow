@@ -11,6 +11,8 @@ from app.services.config import (
     DEFAULT_MIN_RETRIEVAL_CONFIDENCE,
     DEFAULT_RETRIEVAL_TOP_K,
     DEFAULT_RRF_K,
+    DEFAULT_SELF_CHECK_BAND_HIGH,
+    DEFAULT_SELF_CHECK_BAND_LOW,
     DEFAULT_SIMILARITY_THRESHOLD,
     ConfigurationError,
     read_confidence_thresholds,
@@ -154,6 +156,8 @@ async def test_pipeline_config_falls_back_to_the_seeded_start_values() -> None:
     assert config.retrieval_top_k == DEFAULT_RETRIEVAL_TOP_K
     assert config.context_top_n == DEFAULT_CONTEXT_TOP_N
     assert config.rrf_k == DEFAULT_RRF_K
+    assert config.self_check_band_low == DEFAULT_SELF_CHECK_BAND_LOW
+    assert config.self_check_band_high == DEFAULT_SELF_CHECK_BAND_HIGH
 
 
 @pytest.mark.parametrize("value", ["0", "-3", "viele", "2.5"])
@@ -200,3 +204,59 @@ async def test_pipeline_config_is_read_fresh_on_every_call() -> None:
     after = await read_pipeline_config(db)
 
     assert (before.similarity_threshold, after.similarity_threshold) == (0.35, 0.9)
+
+
+# ── Self-Check-Grenzband (ADR-008 Stufe 3, T-25) ────────────────────────────
+
+
+async def test_reads_the_self_check_band_from_the_database() -> None:
+    db = make_db((("self_check_band_low", "0.4"), ("self_check_band_high", "0.8")))
+
+    config = await read_pipeline_config(db)
+
+    assert (config.self_check_band_low, config.self_check_band_high) == (0.4, 0.8)
+
+
+async def test_an_inverted_self_check_band_raises() -> None:
+    """An inverted band is not a milder setting but an empty one.
+
+    No score is both at or above `high` and below `low`, so stage 3 would never
+    run — and nothing would say so. Guarded by trg_config_self_check_band_order
+    at write time; this is the reader's backstop for a write past the database.
+    """
+    db = make_db((("self_check_band_low", "0.9"), ("self_check_band_high", "0.5")))
+
+    with pytest.raises(ConfigurationError, match="self_check_band_low"):
+        await read_pipeline_config(db)
+
+
+async def test_an_equal_self_check_band_is_allowed() -> None:
+    """low == high is stage 3 switched off — an operator decision, not an error."""
+    db = make_db((("self_check_band_low", "0.6"), ("self_check_band_high", "0.6")))
+
+    config = await read_pipeline_config(db)
+
+    assert config.self_check_band_low == config.self_check_band_high == 0.6
+
+
+@pytest.mark.parametrize("value", ["0,5", "hoch", "1.5", "-0.1"])
+async def test_an_unusable_self_check_band_value_raises(value: str) -> None:
+    """Same rule as every other threshold: a broken row must not fall back."""
+    with pytest.raises(ConfigurationError, match="self_check_band_low"):
+        await read_pipeline_config(make_db((("self_check_band_low", value),)))
+
+
+def test_the_trigger_band_starts_where_suppression_stops() -> None:
+    """Review finding: a gap between the two let the weakest answers skip stage 3.
+
+    With `medium` at 0.45 and the band starting at 0.50, a score in between was
+    delivered *and* never verified — and those are the least well-founded answers
+    the pipeline ships at all. Fail-open in the one range ADR-008 cares most
+    about.
+
+    Not a coupling the database enforces: the two keys are calibrated against
+    different questions, and an operator may deliberately narrow the band to save
+    calls. Their *start values* still have to agree, which is what this pins.
+    """
+    assert DEFAULT_SELF_CHECK_BAND_LOW == DEFAULT_CONFIDENCE_THRESHOLD_MEDIUM
+    assert DEFAULT_SELF_CHECK_BAND_HIGH == DEFAULT_CONFIDENCE_THRESHOLD_HIGH
