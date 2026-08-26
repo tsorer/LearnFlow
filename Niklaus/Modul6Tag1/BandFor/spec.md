@@ -1,104 +1,92 @@
-# Spec – band_for(score, medium, high)
+# Spec: band_for
 
-Referenz: ADR-008  
-Autor: niklaus.luethi@lestra.ch  
-Datum: 2026-08-26
+Referenz: ADR-008
 
 ---
 
-## Zweck
+## 1. Funktionssignatur
 
-Ordnet einen Konfidenz-Score einem von drei Bändern zu:
-`'hoch'` | `'mittel'` | `'niedrig'`
-
----
-
-## Signatur
-
-```
-band_for(score: float, medium: float, high: float) -> str
+```python
+def band_for(score: float, medium: float, high: float) -> str
 ```
 
 ---
 
-## Parameter
+## 2. Parameter-Semantik
 
-| Parameter | Typ   | Bedeutung                                              |
-|-----------|-------|--------------------------------------------------------|
-| `score`   | float | Konfidenz-Score des Modells (typisch 0.0 – 1.0)        |
-| `medium`  | float | Untere Schwelle: ab hier gilt der Score als 'mittel'   |
-| `high`    | float | Obere Schwelle: ab hier gilt der Score als 'hoch'      |
-
----
-
-## Rückgabewert
-
-| Rückgabe    | Bedeutung                          |
-|-------------|------------------------------------|
-| `'hoch'`    | score ≥ high                       |
-| `'mittel'`  | medium ≤ score < high              |
-| `'niedrig'` | score < medium                     |
+| Parameter | Typ   | Bedeutung |
+|-----------|-------|-----------|
+| `score`   | float | Konfidenz-Score, nominell im Bereich 0.0–1.0 |
+| `medium`  | float | Untere Schwelle — ab hier gilt `'mittel'` |
+| `high`    | float | Obere Schwelle — ab hier gilt `'hoch'` |
 
 ---
 
-## Klassifikationsregel (Pseudo-Logik)
+## 3. Rückgabewerte und Bedingungen
 
-```
-wenn score >= high   → 'hoch'
-wenn score >= medium → 'mittel'
-sonst               → 'niedrig'
-```
+| Bedingung                                    | Rückgabe    |
+|----------------------------------------------|-------------|
+| `score >= high`                              | `'hoch'`    |
+| `score >= medium` und `score < high`         | `'mittel'`  |
+| `score < medium`                             | `'niedrig'` |
 
----
-
-## Grenzfälle mit konkreten Zahlen
-
-Beispielhafte Schwellen: `medium = 0.5`, `high = 0.8`
-
-| score  | Erwartet    | Begründung                              |
-|--------|-------------|-----------------------------------------|
-| 1.0    | `'hoch'`    | klar über high                          |
-| 0.8    | `'hoch'`    | **exakt auf high** → inklusive Grenze   |
-| 0.79   | `'mittel'`  | knapp unter high                        |
-| 0.5    | `'mittel'`  | **exakt auf medium** → inklusive Grenze |
-| 0.49   | `'niedrig'` | knapp unter medium                      |
-| 0.0    | `'niedrig'` | Minimalwert                             |
-| -0.1   | `'niedrig'` | score unter 0 → kein Sonderfall         |
-| 1.5    | `'hoch'`    | score über 1 → kein Sonderfall          |
+Die Auswertung erfolgt von oben nach unten (first-match).
 
 ---
 
-## Verhalten bei ungültigen Schwellen
+## 4. Randfälle
 
-### Fall 1 – medium >= high (Schwellen invertiert oder gleich)
+### 4.1 Score genau auf Grenzwert
 
-Beispiel: `medium = 0.8`, `high = 0.5`
+- Score **genau auf `high`** (z. B. `score=0.8, medium=0.5, high=0.8`) → `'hoch'`
+  Grenzwert gehoert zum **hoeheren** Band (inklusive untere Schranke des Bandes).
+- Score **genau auf `medium`** (z. B. `score=0.5, medium=0.5, high=0.8`) → `'mittel'`
+  Gleiches Prinzip: Grenzwert gehoert ins hoehere Band.
+- Score **knapp unterhalb `medium`** (z. B. `score=0.4999, medium=0.5, high=0.8`) → `'niedrig'`
 
-- Die Funktion **wirft einen `ValueError`** mit einer aussagekräftigen Meldung,
-  z. B. `"medium muss kleiner als high sein (0.8 >= 0.5)"`.
-- **Kein stilles Fallback**, da invertierte Schwellen immer ein Konfigurationsfehler sind.
+### 4.2 `medium == high`
 
-### Fall 2 – Schwellen sind kein float/int (falscher Typ)
+Wenn beide Schwellen identisch sind (z. B. `medium=0.6, high=0.6`):
+- `score >= 0.6` → `'hoch'` (die `>= high`-Bedingung greift zuerst)
+- `score < 0.6`  → `'niedrig'` (das `'mittel'`-Band hat Breite 0 — es ist unerreichbar)
 
-- Die Funktion **wirft einen `TypeError`**.
-- Beispiel: `band_for(0.6, "mittel", 0.8)` → TypeError.
+### 4.3 Score ausserhalb [0, 1]
 
-### Fall 3 – score ist kein float/int
+Die Funktion **wirft keine Exception** fuer Werte ausserhalb [0, 1]. Die Vergleichslogik gilt unveraendert:
+- `score=1.5, high=0.8` → `'hoch'`
+- `score=-0.1, medium=0.5` → `'niedrig'`
 
-- Ebenfalls **`TypeError`**.
+Bereichsvalidierung ist Aufgabe des Aufrufers.
 
-### Zusammenfassung Fehlerverhalten
+### 4.4 `medium > high` (inkonsistente Schwellen)
 
-| Ungültige Eingabe          | Ausnahme     |
-|----------------------------|--------------|
-| `medium >= high`           | `ValueError` |
-| Schwelle ist kein Zahl-Typ | `TypeError`  |
-| score ist kein Zahl-Typ    | `TypeError`  |
+Kein explizites Fehlerhandling gefordert. Die Funktion wertet die Bedingungen mechanisch aus:
+- Jeder Score, der `>= medium` ist, ist zwingend auch `>= high`, daher greift stets `'hoch'` oder `'niedrig'`.
+- Das `'mittel'`-Band ist bei `medium > high` unerreichbar.
+
+Aufrufende Schicht traegt Verantwortung fuer konsistente Schwellen.
 
 ---
 
-## Nicht im Scope
+## 5. Unit-Test-Anforderungen
 
-- Logging oder Metriken
-- Konfiguration aus Dateien/Umgebungsvariablen
-- Mehr als drei Bänder
+Mindestens die folgenden **5 Testfaelle** muessen abgedeckt sein:
+
+| #  | Beschreibung                          | Eingaben                              | Erwartet    |
+|----|---------------------------------------|---------------------------------------|-------------|
+| T1 | Klarer `'hoch'`-Fall                  | `score=0.9, medium=0.5, high=0.8`    | `'hoch'`    |
+| T2 | Klarer `'mittel'`-Fall                | `score=0.6, medium=0.5, high=0.8`    | `'mittel'`  |
+| T3 | Klarer `'niedrig'`-Fall               | `score=0.3, medium=0.5, high=0.8`    | `'niedrig'` |
+| T4 | Score **genau auf `high`**            | `score=0.8, medium=0.5, high=0.8`    | `'hoch'`    |
+| T5 | Score **genau auf `medium`**          | `score=0.5, medium=0.5, high=0.8`    | `'mittel'`  |
+| T6 | `medium == high`, Score auf Schwelle  | `score=0.6, medium=0.6, high=0.6`    | `'hoch'`    |
+| T7 | Score knapp unter `medium`            | `score=0.4999, medium=0.5, high=0.8` | `'niedrig'` |
+
+T1–T5 sind Pflicht; T6 und T7 werden empfohlen.
+
+---
+
+## 6. Abhängigkeiten
+
+- **Keine externen Bibliotheken.** Ausschliesslich Python-Standardbibliothek.
+- Reine Funktion: keine I/O, keine Seiteneffekte, kein globaler Zustand.
