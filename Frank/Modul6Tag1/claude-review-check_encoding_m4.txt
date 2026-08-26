@@ -1,0 +1,61 @@
+mach ein code-review von check_encoding_m4.py
+
+I'll find and review the file.
+
+Ausgeführt 2 Befehle
+
+Let me verify a couple of behaviors empirically before reporting.
+
+Ausgeführt 4 Befehle
+
+Review von check_encoding_m4.py — Befunde nach Schwere, alle am Code verifiziert.
+
+1. Stille Datenzerstörung durch den latin-1-Fallback (kritisch)
+
+check_encoding_m4.py:89 — latin-1 bildet jedes Byte 0x00–0xFF ab und schlägt darum nie fehl. Die Detection kann also nicht "unknown" zurückgeben, und jede Datei in einem nicht abgedeckten Encoding (Shift-JIS, KOI8-R, GBK, UTF-16 ohne BOM …) wird als latin-1 gelesen und als Mojibake zurückgeschrieben. Verifiziert:
+
+sjis.txt  b'\x93\xfa\x96{'  ->  b'\xe2\x80\x9c\xc3\xba\xe2\x80\x93{'
+
+Verschärfend: das Skript operiert per Definition auf uncommitteten Dateien — es gibt kein git checkout zurück. Dazu kommt, dass check_encoding_m4.py:118 mit open(..., "w") in-place trunkiert; ein Abbruch zwischen Truncate und Write löscht die Datei.
+
+Minimal: Plausibilitätsprüfung vor dem Schreiben statt blindem Fallback, plus atomarer Write.
+
+decoded = raw.decode(encoding)
+if encoding in ("cp1252", "latin-1") and sum(
+    c in "\ufffd\x80\x81\x8d\x8f\x90\x9d" or 0xC0 <= ord(c) <= 0xFF for c in decoded
+) > len(decoded) * 0.3:
+    raise ValueError("Fallback-Decoding unplausibel — manuell prüfen")
+tmp = file_path.with_suffix(file_path.suffix + ".tmp")
+tmp.write_text(content, encoding="utf-8", newline="")
+os.replace(tmp, file_path)
+
+Und ein --dry-run-Flag als Default-Modus wäre für ein Massen-Rewrite-Tool angemessen.
+
+2. Der gesamte UTF-16/UTF-32-Pfad ist toter Code
+
+check_encoding_m4.py:150 ruft is_binary() vor der Detection auf. UTF-16/UTF-32 enthalten per Konstruktion NUL-Bytes, werden also immer als binär aussortiert:
+
+utf16+BOM detect   : ('utf-16-le', True)
+utf16+BOM is_binary: True   <- übersprungen, bevor detect je läuft
+
+Damit sind die Zweige in check_encoding_m4.py:71-77 und das \ufeff-Stripping in check_encoding_m4.py:114 im main()-Flow unerreichbar. Entweder is_binary() BOM-aware machen (BOM zuerst prüfen, dann erst auf NUL testen) oder die UTF-16/32-Logik ersatzlos streichen — der jetzige Zustand suggeriert eine Fähigkeit, die es nicht gibt.
+
+3. Crash bei fehlerhaftem Scope-Argument
+
+subprocess.run(cwd=scope) in check_encoding_m4.py:25 wirft NotADirectoryError, wenn sys.argv[1] eine Datei oder ein nicht existierender Pfad ist. check_encoding_m4.py:132 fängt nur CalledProcessError → ungefilterter Traceback:
+
+scope=file    -> NotADirectoryError [WinError 267]
+scope=missing -> NotADirectoryError [WinError 267]
+
+Ein if not scope.is_dir(): print(...); return 1 am Anfang von main() genügt.
+
+4. Kleinere Punkte
+check_encoding_m4.py:89: iso-8859-1 ist ein Alias von latin-1 (beide → iso8859-1) und damit unerreichbar; LookupError in check_encoding_m4.py:94 kann bei hartcodierten gültigen Namen nie auftreten.
+detect_encoding_and_bom() wird pro Datei zweimal aufgerufen (:156 und intern in :103) und liest die Datei je Versuch komplett — bis zu 8 Volllesungen pro Datei. convert_to_utf8_no_bom(path, encoding, has_bom) als Parameter durchreichen.
+repo_root wird aus uncommitted_files() zurückgegeben, in main() aber nie benutzt (:131).
+check_encoding_m4.py:166: f-String ohne Platzhalter (ruff F541).
+Was sauber ist
+
+Die Git-Anbindung ist solide: -z statt Zeilentrennung, korrektes Überspringen der Source-Seite bei Rename/Copy (:43), is_file() filtert Deletes und Verzeichnisse, newline="" auf beiden Seiten erhält CRLF. Die Discovery lief gegen das Repo fehlerfrei (15 Dateien, Root korrekt aufgelöst). Auch sys.stdout.reconfigure ist auf einer Windows-Konsole mit den Emoji-Ausgaben notwendig und richtig gesetzt.
+
+Soll ich Punkt 1–3 direkt umsetzen? (Datei liegt in Frank/ und ist untracked — kein Branch/PR nötig, sofern du das so willst.)

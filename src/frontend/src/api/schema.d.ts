@@ -743,13 +743,13 @@ export interface components {
             /** @description true, wenn eine Stufe der Pipeline unterdrückt hat */
             suppressed: boolean;
             /**
-             * @description Welche Stufe unterdrückt hat (ADR-008). Geschlossene Menge, damit das Frontend jeden Wert beschriften kann statt den technischen Schlüssel anzuzeigen; T-19 und T-25 ergänzen hier `citation_coverage` und `self_check`.
+             * @description Welche Stufe unterdrückt hat (ADR-008). Geschlossene Menge, damit das Frontend jeden Wert beschriften kann statt den technischen Schlüssel anzuzeigen. Die Reihenfolge der Werte ist die Reihenfolge der Stufen; unterdrückt hat immer die erste, die nicht passiert. Stufe 2 unterscheidet zwei Fälle, weil sie operativ Verschiedenes bedeuten: `citation_coverage` ist eine Schwellenfrage und über `min_citation_coverage` kalibrierbar, `citation_invalid` ist eine erfundene Referenz und damit ein Modellfehler, der unabhängig von jeder Schwelle unterdrückt. `confidence_band` heisst, der Komposit-Score liegt unter `confidence_threshold_medium` (T-23), `self_check` heisst, die LLM-Verifikation hat ungedeckte Aussagen gemeldet oder kein lesbares Urteil geliefert (T-25).
              * @enum {string|null}
              */
-            suppression_reason?: "retrieval_gate" | "retrieval_confidence" | "generation_refused" | "generation_truncated" | "configuration_error" | null;
+            suppression_reason?: "retrieval_gate" | "retrieval_confidence" | "generation_refused" | "generation_truncated" | "citation_coverage" | "citation_invalid" | "confidence_band" | "self_check" | "configuration_error" | null;
             /** @description Antworttext, oder die Weiss-ich-nicht-Meldung bei Unterdrückung */
             message?: string | null;
-            /** @description Vorschlag zur Präzisierung der Frage */
+            /** @description Vorschlag zur Präzisierung der Frage (Requirements §71, US-02). Nur bei `suppressed`, und je Unterdrückungsgrund ein anderer Text: nach «Weiss ich nicht» soll der Hinweis zum nächsten sinnvollen Schritt führen, und der ist bei einer zu breiten Frage ein anderer als bei einer erfundenen Referenz. null bei einer ausgelieferten Antwort — dort gibt es nichts zu präzisieren. */
             refinement_hint?: string | null;
             citations: components["schemas"]["Citation"][];
             confidence?: components["schemas"]["ConfidenceInfo"] | null;
@@ -770,12 +770,23 @@ export interface components {
         };
         /** @description Komposit-Score und seine Bestandteile (ADR-008) */
         ConfidenceInfo: {
-            /** Format: float */
+            /**
+             * Format: float
+             * @description Der angezeigte Komposit-Score (ADR-008, T-23): gewichtete Kombination aus `retrieval_score` und `citation_coverage`. Lief Stufe 2 nicht, ist er die Retrieval-Konfidenz allein — eine Antwort, die es nie gab, hat keine Belegquote, die in den Score eingehen könnte. Die Herleitung steht in `debug.formula_breakdown`.
+             */
             score: number;
             /** Format: float */
             retrieval_score: number;
-            /** Format: float */
+            /**
+             * Format: float
+             * @description Anteil der Antwort-Segmente mit gültigem Beleg (ADR-008, Stufe 2). 0.0 heisst auch «Stufe 2 ist nicht gelaufen» — eine vor der Generierung unterdrückte Antwort hat keine Segmente, die belegt sein könnten. Ob die Stufe lief, steht in `debug.stages`.
+             */
             citation_coverage: number;
+            /**
+             * @description Das Band, in das `score` fällt (ADR-008, US-02): `hoch` ab `confidence_threshold_high`, `mittel` ab `confidence_threshold_medium`, darunter `niedrig`. `mittel` ist die Anzeige «Eingeschränkt belegt», `niedrig` liefert immer eine unterdrückte Antwort. Lief Stufe 2 nicht, beschreibt das Band die Retrieval-Konfidenz allein und damit die gefundenen Stellen, nicht eine beurteilte Antwort — das gilt für jede Unterdrückung vor der Citation-Prüfung, auch für `generation_refused` und `generation_truncated`, wo bereits generiert wurde.
+             * @enum {string}
+             */
+            band: "hoch" | "mittel" | "niedrig";
         };
         ChunkDebugInfo: {
             filename: string;
@@ -788,8 +799,9 @@ export interface components {
             dense_rank: number;
             content: string;
         };
-        /** @description Eine Stufe der Defense-in-Depth-Pipeline (ADR-008) */
+        /** @description Eine Stufe der Defense-in-Depth-Pipeline (ADR-008), in Ausführungsreihenfolge. Übersprungene Stufen bleiben in der Liste mit `ran: false` — dass eine Stufe nicht lief, ist die Aussage, nicht ihre Abwesenheit. */
         StageInfo: {
+            /** @description Stabiler Schlüssel der Stufe, den die Admin-Ansicht zum Einordnen der LLM-Aufrufe benutzt: `retrieval_gate`, `retrieval_confidence`, `citation_coverage`, `confidence_band`, `self_check`. */
             id: string;
             name: string;
             ran: boolean;
@@ -827,9 +839,12 @@ export interface components {
             min_retrieval_confidence: number;
             /** Format: float */
             min_citation_coverage: number;
+            /** @description Ob Stufe 3 gelaufen ist (ADR-008, T-25). false ist der Normalfall: die Stufe kostet einen zweiten LLM-Aufruf und wird nur ausgelöst, wenn der Komposit-Score im Grenzband zwischen `self_check_band_low` und `self_check_band_high` liegt. */
             self_check_ran: boolean;
+            /** @description Das Urteil der Verifikation im Wortlaut des Modells, null wenn die Stufe nicht lief. Bewusst der Rohtext und keine Kennzahl: ADR-008 verwirft die LLM-Selbsteinschätzung als Mass, und was die Stufe entschieden hat, steht im `self_check`-Eintrag von `stages`. */
             self_check_verdict?: string | null;
             retrieval_detail: components["schemas"]["RetrievalDetail"];
+            /** @description Die für diese Anfrage gelesenen `config`-Werte, inklusive der Schwellen von Stufen, die nicht gelaufen sind — wer kalibriert, braucht alle, nicht nur die ausgelösten. Enthält neben den Retrieval-Parametern die Bandgrenzen `confidence_threshold_high`, `confidence_threshold_medium` (T-23) sowie `self_check_band_low` und `self_check_band_high` (T-25). */
             params_used: {
                 [key: string]: number | null;
             };

@@ -1,0 +1,78 @@
+(adai) PS C:\Projekte\BFH\LearnFlow\Reto\Modul6Tag1> python pge_orchestrator.py
+=== PLANNER ===
+## Spec: `ist_upload_gueltig(dateiname: str, groesse_bytes: int) -> tuple[bool, str]`
+
+---
+
+### Inputs
+
+| Parameter | Typ | Bedeutung |
+|---|---|---|
+| `dateiname` | `str` | Vollständiger Dateiname inkl. Endung (z. B. `"Skript.PDF"`, `""`, `"archiv.tar.gz"`) |
+| `groesse_bytes` | `int` | Dateigrösse in Bytes; darf 0 oder negativ sein (Edge Case) |
+
+---
+
+### Outputs
+
+`tuple[bool, str]`
+
+| Slot | Be
+
+=== GENERATOR (Runde 1) ===
+```python
+from pathlib import Path
+
+ERLAUBTE_ENDUNGEN = {".pdf", ".docx", ".md"}
+MAX_GROESSE_BYTES = 10 * 1024 * 1024
+
+
+def ist_upload_gueltig(dateiname: str, groesse_bytes: int) -> tuple[bool, str]:
+    endung = Path(dateiname).suffix.lower()
+    if endung not in ERLAUBTE_ENDUNGEN:
+        return (False, "Dateiformat nicht erlaubt. Erlaubt sind: .pdf, .docx, .md")
+
+    if groesse_bytes <= 0:
+
+
+=== EVALUATOR (Runde 1, pytest) ===
+FAIL:
+                                                                    [100%]
+================================== FAILURES ===================================
+___________________ test_negative_groesse_wirft_valueerror ____________________
+
+    def test_negative_groesse_wirft_valueerror():
+        """M4: NEUE Anforderung, die der aktuelle Code noch nicht erfuellt --
+        soll den Generator im Orchestrator zu einer Nachbesserung zwingen."""
+        import pytest
+>       with pytest.raises(ValueError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+test_mycode.py:30: Failed
+=========================== short test summary info ===========================
+FAILED test_mycode.py::test_negative_groesse_wirft_valueerror - Failed: DID N...
+1 failed, 3 passed in 0.10s
+
+
+=== GENERATOR (Runde 2) ===
+```python
+from pathlib import Path
+
+MAX_BYTES = 10 * 1024 * 1024
+ERLAUBTE_ENDUNGEN = {".pdf", ".docx", ".md"}
+
+
+def ist_upload_gueltig(dateiname: str, groesse_bytes: int) -> tuple[bool, str]:
+    endung = Path(dateiname).suffix.lower()
+    if endung not in ERLAUBTE_ENDUNGEN:
+        return (False, "Dateiformat nicht erlaubt. Erlaubt sind: .pdf, .docx, .md")
+
+    if groesse_bytes < 0:
+        raise
+
+=== EVALUATOR (Runde 2, pytest) ===
+PASS
+
+*** PASS in Runde 2 ***
+(adai) PS C:\Projekte\BFH\LearnFlow\Reto\Modul6Tag1>

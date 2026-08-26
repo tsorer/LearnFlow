@@ -14,8 +14,9 @@ from app.services.config import CONFIDENCE_THRESHOLD_KEYS, PIPELINE_KEYS
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
-# The writable whitelist is exactly the keys migration 0012's CHECK constraint
-# validates — CONFIDENCE_THRESHOLD_KEYS and PIPELINE_KEYS are the same tuples
+# The writable whitelist is exactly the keys the `CHECK` constraint validates
+# (0012, extended by 0014 for the self-check band) — CONFIDENCE_THRESHOLD_KEYS
+# and PIPELINE_KEYS are the same tuples
 # app/services/config.py reads back, so a key added there gets a reader and a
 # write path together. `chunk_size`/`chunk_overlap` are seeded (0007) but stay
 # read-only here: a change only takes effect after a full re-indexing of the
@@ -133,9 +134,10 @@ async def update_config(
         await db.rollback()
         if getattr(exc.orig, "sqlstate", None) != CHECK_VIOLATION_SQLSTATE:
             raise
-        # The confidence band order (medium <= high) spans two rows and is
-        # only enforced at commit by the deferred trigger (migration 0009) --
-        # a request that changes just one of the two can still violate it.
+        # Both band orders -- confidence (medium <= high, migration 0009) and
+        # the self-check trigger band (low <= high, migration 0014) -- span two
+        # rows and are only enforced at commit by their deferred triggers, so a
+        # request that changes just one of a pair can still violate one.
         message = getattr(exc.orig, "message", None) or str(exc.orig)
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=message

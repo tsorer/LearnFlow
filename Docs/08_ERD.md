@@ -88,6 +88,7 @@ erDiagram
         float       confidence_score
         float       citation_coverage
         float       retrieval_confidence
+        boolean     self_check_passed
         boolean     suppressed
         timestamp   created_at
     }
@@ -160,6 +161,8 @@ Konfigurierbare Parameter (ADR-007 · ADR-008 · US-02 · US-06 · US-11):
 | `min_citation_coverage` | `0.50` | Stufe 2 (ADR-008) |
 | `confidence_threshold_high` | `0.75` | Band-Grenze Komposit-Score „Hoch" (ADR-008 · US-02) |
 | `confidence_threshold_medium` | `0.45` | Band-Grenze „Mittel"; darunter unterdrückt (ADR-008 · US-02) |
+| `self_check_band_low` | `0.45` | Untere Grenze des Self-Check-Grenzbands (ADR-008 Stufe 3) |
+| `self_check_band_high` | `0.75` | Obere Grenze; ab hier wird Stufe 3 übersprungen (ADR-008 Stufe 3) |
 | `stale_days` | `90` | US-06 |
 | `rrf_k` | `60` | RRF-Fusion (ADR-007) |
 | `retrieval_top_k` | `20` | Kandidaten je Suche (ADR-007) |
@@ -169,7 +172,10 @@ Konfigurierbare Parameter (ADR-007 · ADR-008 · US-02 · US-06 · US-11):
 
 Die beiden Konfidenz-Bänder sind seit `0009` in der DB validiert (Wert numerisch in [0, 1] per
 `CHECK`, `medium <= high` per aufgeschobenem `CONSTRAINT TRIGGER`) — die Tabelle bleibt generisch
-Key/Value, die Regeln hängen am Key. Begründung: ADR-008, Nachtrag 2026-08-16.
+Key/Value, die Regeln hängen am Key. Begründung: ADR-008, Nachtrag 2026-08-16. `0012` hat den
+`CHECK` auf die Retrieval-Parameter ausgeweitet, `0014` auf das Self-Check-Grenzband — dort mit
+einem zweiten Trigger für `low <= high`, weil ein invertiertes Band Stufe 3 unbemerkt abschaltet
+(ADR-008, Nachtrag 2026-08-22).
 
 ### `feedback`
 Pseudonymisiert — kein `user_id`-Feld (US-03).
@@ -192,3 +198,9 @@ SHOULD-Priorität (US-07 / US-08). Eigenes Issue T-34, nicht im aktuellen Sprint
 | `0007_chunking_config` | `config`: `chunk_size` · `chunk_overlap` | 🔵 T-12 |
 | `0008_confidence_thresholds` | `config`: `confidence_threshold_high` · `confidence_threshold_medium` | 🔵 T-24 |
 | `0009_config_threshold_constraints` | `config`: `CHECK` + `CONSTRAINT TRIGGER` auf den Konfidenz-Bändern | 🔵 #73 |
+| `0010_feedback_answer_id_index` | `feedback`: Index auf `answer_id` | 🔵 T-32 |
+| `0011_feedback_answer_id_unique` | `feedback`: `answer_id` eindeutig — eine Bewertung je Antwort | 🔵 T-32 |
+| `0012_config_pipeline_constraints` | `config`: `CHECK` auf die Retrieval-Parameter ausgeweitet | 🔵 T-17 |
+| `0013_documents_area_filename_unique` | `documents`: `(area, filename)` eindeutig | 🔵 T-15 |
+| `0014_self_check_band` | `config`: `self_check_band_low` · `self_check_band_high` + Bandordnungs-Trigger | 🔵 T-25 |
+| `0015_answers_self_check` | `answers`: `self_check_passed` | 🔵 T-25 |

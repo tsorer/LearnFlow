@@ -96,7 +96,18 @@ class GenerationResult:
 
 def build_prompt(question: str, context: Sequence[RetrievalHit]) -> tuple[str, str]:
     """Render the system and user message. Pure, so the contract stays testable."""
-    sections = "\n\n".join(
+    return SYSTEM_PROMPT, f"Kontext:\n\n{render_context(context)}\n\nFrage: {question}"
+
+
+def render_context(context: Sequence[RetrievalHit]) -> str:
+    """The numbered context block both prompts of the pipeline are built on.
+
+    Shared with the self-check (T-25) rather than written twice: stage 3 judges
+    whether the answer's references hold, so it has to see the very same numbers
+    the answer was written against. Two renderers that drift apart would have the
+    verifier reading [2] as a different chunk than the author did.
+    """
+    return "\n\n".join(
         f"{_source_line(index, hit)}\n{hit.content.strip()}"
         # 1-based and in context order, so that [n] in the answer is the same n as
         # Citation.index in the response: query.py builds both from the same
@@ -104,7 +115,6 @@ def build_prompt(question: str, context: Sequence[RetrievalHit]) -> tuple[str, s
         # footnote at the wrong source.
         for index, hit in enumerate(context, start=1)
     )
-    return SYSTEM_PROMPT, f"Kontext:\n\n{sections}\n\nFrage: {question}"
 
 
 def _source_line(index: int, hit: RetrievalHit) -> str:
