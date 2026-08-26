@@ -37,7 +37,12 @@ from app.services.confidence import (
     WEIGHT_CITATION_COVERAGE,
     WEIGHT_RETRIEVAL_CONFIDENCE,
 )
-from app.services.config import ConfidenceThresholds, ConfigurationError, PipelineConfig
+from app.services.config import (
+    ConfidenceThresholds,
+    ConfigurationError,
+    PipelineConfig,
+    QueryConfig,
+)
 from app.services.generation import GenerationResult, build_prompt
 from app.services.retrieval import RetrievalHit, RetrievalOutcome
 from app.services.self_check import SelfCheckResult
@@ -139,11 +144,12 @@ async def post_query(
     thresholds: ConfidenceThresholds | None = None,
 ) -> Any:
     monkeypatch.setattr(
-        "app.routers.query.read_pipeline_config", AsyncMock(return_value=config or CONFIG)
-    )
-    monkeypatch.setattr(
-        "app.routers.query.read_confidence_thresholds",
-        AsyncMock(return_value=thresholds or THRESHOLDS),
+        "app.routers.query.read_query_config",
+        AsyncMock(
+            return_value=QueryConfig(
+                pipeline=config or CONFIG, thresholds=thresholds or THRESHOLDS
+            )
+        ),
     )
     retrieve = (
         AsyncMock(side_effect=outcome)
@@ -179,9 +185,9 @@ async def stored_answer(
     asserted on, not the response that was built from it.
     """
     db = make_db()
-    monkeypatch.setattr("app.routers.query.read_pipeline_config", AsyncMock(return_value=CONFIG))
     monkeypatch.setattr(
-        "app.routers.query.read_confidence_thresholds", AsyncMock(return_value=THRESHOLDS)
+        "app.routers.query.read_query_config",
+        AsyncMock(return_value=QueryConfig(pipeline=CONFIG, thresholds=THRESHOLDS)),
     )
     monkeypatch.setattr("app.routers.query.retrieve", AsyncMock(return_value=outcome))
     monkeypatch.setattr(
@@ -324,7 +330,7 @@ async def test_a_broken_threshold_suppresses_instead_of_returning_500(
     """ADR-008, Nachtrag 2026-08-16: the caller turns ConfigurationError into
     "Weiss ich nicht", never into a 500 — and never into a looser threshold."""
     monkeypatch.setattr(
-        "app.routers.query.read_pipeline_config",
+        "app.routers.query.read_query_config",
         AsyncMock(side_effect=ConfigurationError("config: similarity_threshold ist keine Zahl")),
     )
     # Must not be reached: without usable thresholds nothing may be retrieved.

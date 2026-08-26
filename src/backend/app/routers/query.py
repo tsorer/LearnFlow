@@ -50,8 +50,7 @@ from app.services.config import (
     ConfidenceThresholds,
     ConfigurationError,
     PipelineConfig,
-    read_confidence_thresholds,
-    read_pipeline_config,
+    read_query_config,
 )
 from app.services.generation import GenerationResult, generate_answer
 from app.services.retrieval import RANK_ABSENT, RetrievalHit, RetrievalOutcome, retrieve
@@ -304,11 +303,11 @@ async def create_query(
     session = await _resolve_session(body.session_id, user, db)
 
     try:
-        config = await read_pipeline_config(db)
-        # Read together with the pipeline parameters and guarded by the same
-        # handler: the band limits decide suppression too (T-23), so an unusable
-        # one is no more answerable than an unusable threshold.
-        thresholds = await read_confidence_thresholds(db)
+        # One round-trip for both halves: the band limits decide suppression too
+        # (T-23), so an unusable one is no more answerable than an unusable
+        # threshold — same table, same handler, no reason to ask twice.
+        query_config = await read_query_config(db)
+        config, thresholds = query_config.pipeline, query_config.thresholds
     except ConfigurationError:
         # A broken threshold row is an operator error, and ADR-008 (Nachtrag
         # 2026-08-16) is explicit that the caller turns it into "Weiss ich

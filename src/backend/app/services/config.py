@@ -79,20 +79,16 @@ class ConfidenceThresholds:
     medium: float
 
 
-async def read_confidence_thresholds(db: AsyncSession) -> ConfidenceThresholds:
-    """Load the confidence band limits from `config`.
+def _thresholds_from(values: dict[str, str]) -> ConfidenceThresholds:
+    """Build the band limits from already-fetched rows.
 
-    Deliberately uncached: a threshold changed via SQL (or later via the admin
-    endpoint, T-37) takes effect on the very next call, no restart required.
+    Pure, so the rules below are testable without a session and so the fetch
+    can be shared with the pipeline parameters (one round-trip, see
+    read_query_config).
 
     Raises:
         ConfigurationError: a row is present but not a usable threshold.
     """
-    result = await db.execute(
-        select(Config.key, Config.value).where(Config.key.in_(CONFIDENCE_THRESHOLD_KEYS))
-    )
-    values: dict[str, str] = {key: value for key, value in result.all()}
-
     high = _as_threshold(values, "confidence_threshold_high", DEFAULT_CONFIDENCE_THRESHOLD_HIGH)
     medium = _as_threshold(
         values, "confidence_threshold_medium", DEFAULT_CONFIDENCE_THRESHOLD_MEDIUM
@@ -140,18 +136,12 @@ class PipelineConfig:
     rrf_k: int
 
 
-async def read_pipeline_config(db: AsyncSession) -> PipelineConfig:
-    """Load the retrieval and gate parameters from `config`.
-
-    Uncached for the same reason as the confidence bands above: one six-row
-    lookup is irrelevant next to the embedding round-trip it precedes.
+def _pipeline_from(values: dict[str, str]) -> PipelineConfig:
+    """Build the retrieval and gate parameters from already-fetched rows.
 
     Raises:
         ConfigurationError: a row is present but not a usable parameter.
     """
-    result = await db.execute(select(Config.key, Config.value).where(Config.key.in_(PIPELINE_KEYS)))
-    values: dict[str, str] = {key: value for key, value in result.all()}
-
     band_low = _as_threshold(values, "self_check_band_low", DEFAULT_SELF_CHECK_BAND_LOW)
     band_high = _as_threshold(values, "self_check_band_high", DEFAULT_SELF_CHECK_BAND_HIGH)
 
@@ -181,6 +171,44 @@ async def read_pipeline_config(db: AsyncSession) -> PipelineConfig:
         context_top_n=_as_count(values, "context_top_n", DEFAULT_CONTEXT_TOP_N),
         rrf_k=_as_count(values, "rrf_k", DEFAULT_RRF_K),
     )
+
+
+@dataclass(frozen=True)
+class QueryConfig:
+    """Everything one /query request needs from the `config` table.
+
+    The two halves stay separate types because they answer different questions —
+    `pipeline` parametrises the stages, `thresholds` maps the resulting score to
+    a band — but they are fetched together. Same table, no ordering dependency
+    between them, one request needs both: two round-trips would be two for the
+    price of one.
+    """
+
+    pipeline: PipelineConfig
+    thresholds: ConfidenceThresholds
+
+
+async def read_query_config(db: AsyncSession) -> QueryConfig:
+    """Load the pipeline parameters and the band limits in a single round-trip.
+
+    Deliberately uncached: a value changed via SQL or via the admin endpoint
+    (T-37) takes effect on the very next request, no restart required. One
+    ten-row lookup is irrelevant next to the embedding call it precedes.
+
+    Raises:
+        ConfigurationError: a row is present but not a usable value. Either half
+            can raise, and the caller treats both the same way — an unusable
+            threshold is answered with "Weiss ich nicht", never with a different
+            one (ADR-008, Nachtrag 2026-08-16).
+    """
+    result = await db.execute(
+        select(Config.key, Config.value).where(
+            Config.key.in_(CONFIDENCE_THRESHOLD_KEYS + PIPELINE_KEYS)
+        )
+    )
+    values: dict[str, str] = {key: value for key, value in result.all()}
+
+    return QueryConfig(pipeline=_pipeline_from(values), thresholds=_thresholds_from(values))
 
 
 def _as_threshold(values: dict[str, str], key: str, default: float) -> float:

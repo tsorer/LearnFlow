@@ -24,7 +24,7 @@ from app.limiter import account_key
 from app.main import app
 from app.models.tables import User
 from app.routers.query import QUERY_RATE_LIMIT
-from app.services.config import ConfidenceThresholds, PipelineConfig
+from app.services.config import ConfidenceThresholds, PipelineConfig, QueryConfig
 from app.services.retrieval import RetrievalOutcome
 from tests.test_query import make_db, make_user
 
@@ -53,11 +53,12 @@ def bearer(user: User) -> dict[str, str]:
 def stub_pipeline(monkeypatch: pytest.MonkeyPatch) -> None:
     """Retrieval finds nothing, so no question reaches a provider in this file."""
     monkeypatch.setattr(
-        "app.routers.query.read_pipeline_config", AsyncMock(return_value=CONFIG)
-    )
-    monkeypatch.setattr(
-        "app.routers.query.read_confidence_thresholds",
-        AsyncMock(return_value=ConfidenceThresholds(high=0.75, medium=0.45)),
+        "app.routers.query.read_query_config",
+        AsyncMock(
+            return_value=QueryConfig(
+                pipeline=CONFIG, thresholds=ConfidenceThresholds(high=0.75, medium=0.45)
+            )
+        ),
     )
     monkeypatch.setattr(
         "app.routers.query.retrieve",
