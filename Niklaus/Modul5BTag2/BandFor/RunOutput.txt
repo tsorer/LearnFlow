@@ -1,0 +1,115 @@
+(.venv) c:\D\Dev\DotNet\CasAdAi\LearnFlow\Niklaus\Modul5BTag2\BandFor>..\.venv\Scripts\python.exe test_band_for.py
+Ich starte die Pipeline — zuerst der **Planner**.
+
+>>> DELEGIERT an: 'planner'
+>>> HOOK  orchestrator: Agent  {'description': 'Spec für band_for-Funktion', 'prompt': "Erstelle eine knappe, v
+Spec liegt vor — jetzt **Generator** und danach warte ich auf den Code für den **Evaluator**.
+
+>>> DELEGIERT an: 'generator'
+>>> HOOK  orchestrator: Agent  {'description': 'Code für band_for generieren', 'prompt': 'Setze folgende Spec e
+Der Generator hat die Datei erzeugt, aber den Code nicht ausgegeben — ich hole ihn nach.
+
+>>> DELEGIERT an: 'Explore'
+>>> HOOK  orchestrator: Agent  {'description': 'Code aus Datei lesen', 'prompt': 'Lies die Datei `c:\\D\\Dev\\D
+Die Datei existiert nicht korrekt — der Generator hat den Code nicht wirklich geschrieben. Ich beauftrage ihn erneut, diesmal mit expliziter Anweisung den Code **direkt auszugeben**.
+
+>>> DELEGIERT an: 'generator'
+>>> HOOK  orchestrator: Agent  {'description': 'band_for Code direkt ausgeben', 'prompt': 'Implementiere die fo
+Code liegt vor — jetzt der **Evaluator**.
+
+>>> DELEGIERT an: 'evaluator'
+>>> HOOK  orchestrator: Agent  {'description': 'Code gegen Spec evaluieren', 'prompt': 'Pruefe den folgenden Py
+SPEC
+Signatur und Typen:
+    band_for(score: float, medium: float, high: float) -> str
+Alle Parameter sind float. Rueckgabe ist str mit genau einem der drei Werte 'hoch', 'mittel', 'niedrig'.
+
+Logik / Bedingungen (Prioritaet von oben nach unten, erste zutreffende Bedingung gewinnt):
+- score >= high   -> 'hoch'
+- score >= medium -> 'mittel'
+- score < medium  -> 'niedrig'
+
+Grenzregel: Score genau auf Schwellwert gehoert ins hoehere Band (score==medium -> 'mittel', score==high -> 'hoch').
+Sonderfall medium==high: score>=high -> 'hoch', darunter -> 'niedrig'. Kein Fehler.
+
+Validierung (VOR Bandbestimmung, sonst ValueError):
+- 0.0 <= score <= 1.0
+- 0.0 <= medium <= 1.0
+- 0.0 <= high <= 1.0
+- medium <= high
+
+Fehlerverhalten: ValueError mit beschreibender Meldung, z.B.:
+- "score muss zwischen 0.0 und 1.0 liegen, erhalten: 1.5"
+- "medium darf high nicht uebersteigen, erhalten: medium=0.8, high=0.5"
+
+Testfaelle:
+| score | medium | high | Ergebnis  |
+| 0.3   | 0.5    | 0.8  | 'niedrig' |
+| 0.5   | 0.5    | 0.8  | 'mittel'  |
+| 0.7   | 0.5    | 0.8  | 'mittel'  |
+| 0.8   | 0.5    | 0.8  | 'hoch'    |
+| 1.0   | 0.5    | 0.8  | 'hoch'    |
+| 0.6   | 0.6    | 0.6  | 'hoch'    |
+| 0.5   | 0.6    | 0.6  | 'niedrig' |
+| 1.5   | 0.5    | 0.8  | ValueError|
+| 0.5   | 0.9    | 0.4  | ValueError|
+
+Abhaengigkeiten: Nur Python-Stdlib.
+
+CODE
+```python
+def band_for(score: float, medium: float, high: float) -> str:
+    if not (0.0 <= score <= 1.0):
+        raise ValueError(f"score muss zwischen 0.0 und 1.0 liegen, erhalten: {score}")
+    if not (0.0 <= medium <= 1.0):
+        raise ValueError(f"medium muss zwischen 0.0 und 1.0 liegen, erhalten: {medium}")
+    if not (0.0 <= high <= 1.0):
+        raise ValueError(f"high muss zwischen 0.0 und 1.0 liegen, erhalten: {high}")
+    if medium > high:
+        raise ValueError(f"medium darf high nicht uebersteigen, erhalten: medium={medium}, high={high}")
+
+    if score >= high:
+        return 'hoch'
+    if score >= medium:
+        return 'mittel'
+    return 'niedrig'
+
+
+assert band_for(0.3, 0.5, 0.8) == 'niedrig'
+assert band_for(0.5, 0.5, 0.8) == 'mittel'
+assert band_for(0.7, 0.5, 0.8) == 'mittel'
+assert band_for(0.8, 0.5, 0.8) == 'hoch'
+assert band_for(1.0, 0.5, 0.8) == 'hoch'
+assert band_for(0.6, 0.6, 0.6) == 'hoch'
+assert band_for(0.5, 0.6, 0.6) == 'niedrig'
+
+try:
+    band_for(1.5, 0.5, 0.8)
+    assert False, "ValueError erwartet"
+except ValueError:
+    pass
+
+try:
+    band_for(0.5, 0.9, 0.4)
+    assert False, "ValueError erwartet"
+except ValueError:
+    pass
+```
+
+BEFUND
+PASS — alle 9 Testfaelle korrekt: Normalfaelle, Grenzwerte auf beiden Schwellen, Sonderfall medium==high sowie beide ValueError-Faelle. Validierungsreihenfolge und Rueckgabewerte spec-konform.
+
+ERGEBNIS: PASS in Runde 1
+
+--- Turns: 6 · Kosten: $0.2959 ---
+
+=== Tool-Audit: 5 Aufruf(e) ===
+  Agent    von orchestrator {'description': 'Spec für band_for-Funktion', 'prompt': "Erstelle eine knappe, v
+  Agent    von orchestrator {'description': 'Code für band_for generieren', 'prompt': 'Setze folgende Spec e
+  Agent    von orchestrator {'description': 'Code aus Datei lesen', 'prompt': 'Lies die Datei `c:\\D\\Dev\\D
+  Agent    von orchestrator {'description': 'band_for Code direkt ausgeben', 'prompt': 'Implementiere die fo
+  Agent    von orchestrator {'description': 'Code gegen Spec evaluieren', 'prompt': 'Pruefe den folgenden Py
+
+*** ERGEBNIS: PASS in Runde 1 ***
+
+(.venv) c:\D\Dev\DotNet\CasAdAi\LearnFlow\Niklaus\Modul5BTag2\BandFor>
