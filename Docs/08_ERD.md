@@ -110,15 +110,19 @@ erDiagram
         timestamp   changed_at
     }
 
-    %% ── SHOULD · T-34 ────────────────────────────────────────
+    %% ── SHOULD · T-33 / T-34 ─────────────────────────────────
     quiz_questions {
         uuid        id             PK
         uuid        document_id    FK
+        uuid        chunk_id       FK
         text        question
         jsonb       options
         varchar     correct_answer
-        boolean     approved
+        text        explanation
+        text        source_excerpt
+        varchar     status
         timestamp   created_at
+        timestamp   approved_at
     }
 
     %% ── Beziehungen ──────────────────────────────────────────
@@ -127,6 +131,7 @@ erDiagram
     users           ||--o{ config          : "modifies"
     documents       ||--o{ chunks          : "split into"
     documents       ||--o{ quiz_questions  : "generates"
+    chunks          ||--o{ quiz_questions  : "sourced from"
     query_sessions  ||--o{ answers         : "contains"
     answers         ||--o{ feedback        : "receives"
 ```
@@ -181,7 +186,20 @@ einem zweiten Trigger für `low <= high`, weil ein invertiertes Band Stufe 3 unb
 Pseudonymisiert — kein `user_id`-Feld (US-03).
 
 ### `quiz_questions`
-SHOULD-Priorität (US-07 / US-08). Eigenes Issue T-34, nicht im aktuellen Sprint.
+SHOULD-Priorität (US-07 / US-08). Schema und Generierungs-Endpoint gemeinsam in T-33 / T-34,
+weil sich erst am Endpoint entscheidet, welche Felder eine generierte Frage braucht.
+
+`options` ist ein JSON-Array aus genau vier Strings (`CHECK`), `correct_answer` der Buchstabe
+`A`–`D`, der es indiziert. `status` ersetzt das frühere Boolean `approved` und kennt
+`pending` / `approved` / `rejected` (`CHECK`); der Default `pending` ist die fail-closed-Zusage,
+dass nichts ohne menschliche Freigabe sichtbar wird (ADR-008). `approved_at` ist der Zeitpunkt der
+Freigabe (US-07) und damit nicht `created_at`, der Zeitpunkt der Generierung.
+
+`chunk_id` und `source_excerpt` halten dieselbe Quelle zweimal fest, mit Absicht. Wird ein Dokument
+durch eine neue Fassung ersetzt (T-15), verschwinden die Chunks der alten — die Fragen überleben
+das, verlieren aber ihre Freigabe und fallen auf `pending` zurück. `chunk_id` wird dabei über
+`ON DELETE SET NULL` zu NULL und ist damit die Markierung „stammt aus einer ersetzten Fassung";
+`source_excerpt` ist die einzige verbliebene Kopie der Passage, gegen die Stefan erneut prüft.
 
 ---
 
@@ -193,7 +211,7 @@ SHOULD-Priorität (US-07 / US-08). Eigenes Issue T-34, nicht im aktuellen Sprint
 | `0002_users` | `users` | ✅ deployed |
 | `0003_documents_chunks` | `documents` · `chunks` · pgvector-Extension · HNSW · GIN | 🔵 T-11 / T-13 |
 | `0004_rag_tables` | `query_sessions` · `answers` · `feedback` · `config` | 🟡 Zukunft |
-| `0005_quiz` | `quiz_questions` | ⬜ T-34 |
+| `0005_quiz` | `quiz_questions` | 🔵 T-34 |
 | `0006_documents_status_default` | `documents.status`-Default auf `pending` | ✅ deployed |
 | `0007_chunking_config` | `config`: `chunk_size` · `chunk_overlap` | 🔵 T-12 |
 | `0008_confidence_thresholds` | `config`: `confidence_threshold_high` · `confidence_threshold_medium` | 🔵 T-24 |
@@ -204,3 +222,4 @@ SHOULD-Priorität (US-07 / US-08). Eigenes Issue T-34, nicht im aktuellen Sprint
 | `0013_documents_area_filename_unique` | `documents`: `(area, filename)` eindeutig | 🔵 T-15 |
 | `0014_self_check_band` | `config`: `self_check_band_low` · `self_check_band_high` + Bandordnungs-Trigger | 🔵 T-25 |
 | `0015_answers_self_check` | `answers`: `self_check_passed` | 🔵 T-25 |
+| `0016_quiz_review_schema` | `quiz_questions`: `chunk_id` · `source_excerpt` · `explanation` · `status` · `approved_at` | 🔵 T-33 / T-34 |

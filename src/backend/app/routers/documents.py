@@ -3,13 +3,20 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile, status
 from pydantic import BaseModel
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import defer
 
 from app.auth.dependencies import require_knowledge_owner
 from app.database import get_db
-from app.models.tables import Chunk, Document, DocumentStatus, User
+from app.models.tables import (
+    Chunk,
+    Document,
+    DocumentStatus,
+    QuizQuestion,
+    QuizQuestionStatus,
+    User,
+)
 from app.queue import enqueue_document
 
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -203,6 +210,28 @@ async def _replace(
     sitting in the index waiting for the visibility rule to change.
     """
     await db.execute(delete(Chunk).where(Chunk.document_id == document.id))
+    # The quiz questions of the old version survive the replacement but lose
+    # their approval (decision on #40, T-33). Deleting them would throw away
+    # Stefan's review silently; leaving them approved would keep questions in
+    # the learners' pool that were checked against a text nobody can read any
+    # more. So they go back into the queue and he decides again — approve, or
+    # reject if the new version no longer supports the question.
+    #
+    # Only approved ones. A question he has already rejected stays rejected;
+    # putting it in front of him again would be work he has done.
+    #
+    # `chunk_id` needs no statement here: the delete above takes the chunks with
+    # it, and the FK sets the reference to NULL (migration 0016). That NULL is
+    # what tells this case apart from a freshly generated question in the review
+    # — one of those always has a chunk.
+    await db.execute(
+        update(QuizQuestion)
+        .where(
+            QuizQuestion.document_id == document.id,
+            QuizQuestion.status == QuizQuestionStatus.approved,
+        )
+        .values(status=QuizQuestionStatus.pending, approved_at=None)
+    )
     # created_at keeps pointing at the first upload, updated_at at this one —
     # the pair is what tells a replacement apart from a first upload in GET
     # /documents. Assigned instead of left to the column's onupdate for the
@@ -223,12 +252,6 @@ async def _replace(
     # reads as "in the corpus since T1, current text put there by this person";
     # who uploaded the version that is gone is not kept (review on #87).
     document.uploaded_by = user.id
-    # quiz_questions of the replaced version are deliberately left alone. They
-    # hang off documents by FK like chunks do, so questions generated from a
-    # text that no longer exists survive this. Harmless while the table is
-    # empty (T-33 fills it first) and not this ticket's call: whether Stefan's
-    # approvals (US-07) survive a replacement is a decision for T-33 (#40),
-    # noted there.
     return document
 
 

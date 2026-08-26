@@ -3,7 +3,7 @@ from pathlib import Path
 from openapi_spec_validator import validate
 from openapi_spec_validator.readers import read_from_filename
 
-from app.models.tables import DocumentStatus
+from app.models.tables import DocumentStatus, QuizQuestionStatus
 from app.routers import query
 
 SPEC_PATH = Path(__file__).parent.parent / "openapi.yaml"
@@ -24,6 +24,7 @@ EXPECTED_OPERATIONS = [
     ("/api/documents/{document_id}", "delete"),
     ("/api/admin/config", "get"),
     ("/api/admin/config", "put"),
+    ("/api/quiz/generate", "post"),
 ]
 
 
@@ -48,6 +49,20 @@ def test_document_status_enum_matches_the_model():
     spec, _ = read_from_filename(str(SPEC_PATH))
     assert {s.value for s in DocumentStatus} == set(
         spec["components"]["schemas"]["DocumentStatus"]["enum"]
+    )
+
+
+def test_quiz_status_enum_matches_the_model():
+    """Same contract as DocumentStatus, and the same failure if it drifts.
+
+    The column is a plain varchar with a CHECK, so the three values live in the
+    database, in this enum and in the spec the frontend types come from. A value
+    added on one side only is either a status no client can render or a promise
+    to the frontend that no writer keeps.
+    """
+    spec, _ = read_from_filename(str(SPEC_PATH))
+    assert {s.value for s in QuizQuestionStatus} == set(
+        spec["components"]["schemas"]["QuizQuestionStatus"]["enum"]
     )
 
 

@@ -16,7 +16,7 @@ switching from OpenAI Direct to Azure OpenAI EU (ADR-004) must not touch this fi
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Protocol
 
 import litellm
 
@@ -99,7 +99,26 @@ def build_prompt(question: str, context: Sequence[RetrievalHit]) -> tuple[str, s
     return SYSTEM_PROMPT, f"Kontext:\n\n{render_context(context)}\n\nFrage: {question}"
 
 
-def render_context(context: Sequence[RetrievalHit]) -> str:
+class ContextChunk(Protocol):
+    """What `render_context` needs of a chunk: where it comes from, what it says.
+
+    A protocol rather than `RetrievalHit`, because quiz generation (T-33) builds
+    the same numbered block from chunks that were never retrieved and have no
+    score — `app.services.retrieval.SourceChunk`. Read-only members: both
+    implementers are frozen dataclasses.
+    """
+
+    @property
+    def filename(self) -> str: ...
+    @property
+    def page(self) -> int | None: ...
+    @property
+    def heading(self) -> str | None: ...
+    @property
+    def content(self) -> str: ...
+
+
+def render_context(context: Sequence[ContextChunk]) -> str:
     """The numbered context block both prompts of the pipeline are built on.
 
     Shared with the self-check (T-25) rather than written twice: stage 3 judges
@@ -117,7 +136,7 @@ def render_context(context: Sequence[RetrievalHit]) -> str:
     )
 
 
-def _source_line(index: int, hit: RetrievalHit) -> str:
+def _source_line(index: int, hit: ContextChunk) -> str:
     parts = [hit.filename]
     if hit.page is not None:
         parts.append(f"S. {hit.page}")

@@ -141,6 +141,20 @@ Die Startwerte sind bewusst **deckungsgleich mit den Konfidenz-Bändern**: `low`
 **Persistenz.** `answers.self_check_passed` ist `NULL`, wenn Stufe 3 nicht lief — der Normalfall, weil sie nur im Grenzband feuert. Ein Default `false` würde jede übersprungene Prüfung wie eine gescheiterte aussehen lassen. Der Wortlaut des Urteils wird nicht gespeichert: er ist Material zum Debuggen einer einzelnen Anfrage und stünde sonst als generierte Prosa in einer Tabelle, deren `answer_text` bei unterdrückten Antworten bewusst `NULL` bleibt.
 
 **Offen bleibt die Latenz.** Stufe 3 addiert einen zweiten Provider-Aufruf auf eine Anfrage, auf die ohne Streaming (ADR-002) jemand wartet. Das Grenzband begrenzt die *Häufigkeit*, nicht die Dauer im Einzelfall; ob die Performance-NFA (p95 ≤ 10 s) damit hält, misst T-22 und ist mit diesem Stand nicht gezeigt.
+
+### Nachtrag 2026-08-26 — Warum die Quiz-Generierung nicht durch diese Pipeline läuft (T-33)
+
+`POST /api/quiz/generate` ist der zweite LLM-Aufruf des Systems, der Text erzeugt, und er läuft **ohne** die Stufen 0 bis 3. Das ist kein Vergessen, sondern die Abgrenzung aus dem Kopf dieses ADR: alle vier Stufen messen eine *Antwort auf eine Frage* gegen die dafür *abgerufenen* Chunks. Bei der Generierung gibt es beides nicht — keine Nutzerfrage, kein Retrieval, also auch keinen Retrieval-Score, gegen den eine Schwelle etwas aussagen würde. Die Stufen hier nachzubauen hiesse, Zahlen zu erfinden, um sie anschliessend zu vergleichen.
+
+Fail-closed bleibt es trotzdem, auf drei anderen Beinen:
+
+**1. Der Mensch ist die Stufe.** `quiz_questions.status` steht per Spaltendefault auf `pending`, und für Lernende ist nur `approved` sichtbar (US-07). Eine generierte Frage ist ein Vorschlag, keine Veröffentlichung — anders als eine Antwort, die niemand vor der Auslieferung liest. Genau deshalb ist der Aufwand einer maschinellen Konfidenzprüfung hier nicht nötig: das Urteil, das die Pipeline im Antwortpfad ersetzen muss, wird ohnehin gefällt.
+
+**2. Der Quellenbezug wird maschinell geprüft, nicht geglaubt.** Jede Frage nennt die Nummer des Abschnitts, aus dem sie stammt; eine Nummer, die es im Kontext nicht gibt, verwirft die Frage. Das ist derselbe Entscheid wie `citation_invalid` in Stufe 2 — eine erfundene Referenz ist ein Modellfehler, den keine Schwelle akzeptabel macht. Ebenso verworfen wird, was der Vertrag nicht hergibt: falsche Anzahl Optionen, eine richtige Antwort, die auf keine Option zeigt, doppelte Optionen.
+
+**3. Ein Ausfall bleibt ein Ausfall.** Provider nicht erreichbar, Antwort nicht als die vereinbarte Struktur lesbar, oder keine einzige Frage überlebt die Prüfung: alle drei enden als 503, nicht als leeres Erfolgsergebnis. „Null Fragen erzeugt" wäre die getarnte Variante desselben Fehlers.
+
+**Bekannte Grenze.** Ob eine Frage inhaltlich zu ihrer Passage passt, prüft nichts davon — das kann nur Stefan, und das Eval-Gate aus ADR-009 deckt diesen Pfad nicht ab (es misst Halluzination im Antwortpfad). Sollte sich im Pilot zeigen, dass zu viel Unbrauchbares in seiner Warteschlange landet, ist der nächste Hebel ein Self-Check über Frage und Quellen-Passage — die Stufe wäre wiederverwendbar, weil `run_self_check` bereits mit einem Text und einem Kontext arbeitet.
 ---
 
 ## Konsequenzen
