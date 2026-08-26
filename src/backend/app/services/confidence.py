@@ -1,21 +1,23 @@
-"""Deterministic confidence stages of the answer pipeline (ADR-008, T-17/T-19).
+"""Deterministic confidence stages of the answer pipeline (ADR-008, T-17…T-23).
 
 Covered here are stage 0 (the retrieval gate from ADR-007), stage 1 (the
-retrieval confidence) and stage 2 (the grounding/citation check). All three are
-pure functions — no database, no LLM, no I/O. That is deliberate: they are the
-part of the reliability chain that must stay reproducible and cheap to test, and
-stages 0 and 1 are what decides whether an LLM is called at all.
+retrieval confidence), stage 2 (the grounding/citation check) and the composite
+score those last two feed. All of it is pure functions — no database, no LLM, no
+I/O. That is deliberate: they are the part of the reliability chain that must
+stay reproducible and cheap to test, and stages 0 and 1 are what decides whether
+an LLM is called at all.
 
 The split in time is what separates them. Stages 0 and 1 read similarity scores
 and run *before* the generation; stage 2 reads the generated text and runs
 *after* it, which is why it takes an answer string rather than scores. Stage 3
 (the self-check, T-25) is the one stage that is not deterministic and therefore
-not in this module.
+not in this module — it lives in app/services/self_check.py.
 """
 
 import re
 from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import Literal
 
 # Weights of the stage-1 components. ADR-008 names the three signals but not
 # their weighting; these are start values to be calibrated against the eval
@@ -333,3 +335,91 @@ def _leading_references(segment: str) -> str:
         while position < len(segment) and segment[position].isspace():
             position += 1
     return segment[:end]
+
+
+# ── Komposit-Konfidenz & Bänder (ADR-008, T-23) ─────────────────────────────
+
+# Weights of the composite. ADR-008 names the two inputs but not their
+# weighting, so these are start values to be calibrated (ADR-009) — equal, which
+# is the only split that does not assert something the pilot has not measured.
+#
+# In code, not in the `config` table, although the ADR text says otherwise: the
+# table holds thresholds an operator recalibrates against a *fixed* scale, and a
+# weight change moves the scale itself. Every `answers.confidence_score` written
+# before such a change would silently stop being comparable with the ones after
+# it, which is exactly the calibration basis ADR-009 needs. Same reasoning as
+# WEIGHT_TOP_SCORE above; the ADR carries the correction as a Nachtrag.
+WEIGHT_RETRIEVAL_CONFIDENCE = 0.5
+WEIGHT_CITATION_COVERAGE = 0.5
+
+# The wire values of `ConfidenceInfo.band`. A Literal rather than a str, so a
+# renamed band fails the type check here instead of reaching the frontend as an
+# unlabelled key. The constants carry the annotation for the same reason —
+# without it they widen to `str` and the guarantee stops at this module.
+Band = Literal["hoch", "mittel", "niedrig"]
+
+BAND_HIGH: Band = "hoch"
+BAND_MEDIUM: Band = "mittel"
+BAND_LOW: Band = "niedrig"
+
+
+@dataclass(frozen=True)
+class CompositeDetail:
+    """The displayed confidence and the two parts it was built from (US-02)."""
+
+    result: float
+    retrieval_score: float
+    # None means stage 2 never ran, and the result is then the retrieval score
+    # alone. Not 0.0: an answer that was never generated has no segments that
+    # could be backed, and folding that into the score as "nothing was covered"
+    # would push every pre-generation suppression into the lowest band for a
+    # measurement that never happened.
+    citation_coverage: float | None
+
+
+def compute_composite(retrieval_score: float, citation_coverage: float | None) -> CompositeDetail:
+    """Combine stage 1 and stage 2 into the confidence the user is shown."""
+    if citation_coverage is None:
+        return CompositeDetail(
+            result=round(retrieval_score, SCORE_DIGITS),
+            retrieval_score=retrieval_score,
+            citation_coverage=None,
+        )
+
+    result = (
+        WEIGHT_RETRIEVAL_CONFIDENCE * retrieval_score
+        + WEIGHT_CITATION_COVERAGE * citation_coverage
+    )
+    return CompositeDetail(
+        result=round(result, SCORE_DIGITS),
+        retrieval_score=retrieval_score,
+        citation_coverage=citation_coverage,
+    )
+
+
+def band_for(score: float, medium: float, high: float) -> Band:
+    """Map the composite onto the three bands of ADR-008.
+
+    `>=` on both limits, like every other threshold comparison in this module: a
+    score exactly on the configured limit belongs to the band the operator set
+    that limit for. `high` is checked first, so a degenerate configuration with
+    medium == high still resolves — it collapses the middle band rather than
+    producing a score that is in two bands at once.
+    """
+    if score >= high:
+        return BAND_HIGH
+    if score >= medium:
+        return BAND_MEDIUM
+    return BAND_LOW
+
+
+def in_self_check_band(score: float, low: float, high: float) -> bool:
+    """Whether the composite is close enough to the threshold to verify (stage 3).
+
+    Half-open on purpose: `low` is inside the band and `high` is not. A score at
+    `high` is the first one ADR-008 calls "klar hohe Konfidenz", and the whole
+    point of the band is that those skip the second LLM call. That also makes
+    low == high an empty band — stage 3 switched off — rather than a band that
+    still catches a single value.
+    """
+    return low <= score < high

@@ -3,7 +3,7 @@
 | Feld          | Inhalt                                |
 | ------------- | ------------------------------------- |
 | **Status**    | Accepted                              |
-| **Datum**     | 2026-05-31 · aktualisiert 2026-06-03, 2026-08-16, 2026-08-20 |
+| **Datum**     | 2026-05-31 · aktualisiert 2026-06-03, 2026-08-16, 2026-08-20, 2026-08-22 |
 | **Verfasser** | LearnFlow-Team (Frank, Niklaus, Reto, Christoph) |
 
 ---
@@ -57,7 +57,7 @@ Für Antworten, deren Konfidenz **nahe der Schwelle** liegt, erfolgt **ein** zus
 
 ### Komposit-Konfidenz & Anzeige (US-02)
 
-Der **angezeigte** Konfidenzwert ist eine gewichtete Kombination aus Retrieval-Konfidenz (Stufe 1) und Citation-Coverage (Stufe 2); Gewichte in `config`. Mapping auf drei Bänder für die UI:
+Der **angezeigte** Konfidenzwert ist eine gewichtete Kombination aus Retrieval-Konfidenz (Stufe 1) und Citation-Coverage (Stufe 2); Gewichte im Code (siehe Nachtrag 2026-08-22). Mapping auf drei Bänder für die UI:
 
 | Band                      | Bedeutung                  | UI                                                                             |
 | ------------------------- | -------------------------- | ------------------------------------------------------------------------------ |
@@ -116,7 +116,31 @@ Zwei Keys bleiben bewusst draussen, über `GET` weiter sichtbar, nur nicht schre
 - **`stale_days`** (0004, US-06): weder ein Reader noch eine DB-seitige Wertregel existieren dafür bisher — es gibt nichts, wogegen eine Schreib-Validierung prüfen könnte.
 
 Die Admin-Oberfläche (`ChatView.tsx`, `saveParams`) schickt `GET`s volle Antwort unverändert über `PUT` zurück, auch wenn nur ein Schwellenwert geändert wurde. Ein nicht schreibbarer Key ohne Wertänderung ist deshalb kein Fehler — nur eine echte Abweichung vom aktuellen Wert wird mit 422 abgelehnt. Ohne diese Ausnahme würde jede Speicherung allein durch die mitgeschickten nicht-schreibbaren Keys scheitern.
+### Nachtrag 2026-08-22 — Komposit, Self-Check und die Reihenfolge (T-23, T-25, T-26)
 
+Mit diesem Nachtrag sind alle Stufen umgesetzt. Drei Punkte, die das ADR offengelassen oder anders formuliert hatte, sind dabei entschieden worden.
+
+**1. Die Komposit-Gewichte stehen im Code, nicht in `config`.** Oben stand „Gewichte in `config`"; das ist hiermit korrigiert. Der Grund ist derselbe, aus dem die Stufe-1-Gewichte schon dort stehen (`app/services/confidence.py`): Die `config`-Tabelle hält Schwellen, die eine Betreiberin gegen eine *feste* Skala nachjustiert. Eine Gewichtsänderung verschiebt die Skala selbst — jeder vorher geschriebene `answers.confidence_score` wäre mit jedem nachher geschriebenen nicht mehr vergleichbar, und genau diese Spalte ist die Kalibrierungsgrundlage aus ADR-009. Schwellen sind Betrieb, Gewichte sind Modell; das eine ändert man im laufenden Pilot, das andere mit Review und Eval. Startwerte: je 0.5, weil das die einzige Aufteilung ist, die nichts behauptet, was der Pilot noch nicht gemessen hat.
+
+**Folge für die Kalibrierung:** `answers.confidence_score` enthält ab T-23 das Komposit statt der Retrieval-Konfidenz allein. Zeilen von vor diesem Stand messen etwas anderes und sind keine Vergleichsbasis — der offene Punkt 1 beginnt hier neu.
+
+**2. Der Self-Check liefert ein Urteil, keine Zahl.** US-02 formuliert Stufe 3 als Prozentsatz („< 80 % → Eingeschränkt belegt, < 50 % → unterdrückt"). Das steht gegen die Abwägung weiter unten in diesem ADR, die die LLM-Selbsteinschätzung als *Mass* verwirft: Ein Modell, das seine eigene Belegquote auf 78 % beziffert, hat diese Zahl nicht gemessen, sondern erzeugt — und ein Gate darauf zu bauen heisst, genau der Instanz zu vertrauen, die Stufe 3 kontrollieren soll. Stufe 3 antwortet deshalb mit `GEDECKT` oder `NICHT_GEDECKT` plus den ungedeckten Aussagen im Klartext, also mit einer Behauptung, die ein Mensch nachprüfen kann. Alles, was nicht als eines der beiden Sentinels lesbar ist — leere Antwort, Prosa, eine selbst erfundene Schreibweise — gilt als **nicht** bestanden: eine Prüfung, die sich nicht auswerten lässt, hat nicht stattgefunden.
+
+Die Bänder aus US-02 bleiben erhalten, kommen aber vom Komposit-Score über `confidence_threshold_high` / `_medium` — dort sind es kalibrierbare Zahlen statt Selbstauskünfte. Die Startwerte sind **0.75** und **0.45**, nicht die 80 % / 50 % aus dem ursprünglichen US-02-Text: jene bezogen sich auf eine LLM-Selbsteinschätzung und lassen sich nicht 1:1 auf ein anders gebildetes Mass übertragen. Beide sind Hypothesen bis zur Kalibrierung (offener Punkt 1). Die Akzeptanzkriterien in `Docs/02_Requirements.md` sind entsprechend umformuliert.
+
+**3. Grenzband statt Grenzfall-Gefühl.** „Nahe der Schwelle" ist jetzt zwei `config`-Werte: `self_check_band_low` (0.45) und `self_check_band_high` (0.75). Halboffen — `low <= score < high` —, weil ein Score genau auf `high` bereits „klar hohe Konfidenz" ist und den zweiten Aufruf sparen soll. `low == high` ist damit ein leeres Band, also Stufe 3 bewusst abgeschaltet, so wie ein `similarity_threshold` von 0 Stufe 0 abschaltet. `low > high` wäre dasselbe *unbemerkt* und wird deshalb wie die Bandordnung aus dem Nachtrag 2026-08-16 in der Datenbank abgelehnt (Migration `0014`, aufgeschobener `CONSTRAINT TRIGGER`).
+
+Die Startwerte sind bewusst **deckungsgleich mit den Konfidenz-Bändern**: `low` = `confidence_threshold_medium`, `high` = `confidence_threshold_high`. Das Grenzband ist damit exakt die `Mittel`-Spanne — jede Antwort, die ausgeliefert wird, aber nicht klar im oberen Band liegt, zahlt den Zusatzaufruf. Ein Review hat hier einen Startwert 0.50 gefunden, der eine Lücke [0.45, 0.50) erzeugte: Antworten darin wurden ausgeliefert *und* übersprangen Stufe 3 — ausgerechnet die am schwächsten belegten, die überhaupt noch durchkommen. Fail-open in genau der Richtung, die dieses ADR ausschliesst; korrigiert am 2026-08-25.
+
+**Bekannte Grenze — die beiden Bandpaare sind nicht aneinander gekoppelt.** `self_check_band_high` unterhalb von `confidence_threshold_medium` schaltet Stufe 3 vollständig ab: Was darunter liegt, ist bereits unterdrückt, was darüber liegt, überspringt die Stufe. Kein Constraint fängt das. Bewusst so: die Kopplung zweier getrennter Key-Paare zwänge der generischen `config`-Tabelle mehr Struktur auf, als sie sonst trägt (vgl. Nachtrag 2026-08-16), und ein eng gestelltes Band ist eine legitime Kostenentscheidung. Sichtbar ist der Zustand pro Anfrage im Admin-Debug — die `self_check`-Stufe meldet dann bei *jedem* Score „ausserhalb des Grenzbands". Wer die Bänder verschiebt, prüft alle vier Werte zusammen; die Pilotstart-Checkliste führt sie deshalb als zwei Blöcke direkt untereinander.
+
+**Reihenfolge (T-26).** Die Stufen laufen in genau der Folge, die der Entscheid vom 2026-05-20 in US-02 festhält: Quellenprüfung (Stufe 2) → Konfidenz (Komposit-Band) → Self-Check (Stufe 3). Jede Stufe kann unterdrücken, jede hat einen eigenen `suppression_reason` und einen eigenen standardisierten Text, weil der nächste sinnvolle Schritt sich unterscheidet: eine zu breite Frage schärft die Nutzerin selbst, eine erfundene Referenz kann sie nicht beheben. Dazu kommt je Grund ein `refinement_hint` (Requirements §71) — statisch aus dem Grund abgeleitet, ohne LLM-Aufruf: einen Provider ausgerechnet auf dem Pfad zu befragen, der existiert, weil die Pipeline einem Modell nicht getraut hat, wäre der falsche Ort dafür.
+
+**Was ein Ausfall ist und was ein Urteil.** Ein nicht erreichbarer Provider bleibt in Stufe 3 ein 503, kein „Weiss ich nicht" — dieselbe Trennung wie bei der Generierung. „Die Prüfung hat ungedeckte Aussagen gefunden" ist eine Aussage über die Antwort, „der Provider antwortet nicht" eine über das System; einen Ausfall als Produktverhalten auszuliefern versteckt ihn.
+
+**Persistenz.** `answers.self_check_passed` ist `NULL`, wenn Stufe 3 nicht lief — der Normalfall, weil sie nur im Grenzband feuert. Ein Default `false` würde jede übersprungene Prüfung wie eine gescheiterte aussehen lassen. Der Wortlaut des Urteils wird nicht gespeichert: er ist Material zum Debuggen einer einzelnen Anfrage und stünde sonst als generierte Prosa in einer Tabelle, deren `answer_text` bei unterdrückten Antworten bewusst `NULL` bleibt.
+
+**Offen bleibt die Latenz.** Stufe 3 addiert einen zweiten Provider-Aufruf auf eine Anfrage, auf die ohne Streaming (ADR-002) jemand wartet. Das Grenzband begrenzt die *Häufigkeit*, nicht die Dauer im Einzelfall; ob die Performance-NFA (p95 ≤ 10 s) damit hält, misst T-22 und ist mit diesem Stand nicht gezeigt.
 ---
 
 ## Konsequenzen
@@ -157,12 +181,13 @@ Die Admin-Oberfläche (`ChatView.tsx`, `saveParams`) schickt `GET`s volle Antwor
 1. **Spike-Eval (Woche 1):** Schwellen (Retrieval-Konfidenz, Citation-Coverage, Band-Grenzen, Self-Check-Triggerbereich) gegen ein Eval-Dataset kalibrieren — inkl. Messung von Halluzinationsrate und „Weiss ich nicht"-Quote. Gemeinsame Abhängigkeit mit ADR-007 zur noch fehlenden **Eval-Strategie** (Kandidat für ein eigenes ADR/Spike-Deliverable).
 2. ~~**Citation-Format festlegen:**~~ **erledigt (T-18, 2026-08-18)** — Referenzformat `[n]` und Verweigerungs-Sentinel `WEISS_NICHT` stehen im Grounding-Prompt-Kontrakt (ADR-007, Präzisierung T-18). `n` entspricht `Citation.index`, damit Stufe 2 deterministisch parsen kann.
 3. Schwellen nach dem Spike als „Accepted" fixieren.
-4. **Zwischenstand der Pipeline (T-19, 2026-08-20):** Umgesetzt sind die Stufen 0, 1 und 2.
-   Es fehlt Stufe 3 (Self-Check, T-25), weshalb `self_check_ran` durchgehend `false` ist.
-   Der angezeigte `score` ist weiterhin die Retrieval-Konfidenz allein — das Komposit aus
-   Stufe 1 und Stufe 2 kommt mit T-23, und für dessen Gewichte gibt es noch keinen
-   `config`-Schlüssel. Im MVP werden weiterhin keine echten internen Dokumente verarbeitet
-   (ADR-004).
+4. ~~**Zwischenstand der Pipeline (T-19, 2026-08-20):**~~ **erledigt (T-23/T-25/T-26, 2026-08-22)** —
+   alle Stufen sind umgesetzt, der angezeigte `score` ist das Komposit, Stufe 3 läuft im
+   Grenzband. Details im Nachtrag 2026-08-22. Im MVP werden weiterhin keine echten internen
+   Dokumente verarbeitet (ADR-004).
+5. **Latenz von Stufe 3 messen (T-22, #29):** Der zweite LLM-Aufruf im Grenzband ist gegen die
+   Performance-NFA (p95 ≤ 10 s) nicht vermessen. Fällt er zu teuer aus, ist der Hebel das
+   Grenzband, nicht das Abschalten der Stufe.
 
 ---
 

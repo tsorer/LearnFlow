@@ -69,13 +69,16 @@ LearnFlow ist eine interne Lernplattform, die neuen Mitarbeitenden erlaubt, Frag
 **Akzeptanzkriterien:**
 - ✓ Unterschreitet der Konfidenz-Score einen konfigurierten Schwellenwert, zeigt das System: „Zu dieser Frage habe ich keine belastbaren Informationen im Korpus gefunden."
 - ✓ Nach „Ich weiss es nicht" gibt das System einen Hinweis zur Präzisierung (z. B. „Versuche, einen konkreten Prozess oder ein Dokument zu nennen").
-- ✓ Liegt der Anteil belegter Aussagen im Self-Check unter 80 %, wird die Antwort als „Eingeschränkt belegt" markiert (Farbe + Icon + Hinweistext).
-- ✓ Liegt der Anteil unter 50 %, wird die Antwort vollständig unterdrückt.
+- ✓ Liegt der Komposit-Konfidenz-Score unter `confidence_threshold_high`, wird die Antwort als „Eingeschränkt belegt" markiert (Farbe + Icon + Hinweistext).
+- ✓ Liegt er unter `confidence_threshold_medium`, wird die Antwort vollständig unterdrückt.
+- ✓ Meldet der Self-Check ungedeckte Aussagen, wird die Antwort unterdrückt — unabhängig vom Score.
 - ✓ Der Konfidenz-Score ist in der Antwort-Metainfo einsehbar.
 - ✓ Schwellenwert ist per DB-Script oder Admin-Seite (US-11) änderbar — kein Code-Deployment erforderlich.
 - ✓ Das System gibt bei Out-of-Corpus-Testfragen in mindestens 90 % der Fälle „Weiss ich nicht" zurück.
 
-> **Entscheid 2026-05-20:** Vorrang-Reihenfolge: (1) Quellenprüfung (US-01) — keine identifizierbare Quelle → Antwort wird nicht angezeigt. (2) Konfidenz-Score-Schwellenwert — Score zu tief → „Ich weiss es nicht". (3) Self-Check-Anteil — unter 80 % → „Eingeschränkt belegt"; unter 50 % → unterdrückt.
+> **Entscheid 2026-05-20:** Vorrang-Reihenfolge: (1) Quellenprüfung (US-01) — keine identifizierbare Quelle → Antwort wird nicht angezeigt. (2) Konfidenz-Score-Schwellenwert — Score zu tief → „Ich weiss es nicht". (3) Self-Check — ungedeckte Aussagen → unterdrückt.
+
+> **Präzisierung 2026-08-22 (T-25):** Die früheren Grenzen „unter 80 % → Eingeschränkt belegt, unter 50 % → unterdrückt" waren an den *vom LLM selbst geschätzten* Quellen-Anteil geknüpft. ADR-008 verwirft diese Selbsteinschätzung als Mass — eine Zahl, die das Modell erzeugt statt misst, taugt nicht als Gate gegen genau dieses Modell. Die zwei Bänder bleiben, hängen aber am Komposit-Score aus Retrieval-Konfidenz und Citation-Coverage und sind über `confidence_threshold_high` / `_medium` kalibrierbar (Startwerte 0.75 / 0.45). Der Self-Check bleibt als eigene Stufe erhalten, liefert aber ein Urteil („gedeckt" / „nicht gedeckt" plus die ungedeckten Aussagen) statt eines Prozentsatzes. Begründung: ADR-008, Nachtrag 2026-08-22.
 
 ---
 
@@ -246,9 +249,9 @@ Das Kernversprechen — verlässliche, quellenbelegte Antworten — hängt an ei
 
 ### Risiko 2 · Konfidenz-Scoring ist undefiniert
 
-US-02 enthält zwei verschiedene Unterdrückungsmechanismen (Konfidenz-Score vs. Anteil belegter Aussagen im Self-Check) die nicht reconciliert sind, plus einen dritten aus US-01 (keine identifizierbare Quelle). Welcher hat Vorrang? Was ist der Self-Check konkret — LLM-Selbstevaluation, semantische Ähnlichkeit zwischen Antwort und Chunks? Diese Frage ist keine Detail-Entscheidung, sie ist die Implementierung des Kernfeatures.
+~~US-02 enthält zwei verschiedene Unterdrückungsmechanismen (Konfidenz-Score vs. Anteil belegter Aussagen im Self-Check) die nicht reconciliert sind, plus einen dritten aus US-01 (keine identifizierbare Quelle).~~ **Erledigt (2026-08-22, T-23/T-25/T-26).** ADR-008 macht daraus keine Auswahl, sondern eine Reihenfolge: die Mechanismen sind Stufen einer Defense-in-Depth-Pipeline, jede kann unterdrücken, ausgeliefert wird nur, was alle passiert. Vorrang wie im Entscheid 2026-05-20: Quellenprüfung → Komposit-Konfidenz → Self-Check. Der Self-Check ist eine LLM-Verifikation mit binärem Urteil; die semantische Ähnlichkeit zwischen Antwort und Chunks wurde nicht gewählt (ADR-008, Nachtrag 2026-08-22).
 
-**Was zu klären ist:** Einen einzigen, definierten Mechanismus festlegen und die drei AC in US-01/US-02 darauf ausrichten.
+**Offen bleibt** die Kalibrierung der Schwellen: alle Startwerte sind Hypothesen, bis sie gegen ein Eval-Dataset gemessen sind (ADR-009, T-28).
 
 ### Risiko 3 · Externe Abhängigkeiten blockieren zum falschen Zeitpunkt
 

@@ -43,21 +43,30 @@ docker compose exec api python -m alembic upgrade head
 
 ### 3.2 Initialkonfiguration in `config`-Tabelle prüfen
 
-Die Startwerte legen die Migrationen an (`0004`, `0007`, `0008`) — kein manuelles `INSERT` nötig.
-Nur kontrollieren:
+Die Startwerte legen die Migrationen an (`0004`, `0007`, `0008`, `0014`) — kein manuelles
+`INSERT` nötig. Nur kontrollieren:
 
 ```sql
 SELECT key, value FROM config ORDER BY key;
 ```
 
-Nachjustieren (empirisch nach Pilot-Erfahrung) — **die beiden Konfidenz-Bänder in einer
-Transaktion**, siehe Hinweis unten:
+Nachjustieren (empirisch nach Pilot-Erfahrung) — **jedes Bandpaar in einer Transaktion**,
+siehe Hinweis unten:
 
 ```sql
 -- Konfidenz-Bänder (ADR-008 · US-02)
 BEGIN;
 UPDATE config SET value = '0.75' WHERE key = 'confidence_threshold_high';
 UPDATE config SET value = '0.45' WHERE key = 'confidence_threshold_medium';
+COMMIT;
+-- Self-Check-Grenzband (ADR-008 Stufe 3): nur Antworten mit einem Komposit-Score
+-- in diesem Bereich kosten den zweiten LLM-Aufruf. low = high schaltet Stufe 3 ab.
+-- low startet bewusst auf confidence_threshold_medium: darunter wird ohnehin
+-- unterdrueckt, und ein hoeherer Wert liesse die schwaechsten ausgelieferten
+-- Antworten an Stufe 3 vorbei.
+BEGIN;
+UPDATE config SET value = '0.45' WHERE key = 'self_check_band_low';
+UPDATE config SET value = '0.75' WHERE key = 'self_check_band_high';
 COMMIT;
 -- Stale-Schwelle (US-06)
 UPDATE config SET value = '90'   WHERE key = 'stale_days';
@@ -66,12 +75,17 @@ UPDATE config SET value = '90'   WHERE key = 'stale_days';
 > Änderungen wirken sofort — die Werte werden pro Anfrage gelesen, kein Service-Neustart nötig.
 > Nach dem Pilotstart sind sie über die Admin-Seite (US-11) ohne Deployment anpassbar.
 
-> **Warum `BEGIN; … COMMIT;`** (Migration `0009`, ADR-008 Nachtrag 2026-08-16): Die Datenbank
-> lehnt einen Konfidenz-Wert ab, der keine Zahl in [0, 1] ist (`0,90` mit Komma etwa), und
-> ebenso `medium` über `high`. Die Prüfung der Band-Reihenfolge ist auf das Transaktionsende
-> aufgeschoben. psql arbeitet ohne `BEGIN` im Autocommit — jedes `UPDATE` ist dann seine eigene
-> Transaktion, und beim **Senken beider Bänder** scheitert schon das erste, weil dazwischen
-> kurz `medium > high` gilt. Innerhalb einer Transaktion ist die Reihenfolge egal.
+> **Warum `BEGIN; … COMMIT;`** (Migrationen `0009` und `0014`, ADR-008 Nachträge 2026-08-16
+> und 2026-08-22): Die Datenbank lehnt einen Wert ab, der keine Zahl in [0, 1] ist (`0,90` mit
+> Komma etwa), und ebenso `medium` über `high` bzw. `self_check_band_low` über `_high`. Die
+> Prüfung der Band-Reihenfolge ist auf das Transaktionsende aufgeschoben. psql arbeitet ohne
+> `BEGIN` im Autocommit — jedes `UPDATE` ist dann seine eigene Transaktion, und beim **Senken
+> beider Konfidenz-Bänder** (bzw. **Anheben beider Self-Check-Grenzen**) scheitert schon das
+> erste, weil dazwischen kurz die invertierte Reihenfolge gilt. Innerhalb einer Transaktion ist
+> die Reihenfolge egal.
+>
+> Ein invertiertes Self-Check-Band wäre besonders tückisch: kein Score liegt gleichzeitig über
+> `_high` und unter `_low`, Stufe 3 liefe also nie — ohne dass irgendetwas das meldet.
 >
 > Eine Fehlermeldung hier heisst: der Wert ist **nicht** gesetzt worden. Das ist Absicht —
 > früher fiel ein solcher Wert stillschweigend auf die lockereren Startwerte zurück.

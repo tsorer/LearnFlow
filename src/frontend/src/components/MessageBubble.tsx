@@ -30,6 +30,8 @@ const PARAM_LABELS: Record<string, string> = {
   similarity_threshold:     "Similarity-Schwellwert",
   min_retrieval_confidence: "Min. Retrieval-Konfidenz",
   min_citation_coverage:    "Min. Citation-Coverage",
+  confidence_threshold_high:   "Band-Grenze «Hoch»",
+  confidence_threshold_medium: "Band-Grenze «Mittel»",
   top_k:                    "Top-K Kandidaten",
   top_n:                    "Top-N ans LLM",
   self_check_band_low:      "Self-Check Zone (unten)",
@@ -41,8 +43,8 @@ const PARAM_LABELS: Record<string, string> = {
 };
 
 // Keyed by the spec enum (see SuppressionReason): a reason added in
-// openapi.yaml — T-25 brings self_check — fails the type check here instead of
-// rendering the raw key in the badge.
+// openapi.yaml fails the type check here instead of rendering the raw key in
+// the badge.
 const suppressLabels: Record<SuppressionReason, string> = {
   retrieval_gate:       "Keine Chunks über Schwellwert",
   retrieval_confidence: "Retrieval-Konfidenz zu tief",
@@ -50,16 +52,10 @@ const suppressLabels: Record<SuppressionReason, string> = {
   generation_truncated: "Antwort abgebrochen, zurückgehalten",
   citation_coverage:    "Zu wenig Aussagen belegt",
   citation_invalid:     "Antwort nannte eine erfundene Quelle",
+  confidence_band:      "Konfidenz insgesamt zu tief",
+  self_check:           "Self-Check fand ungedeckte Aussagen",
   configuration_error:  "Suche nicht korrekt konfiguriert",
 };
-
-// The stage whose position anchors the Composite block below. Unlike the
-// suppression reasons above, this one is NOT type-checked: openapi.yaml declares
-// StageInfo.id as a plain string, because DebugInfo is explicitly outside the
-// functional contract. A typo here would compile and silently render the
-// Composite block in the wrong place, so the value lives in one spot.
-// Backend counterpart: STAGE_CITATION_COVERAGE in app/routers/query.py.
-const CITATION_STAGE_ID = "citation_coverage";
 
 function pct(v: number) { return `${Math.round(v * 100)}%`; }
 
@@ -282,80 +278,54 @@ function DebugPanel({ debug, confidence }: { debug: DebugInfo; confidence: Confi
           Pipeline
         </div>
 
-        {/* Pipeline stages interleaved with LLM calls and Composite */}
-        {(() => {
-        // Hoisted out of the map below: the answer is the same for every stage.
-        const hasCitationStage = debug.stages.some(x => x.id === CITATION_STAGE_ID);
-        return debug.stages.map((s, i) => {
-          // Anchored on the stage id, not on its position: the backend ships
-          // three stages today and four once T-25 lands, and the fixed indices
-          // this used to carry meant the Composite block rendered in neither case.
+        {/* Pipeline stages interleaved with the LLM calls each one triggers.
+            Anchored on the stage id, never on its position: the backend decides
+            how many stages it ships, and fixed indices went wrong every time
+            that number changed. */}
+        {debug.stages.map((s, i) => {
           const groundingCall = s.id === "retrieval_confidence" ? debug.llm_calls.find(c => c.step === "grounding") : null;
           const selfCheckCall = s.id === "self_check" ? debug.llm_calls.find(c => c.step === "self_check") : null;
-          // Composite Score belongs after the citation stage; while that stage does
-          // not exist it goes after the last one, so the breakdown stays visible.
-          const showComposite = hasCitationStage
-            ? s.id === CITATION_STAGE_ID
-            : i === debug.stages.length - 1;
           return (
             <div key={s.id}>
-              <PipelineStep num={i < 3 ? i + 1 : i + 2} stage={s} isLast={false} />
+              <PipelineStep num={i + 1} stage={s} isLast={false} />
               {groundingCall && <LLMCallNode call={groundingCall} isLast={false} />}
-              {showComposite && (() => {
-                const scLow  = debug.params_used.self_check_band_low  ?? 0.50;
-                const scHigh = debug.params_used.self_check_band_high ?? 0.75;
-                const score  = confidence.score;
-                const below  = score < scLow;
-                const inZone = score >= scLow && score < scHigh;
-                const dotColor    = below ? "var(--red)"   : inZone ? "var(--amber)"   : "var(--green)";
-                const dotShadow   = below ? "var(--red-lt)": inZone ? "var(--amber-lt)": "var(--green-lt)";
-                const statusText  = below ? "✗ STOPP"      : inZone ? "→ Self-Check"   : "✓ OK";
-                const statusColor = below ? "var(--red)"   : inZone ? "var(--amber)"   : "var(--green)";
-                return (
-                  <div style={{ display: "flex", gap: 0 }}>
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0, width: 22 }}>
-                      <div style={{
-                        width: 18, height: 18, borderRadius: "50%", flexShrink: 0,
-                        background: dotColor, color: "#fff",
-                        fontSize: 9, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center",
-                        boxShadow: `0 0 0 2px ${dotShadow}`,
-                      }}>{i + 2}</div>
-                      <div style={{ flex: 1, width: 2, background: "var(--border)", minHeight: 10 }} />
+              {/* The composite breakdown belongs to the stage that decides on it,
+                  so it hangs under confidence_band rather than floating between
+                  stages with a number of its own. Every value here comes from the
+                  response — the invented 0.50/0.75 fallbacks this used to carry
+                  showed a zone the backend was not using. */}
+              {s.id === "confidence_band" && (
+                <div style={{ display: "flex", gap: 0 }}>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0, width: 22 }}>
+                    <div style={{ flex: 1, width: 2, background: "var(--border)", minHeight: 10 }} />
+                  </div>
+                  <div style={{ flex: 1, paddingLeft: 10, paddingBottom: 10 }}>
+                    <div style={{ fontSize: 10, color: "var(--muted)", fontFamily: "monospace", lineHeight: 1.5 }}>
+                      {debug.formula_breakdown}
                     </div>
-                    <div style={{ flex: 1, paddingLeft: 10, paddingBottom: 10 }}>
-                      <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: "var(--navy)" }}>Composite Score</span>
-                        <span style={{ fontSize: 11, fontWeight: 800, color: dotColor }}>{pct(score)}</span>
-                        <span style={{ fontSize: 10, color: "var(--muted)" }}>
-                          Zone: {pct(scLow)}–{pct(scHigh)}
-                        </span>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: statusColor, marginLeft: "auto" }}>{statusText}</span>
-                      </div>
-                      <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 2, fontFamily: "monospace" }}>
-                        {debug.formula_breakdown}
-                      </div>
-                      <div style={{ display: "flex", gap: 6, marginTop: 5, flexWrap: "wrap" }}>
-                        {[
-                          { label: "Top-Score",    val: debug.retrieval_detail.top_score },
-                          { label: "Mean-Score",   val: debug.retrieval_detail.mean_score },
-                          { label: "Density (÷5)", val: debug.retrieval_detail.evidence_density },
-                        ].map(item => (
-                          <div key={item.label} style={{ padding: "2px 8px", borderRadius: 6, background: "var(--blue-lt)", fontSize: 10, display: "flex", gap: 4, alignItems: "baseline" }}>
-                            <span style={{ fontWeight: 700, color: "var(--navy)" }}>{pct(item.val)}</span>
-                            <span style={{ color: "var(--muted)" }}>{item.label}</span>
-                          </div>
-                        ))}
-                        <span style={{ fontSize: 10, color: "var(--muted)", alignSelf: "center" }}>→ 0.5×Top + 0.3×Mean + 0.2×Density</span>
-                      </div>
+                    <div style={{ display: "flex", gap: 6, marginTop: 5, flexWrap: "wrap" }}>
+                      {[
+                        { label: "Top-Score",  val: debug.retrieval_detail.top_score },
+                        { label: "Mean-Score", val: debug.retrieval_detail.mean_score },
+                        { label: "Density",    val: debug.retrieval_detail.evidence_density },
+                        { label: "Citation",   val: confidence.citation_coverage },
+                      ].map(item => (
+                        <div key={item.label} style={{ padding: "2px 8px", borderRadius: 6, background: "var(--blue-lt)", fontSize: 10, display: "flex", gap: 4, alignItems: "baseline" }}>
+                          <span style={{ fontWeight: 700, color: "var(--navy)" }}>{pct(item.val)}</span>
+                          <span style={{ color: "var(--muted)" }}>{item.label}</span>
+                        </div>
+                      ))}
+                      <span style={{ padding: "2px 8px", borderRadius: 6, background: "var(--border)", fontSize: 10, fontWeight: 700, color: "var(--navy)" }}>
+                        Band: {confidence.band}
+                      </span>
                     </div>
                   </div>
-                );
-              })()}
+                </div>
+              )}
               {selfCheckCall && <LLMCallNode call={selfCheckCall} isLast={false} />}
             </div>
           );
-        });
-        })()}
+        })}
 
         {/* Active params for this query */}
         <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid var(--border)" }}>
@@ -535,16 +505,19 @@ export default function MessageBubble({ message: m, token }: Props) {
             // Coloured only against a threshold we actually have. params_used is
             // filled for admins alone, and the invented fallback (0.55, while the
             // backend default is 0.40) painted every learner's answer red whose
-            // score sat between the two — for a stage that had passed it. Same
-            // reason the citation badge below stays neutral: no colour against a
-            // number nobody measured. The real display for learners is the
-            // confidence band of US-02 (T-27), not a raw threshold.
+            // score sat between the two — for a stage that had passed it.
+            // `confidence.band` is the value US-02 wants shown here, but the
+            // learner-facing badge for it is T-27; today the band appears only
+            // in the admin debug panel, so this block stays a raw comparison
+            // and simply declines to colour what it cannot judge.
             const minRet = d?.params_used?.min_retrieval_confidence ?? null;
             const retFail = minRet !== null && m.confidence!.retrieval_score < minRet;
-            // Citation coverage is 0.0 because stage 2 does not exist yet (T-19),
-            // not because nothing was covered. Comparing it against the threshold
-            // painted every correct answer with a red "0 %" for a check that never
-            // ran, so the badge stays neutral and says so until T-19 measures it.
+            const minCit = d?.params_used?.min_citation_coverage ?? null;
+            // Only meaningful once stage 2 ran. Below the retrieval gates the
+            // coverage is 0.0 for "not measured", and painting that red would
+            // report a failure of a check that never happened (ADR-008).
+            const citRan = d?.stages?.find(s => s.id === "citation_coverage")?.ran ?? false;
+            const citFail = citRan && minCit !== null && m.confidence!.citation_coverage < minCit;
             return (
               <>
                 <span style={{
@@ -556,9 +529,10 @@ export default function MessageBubble({ message: m, token }: Props) {
                 </span>
                 <span style={{
                   fontSize: 11, padding: "2px 8px", borderRadius: 20, fontWeight: 600,
-                  background: "var(--bg)", color: "var(--muted)",
+                  background: citFail ? "var(--red-lt)" : citRan ? "var(--blue-lt)" : "var(--bg)",
+                  color: citFail ? "var(--red)" : citRan ? "var(--navy)" : "var(--muted)",
                 }}>
-                  Citation: offen (T-19)
+                  {citRan ? `Citation: ${pct(m.confidence!.citation_coverage)}` : "Citation: nicht gelaufen"}
                 </span>
               </>
             );

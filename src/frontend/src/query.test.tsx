@@ -53,7 +53,7 @@ function answer(overrides: Partial<QueryResponse> = {}): QueryResponse {
     message: "SKOS verlangt je Sprache genau ein prefLabel.",
     refinement_hint: null,
     citations: [citation(1, "skos.pdf")],
-    confidence: { score: 0.76, retrieval_score: 0.76, citation_coverage: 0 },
+    confidence: { score: 0.76, retrieval_score: 0.76, citation_coverage: 0, band: "hoch" },
     debug: null,
     ...overrides,
   };
