@@ -51,3 +51,29 @@ Verhalten des Codes bloss zu spiegeln.
 
 **Merksatz:** *Test gegen den Code prüft Konsistenz. Test gegen die Spec prüft
 Korrektheit.*
+
+## Live erlebt: der Test hat die Spec überstimmt (pytest-Evaluator)
+
+Beim Lauf von `orchestrator_pytest.py` (E = pytest statt LLM-Evaluator) ist genau
+das passiert:
+
+- **spec.md** (vom Planner geschrieben): `bool` als `score` → `TypeError`.
+- **test_code.py** (mein Gate, gegen den *alten* Code geschrieben): `bool` wird
+  *still als Zahl* akzeptiert (`True` → `"hoch"`).
+
+Runde 1 war rot:
+
+```
+FAILED test_bool_wird_stillschweigend_als_zahl_behandelt
+TypeError: score muss ein numerischer Typ sein, got bool
+```
+
+Der Generator las den pytest-Output, folgerte „der Test will bool durchlassen"
+und entfernte die Typprüfung → Runde 2 grün (`PASS`).
+
+**Der Test war das Gate — also hat er gewonnen.** `code.py` wurde gegen den Test
+gebogen, *entgegen der Spec*. Das ist der Merksatz oben in Aktion: ein Test, der
+aus dem alten Code abgeleitet ist, erzwingt dessen (hier fragwürdiges) Verhalten
+und übersteuert die eigentliche Anforderung. Wäre `test_code.py` aus `spec.md`
+abgeleitet worden, hätte der Generator die Spec (bool → `TypeError`) erfüllen
+müssen — und die Runde wäre aus dem *richtigen* Grund grün geworden.
