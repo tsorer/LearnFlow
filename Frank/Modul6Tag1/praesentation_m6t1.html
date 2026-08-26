@@ -1,0 +1,665 @@
+<title>Beweis statt Meinung</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+
+<style>
+  /* ---- Tokens: helle Palette vollstaendig auf :root ---------------------- */
+  :root {
+    --ground:      #F4F6F8;
+    --surface:     #FFFFFF;
+    --surface-alt: #EDF0F3;
+    --ink:         #171C22;
+    --ink-soft:    #3D4650;
+    --muted:       #6C7783;
+    --rule:        #D9DFE5;
+    --rule-strong: #BCC5CE;
+
+    --pass:        #2E7D5B;
+    --pass-soft:   #E4F0EA;
+    --fail:        #B23A2F;
+    --fail-soft:   #F7E6E3;
+    --accent:      #2E7D5B;
+
+    /* Terminal ist bewusst in beiden Themes dunkel — eigene Tokenreihe. */
+    --term-bg:     #12171D;
+    --term-chrome: #1C232B;
+    --term-fg:     #C9D3DD;
+    --term-dim:    #6A7581;
+    --term-pass:   #5BC48E;
+    --term-fail:   #F07A6C;
+    --term-rule:   #2A333D;
+
+    --font-display: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+    --font-body:    "Source Serif 4", Georgia, "Times New Roman", serif;
+    --font-mono:    "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+
+    --measure: 66ch;
+    --pad:     clamp(1.25rem, 4vw, 3rem);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:      #10151A;
+      --surface:     #171D24;
+      --surface-alt: #1E252D;
+      --ink:         #E4EAF0;
+      --ink-soft:    #B6C0CA;
+      --muted:       #8593A0;
+      --rule:        #2A333C;
+      --rule-strong: #3A454F;
+
+      --pass:        #5BC48E;
+      --pass-soft:   #16301F;
+      --fail:        #F08475;
+      --fail-soft:   #331C19;
+      --accent:      #5BC48E;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground:      #10151A;
+    --surface:     #171D24;
+    --surface-alt: #1E252D;
+    --ink:         #E4EAF0;
+    --ink-soft:    #B6C0CA;
+    --muted:       #8593A0;
+    --rule:        #2A333C;
+    --rule-strong: #3A454F;
+
+    --pass:        #5BC48E;
+    --pass-soft:   #16301F;
+    --fail:        #F08475;
+    --fail-soft:   #331C19;
+    --accent:      #5BC48E;
+  }
+
+  /* ---- Grundlagen -------------------------------------------------------- */
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
+    line-height: 1.65;
+    margin: 0;
+    padding: 0 var(--pad) 5rem;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 62rem;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(3rem, 7vw, 5rem);
+  }
+
+  h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
+
+  a { color: var(--accent); }
+  a:focus-visible,
+  [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* ---- Kopf -------------------------------------------------------------- */
+  header.masthead {
+    padding-top: clamp(2.5rem, 7vw, 4.5rem);
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+  }
+
+  header.masthead h1 {
+    font-size: clamp(2.1rem, 1.3rem + 4vw, 3.9rem);
+    font-weight: 700;
+    line-height: 1.03;
+    letter-spacing: -0.025em;
+  }
+
+  header.masthead h1 .turn {
+    display: block;
+    color: var(--pass);
+  }
+
+  .standfirst {
+    font-size: clamp(1.1rem, 1rem + 0.5vw, 1.35rem);
+    color: var(--ink-soft);
+    max-width: var(--measure);
+    margin: 0;
+  }
+
+  .byline {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.4rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--rule);
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+
+  /* ---- Sektionen mit Zeitschiene ----------------------------------------- */
+  section.act {
+    display: grid;
+    grid-template-columns: 7.5rem minmax(0, 1fr);
+    gap: 0 2.5rem;
+    align-items: start;
+  }
+
+  .slot { position: sticky; top: 1.5rem; }
+
+  .slot .time {
+    font-family: var(--font-mono);
+    font-size: 0.95rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+    display: block;
+  }
+
+  .slot .dur {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    display: block;
+    margin-top: 0.2rem;
+  }
+
+  .body-col { display: flex; flex-direction: column; gap: 1.5rem; min-width: 0; }
+
+  .body-col > h2 {
+    font-size: clamp(1.45rem, 1.2rem + 1.1vw, 2.05rem);
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    padding-bottom: 0.7rem;
+    border-bottom: 2px solid var(--ink);
+  }
+
+  .body-col p { margin: 0; max-width: var(--measure); }
+
+  @media (max-width: 46rem) {
+    section.act { grid-template-columns: minmax(0, 1fr); gap: 0.9rem; }
+    .slot { position: static; display: flex; align-items: baseline; gap: 0.6rem; }
+    .slot .dur { margin-top: 0; }
+  }
+
+  /* ---- M3-Tabelle -------------------------------------------------------- */
+  .scroller { overflow-x: auto; }
+
+  table.qa {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+  }
+
+  table.qa th, table.qa td { text-align: left; vertical-align: top; padding: 1rem 1.1rem; }
+
+  table.qa thead th {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--muted);
+    background: var(--surface-alt);
+    border-bottom: 1px solid var(--rule-strong);
+  }
+
+  table.qa tbody tr + tr { border-top: 1px solid var(--rule); }
+
+  table.qa td.q {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--ink);
+    width: 34%;
+    min-width: 15rem;
+  }
+
+  table.qa td.a { color: var(--ink-soft); font-size: 0.98rem; }
+  table.qa td.a strong { color: var(--ink); font-weight: 600; }
+
+  tr.spot td { background: var(--pass-soft); }
+  tr.spot td.q { color: var(--ink); }
+
+  code {
+    font-family: var(--font-mono);
+    font-size: 0.86em;
+    background: var(--surface-alt);
+    padding: 0.1em 0.35em;
+    border-radius: 3px;
+  }
+
+  /* ---- Terminal ---------------------------------------------------------- */
+  figure.term { margin: 0; display: flex; flex-direction: column; gap: 0.55rem; }
+
+  .term-frame {
+    background: var(--term-bg);
+    border: 1px solid var(--term-rule);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  .term-bar {
+    background: var(--term-chrome);
+    border-bottom: 1px solid var(--term-rule);
+    padding: 0.5rem 0.85rem;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    color: var(--term-dim);
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .term-frame pre {
+    margin: 0;
+    padding: 0.95rem 1.1rem;
+    overflow-x: auto;
+    font-family: var(--font-mono);
+    font-size: 0.79rem;
+    line-height: 1.62;
+    color: var(--term-fg);
+    tab-size: 2;
+  }
+
+  .term-frame .f { color: var(--term-fail); font-weight: 600; }
+  .term-frame .p { color: var(--term-pass); font-weight: 600; }
+  .term-frame .d { color: var(--term-dim); }
+
+  figcaption { font-size: 0.85rem; color: var(--muted); max-width: var(--measure); }
+
+  /* ---- Zaehler ----------------------------------------------------------- */
+  .tally {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 0.85rem;
+  }
+
+  .tally .box {
+    flex: 1 1 11rem;
+    border: 1px solid var(--rule);
+    background: var(--surface);
+    padding: 0.9rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .tally .box.is-fail { border-left: 3px solid var(--fail); }
+  .tally .box.is-pass { border-left: 3px solid var(--pass); }
+
+  .tally .num {
+    font-family: var(--font-mono);
+    font-size: 1.5rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
+
+  .tally .is-fail .num { color: var(--fail); }
+  .tally .is-pass .num { color: var(--pass); }
+
+  .tally .lbl {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .arrow {
+    align-self: center;
+    font-family: var(--font-mono);
+    font-size: 1.2rem;
+    color: var(--muted);
+    padding: 0 0.2rem;
+  }
+
+  @media (max-width: 34rem) { .arrow { display: none; } }
+
+  /* ---- Screenshot-Platz -------------------------------------------------- */
+  .shot-slot {
+    border: 2px dashed var(--rule-strong);
+    border-radius: 6px;
+    padding: clamp(1.5rem, 5vw, 2.75rem);
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    background: var(--surface-alt);
+  }
+
+  .shot-slot .hd {
+    font-family: var(--font-display);
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .shot-slot .sub { font-size: 0.85rem; color: var(--muted); }
+  .shot-slot .sub code { background: var(--surface); }
+
+  /* ---- Fazit-Karten ------------------------------------------------------ */
+  .verdict {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+    gap: 0.85rem;
+  }
+
+  .verdict .card {
+    border: 1px solid var(--rule);
+    background: var(--surface);
+    padding: 1.05rem 1.15rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  .verdict .card h3 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+  }
+
+  .verdict .card p { font-size: 0.92rem; color: var(--ink-soft); }
+
+  .chip {
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.15rem 0.45rem;
+    border-radius: 3px;
+    white-space: nowrap;
+  }
+
+  .chip.pass { background: var(--pass-soft); color: var(--pass); }
+  .chip.fail { background: var(--fail-soft); color: var(--fail); }
+
+  .kicker {
+    font-family: var(--font-display);
+    font-size: clamp(1.2rem, 1rem + 1.1vw, 1.75rem);
+    font-weight: 600;
+    line-height: 1.3;
+    letter-spacing: -0.015em;
+    border-left: 3px solid var(--accent);
+    padding: 0.15rem 0 0.15rem 1.15rem;
+    max-width: var(--measure);
+    color: var(--ink);
+  }
+
+  /* ---- Fuss -------------------------------------------------------------- */
+  footer.files {
+    border-top: 1px solid var(--rule);
+    padding-top: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+
+  footer.files ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--muted);
+  }
+
+  footer.files li .n { color: var(--ink-soft); }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <span class="eyebrow">CAS ADAI 2026 · Modul 6 · Tag 1 · M5-Kurzpräsentation</span>
+    <h1>Beweis statt<span class="turn">Meinung</span></h1>
+    <p class="standfirst">
+      Claude hat 73 Tests geschrieben und drei echte Bugs in unserem Code gefunden.
+      Den Fall, den Claude übersehen hat, hat ein Mensch gefunden — und die eine
+      Stelle, an der zwei grüne Lösungen sich unterscheiden, sieht pytest gar nicht.
+    </p>
+    <div class="byline">
+      <span>Frank Moritz</span>
+      <span>26.08.2026</span>
+      <span>3 Minuten</span>
+      <span>Testobjekt: check_encoding.py</span>
+    </div>
+  </header>
+
+  <!-- ================= M3 ================= -->
+  <section class="act">
+    <div class="slot">
+      <span class="time">0:15</span>
+      <span class="dur">M3 · Tabelle</span>
+    </div>
+
+    <div class="body-col">
+      <h2>Wir vs. Claude</h2>
+      <p>
+        Ein Prompt, eine Datei: <code>test_claude.py</code>. Unser Beitrag war nicht
+        eine eigene Testdatei, sondern das Review — und genau dort lag der Fund.
+      </p>
+
+      <div class="scroller">
+        <table class="qa">
+          <thead>
+            <tr><th scope="col">Frage aus dem Lab</th><th scope="col">Unsere Antwort</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="q">Wie viele Tests hat Claude geschrieben?</td>
+              <td class="a">
+                <strong>73</strong> aus einem Prompt, in 6 Blöcken: Happy Path,
+                Grenzwerte, falsche Typen, Git-Integration, <code>main()</code>-Exitcodes.
+              </td>
+            </tr>
+            <tr>
+              <td class="q">Welche Edge Cases hat Claude, die wir nicht hatten?</td>
+              <td class="a">
+                NUL-Byte genau an <strong>Offset 8192</strong> — ein Byte hinter dem
+                Lesefenster, Datei gilt als Text. Dazu: CRLF-Erhalt bei der
+                Konvertierung, <code>cp1252</code> vs. <code>latin-1</code> im
+                0x80–0x9F-Bereich, und das Rename-Parsing der <code>git -z</code>-Ausgabe.
+              </td>
+            </tr>
+            <tr class="spot">
+              <td class="q">Welche haben wir, die Claude fehlten?</td>
+              <td class="a">
+                Die <strong>schreibgeschützte Datei</strong>. 73 Tests — und keiner
+                prüfte, was passiert, wenn <code>open(…, "w")</code> scheitert. Der
+                Modus kürzt die Datei beim Öffnen: schlägt der Schreibzugriff fehl,
+                ist der Inhalt weg. Gefunden hat das ein Mensch, der auf eine
+                <code>test.txt</code> mit Readonly-Flag zeigte.
+              </td>
+            </tr>
+            <tr>
+              <td class="q">Gibt es sinnlose Tests?</td>
+              <td class="a">
+                Einen Grenzfall: <code>test_detect_accepts_str_path</code> prüft
+                Pythons Duck-Typing, nicht unsere Logik. Umgekehrt liess sich ein
+                Zweig <em>nicht</em> testen — <code>iso-8859-1</code> war toter Code,
+                weil <code>latin-1</code> davor jede Bytefolge akzeptiert.
+              </td>
+            </tr>
+            <tr>
+              <td class="q">Laufen alle durch? Falls FAIL: Bug im Code oder im Test?</td>
+              <td class="a">
+                <strong>Bug im Code — dreimal.</strong> Zwei Tests wurden als
+                <code>xfail(strict=True)</code> markiert, um echte Defekte
+                festzuhalten statt sie wegzufixen: BOM-Rest bei UTF-16, und
+                Umlaut-Pfade, die <code>git</code> meldet und der Code verschluckt.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= M4 ================= -->
+  <section class="act">
+    <div class="slot">
+      <span class="time">1:15</span>
+      <span class="dur">M4 · FAIL → PASS</span>
+    </div>
+
+    <div class="body-col">
+      <h2>Der Evaluator, der nichts glaubt</h2>
+      <p>
+        <code>pytest_evaluator()</code> ersetzt das LLM-Urteil durch einen Exit-Code.
+        Ausgangslage ist die ungepatchte <code>check_encoding.py</code> mit ihren
+        drei Bugs — der Generator bekommt den echten pytest-Output als Feedback.
+      </p>
+
+      <div class="tally">
+        <div class="box is-fail">
+          <span class="num">6</span>
+          <span class="lbl">failed · Runde 0</span>
+        </div>
+        <span class="arrow" aria-hidden="true">→</span>
+        <div class="box is-pass">
+          <span class="num">11</span>
+          <span class="lbl">passed · nach Nachbesserung</span>
+        </div>
+        <div class="box is-pass">
+          <span class="num">73</span>
+          <span class="lbl">passed · volle Suite</span>
+        </div>
+      </div>
+
+      <figure class="term">
+        <div class="term-frame">
+          <div class="term-bar">
+            <span>python orchestrator_m4.py</span>
+            <span>=== EVALUATOR (Runde 0) ===</span>
+          </div>
+<pre><span class="f">FAIL:</span>
+<span class="f">FAILED</span> test_m4.py::test_utf16_und_utf32_ohne_bom_zurueckschreiben[utf-16-le]
+<span class="f">FAILED</span> test_m4.py::test_utf16_und_utf32_ohne_bom_zurueckschreiben[utf-16-be]
+<span class="f">FAILED</span> test_m4.py::test_utf16_und_utf32_ohne_bom_zurueckschreiben[utf-32-le]
+<span class="f">FAILED</span> test_m4.py::test_utf16_und_utf32_ohne_bom_zurueckschreiben[utf-32-be]
+<span class="f">FAILED</span> test_m4.py::test_umlaut_dateiname_wird_gefunden - AssertionError: asse...
+<span class="f">FAILED</span> test_m4.py::test_cp1252_anfuehrungszeichen_bleiben_erhalten - Assertio...
+<span class="f">6 failed</span>, <span class="p">5 passed</span> <span class="d">in 1.10s</span></pre>
+        </div>
+        <figcaption>
+          Das ist das Feedback, das der Generator sieht — abgeschnitten auf die
+          letzten 800 Zeichen. Deshalb ist <code>test_m4.py</code> auf 9 Tests
+          reduziert: bei 73 wäre der Report Rauschen.
+        </figcaption>
+      </figure>
+
+      <figure class="term">
+        <div class="term-frame">
+          <div class="term-bar">
+            <span>python -m pytest test_m4.py -q</span>
+            <span>=== EVALUATOR (nach dem Patch) ===</span>
+          </div>
+<pre><span class="p">...........</span>                                     <span class="d">[100%]</span>
+<span class="p">11 passed</span> <span class="d">in 1.46s</span></pre>
+        </div>
+      </figure>
+
+      <div class="shot-slot">
+        <span class="hd">Hier kommt euer Orchestrator-Screenshot rein</span>
+        <span class="sub">
+          Der volle Zyklus GENERATOR → EVALUATOR → PASS aus
+          <code>python orchestrator_m4.py</code> — mit der Rundenzahl.
+        </span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= Fund ================= -->
+  <section class="act">
+    <div class="slot">
+      <span class="time">2:20</span>
+      <span class="dur">Der Fund</span>
+    </div>
+
+    <div class="body-col">
+      <h2>Zwei grüne Lösungen, eine crasht</h2>
+      <p>
+        Wir haben denselben Bug zweimal reparieren lassen: einmal von Hand im Review,
+        einmal vom Generator im Loop. Beide Dateien sind 73/73 grün. Nur acht
+        Code-Zeilen liegen dazwischen — und sie sind nicht gleichwertig.
+      </p>
+
+      <div class="verdict">
+        <div class="card">
+          <h3>BOM bei UTF-16 <span class="chip pass">Generator besser</span></h3>
+          <p>
+            Der Generator nutzt <code>has_bom</code>, das die Erkennung längst
+            zurückgab und v1 mit <code>_</code> wegwarf. Drei Zeilen statt einer
+            Codec-Tabelle, die gepflegt werden muss.
+          </p>
+        </div>
+        <div class="card">
+          <h3>git-Encoding <span class="chip fail">Generator schwächer</span></h3>
+          <p>
+            Nur <code>encoding="utf-8"</code>, ohne <code>surrogateescape</code>.
+            Unter Linux sind Dateinamen beliebige Bytes — der Decode-Fehler fliegt
+            im Reader-Thread, <code>run()</code> liefert stumm <code>stdout=None</code>.
+          </p>
+        </div>
+        <div class="card">
+          <h3>cp1252-Reihenfolge <span class="chip fail">Generator schwächer</span></h3>
+          <p>
+            Repariert, aber der tote <code>iso-8859-1</code>-Zweig blieb stehen.
+            Funktional identisch, also grün.
+          </p>
+        </div>
+      </div>
+
+      <p class="kicker">
+        Die eine Stelle, an der sich die beiden Lösungen wirklich unterscheiden, ist
+        für pytest unsichtbar — unter Windows lässt sich so ein Dateiname gar nicht
+        anlegen. Beide 73/73 grün, eine crasht unter Linux.
+      </p>
+
+      <p>
+        pytest beweist, was es prüft, und schweigt zum Rest. Der tote Zweig ist grün.
+        Die fehlende Fehlerbehandlung ist grün. Ein LLM-Evaluator hätte beides
+        anmerken können — nur eben ohne Beweis. <strong>Das ist kein Argument gegen
+        den pytest-Evaluator, sondern gegen das Gefühl, mit „alles grün“ fertig zu sein.</strong>
+      </p>
+    </div>
+  </section>
+
+  <footer class="files">
+    <span class="eyebrow">Artefakte im Repo</span>
+    <ul>
+      <li><span class="n">check_encoding.py</span> — v1, 3 Bugs</li>
+      <li><span class="n">check_encoding_v2.py</span> — Fix im Review</li>
+      <li><span class="n">check_encoding_m4.py</span> — Fix im Loop</li>
+      <li><span class="n">test_claude.py</span> — 73 Tests</li>
+      <li><span class="n">test_m4.py</span> — 9er-Spec</li>
+      <li><span class="n">orchestrator_m4.py</span> — pytest_evaluator</li>
+    </ul>
+  </footer>
+
+</div>
