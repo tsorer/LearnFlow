@@ -22,6 +22,8 @@ tags:
     description: Lernkorpus-Verwaltung / Dokument-Upload (US-04)
   - name: admin
     description: Laufzeit-Konfiguration (US-11)
+  - name: quiz
+    description: Generierung und Review von Quiz-Fragen (US-07, US-08)
   - name: infra
     description: Betriebs-Endpunkte ohne fachliche Bedeutung
 
@@ -396,6 +398,69 @@ paths:
           description: >
             Unbekannter Schlüssel, ungültiger Wert, oder eine echte Änderung an
             einem nicht schreibbaren Schlüssel
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/quiz/generate:
+    post:
+      tags: [quiz]
+      summary: Quiz-Fragen aus dem Lernkorpus des Bereichs generieren (US-07)
+      description: >
+        Zieht eine Zufallsstichprobe indexierter Chunks des Bereichs und laesst
+        daraus Multiple-Choice-Fragen erzeugen. Die Fragen werden als `pending`
+        gespeichert und sind fuer Lernende erst nach der Freigabe durch den
+        Bereichsverantwortlichen sichtbar (US-07) -- die Generierung ist ein
+        Vorschlag, keine Veroeffentlichung.
+      responses:
+        '201':
+          description: >
+            Fragen erzeugt und gespeichert. Es koennen weniger als fuenf sein:
+            Fragen, die den Vertrag verletzen (falsche Anzahl Optionen,
+            unbekannte richtige Antwort, erfundene Quellen-Nummer), werden
+            verworfen statt korrigiert. `generated` nennt, wie viele
+            uebriggeblieben sind.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuizGenerationResponse'
+        '401':
+          description: Nicht authentifiziert
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Keine Berechtigung (Rolle knowledge_owner erforderlich)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: >
+            Im Bereich ist kein fertig indexiertes Dokument vorhanden. Es gibt
+            nichts, woraus Fragen entstehen koennten -- bewusst ein Konflikt mit
+            dem Zustand und kein leeres Erfolgsergebnis.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: >
+            Zu viele Generierungen (Rate Limit, 3/Minute pro Konto). Ein Klick
+            loest einen LLM-Batch aus; wie bei /api/query zaehlt das angemeldete
+            Konto und nicht die Client-IP.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: >
+            LLM-Provider nicht erreichbar, oder seine Antwort war nicht als die
+            vereinbarte Struktur lesbar. Kein fachliches Ergebnis, sondern ein
+            Infrastrukturfehler -- bewusst nicht als leeres Ergebnis getarnt
+            (ADR-008).
           content:
             application/json:
               schema:
@@ -926,3 +991,75 @@ components:
       type: array
       items:
         $ref: '#/components/schemas/DocumentResponse'
+
+    QuizQuestionStatus:
+      type: string
+      description: >
+        Stand der Pruefung durch den Bereichsverantwortlichen (US-07). Eine neu
+        generierte Frage ist `pending`; wird das Dokument durch eine neue Fassung
+        ersetzt, faellt eine freigegebene Frage hierher zurueck und muss erneut
+        geprueft werden (T-15/T-33).
+      enum: [pending, approved, rejected]
+
+    QuizQuestion:
+      type: object
+      required:
+        [id, document_id, chunk_id, question, options, correct_answer,
+         explanation, source_excerpt, status, created_at, approved_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        document_id:
+          type: string
+          format: uuid
+        chunk_id:
+          description: >
+            Der belegende Chunk. `null`, sobald das Dokument durch eine neue
+            Fassung ersetzt wurde -- die Frage ueberlebt, ihre Quelle im Korpus
+            nicht. In dem Fall ist `source_excerpt` das einzige verbliebene
+            Zeugnis der Passage.
+          type: string
+          format: uuid
+          nullable: true
+        question:
+          type: string
+        options:
+          description: Genau vier Antwortoptionen; `correct_answer` indiziert sie.
+          type: array
+          minItems: 4
+          maxItems: 4
+          items:
+            type: string
+        correct_answer:
+          type: string
+          enum: [A, B, C, D]
+        explanation:
+          description: Begruendung der richtigen Antwort aus der Quellen-Passage (US-08)
+          type: string
+        source_excerpt:
+          description: Wortlaut der Passage, aus der die Frage erzeugt wurde (US-07)
+          type: string
+        status:
+          $ref: '#/components/schemas/QuizQuestionStatus'
+        created_at:
+          description: Zeitpunkt der Generierung
+          type: string
+          format: date-time
+        approved_at:
+          description: Zeitpunkt der Freigabe; `null`, solange keine erteilt ist (US-07)
+          type: string
+          format: date-time
+          nullable: true
+
+    QuizGenerationResponse:
+      type: object
+      required: [generated, questions]
+      properties:
+        generated:
+          description: Anzahl tatsaechlich gespeicherter Fragen
+          type: integer
+        questions:
+          type: array
+          items:
+            $ref: '#/components/schemas/QuizQuestion'

@@ -113,6 +113,43 @@ SPARSE_SQL = text(
     "LIMIT :top_k"
 )
 
+# Quiz generation (T-33) has no question to search with, so it takes a random
+# sample of the area instead of a ranking. It shares `_VISIBLE` with the two
+# searches above deliberately: what a quiz question may be built from is the
+# same corpus an answer may be grounded in, and a second copy of that rule
+# would drift.
+#
+# `ORDER BY random()` and not "the first n": pressing Generate twice should
+# produce different questions, and at pilot size (<10k chunks) a full scan for
+# ten rows costs nothing. The score column is missing because there is nothing
+# to score against.
+SAMPLE_SQL = text(
+    "SELECT c.id AS chunk_id, c.document_id, c.content, c.page, c.heading, d.filename "
+    "FROM chunks c JOIN documents d ON d.id = c.document_id "
+    f"WHERE {_VISIBLE} "
+    "ORDER BY random() "
+    "LIMIT :limit"
+)
+
+
+@dataclass(frozen=True)
+class SourceChunk:
+    """A chunk with its provenance, without any notion of a match.
+
+    Deliberately not a `RetrievalHit` with zeroed scores: there was no query, so
+    a similarity of 0.0 and a rank of 0 would be numbers that mean nothing
+    pretending to be measurements. Both types satisfy the `ContextChunk`
+    protocol, which is what lets the quiz prompt reuse the numbered context
+    block of app/services/generation.py.
+    """
+
+    chunk_id: uuid.UUID
+    document_id: uuid.UUID
+    filename: str
+    content: str
+    page: int | None
+    heading: str | None
+
 
 @dataclass(frozen=True)
 class RetrievalHit:
@@ -173,6 +210,29 @@ async def retrieve(
         dense_count=len(dense_rows),
         sparse_count=len(sparse_rows),
     )
+
+
+async def sample_chunks(db: AsyncSession, area: str, limit: int) -> list[SourceChunk]:
+    """Draw up to `limit` indexed chunks of the area at random (T-33).
+
+    Fewer than `limit` rows is a normal result, not an error: the area holds
+    what it holds. An empty list means there is nothing to generate from, and
+    the caller says so instead of asking the model to invent material.
+    """
+    rows = await _fetch(
+        db, SAMPLE_SQL, {"area": area, "limit": limit, "status": DocumentStatus.available}
+    )
+    return [
+        SourceChunk(
+            chunk_id=row["chunk_id"],
+            document_id=row["document_id"],
+            filename=row["filename"],
+            content=row["content"],
+            page=row["page"],
+            heading=row["heading"],
+        )
+        for row in rows
+    ]
 
 
 def to_tsquery_terms(question: str) -> str:

@@ -6,7 +6,7 @@ from starlette.responses import Response
 
 from app.config import settings
 from app.limiter import limiter
-from app.routers import admin, auth, documents, feedback, query
+from app.routers import admin, auth, documents, feedback, query, quiz
 
 # Passing None removes the route entirely rather than hiding it, so there is no
 # unauthenticated endpoint left to find. app.openapi() keeps working in-process,
@@ -63,6 +63,7 @@ app.include_router(documents.router)
 app.include_router(query.router)
 app.include_router(feedback.router)
 app.include_router(admin.router)
+app.include_router(quiz.router)
 
 
 @app.get("/health")

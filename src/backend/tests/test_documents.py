@@ -206,6 +206,35 @@ async def test_upload_replacement_deletes_the_previous_chunks() -> None:
     assert existing.id in params.values()
 
 
+async def test_upload_replacement_sends_approved_questions_back_to_review() -> None:
+    """The decision of T-33 (#40), and the response body cannot show it either.
+
+    Deleting the questions would discard Stefan's review silently; leaving them
+    approved would keep questions in the learners' pool that were checked
+    against a text nobody can read any more. So the approval goes and the
+    question stays — including its approval timestamp, which would otherwise
+    claim a verdict that no longer holds (US-07).
+    """
+    existing = make_document(status="available")
+    db = make_db(existing=existing)
+
+    await _post_upload(existing.filename, b"zweite fassung", db)
+
+    sql, params = only(db, "UPDATE quiz_questions")
+    assert "quiz_questions.status = " in sql
+    assert {"pending", "approved", existing.id} <= set(params.values())
+    assert None in params.values()  # approved_at
+
+
+async def test_upload_of_a_new_filename_touches_no_questions() -> None:
+    """Nothing has been generated from a document that did not exist."""
+    db = make_db()
+
+    await _post_upload("notes.pdf", b"content", db)
+
+    assert not [sql for sql, _ in statements(db) if "UPDATE quiz_questions" in sql]
+
+
 async def test_upload_of_a_new_filename_deletes_no_chunks() -> None:
     db = make_db()
 

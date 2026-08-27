@@ -646,6 +646,90 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/quiz/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Quiz-Fragen aus dem Lernkorpus des Bereichs generieren (US-07)
+         * @description Zieht eine Zufallsstichprobe indexierter Chunks des Bereichs und laesst daraus Multiple-Choice-Fragen erzeugen. Die Fragen werden als `pending` gespeichert und sind fuer Lernende erst nach der Freigabe durch den Bereichsverantwortlichen sichtbar (US-07) -- die Generierung ist ein Vorschlag, keine Veroeffentlichung.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Fragen erzeugt und gespeichert. Es koennen weniger als fuenf sein: Fragen, die den Vertrag verletzen (falsche Anzahl Optionen, unbekannte richtige Antwort, erfundene Quellen-Nummer), werden verworfen statt korrigiert. `generated` nennt, wie viele uebriggeblieben sind. */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["QuizGenerationResponse"];
+                    };
+                };
+                /** @description Nicht authentifiziert */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Keine Berechtigung (Rolle knowledge_owner erforderlich) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Im Bereich ist kein fertig indexiertes Dokument vorhanden. Es gibt nichts, woraus Fragen entstehen koennten -- bewusst ein Konflikt mit dem Zustand und kein leeres Erfolgsergebnis. */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Zu viele Generierungen (Rate Limit, 3/Minute pro Konto). Ein Klick loest einen LLM-Batch aus; wie bei /api/query zaehlt das angemeldete Konto und nicht die Client-IP. */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description LLM-Provider nicht erreichbar, oder seine Antwort war nicht als die vereinbarte Struktur lesbar. Kein fachliches Ergebnis, sondern ein Infrastrukturfehler -- bewusst nicht als leeres Ergebnis getarnt (ADR-008). */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -918,6 +1002,47 @@ export interface components {
             uploaded_by?: string | null;
         };
         DocumentList: components["schemas"]["DocumentResponse"][];
+        /**
+         * @description Stand der Pruefung durch den Bereichsverantwortlichen (US-07). Eine neu generierte Frage ist `pending`; wird das Dokument durch eine neue Fassung ersetzt, faellt eine freigegebene Frage hierher zurueck und muss erneut geprueft werden (T-15/T-33).
+         * @enum {string}
+         */
+        QuizQuestionStatus: "pending" | "approved" | "rejected";
+        QuizQuestion: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            document_id: string;
+            /**
+             * Format: uuid
+             * @description Der belegende Chunk. `null`, sobald das Dokument durch eine neue Fassung ersetzt wurde -- die Frage ueberlebt, ihre Quelle im Korpus nicht. In dem Fall ist `source_excerpt` das einzige verbliebene Zeugnis der Passage.
+             */
+            chunk_id: string | null;
+            question: string;
+            /** @description Genau vier Antwortoptionen; `correct_answer` indiziert sie. */
+            options: string[];
+            /** @enum {string} */
+            correct_answer: "A" | "B" | "C" | "D";
+            /** @description Begruendung der richtigen Antwort aus der Quellen-Passage (US-08) */
+            explanation: string;
+            /** @description Wortlaut der Passage, aus der die Frage erzeugt wurde (US-07) */
+            source_excerpt: string;
+            status: components["schemas"]["QuizQuestionStatus"];
+            /**
+             * Format: date-time
+             * @description Zeitpunkt der Generierung
+             */
+            created_at: string;
+            /**
+             * Format: date-time
+             * @description Zeitpunkt der Freigabe; `null`, solange keine erteilt ist (US-07)
+             */
+            approved_at: string | null;
+        };
+        QuizGenerationResponse: {
+            /** @description Anzahl tatsaechlich gespeicherter Fragen */
+            generated: number;
+            questions: components["schemas"]["QuizQuestion"][];
+        };
     };
     responses: never;
     parameters: never;
