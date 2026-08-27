@@ -914,6 +914,8 @@ export interface components {
              * @description Zeitpunkt des Uploads der aktuellen Fassung (T-15)
              */
             updated_at: string;
+            /** @description E-Mail des Hochladenden der aktuellen Fassung (#92); null, wenn das Konto seither gelöscht wurde (FK ON DELETE SET NULL). Erlaubt der Upload-UI, vor einer Ersetzung den bisherigen Hochladenden zu nennen. */
+            uploaded_by?: string | null;
         };
         DocumentList: components["schemas"]["DocumentResponse"][];
     };

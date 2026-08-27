@@ -914,6 +914,13 @@ components:
           description: Zeitpunkt des Uploads der aktuellen Fassung (T-15)
           type: string
           format: date-time
+        uploaded_by:
+          description: >-
+            E-Mail des Hochladenden der aktuellen Fassung (#92); null, wenn das
+            Konto seither gelöscht wurde (FK ON DELETE SET NULL). Erlaubt der
+            Upload-UI, vor einer Ersetzung den bisherigen Hochladenden zu nennen.
+          type: string
+          nullable: true
 
     DocumentList:
       type: array

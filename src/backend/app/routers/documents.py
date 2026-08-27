@@ -39,9 +39,13 @@ class DocumentResponse(BaseModel):
     error_message: str | None
     created_at: datetime
     updated_at: datetime
+    # E-Mail statt der rohen uploaded_by-UUID: die Upload-UI nennt den bisherigen
+    # Hochladenden vor einer Ersetzung (#92), und eine UUID sagt niemandem etwas.
+    # null, wenn das Konto seither gelöscht wurde (FK ON DELETE SET NULL).
+    uploaded_by: str | None = None
 
 
-def _to_response(document: Document) -> DocumentResponse:
+def _to_response(document: Document, uploader_email: str | None) -> DocumentResponse:
     return DocumentResponse(
         id=document.id,
         filename=document.filename,
@@ -58,6 +62,7 @@ def _to_response(document: Document) -> DocumentResponse:
         error_message=document.error_message,
         created_at=document.created_at,
         updated_at=document.updated_at,
+        uploaded_by=uploader_email,
     )
 
 
@@ -79,13 +84,16 @@ async def list_documents(
 ) -> list[DocumentResponse]:
     # defer(content): DocumentResponse liefert kein content-Feld, das bis zu 10 MB
     # grosse bytea (ADR-003) soll daher gar nicht erst aus der DB geladen werden.
+    # Outer-Join auf users: uploaded_by ist nullbar (gelöschtes Konto), ein
+    # Inner-Join würde solche Dokumente aus der Liste fallen lassen.
     result = await db.execute(
-        select(Document)
+        select(Document, User.email)
         .options(defer(Document.content))
+        .outerjoin(User, Document.uploaded_by == User.id)
         .where(Document.area == PILOT_AREA)
         .order_by(Document.created_at.desc())
     )
-    return [_to_response(d) for d in result.scalars().all()]
+    return [_to_response(doc, email) for doc, email in result.all()]
 
 
 @router.post(
@@ -160,7 +168,9 @@ async def upload_document(
     await enqueue_document(db, str(document.id))
     await db.commit()
 
-    return _to_response(document)
+    # Beide Pfade (Neuanlage wie Ersetzung) setzen uploaded_by auf user.id, also
+    # ist der Hochladende hier immer der aktuelle User — kein Nachladen nötig.
+    return _to_response(document, user.email)
 
 
 async def _find_by_filename(filename: str, area: str, db: AsyncSession) -> Document | None:
@@ -239,7 +249,12 @@ async def get_document(
     db: AsyncSession = Depends(get_db),
 ) -> DocumentResponse:
     document = await _get_pilot_area_document(document_id, db)
-    return _to_response(document)
+    uploader_email = (
+        await db.scalar(select(User.email).where(User.id == document.uploaded_by))
+        if document.uploaded_by is not None
+        else None
+    )
+    return _to_response(document, uploader_email)
 
 
 @router.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
