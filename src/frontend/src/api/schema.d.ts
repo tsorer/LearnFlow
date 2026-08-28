@@ -730,6 +730,198 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/quiz/questions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Generierte Quiz-Fragen lesen (US-07, US-08)
+         * @description Ein Endpoint fuer zwei Oberflaechen: das Review-Board des Bereichsverantwortlichen (T-35, alle Status) und das Quiz der Lernenden (T-36, nur Freigegebenes). Welche Status sichtbar sind, entscheidet die Rolle und nicht der Aufrufer: `knowledge_owner` und `admin` sehen alle drei, Lernende ausschliesslich `approved` -- auch bei `?status=pending`. Das ist dann eine leere Seite und kein 403: der Parameter schneidet die fuer die Rolle erlaubte Teilmenge, er erweitert sie nie (ADR-008, fail-closed).
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Ohne Angabe alle fuer die Rolle sichtbaren Status. */
+                    status?: components["schemas"]["QuizQuestionStatus"];
+                    limit?: number;
+                    offset?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Eine Seite Fragen, nach `created_at` absteigend. `limit` und `offset` wirken innerhalb des gewaehlten Status-Filters und nicht ueber alle Status hinweg -- das Board laedt je Spalte eine Seite, und ein globales Fenster koennte eine Spalte leer lassen, obwohl sie Fragen enthaelt. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["QuizQuestionPage"];
+                    };
+                };
+                /** @description Nicht authentifiziert */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Unbekannter `status`, `limit` ueber dem Maximum von 200 oder negativer `offset`. */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ValidationError"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quiz/questions/sample": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Fuenf freigegebene Fragen fuer einen Quiz-Durchlauf ziehen (US-08)
+         * @description Zieht eine Zufallsstichprobe aus dem Pool der freigegebenen Fragen -- `GET /api/quiz/questions` kann das nicht sein: es sortiert nach `created_at` und liefert damit immer dieselben fuenf neuesten, was eine Liste ist und keine Stichprobe. Gezogen wird im SQL, nicht im Client, analog `sample_chunks` in app/services/retrieval.py: der Client muesste sonst den ganzen Pool laden, um fuenf davon zu behalten.
+         *     Unabhaengig von der Rolle ausschliesslich `approved` -- auch der Bereichsverantwortliche sieht hier das Quiz der Lernenden und nicht seinen Pruefstand (ADR-008, fail-closed). Weniger als fuenf Fragen sind ein normales Ergebnis und kein Fehler: der Bereich enthaelt, was er enthaelt.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Bis zu fuenf freigegebene Fragen in zufaelliger Reihenfolge. `total` ist die Groesse des Pools, aus dem gezogen wurde -- damit die Quiz-UI einen leeren oder knappen Bestand benennen kann, statt eine kurze Runde als vollstaendig auszugeben. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["QuizQuestionPage"];
+                    };
+                };
+                /** @description Nicht authentifiziert */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quiz/questions/{question_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Frage freigeben, ablehnen oder inhaltlich korrigieren (US-07)
+         * @description Das Urteil des Bereichsverantwortlichen und die Korrektur am Text sind derselbe Vorgang, weil sie voneinander abhaengen. `status: approved` setzt `approved_at` auf den Zeitpunkt der Freigabe, jeder andere Status setzt es auf NULL. Eine inhaltliche Aenderung an einer bereits freigegebenen Frage schickt sie zurueck auf `pending` und nullt `approved_at` -- ausser derselbe Request bestaetigt die Freigabe mit `status: approved` (Editieren und Freigeben in einem Schritt). Sonst truege eine Freigabe einen Text, den in dieser Form niemand freigegeben hat (ADR-008). Als inhaltliche Aenderung zaehlt nur ein Wert, der vom gespeicherten abweicht: eine Oberflaeche, die beim Speichern alle Felder unveraendert mitschickt, zieht damit keine Freigabe zurueck.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    question_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["QuizQuestionUpdate"];
+                };
+            };
+            responses: {
+                /** @description Die Frage nach der Aenderung */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["QuizQuestion"];
+                    };
+                };
+                /** @description Nicht authentifiziert */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Keine Berechtigung (Rolle knowledge_owner erforderlich) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Frage nicht gefunden */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Leerer Rumpf, ein nicht schreibbares Feld (`document_id`, `chunk_id`, `source_excerpt`), `options` mit einer anderen Anzahl als vier, oder ein `correct_answer` ausserhalb von A bis D. */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ValidationError"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -1042,6 +1234,21 @@ export interface components {
             /** @description Anzahl tatsaechlich gespeicherter Fragen */
             generated: number;
             questions: components["schemas"]["QuizQuestion"][];
+        };
+        QuizQuestionPage: {
+            items: components["schemas"]["QuizQuestion"][];
+            /** @description Anzahl aller Fragen des gewaehlten Filters, unabhaengig von `limit` und `offset`. Bewusst ein Objekt statt eines blanken Arrays: das Board zeigt je Spalte eine Anzahl, und `total` nachtraeglich einzufuehren waere ein Breaking Change fuer T-35 und T-36. */
+            total: number;
+        };
+        /** @description Mindestens ein Feld; nicht genannte Felder bleiben unveraendert. `document_id`, `chunk_id` und `source_excerpt` fehlen hier nicht versehentlich -- sie sind der Beleg der Frage und nicht ihr Inhalt. `additionalProperties: false` macht den Schreibversuch darauf zu einem 422 statt zu einem stillschweigend ignorierten Feld. */
+        QuizQuestionUpdate: {
+            status?: components["schemas"]["QuizQuestionStatus"];
+            question?: string;
+            /** @description Genau vier Antwortoptionen; `correct_answer` indiziert sie. */
+            options?: string[];
+            /** @enum {string} */
+            correct_answer?: "A" | "B" | "C" | "D";
+            explanation?: string;
         };
     };
     responses: never;
