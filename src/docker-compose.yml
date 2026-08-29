@@ -42,6 +42,10 @@ services:
         condition: service_healthy
     volumes:
       - ./backend:/app
+      # T-28: read-only access to the LearningCorpus PDFs and the Gold-Eval-Dataset
+      # seed files, so seed_corpus.py and the eval harness (backend/eval/) can reach
+      # them without baking fixture data into the api image.
+      - ../LearningCorpus:/learning-corpus:ro
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 10s

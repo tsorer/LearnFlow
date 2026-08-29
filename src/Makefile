@@ -1,4 +1,4 @@
-.PHONY: up down seed logs check qa qa-be qa-fe generate-api lint-be typecheck-be test-be e2e
+.PHONY: up down seed seed-corpus logs check qa qa-be qa-fe generate-api lint-be typecheck-be test-be e2e eval
 
 # --- infra ---
 up:
@@ -9,6 +9,12 @@ down:
 
 seed:
 	docker exec src-api-1 python seed_users.py
+
+# T-28: uploads + indexes the real LearningCorpus PDFs (needs a real OPENAI_API_KEY,
+# real embedding calls). Separate from `seed`: costs provider budget and time, so
+# only the eval job needs it, not every e2e run.
+seed-corpus:
+	docker exec src-api-1 python seed_corpus.py
 
 logs:
 	docker compose logs -f
@@ -75,6 +81,13 @@ generate-api:
 # path the browser takes. Not part of `make qa`; it needs the running stack.
 e2e:
 	docker exec -e E2E_BASE_URL=http://webapp src-api-1 pytest e2e
+
+# --- out-of-corpus eval gate (T-28, requires: make up && make seed && make seed-corpus) ---
+# Same execution path as `e2e`: inside the api container, through nginx. Needs a
+# real OPENAI_API_KEY (real embedding calls against the indexed corpus) and is not
+# part of `make qa` or `make e2e` for that reason.
+eval:
+	docker exec -e E2E_BASE_URL=http://webapp src-api-1 pytest eval
 
 # --- full local quality gate ---
 qa: qa-be qa-fe
