@@ -17,6 +17,7 @@ import pypdf
 import pytest
 import yaml
 
+from app.routers.documents import ALLOWED_CONTENT_TYPES
 from app.services.parsing import DOCX_CONTENT_TYPE, MARKDOWN_CONTENT_TYPE, PDF_CONTENT_TYPE
 
 DATASET_NAME = "gold-eval-dataset.yaml"
@@ -76,12 +77,28 @@ def test_loads_with_a_single_parser_call(dataset: dict) -> None:
     assert dataset["questions"]
 
 
-def test_every_corpus_names_a_document_that_exists(
-    dataset: dict, corpus_dir: pathlib.Path
-) -> None:
+def test_every_corpus_names_a_file_that_exists(dataset: dict, corpus_dir: pathlib.Path) -> None:
+    """`path` only: `filename` is the upload identity and has no file here."""
     for key, corpus in dataset["corpora"].items():
-        assert (corpus_dir / corpus["document"]).is_file(), f"{key}: document missing"
+        assert (corpus_dir / corpus["path"]).is_file(), f"{key}: file missing"
         assert corpus["title"]
+
+
+def test_upload_filename_would_survive_the_upload_endpoint(dataset: dict) -> None:
+    """The half `path` cannot cover. `filename` is what the eval joins chunks on
+    and what US-01 shows under the answer -- but nothing here has seen the DB, so
+    it stays a promise until the harness (T-28) checks it. What is checkable is
+    that the promise is self-consistent: documents.py derives the content type
+    from the extension of this very name, so a `filename` whose extension
+    disagrees with `content_type` could never be indexed the way this file claims.
+    """
+    for key, corpus in dataset["corpora"].items():
+        suffix = pathlib.PurePosixPath(corpus["filename"]).suffix.lower()
+
+        assert suffix in ALLOWED_CONTENT_TYPES, f"{key}: upload would be rejected (415)"
+        assert ALLOWED_CONTENT_TYPES[suffix] == corpus["content_type"], (
+            f"{key}: extension and content type disagree"
+        )
 
 
 def test_corpus_anchor_matches_its_content_type(dataset: dict) -> None:
@@ -144,7 +161,7 @@ def test_page_references_exist_in_the_pdf(dataset: dict, corpus_dir: pathlib.Pat
     """Guards the trap the seeds fell into: they cited printed page numbers,
     while parsing.py counts PDF pages from 1 (the SAMW guide differs by two)."""
     page_counts = {
-        key: len(pypdf.PdfReader(corpus_dir / corpus["document"]).pages)
+        key: len(pypdf.PdfReader(corpus_dir / corpus["path"]).pages)
         for key, corpus in dataset["corpora"].items()
         if corpus["anchor"] == "pages"
     }

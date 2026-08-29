@@ -8,10 +8,20 @@
 #
 # Quellreferenz-Schema
 # --------------------
-# expected_source ist (document, pages) statt einer Chunk-ID:
-#   - document ergibt sich aus questions[].corpus -> corpora[key].document und
-#     ist der Dateiname, unter dem das PDF hochgeladen wird. Der Dateiname ist
-#     die Upload-Identitaet (ix_documents_area_filename, T-15).
+# expected_source ist (Dokument, pages) statt einer Chunk-ID:
+#   - Das Dokument ergibt sich aus questions[].corpus. Der corpora-Block nennt
+#     es zweimal, weil es zwei Dinge gibt und nicht eines:
+#         path     - die Datei hier in LearningCorpus/. Nur fuer den Test und
+#                    um die Seitenzahlen herzuleiten; nie ein Join-Kriterium.
+#         filename - die Upload-Identitaet in documents (eindeutig ueber
+#                    (area, filename), T-15). Darauf joint der Eval, und dieser
+#                    Name steht ueber Citation.filename auch unter der Antwort,
+#                    die der Nutzer liest (US-01).
+#     Beide sind heute gleich, aber nur weil der Korpus so hochgeladen wird.
+#     Wer ihn unter einem anderen Namen hochlaedt, laesst den Eval ins Leere
+#     greifen, ohne dass am Retrieval etwas falsch waere -- deshalb steht die
+#     Zusage hier, statt implizit zu bleiben. Geprueft ist sie erst, wenn der
+#     Harness (T-28) sie gegen die DB haelt.
 #   - Der Anker haengt am Content-Type und steht pro Korpus in corpora[].anchor.
 #     parsing.py fuellt genau eines der beiden Felder, nie beide:
 #         application/pdf  -> page gesetzt,    heading NULL  -> anchor: pages
@@ -31,7 +41,7 @@
 #     Seitenzahlen bei einer neuen Dokumentfassung neu herzuleiten.
 #
 # Ein Treffer zaehlt als erwartete Quelle, wenn
-#     chunk.document.filename == corpora[corpus].document
+#     chunk.document.filename == corpora[corpus].filename
 # und, je nach corpora[corpus].anchor,
 #     chunk.page in expected_source.pages
 # oder chunk.heading in expected_source.headings.
@@ -59,17 +69,20 @@ version: 1
 
 corpora:
   skos-richtlinien:
-    document: "SKOS-Richtlinien_-_Version_vom_1.1.2026.pdf"
+    path: "SKOS-Richtlinien_-_Version_vom_1.1.2026.pdf"
+    filename: "SKOS-Richtlinien_-_Version_vom_1.1.2026.pdf"
     title: "SKOS-Richtlinien, Fassung vom 1.1.2026"
     content_type: "application/pdf"
     anchor: pages
   eu-ai-act:
-    document: "EU_AI_ACT_OJ_L_202401689_DE_TXT.pdf"
+    path: "EU_AI_ACT_OJ_L_202401689_DE_TXT.pdf"
+    filename: "EU_AI_ACT_OJ_L_202401689_DE_TXT.pdf"
     title: "Verordnung (EU) 2024/1689 (EU AI Act), Amtsblatt DE"
     content_type: "application/pdf"
     anchor: pages
   samw-leitfaden:
-    document: "leitfaden_samw_forschung_menschen_2_auflage_2015.pdf"
+    path: "leitfaden_samw_forschung_menschen_2_auflage_2015.pdf"
+    filename: "leitfaden_samw_forschung_menschen_2_auflage_2015.pdf"
     title: "SAMW, Forschung mit Menschen - Ein Leitfaden fuer die Praxis, 2. Auflage 2015"
     content_type: "application/pdf"
     anchor: pages

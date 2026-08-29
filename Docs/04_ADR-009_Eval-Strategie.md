@@ -44,7 +44,7 @@ expected_source:
   locator: "Artikel 3 Nummer 3 — Begriffsbestimmung „Anbieter“"
 ```
 
-- **Dokument:** kommt über `questions[].corpus` aus dem `corpora`-Block der Datei. Referenziert wird der Dateiname, unter dem das PDF hochgeladen wird — er ist die Upload-Identität (eindeutiger Index über `(area, filename)`, T-15).
+- **Dokument:** kommt über `questions[].corpus` aus dem `corpora`-Block. Der nennt es **zweimal**, weil es zwei Dinge sind: `path` ist die Datei in `LearningCorpus/` (nur für den Test und um Seitenzahlen herzuleiten), `filename` die Upload-Identität in `documents` (eindeutiger Index über `(area, filename)`, T-15). Der Eval joint auf `filename`, und derselbe Name steht über `Citation.filename` unter der Antwort, die der Nutzer liest (US-01). Heute sind beide gleich — aber nur, solange der Korpus so hochgeladen wird. **Der Korpus ist unter genau diesen `filename` zu indexieren**; unter einem anderen Namen misst der Eval null Recall, ohne dass am Retrieval etwas falsch wäre.
 - **Anker:** hängt am Content-Type und steht pro Korpus in `corpora[].anchor`. `parse_document` füllt genau eines der beiden Felder, nie beide: für `application/pdf` nur `page`, für `.docx` und `text/markdown` nur `heading`. Eine Frage trägt entsprechend `pages` **oder** `headings`.
 - **`pages`:** 1-basierte PDF-Seiten, so wie der Parser sie zählt und wie `Citation.page` sie ausliefert — **nicht** die im Dokument gedruckte Seitenzahl (die kann abweichen, beim SAMW-Leitfaden um zwei). Eine Liste, weil Seitengrenzen harte Chunkgrenzen sind: eine Antwort über einen Seitenumbruch braucht beide Seiten, sonst deckelt das den Recall.
 - **`locator`:** die Fundstelle in Prosa (Artikel/Kapitel/Randziffer). Nicht maschinell ausgewertet — sie trägt die fachliche Abnahme und erlaubt, die Seiten für eine neue Dokumentfassung neu herzuleiten.
@@ -60,7 +60,7 @@ Drei Gruppen, abgeleitet aus den NFAs (Schwellen als Spike-kalibrierte Startwert
 - **False-Suppression-Rate** (In-Corpus fälschlich unterdrückt): **≤ 15 %** Startwert — schützt die Nützlichkeit (Recall) gegen ein zu aggressives Fail-closed.
 
 **B. Retrieval-Güte (deterministisch)**
-- **Context-Recall@k** und **Context-Precision@k** gegen die erwarteten Quellreferenzen; **MRR/nDCG** für die Rangqualität. Ein Treffer zählt, wenn `chunk.document.filename` dem Dokument des Korpus entspricht und — je nach dessen `anchor` — `chunk.page` in `pages` bzw. `chunk.heading` in `headings` liegt. Primär für die Chunking-/Retrieval-Kalibrierung (ADR-007).
+- **Context-Recall@k** und **Context-Precision@k** gegen die erwarteten Quellreferenzen; **MRR/nDCG** für die Rangqualität. Ein Treffer zählt, wenn `chunk.document.filename == corpora[corpus].filename` und — je nach dessen `anchor` — `chunk.page` in `pages` bzw. `chunk.heading` in `headings` liegt. Primär für die Chunking-/Retrieval-Kalibrierung (ADR-007).
 
 **C. Antwortqualität (LLM-as-Judge)**
 - **Faithfulness/Groundedness** (ist die Antwort durch den Kontext gedeckt?) und **Answer-Relevancy** — via RAGAS.
@@ -117,9 +117,10 @@ Drei Gruppen, abgeleitet aus den NFAs (Schwellen als Spike-kalibrierte Startwert
 
 1. **Gold-Dataset fachlich abnehmen** (Stefan, T-48) — Voraussetzung für jeden Eval; vor Spike-Kalibrierung. Der Seed ist von Entwicklerseite formuliert und trägt den Vermerk „noch nicht fachlich abgenommen"; solange misst ein Eval-Lauf nur, ob die Pipeline mit *unseren* Annahmen übereinstimmt.
 2. **Citation-Format finalisieren** (gemeinsam mit ADR-007/008), damit die deterministischen Checks maschinell parsen können. Offen dabei: `Citation` liefert heute nur `filename` und `page`, keinen `heading` — für ein `.docx`- oder `.md`-Dokument bleibt die Quellenangabe damit ohne Fundstelle.
-3. **Akzeptanz-Schwellen** (False-Suppression ≤ 15 % etc.) nach dem ersten Kalibrierungslauf als „Accepted" bestätigen.
-4. ~~Repository-Ort und Zugriffsschutz für das Dataset festlegen~~ — erledigt mit T-47: `LearningCorpus/gold-eval-dataset.yaml`, Quellreferenzen statt Volltext (Schema oben).
-5. ~~Seitenzahlen für die SKOS-Einträge nachtragen~~ — erledigt mit T-48: alle 19 SKOS-Quellen tragen `pages`, jede aus einer wörtlichen Fundstelle im PDF hergeleitet statt aus einer Kapitelschätzung.
+3. **Harness prüft die Upload-Zusage** (T-28) — findet er zu `corpora[].filename` kein Dokument in `documents`, muss er laut abbrechen statt still 0 % Context-Recall zu melden. Bis dahin ist `filename` eine Zusage, die keine Instanz gegen die DB hält; `tests/test_gold_eval_dataset.py` prüft nur, dass Endung und `content_type` zueinander passen und der Upload-Endpoint den Namen nicht mit 415 abweisen würde.
+4. **Akzeptanz-Schwellen** (False-Suppression ≤ 15 % etc.) nach dem ersten Kalibrierungslauf als „Accepted" bestätigen.
+5. ~~Repository-Ort und Zugriffsschutz für das Dataset festlegen~~ — erledigt mit T-47: `LearningCorpus/gold-eval-dataset.yaml`, Quellreferenzen statt Volltext (Schema oben).
+6. ~~Seitenzahlen für die SKOS-Einträge nachtragen~~ — erledigt mit T-48: alle 19 SKOS-Quellen tragen `pages`, jede aus einer wörtlichen Fundstelle im PDF hergeleitet statt aus einer Kapitelschätzung.
 
 ---
 
