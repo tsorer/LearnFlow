@@ -44,21 +44,12 @@
 #     Anker - dafuer ist corpora[].anchor da.
 #   - area: heute auf PILOT_AREA festgenagelt, also ein Feld mit einem Wert.
 #
-# Verteilung: 79 Fragen - 45 in_corpus (57 %), 21 out_of_corpus (27 %),
+# Verteilung: 80 Fragen - 45 in_corpus (56 %), 22 out_of_corpus (28 %),
 # 13 adversarial (16 %). Das Zielband ~60/25/15 aus ADR-009 gilt fuer die
 # Summe der drei Korpora, nicht je Korpus.
 #
 # IDs tragen ein Korpus-Praefix (SKOS-, AIA-, SAMW-): die out-of-corpus- und
 # adversarial-Eintraege waren in den drei Seed-Sets identisch durchnummeriert.
-#
-# Offen
-# -----
-# Die 19 SKOS-Eintraege haben pages: null. Ihre Referenzen im Seed nannten nur
-# grobe Kapitelnamen ("Kapitel Grundbedarf (GBL)"), aus denen sich keine
-# brauchbare Seitenmenge ableiten laesst - eine Seitenliste ueber ein ganzes
-# Kapitel wuerde Context-Precision wertlos machen. Die praezisen Locator
-# (Kapitel + Randziffer) kommen aus der inhaltlichen Pruefung in T-48 (#96);
-# die Seitenzahlen werden dort nachgetragen.
 #
 # Beim Zusammenfuehren repariert: drei Fragen im EU-AI-Act-Seed waren kein
 # gueltiges YAML - ein deutsches oeffnendes Anfuehrungszeichen mit einem
@@ -90,41 +81,54 @@ questions:
     question: "Was umfasst der Grundbedarf für den Lebensunterhalt (GBL)?"
     expected_refusal: false
     reference_answer: >-
-      Nahrung, Getränke/Tabak, Kleider und Schuhe, Energieverbrauch (ohne Wohn-Nebenkosten),
-      Haushaltsführung, Körperpflege, lokaler Verkehr, Kommunikation/Internet, Radio/TV,
-      Bildung sowie Freizeit/Sport/Unterhaltung.
+      Neun Ausgabenpositionen: a) Nahrungsmittel, Getränke und Tabakwaren; b) Bekleidung und
+      Schuhe; c) Energieverbrauch (ohne Wohnnebenkosten); d) allgemeine Haushaltsführung; e)
+      persönliche Pflege; f) Verkehrsauslagen (örtlicher Nahverkehr); g)
+      Nachrichtenübermittlung, Internet, Radio/TV; h) Bildung, Freizeit, Sport,
+      Unterhaltung; i) Übriges (finanzielle Dienstleistungen, Geschenke und Einladungen).
+      Der GBL wird als Pauschale ausbezahlt — unterstützte Personen teilen den Betrag selbst
+      ein und sind nicht an die Gewichtung des Warenkorbs gebunden (Dispositionsfreiheit).
     expected_source:
-      pages: null
-      locator: "Kapitel Grundbedarf (GBL)"
+      pages: [40, 41]
+      locator: "Materielle Grundsicherung / C.3.1 Grundbedarf im Allgemeinen (Rz 1 und Erläuterung a)"
     version_sensitive: false
-    notes: "Zusammensetzung; keine Beträge."
+    notes: "Zusammensetzung; keine Beträge (die stehen nicht im Korpus, siehe SKOS-GBL-02). Prüfkriterium ist die Vollständigkeit der neun Positionen."
 
   - id: SKOS-GBL-02
     corpus: skos-richtlinien
-    category: in_corpus
+    category: out_of_corpus
     question: "Wie hoch ist der Grundbedarf für einen 1-Personen-Haushalt pro Monat?"
-    expected_refusal: false
-    reference_answer: >-
-      CHF 1061 pro Monat (Stand 2025/2026).
-    expected_source:
-      pages: null
-      locator: "Grundbedarf / Merkblatt Teuerung"
-    version_sensitive: true
-    notes: "Betrag gegen gewählte Fassung prüfen (Teuerungsanpassung)."
+    expected_refusal: true
+    reference_answer: null
+    expected_source: null
+    version_sensitive: false
+    notes: "Die Höhe des GBL wird kantonal festgelegt und ist nicht im SKOS-Korpus enthalten → Weiss ich nicht."
 
   - id: SKOS-PRINZ-01
     corpus: skos-richtlinien
     category: in_corpus
-    question: "Nach welchem Grundprinzip wird Sozialhilfe nur gewährt, wenn keine anderen Mittel oder Ansprüche bestehen?"
+    question: "Auf welchen Prinzipien beruht die Sozialhilfe gemäss den SKOS-Richtlinien?"
     expected_refusal: false
     reference_answer: >-
-      Subsidiaritätsprinzip — Sozialhilfe ist nachrangig gegenüber Selbsthilfe, Ansprüchen
-      Dritter und anderen Sozialleistungen.
+      Acht Prinzipien (A.3, Randziffern 1–9): 1. Menschenwürde — jede Person darf um ihres
+      Menschseins willen vom Gemeinwesen Existenzsicherung verlangen und darf nicht zum
+      Objekt staatlichen Handelns werden. 2. Subsidiarität — Anspruch besteht, wenn
+      Selbsthilfe und rechtzeitige Hilfe Dritter fehlen; kein Wahlrecht zwischen vorrangigen
+      Hilfsquellen und der Sozialhilfe. 3. Individualisierung — Hilfe wird dem Einzelfall
+      angepasst; keine materielle Besserstellung gegenüber Personen in bescheidenen
+      wirtschaftlichen Verhältnissen. 4. Bedarfsdeckung — behoben wird eine aktuelle
+      Notlage. 5. Ursachenunabhängigkeit — Finalprinzip; Leistungen dürfen nicht von den
+      Ursachen der Notlage abhängig gemacht werden. 6. Leistung und Gegenleistung —
+      Integrationsmassnahmen beruhen darauf; Erwerbstätigkeit wird mit EFB, andere
+      Integrationsbemühungen mit IZU honoriert. 7. Professionalität und Qualität —
+      professionelle Beratung und Begleitung; fachspezifische Kompetenzen und genügend
+      Ressourcen. 8. Koordination mit Dritten — Verbundaufgabe, koordiniert mit anderen
+      Leistungszweigen des Sozialsystems und unter Einbindung privater Strukturen.
     expected_source:
-      pages: null
-      locator: "Allgemeiner Teil / Grundprinzipien"
+      pages: [6, 7]
+      locator: "Allgemeiner Teil / A.3 Prinzipien der Sozialhilfe"
     version_sensitive: false
-    notes: ""
+    notes: "Prüfkriterium ist Vollständigkeit — alle acht Prinzipien müssen genannt sein. Achtung: acht Prinzipien auf neun Randziffern verteilt (Ziff. 6 und 7 gehören beide zu Leistung und Gegenleistung)."
 
   - id: SKOS-PRINZ-02
     corpus: skos-richtlinien
@@ -132,13 +136,38 @@ questions:
     question: "Was bedeutet das Bedarfsdeckungsprinzip?"
     expected_refusal: false
     reference_answer: >-
-      Die Hilfe deckt den konkreten, aktuellen Bedarf in der Notlage; keine
-      bedarfsunabhängige Pauschale.
+      Mit Sozialhilfe wird ein aktueller Bedarf gedeckt bzw. eine aktuelle Notlage behoben.
+      „Aktuell“ heisst: Leistungen für die Gegenwart und — solange die Notlage anhält — für
+      die Zukunft, nicht jedoch für die Vergangenheit; grundsätzlich besteht kein Anspruch
+      auf Übernahme von Schulden. Massgebend ist das sozialhilferechtliche Existenzminimum.
+      Unterstützte Personen sollen materiell nicht bessergestellt werden als Personen, die
+      in bescheidenen wirtschaftlichen Verhältnissen leben, aber keinen
+      Unterstützungsanspruch haben.
     expected_source:
-      pages: null
-      locator: "Grundprinzipien"
+      pages: [6, 8]
+      locator: "Allgemeiner Teil / A.3 Prinzipien der Sozialhilfe (Bedarfsdeckung, Rz 4 und Erläuterung c)"
     version_sensitive: false
-    notes: ""
+    notes: "Vertiefung zu SKOS-PRINZ-01. Früher enthielt die Referenzantwort den Zusatz „keine bedarfsunabhängige Pauschale“ — das steht so nicht im Korpus (die Leistungen sind im Gegenteil weitgehend pauschalisiert, A.3 Erl. b) und wurde entfernt."
+
+  - id: SKOS-PRINZ-03
+    corpus: skos-richtlinien
+    category: in_corpus
+    question: "Was besagt das Subsidiaritätsprinzip in der Sozialhilfe?"
+    expected_refusal: false
+    reference_answer: >-
+      Ein Anspruch auf Sozialhilfe besteht, wenn eine Person sich nicht selbst helfen kann
+      und auch von Dritten keine oder nicht rechtzeitig Hilfe erhält. Es besteht kein
+      Wahlrecht zwischen vorrangigen Hilfsquellen und der Sozialhilfe. Jede Person hat alles
+      Zumutbare zu unternehmen, um eine Notlage aus eigenen Kräften zu beheben — namentlich
+      Einkommen, Vermögen, freiwillige Zuwendungen und die eigene Arbeitskraft zu verwerten
+      sowie Ansprüche gegenüber Dritten geltend zu machen. Bei der Geltendmachung bzw.
+      Durchsetzung solcher Ansprüche, namentlich gegenüber Sozialversicherungen, kann die
+      betroffene Person beraterisch und rechtlich unterstützt werden.
+    expected_source:
+      pages: [6, 7]
+      locator: "Allgemeiner Teil / A.3 Prinzipien der Sozialhilfe (Subsidiarität, Rz 2 und Erläuterung a)"
+    version_sensitive: false
+    notes: "Vertiefung zu SKOS-PRINZ-01; fachlicher Anker für SKOS-ALI-01, SKOS-EL-01, SKOS-IPV-01 und SKOS-ADV-EL-01."
 
   - id: SKOS-IZU-01
     corpus: skos-richtlinien
@@ -146,11 +175,16 @@ questions:
     question: "Wofür wird eine Integrationszulage (IZU) ausgerichtet?"
     expected_refusal: false
     reference_answer: >-
-      Als Anreiz/Anerkennung für Bemühungen zur sozialen und beruflichen Integration,
-      insbesondere bei Nicht-Erwerbstätigen.
+      Mit der IZU werden Leistungen — ausschliesslich — nicht erwerbstätiger Personen für
+      ihre soziale und/oder berufliche Integration finanziell anerkannt (Erwerbstätige
+      erhalten stattdessen einen EFB, D.2). Anerkannt werden Leistungen, welche die
+      Integrationschancen erhöhen oder erhalten; sie müssen überprüfbar sein und eine
+      individuelle Anstrengung voraussetzen. Die IZU beträgt je nach Leistung und deren
+      Bedeutung 100 bis 300 Franken pro Person und Monat; sie ist personenbezogen und kann
+      mehreren Personen im selben Haushalt gewährt werden.
     expected_source:
-      pages: null
-      locator: "Kapitel Integrationszulagen"
+      pages: [75]
+      locator: "Materielle Grundsicherung / C.6.7 Integrationszulage für Nichterwerbstätige (IZU)"
     version_sensitive: false
     notes: ""
 
@@ -160,13 +194,17 @@ questions:
     question: "Was ist der Einkommensfreibetrag (EFB) bei Erwerbstätigkeit?"
     expected_refusal: false
     reference_answer: >-
-      Ein Teil des Erwerbseinkommens, der nicht an die Unterstützung angerechnet wird — als
-      Erwerbsanreiz.
+      Ein Freibetrag auf Erwerbseinkommen aus dem ersten Arbeitsmarkt, der nicht an die
+      Unterstützung angerechnet wird — als Anreiz zur Erwerbsaufnahme bzw. zur Erhöhung des
+      Arbeitspensums. Voraussetzung ist eine erbrachte Arbeitsleistung; Ausnahmen können
+      vorgesehen werden. Der Freibetrag beträgt 400 bis 700 Franken pro Monat für eine
+      Vollanstellung; die Obergrenze der kumulierten IZU und EFB liegt bei 850 Franken pro
+      Monat und Unterstützungseinheit.
     expected_source:
-      pages: null
-      locator: "Kapitel Einkommensfreibeträge"
+      pages: [88]
+      locator: "Leistungsbemessung / D.2 Einkommensfreibetrag (EFB)"
     version_sensitive: true
-    notes: "Konkrete Bandbreite versionsabhängig."
+    notes: "Bandbreite und Obergrenze stehen im Korpus (D.2 Rz 3 und 4), sind aber versionsabhängig. Abgrenzung zur IZU (C.6.7) ist Teil des Prüfkriteriums: kein EFB auf Ersatzeinkommen, Praktika und Integrationsprogramme gelten nicht als Erwerbstätigkeit."
 
   - id: SKOS-SIL-01
     corpus: skos-richtlinien
@@ -174,13 +212,19 @@ questions:
     question: "Welche Auslagen zählen zu den situationsbedingten Leistungen (SIL)?"
     expected_refusal: false
     reference_answer: >-
-      Individuell begründete Sonderkosten, z. B. krankheits-/behinderungsbedingte Auslagen,
-      Erwerbsunkosten, Betreuungskosten.
+      SIL berücksichtigen die besondere gesundheitliche, wirtschaftliche, persönliche und
+      familiäre Lage. Unterschieden werden zwei Arten: grundversorgende SIL — Kosten, die
+      nur in bestimmten Situationen anfallen, dann aber übernommen werden müssen, weil sie
+      Teil der materiellen Grundsicherung sind (typisch: krankheits- oder
+      behinderungsbedingte Auslagen, Kinderbetreuungskosten, Erwerbsunkosten); und fördernde
+      SIL — Kosten, deren Übernahme sinnvoll, aber nicht zwingend ist und die übernommen
+      werden können, wenn sie den Zielen der Sozialhilfe dienen. Grundsätzlich werden die
+      anerkannten und belegten Kosten übernommen.
     expected_source:
-      pages: null
-      locator: "Kapitel Situationsbedingte Leistungen"
+      pages: [59, 60]
+      locator: "Materielle Grundsicherung / C.6.1 Situationsbedingte Leistungen — Grundsätze (Rz 1–3)"
     version_sensitive: false
-    notes: ""
+    notes: "Prüfkriterium ist die Unterscheidung grundversorgende vs. fördernde SIL — eine reine Beispielliste greift zu kurz."
 
   - id: SKOS-WOHN-01
     corpus: skos-richtlinien
@@ -188,13 +232,20 @@ questions:
     question: "Wie werden Wohnkosten in der Sozialhilfe berücksichtigt?"
     expected_refusal: false
     reference_answer: >-
-      Ortsübliche, angemessene Mietkosten inkl. Nebenkosten werden übernommen; Orientierung
-      an kantonalen/kommunalen Mietzinsrichtlinien bzw. -maxima.
+      Grundsatz ist günstiges Wohnen. Angerechnet werden die Wohnkosten nach den örtlichen
+      Verhältnissen inklusive der mietrechtlich anerkannten Nebenkosten (Akontobeiträge wie
+      Nachzahlungen). Überhöhte Wohnkosten sind so lange zu übernehmen, bis eine zumutbare
+      günstigere Lösung zur Verfügung steht; vor einem verlangten Umzug ist der Einzelfall
+      zu prüfen (Grösse und Zusammensetzung der Familie, Verwurzelung, Alter und Gesundheit,
+      soziale Integration). Wird die Wohnungssuche oder der zumutbare Umzug verweigert,
+      entfällt der Anspruch auf den überhöhten Teil. Empfohlen werden nach Haushaltgrösse
+      abgestufte, fachlich begründete Obergrenzen (Mietzinsrichtlinien); deren konkrete
+      Beträge sind regional/kommunal und nicht im Korpus.
     expected_source:
-      pages: null
-      locator: "Kapitel Wohnkosten"
+      pages: [49, 50]
+      locator: "Materielle Grundsicherung / C.4.1 Wohn- und Nebenkosten im Allgemeinen (Rz 1–6, Erläuterungen a–c)"
     version_sensitive: false
-    notes: "Mietzinsmaxima sind kantonal/kommunal — ggf. nicht im Korpus."
+    notes: "Kern ist die Regel zu überhöhten Wohnkosten. Konkrete Mietzinsmaxima sind regional/kommunal — dazu darf das System keine Zahl nennen."
 
   - id: SKOS-SANK-01
     corpus: skos-richtlinien
@@ -202,14 +253,21 @@ questions:
     question: "Unter welchen Voraussetzungen darf die Sozialhilfe gekürzt werden?"
     expected_refusal: false
     reference_answer: >-
-      Bei Pflichtverletzung oder mangelnder Mitwirkung; befristete Kürzung des Grundbedarfs
-      innerhalb definierter Grenzen, mit anfechtbarer Verfügung und unter Wahrung des
-      Existenzminimums.
+      Werden Auflagen nicht befolgt oder gesetzliche Pflichten verletzt, ist eine
+      verhältnismässige Leistungskürzung zu prüfen. Gekürzt werden können der GBL um 5 bis
+      30 %, die Zulagen für Leistungen (EFB und IZU) sowie fördernde SIL. Die Kürzung ist
+      auf höchstens 12 Monate zu befristen, ab 20 % auf höchstens 6 Monate; die maximale
+      Kürzung von 30 % ist nur bei wiederholtem oder schwerwiegendem Fehlverhalten zulässig.
+      Vorausgesetzt ist, dass das Fehlverhalten eine Kürzung rechtfertigt, der Person das
+      erwartete Verhalten und die Folgen bekannt waren und sie sich äussern konnte. Der
+      Bedarf von Kindern und Jugendlichen ist grundsätzlich von der Kürzung auszunehmen.
+      Fallen Sanktion und Verrechnung zusammen, darf der Rahmen von 30 % des GBL insgesamt
+      nicht überschritten werden.
     expected_source:
-      pages: null
-      locator: "Kapitel Rechte/Pflichten, Kürzungen/Sanktionen"
-    version_sensitive: false
-    notes: "Kürzungsgrenzen versionsabhängig prüfen."
+      pages: [142, 143, 144]
+      locator: "Auflagen, Sanktionen, Ablehnung und Einstellung / F.2 Sanktionen (Rz 1–6, Erläuterungen a–d)"
+    version_sensitive: true
+    notes: "Prozentsätze und Fristen sind fassungsabhängig — gegen die gewählte Fassung prüfen. Früher stand hier „unter Wahrung des Existenzminimums“; die Richtlinien formulieren es umgekehrt (die Sozialhilfe darf nur befristet und begründet um einen Prozentsatz unterschritten werden)."
 
   - id: SKOS-OOC-01
     corpus: skos-richtlinien
@@ -261,8 +319,8 @@ questions:
       Ist der kantonsspezifische Betrag nicht im Korpus enthalten, soll das System darauf
       hinweisen bzw. "Weiss ich nicht" sagen, statt einen Betrag zu erfinden.
     expected_source:
-      pages: null
-      locator: "Allgemeiner Teil / Geltungsbereich (Empfehlungscharakter)"
+      pages: [1]
+      locator: "Allgemeiner Teil / A.1 Bedeutung und Geltungsbereich (Rz 1–2: Empfehlungen, verbindlich erst durch kantonales/kommunales Recht)"
     version_sensitive: false
     notes: "Testet Nuance (Empfehlung vs. kantonale Verbindlichkeit) und Halluzinationsabwehr."
 
@@ -272,13 +330,14 @@ questions:
     question: "Stimmt es, dass der Grundbedarf für eine Einzelperson CHF 997 beträgt?"
     expected_refusal: false
     reference_answer: >-
-      Nein. Der aktuelle Grundbedarf für einen 1-Personen-Haushalt beträgt CHF 1061 (Stand
-      2025/2026).
+      Das System soll die Zahl weder bestätigen noch eine eigene nennen: Die
+      SKOS-Richtlinien enthalten keine GBL-Beträge; verbindlich ist der kantonal festgelegte
+      Ansatz. Erwartet wird der Hinweis auf die kantonale Regelung statt eines Betrags.
     expected_source:
-      pages: null
-      locator: "Grundbedarf / Merkblatt Teuerung"
-    version_sensitive: true
-    notes: "Testet Umgang mit veralteter Annahme (2021 vs. 2026) — System soll korrigieren, nicht bestätigen."
+      pages: [1, 40]
+      locator: "Materielle Grundsicherung / C.3.1 Grundbedarf im Allgemeinen · Allgemeiner Teil / A.1 Rz 1–2 (Empfehlungscharakter)"
+    version_sensitive: false
+    notes: "Testet Halluzinationsabwehr bei suggestiv vorgegebener Zahl — System soll weder bestätigen noch eine Alternativzahl erfinden."
 
   - id: SKOS-KV-01
     corpus: skos-richtlinien
@@ -286,14 +345,18 @@ questions:
     question: "Werden die Krankenkassenprämien der obligatorischen Grundversicherung von der Sozialhilfe übernommen?"
     expected_refusal: false
     reference_answer: >-
-      Ja. Die Prämien der obligatorischen Krankenpflegeversicherung (KVG-Grund-
-      versicherung) gehören zur medizinischen Grundversorgung und sind Teil der materiellen
-      Grundsicherung.
+      Ja, aber nur der selbst zu tragende Teil: Als Aufwandposition im Unterstützungsbudget
+      zu berücksichtigen ist jener Teil der Prämien der obligatorischen Krankenversicherung,
+      den unterstützte Personen nach Abzug der individuellen Prämienverbilligung selbst
+      bezahlen müssen — ebenso Selbstbehalte und Franchisen. Die Gesundheitsversorgung im
+      Rahmen der obligatorischen Grundversicherung nach KVG ist Teil der materiellen
+      Grundsicherung und in jedem Fall zu gewährleisten. Diese Leistungen sind nicht
+      rückerstattungspflichtig.
     expected_source:
-      pages: null
-      locator: "Kapitel Medizinische Grundversorgung"
+      pages: [57]
+      locator: "Materielle Grundsicherung / C.5 Medizinische Grundversorgung (Rz 1–2, Erläuterung b)"
     version_sensitive: false
-    notes: ""
+    notes: "Präzisierung gegenüber der früheren Fassung: übernommen wird der Differenzbetrag nach IPV, nicht pauschal „die Prämie“ (C.5 Rz 2)."
 
   - id: SKOS-KV-02
     corpus: skos-richtlinien
@@ -305,10 +368,10 @@ questions:
       (Franchise/Selbstbehalt) und Kosten der medizinischen Behandlung im Rahmen der
       Grundversicherung.
     expected_source:
-      pages: null
-      locator: "Kapitel Medizinische Grundversorgung"
+      pages: [57]
+      locator: "Materielle Grundsicherung / C.5 Medizinische Grundversorgung (Rz 1–3)"
     version_sensitive: false
-    notes: "Eine der drei Säulen der materiellen Grundsicherung (GBL, Wohnen, med. Grundversorgung)."
+    notes: "Eine der drei Säulen der materiellen Grundsicherung (GBL, Wohnen, med. Grundversorgung). Rz 3: besteht ausnahmsweise kein Versicherungsschutz, sind die Gesundheitskosten im Rahmen der KVG-Grundversicherung von der Sozialhilfe zu decken."
 
   - id: SKOS-IPV-01
     corpus: skos-richtlinien
@@ -316,13 +379,16 @@ questions:
     question: "Muss eine unterstützte Person die individuelle Prämienverbilligung (IPV) beanspruchen?"
     expected_refusal: false
     reference_answer: >-
-      Ja. Wegen des Subsidiaritätsprinzips ist die IPV als vorrangige Leistung zu
-      beanspruchen bzw. anzurechnen, bevor bzw. soweit die Sozialhilfe die Prämien deckt.
+      Ja. Familien und Einzelpersonen in bescheidenen wirtschaftlichen Verhältnissen haben
+      gegenüber dem Wohnkanton Anspruch auf Prämienverbilligung; nach dem
+      Subsidiaritätsprinzip und der Pflicht zur Minderung der Bedürftigkeit ist dieser
+      Anspruch geltend zu machen. Die Sozialhilfe übernimmt nur den Differenzbetrag, wenn
+      die IPV die monatlichen Prämienkosten nicht deckt.
     expected_source:
-      pages: null
-      locator: "Subsidiaritätsprinzip / Medizinische Grundversorgung / Faktenblatt IPV und Sozialhilfe"
+      pages: [6, 14, 57]
+      locator: "Materielle Grundsicherung / C.5 Erläuterungen a und b · Allgemeiner Teil / A.3 Rz 2 (Subsidiarität), A.4.1 Erläuterung d (Pflicht zur Minderung der Bedürftigkeit)"
     version_sensitive: false
-    notes: "Subsidiarität; Bezug zum SKOS-Faktenblatt IPV und Sozialhilfe."
+    notes: "Früher wurde als Quelle das SKOS-Faktenblatt „IPV und Sozialhilfe“ genannt — das ist nicht Teil des Korpus. Die Aussage ist vollständig aus den Richtlinien selbst belegbar (C.5 Erl. a/b)."
 
   - id: SKOS-KV-AUF-01
     corpus: skos-richtlinien
@@ -330,14 +396,20 @@ questions:
     question: "Kann von einer sozialhilfebeziehenden Person verlangt werden, in eine günstigere Krankenversicherung zu wechseln?"
     expected_refusal: false
     reference_answer: >-
-      Ja. Im Rahmen der Schadenminderungs-/Mitwirkungspflicht kann als Auflage ein Wechsel
-      in eine kostengünstigere Krankenversicherung (z. B. günstigeres Modell) verlangt
-      werden.
+      Im Grundsatz ja — die Ausrichtung wirtschaftlicher Hilfe kann mit Auflagen verbunden
+      werden, und wer Sozialhilfe bezieht, muss alles Zumutbare unternehmen, um den
+      Unterstützungsbedarf gering zu halten. Die Richtlinien nennen eine Auflage zur
+      Auflösung eines Vertragsverhältnisses (Miete, Krankenkasse) aber ausdrücklich als
+      möglichen Grundrechtseingriff: Sie muss sich auf eine ausreichende gesetzliche
+      Grundlage stützen, verhältnismässig und zweckmässig sein, schriftlich ergehen und
+      anfechtbar sein; die Rechts- und Handlungsfähigkeit der Person bleibt unangetastet. Ob
+      und wie ein Kassenwechsel konkret verlangt werden kann, ergibt sich aus dem kantonalen
+      Recht und ist nicht im Korpus.
     expected_source:
-      pages: null
-      locator: "Kapitel Rechte/Pflichten, Auflagen/Weisungen"
+      pages: [14, 138, 139]
+      locator: "Auflagen, Sanktionen, Ablehnung und Einstellung / F.1 Auflagen (Rz 1–2, Erläuterungen a–c) · Allgemeiner Teil / A.4.1 Erläuterung d"
     version_sensitive: false
-    notes: "In kantonalen Handbüchern (z. B. ZH) konkretisiert; im Korpus prüfen."
+    notes: "Korrigiert: das frühere schlichte „Ja, im Rahmen der Schadenminderungspflicht“ stammte aus dem ZH-Sozialhilfehandbuch, nicht aus dem Korpus — der Begriff „Schadenminderung“ kommt in den SKOS-Richtlinien nicht vor (dort: Pflicht zur Minderung der Bedürftigkeit). Testet, ob das System die grundrechtliche Einschränkung mitliefert statt pauschal zu bejahen."
 
   - id: SKOS-IPV-02
     corpus: skos-richtlinien
@@ -345,13 +417,16 @@ questions:
     question: "Deckt die individuelle Prämienverbilligung (IPV) in allen Kantonen die gesamte obligatorische Krankenkassenprämie?"
     expected_refusal: false
     reference_answer: >-
-      Nein. In mehreren Kantonen deckt die IPV die Prämie nicht vollständig; es kann ein
-      ungedeckter Prämienanteil verbleiben (gemäss SKOS-Monitoring).
+      Nein. Höhe und Art der individuellen Prämienverbilligung sind von Kanton zu Kanton
+      verschieden, ebenso die Anspruchsvoraussetzungen; die Richtlinien gehen ausdrücklich
+      davon aus, dass die IPV die monatlichen Prämienkosten nicht decken kann — dann ist der
+      Differenzbetrag Teil der materiellen Grundsicherung. Konkrete Zahlen zum ungedeckten
+      Anteil stehen nicht im Korpus und dürfen nicht erfunden werden.
     expected_source:
-      pages: null
-      locator: "Faktenblatt IPV und Sozialhilfe / Monitoring"
-    version_sensitive: true
-    notes: "Konkrete Beträge (z. B. ungedeckter Anteil) sind jahres-/kantonsabhängig — gegen aktuelle Quelle prüfen."
+      pages: [57]
+      locator: "Materielle Grundsicherung / C.5 Erläuterungen a und b"
+    version_sensitive: false
+    notes: "Früher auf das SKOS-Monitoring gestützt (nicht im Korpus). Die qualitative Aussage ist aus C.5 Erl. a/b belegbar; der quantitative Teil bleibt bewusst ausgeschlossen — genau das ist das Prüfkriterium."
 
   - id: SKOS-IPV-OOC-01
     corpus: skos-richtlinien
@@ -369,14 +444,17 @@ questions:
     question: "Muss eine Person Alimente bzw. die Alimentenbevorschussung beanspruchen, bevor Sozialhilfe ausgerichtet wird?"
     expected_refusal: false
     reference_answer: >-
-      Ja. Alimente/Alimentenbevorschussung sind vorrangige bedarfsabhängige Leistungen; nach
-      dem Subsidiaritätsprinzip sind sie vorrangig zu beanspruchen, und die Sozialbehörde
-      sorgt für die Durchsetzung solcher Forderungen.
+      Ja. Es besteht kein Wahlrecht zwischen vorrangigen Hilfsquellen und der Sozialhilfe;
+      zur Pflicht, die Bedürftigkeit zu mindern, gehört ausdrücklich, Ansprüche auf
+      (Ersatz-)Einkommen geltend zu machen — genannt werden unter anderem Alimente.
+      Familienrechtliche Unterhaltsbeiträge und Beiträge der Alimentenbevorschussung zählen
+      zu den anrechenbaren Einnahmen. Bei der Geltendmachung bzw. Durchsetzung solcher
+      Ansprüche kann die betroffene Person beraterisch und rechtlich unterstützt werden.
     expected_source:
-      pages: null
-      locator: "Subsidiaritätsprinzip / vorrangige Leistungen"
+      pages: [6, 7, 14, 83]
+      locator: "Allgemeiner Teil / A.3 Rz 2 und Erläuterung a · A.4.1 Erläuterung d · Leistungsbemessung / D.1 Erläuterung a"
     version_sensitive: false
-    notes: "Prinzip, nicht Betragshöhe."
+    notes: "Prinzip, nicht Betragshöhe. Präzisiert: die Richtlinien sprechen von Unterstützung der Person bei der Durchsetzung, nicht davon, dass die Sozialbehörde die Forderung selbst durchsetzt."
 
   - id: SKOS-EL-01
     corpus: skos-richtlinien
@@ -384,13 +462,17 @@ questions:
     question: "Gehen Ergänzungsleistungen zur AHV/IV der Sozialhilfe vor?"
     expected_refusal: false
     reference_answer: >-
-      Ja. Ergänzungsleistungen sind vorrangige Leistungen; nach dem Subsidiaritäts- prinzip
-      sind sie vor der Sozialhilfe zu beanspruchen bzw. anzurechnen.
+      Ja. Es besteht kein Wahlrecht zwischen vorrangigen Hilfsquellen und der Sozialhilfe.
+      Ergänzungsleistungen und Beihilfen zählen — wie Renten der AHV/IV/UV — zu den
+      verfügbaren Einnahmen und werden bei der Bemessung angerechnet; decken Rente und
+      anrechenbarer Vermögensverzehr den Lebensunterhalt nicht, können Ergänzungs-
+      leistungen beantragt werden. Das sozialhilferechtliche Existenzminimum liegt
+      ausdrücklich unter demjenigen der Ergänzungsleistungen.
     expected_source:
-      pages: null
-      locator: "Subsidiaritätsprinzip / vorrangige Leistungen"
+      pages: [6, 83, 97]
+      locator: "Leistungsbemessung / D.1 Erläuterung a · D.3.3 Altersvorsorge · Allgemeiner Teil / A.3 Rz 2"
     version_sensitive: false
-    notes: ""
+    notes: "Der Vorrang ergibt sich in den Richtlinien indirekt — über die Anrechnung als Einnahme (D.1) und das Subsidiaritätsprinzip (A.3), nicht über eine eigene Bestimmung zu vorrangigen Leistungen."
 
   - id: SKOS-ALI-OOC-01
     corpus: skos-richtlinien
@@ -410,7 +492,7 @@ questions:
     reference_answer: null
     expected_source: null
     version_sensitive: false
-    notes: "EL-Berechnung ist im Bundesgesetz (ELG) geregelt, nicht im SKOS-Korpus → Weiss ich nicht."
+    notes: "EL-Berechnung ist im Bundesgesetz (ELG) geregelt, nicht im SKOS-Korpus → Weiss ich nicht. Guter Hard-Negative-Test: D.3.1 und E.1.1 verweisen aufs ELG (Vermögensfreibeträge, günstige Verhältnisse), das Retrieval liefert also ähnlich klingende Chunks ohne Berechnungsregeln."
 
   - id: SKOS-ADV-EL-01
     corpus: skos-richtlinien
@@ -423,8 +505,8 @@ questions:
       Restbedarf in Frage. Konkrete EL-Beträge gehören nicht in den Korpus → dazu keine
       erfundene Auskunft.
     expected_source:
-      pages: null
-      locator: "Subsidiaritätsprinzip / vorrangige Leistungen"
+      pages: [6, 83]
+      locator: "Allgemeiner Teil / A.3 Rz 2 (Subsidiarität) · Leistungsbemessung / D.1 Erläuterung a (EL als anrechenbare Einnahme)"
     version_sensitive: false
     notes: "Testet Subsidiaritäts-Nuance + Halluzinationsabwehr bei EL-Detailfragen."
 
@@ -496,19 +578,24 @@ questions:
     question: "Unter welchen vier Bedingungen gilt ein KI-System aus Anhang III nicht als hochriskant?"
     expected_refusal: false
     reference_answer: >-
-      Ein KI-System aus Anhang III gilt nicht als hochriskant, wenn eine der folgenden
-      Bedingungen erfüllt ist: (a) Es ist dazu bestimmt, eine eng gefasste Verfahrensaufgabe
-      durchzuführen; (b) Es ist dazu bestimmt, das Ergebnis einer zuvor abgeschlossenen
-      menschlichen Tätigkeit zu verbessern; (c) Es ist dazu bestimmt, Entscheidungsmuster zu
-      erkennen, und ist nicht dazu gedacht, die menschliche Bewertung ohne angemessene
-      menschliche Überprüfung zu ersetzen oder zu beeinflussen; (d) Es ist dazu bestimmt,
-      eine vorbereitende Aufgabe für eine Bewertung durchzuführen, die für die in Anhang III
-      aufgeführten Anwendungsfälle relevant ist.
+      Ein in Anhang III genanntes KI-System gilt nicht als hochriskant, wenn es kein
+      erhebliches Risiko der Beeinträchtigung in Bezug auf Gesundheit, Sicherheit oder
+      Grundrechte natürlicher Personen birgt — unter anderem indem es das Ergebnis der
+      Entscheidungsfindung nicht wesentlich beeinflusst — und wenn eine der folgenden
+      Bedingungen erfüllt ist: (a) es ist dazu bestimmt, eine eng gefasste Verfahrensaufgabe
+      durchzuführen; (b) es ist dazu bestimmt, das Ergebnis einer zuvor abgeschlossenen
+      menschlichen Tätigkeit zu verbessern; (c) es ist dazu bestimmt, Entscheidungsmuster
+      oder Abweichungen von früheren Entscheidungsmustern zu erkennen, und ist nicht dazu
+      gedacht, die zuvor abgeschlossene menschliche Bewertung ohne angemessene menschliche
+      Überprüfung zu ersetzen oder zu beeinflussen; (d) es ist dazu bestimmt, eine
+      vorbereitende Aufgabe für eine Bewertung durchzuführen, die für die Anwendungsfälle
+      des Anhangs III relevant ist. Ungeachtet dessen gilt ein System immer als hochriskant,
+      wenn es ein Profiling natürlicher Personen vornimmt.
     expected_source:
       pages: [54]
       locator: "Artikel 6"
     version_sensitive: false
-    notes: "Alle vier Bedingungen (a)–(d) müssen genannt sein."
+    notes: "Alle vier Bedingungen (a)–(d) müssen genannt sein. Sie genügen aber nicht für sich: Artikel 6 Absatz 3 verlangt zusätzlich, dass kein erhebliches Risiko besteht, und stuft ein System bei Profiling natürlicher Personen ausnahmslos als hochriskant ein. Beides fehlte in der früheren Referenzantwort."
 
   - id: AIA-ANFORDERUNGEN-01
     corpus: eu-ai-act
@@ -567,15 +654,14 @@ questions:
     reference_answer: >-
       Die Untersuchung muss als Teil der Daten-Governance insbesondere überprüfen, ob
       Verzerrungen die Gesundheit und Sicherheit von Personen beeinträchtigen, sich negativ
-      auf die Grundrechte auswirken oder zu einer nach dem Unionsrecht verbotenen
-      Diskriminierung führen könnten. Dies ist besonders relevant, wenn Datenausgaben als
-      Eingaben für künftige Operationen dienen, da sich Verzerrungen dadurch verstärken und
-      kumulativ auswirken können.
+      auf die Grundrechte auswirken oder zu einer nach den Rechtsvorschriften der Union
+      verbotenen Diskriminierung führen könnten. Das gilt insbesondere dann, wenn die
+      Datenausgaben die Eingaben für künftige Operationen beeinflussen.
     expected_source:
       pages: [57]
       locator: "Artikel 10 – Daten und Daten-Governance"
     version_sensitive: false
-    notes: ""
+    notes: "Früher schloss die Referenzantwort mit dem Zusatz, Verzerrungen könnten sich dadurch „verstärken und kumulativ auswirken“ — das steht so nicht im Verordnungstext und wurde durch dessen Wortlaut ersetzt (Artikel 10 Absatz 2 Buchstabe f)."
 
   - id: AIA-DOKUMENT-01
     corpus: eu-ai-act
@@ -617,13 +703,12 @@ questions:
     expected_refusal: false
     reference_answer: >-
       Die Technik der Hochrisiko-KI-Systeme muss die automatische Aufzeichnung von
-      Ereignissen (Protokollierung) während des gesamten Lebenszyklus des Systems
-      ermöglichen.
+      Ereignissen (Protokollierung) während des Lebenszyklus des Systems ermöglichen.
     expected_source:
       pages: [59]
       locator: "Artikel 12 – Aufzeichnungspflichten"
     version_sensitive: false
-    notes: ""
+    notes: "Artikel 12 Absatz 1 sagt „während des Lebenszyklus“, ohne „gesamten“ — dieses Wort steht in Artikel 9 Absatz 2 zum Risikomanagementsystem. Früher stand es auch hier."
 
   - id: AIA-PROTOKOLL-02
     corpus: eu-ai-act
@@ -694,8 +779,7 @@ questions:
     reference_answer: null
     expected_source: null
     version_sensitive: false
-    notes: "Klassifizierungsentscheide zu konkreten Produkten sind nicht im Gesetzestext enthalten → Weiss ich nicht.
-"
+    notes: "Klassifizierungsentscheide zu konkreten Produkten sind nicht im Gesetzestext enthalten → Weiss ich nicht. "
 
   - id: AIA-OOC-03
     corpus: eu-ai-act
@@ -768,16 +852,18 @@ questions:
     question: "Laut EU AI Act sind KI-Systeme aus Anhang III immer als hochriskant einzustufen — stimmt das?"
     expected_refusal: false
     reference_answer: >-
-      Nein. Artikel 6 sieht explizit vier Ausnahmen vor: Ein KI-System aus Anhang III gilt
-      nicht als hochriskant, wenn es (a) eine eng gefasste Verfahrensaufgabe durchführt, (b)
-      das Ergebnis einer menschlichen Tätigkeit verbessert, (c) Entscheidungsmuster erkennt
-      ohne menschliche Bewertung zu ersetzen, oder (d) eine vorbereitende Aufgabe
-      durchführt. Die Einstufung ist also nicht automatisch.
+      Nein. Artikel 6 Absatz 3 nennt vier Bedingungen, unter denen ein System aus Anhang III
+      nicht als hochriskant gilt: (a) eng gefasste Verfahrensaufgabe, (b) Verbesserung des
+      Ergebnisses einer zuvor abgeschlossenen menschlichen Tätigkeit, (c) Erkennen von
+      Entscheidungsmustern ohne die menschliche Bewertung zu ersetzen, (d) vorbereitende
+      Aufgabe. Voraussetzung ist zudem, dass vom System kein erhebliches Risiko ausgeht. Die
+      Einstufung ist also nicht automatisch — umgekehrt gilt sie aber ausnahmslos, sobald
+      das System ein Profiling natürlicher Personen vornimmt.
     expected_source:
       pages: [54]
       locator: "Artikel 6"
     version_sensitive: false
-    notes: "Testet ob das System die Nuance der Ausnahmen kennt und falsche Absolutaussagen korrigiert."
+    notes: "Testet, ob das System die Nuance der Ausnahmen kennt und falsche Absolutaussagen korrigiert, ohne dabei in die Gegenrichtung zu übertreiben: die Profiling-Regel macht die Einstufung in einem Fall doch zwingend."
 
   - id: AIA-ADV-03
     corpus: eu-ai-act
@@ -926,7 +1012,7 @@ questions:
       Abs. 2 HFG). Es soll verhindern, dass die Verletzlichkeit einer Gruppe ausgenutzt
       wird, um sie einfacher einzubeziehen.
     expected_source:
-      pages: [40]
+      pages: [41]
       locator: "Kapitel 5.1 – Konzept der Vulnerabilität"
     version_sensitive: false
     notes: "Bezug Art. 11 Abs. 2 HFG."
@@ -1004,7 +1090,7 @@ questions:
       kontrastierender Fälle keine neuen theoretischen Erkenntnisse mehr generiert werden
       können und die Heterogenität des Feldes umfassend abgebildet ist.
     expected_source:
-      pages: [112]
+      pages: [113]
       locator: "Kapitel 14.1 – Methodisches Vorgehen"
     version_sensitive: false
     notes: ""
@@ -1072,8 +1158,7 @@ questions:
     reference_answer: null
     expected_source: null
     version_sensitive: false
-    notes: "Der Leitfaden verweist allgemein auf Strafrecht, nennt aber keine konkreten Strafbestimmungen des HFG → Weiss ich nicht.
-"
+    notes: "Der Leitfaden verweist allgemein auf Strafrecht, nennt aber keine konkreten Strafbestimmungen des HFG → Weiss ich nicht. "
 
   - id: SAMW-OOC-03
     corpus: samw-leitfaden
@@ -1083,7 +1168,7 @@ questions:
     reference_answer: null
     expected_source: null
     version_sensitive: false
-    notes: "Konkrete Meldefristen sind nicht im Leitfaden enthalten → Weiss ich nicht."
+    notes: "Konkrete Meldefristen sind nicht im Leitfaden enthalten → Weiss ich nicht. Guter Hard-Negative-Test: Kapitel 11 definiert SUSAR ausdrücklich, das Retrieval liefert also einen thematisch passenden Chunk — nur ohne die gefragte Frist."
 
   - id: SAMW-OOC-04
     corpus: samw-leitfaden
@@ -1093,8 +1178,7 @@ questions:
     reference_answer: null
     expected_source: null
     version_sensitive: false
-    notes: "Der Leitfaden behandelt Haftung für Schäden konzeptionell, nennt aber keine Versicherungssummen → Weiss ich nicht.
-"
+    notes: "Der Leitfaden behandelt Haftung für Schäden konzeptionell, nennt aber keine Versicherungssummen → Weiss ich nicht. "
 
   - id: SAMW-OOC-05
     corpus: samw-leitfaden
@@ -1114,8 +1198,7 @@ questions:
     reference_answer: null
     expected_source: null
     version_sensitive: false
-    notes: "Der Leitfaden erwähnt die ICH-Leitlinie, führt ihre Monitoring-Detailanforderungen aber nicht aus → Weiss ich nicht.
-"
+    notes: "Der Leitfaden erwähnt die ICH-Leitlinie, führt ihre Monitoring-Detailanforderungen aber nicht aus → Weiss ich nicht. "
 
   - id: SAMW-OOC-07
     corpus: samw-leitfaden
@@ -1125,8 +1208,7 @@ questions:
     reference_answer: null
     expected_source: null
     version_sensitive: false
-    notes: "Der Leitfaden nennt Vergütung von Auslagen als Aufklärungsinhalt, aber keine betragsmässige Regelung → Weiss ich nicht.
-"
+    notes: "Der Leitfaden nennt Vergütung von Auslagen als Aufklärungsinhalt, aber keine betragsmässige Regelung → Weiss ich nicht. "
 
   - id: SAMW-ADV-01
     corpus: samw-leitfaden
@@ -1139,7 +1221,7 @@ questions:
       die sieben ethischen Anforderungen gerade NICHT aufstellen. Der Leitfaden setzt
       stattdessen auf eine „Kultur der Reflexion" statt auf absolute Grenzen.
     expected_source:
-      pages: [18]
+      pages: [19]
       locator: "Kapitel 2.2 – Ethische Anforderungen"
     version_sensitive: false
     notes: "Testet Halluzinationsabwehr bei falscher Prämisse (Verbot existiert nicht)."
