@@ -21,6 +21,9 @@ MARKDOWN_CONTENT_TYPE = "text/markdown"
 
 _MD_HEADING = re.compile(r"^\s{0,3}#{1,6}\s+(.*?)\s*#*\s*$")
 _MD_FENCE = re.compile(r"^\s{0,3}(```|~~~)")
+# A soft hyphen (U+00AD) with a line break behind it is a word the typesetter
+# split; only joining the halves makes the word searchable as one token.
+_SOFT_HYPHEN_BREAK = re.compile(r"[ \t]*\xad[ \t]*\n[ \t]*")
 
 
 @dataclass(frozen=True)
@@ -113,6 +116,10 @@ def _normalise(text: str) -> str:
     """Collapse the whitespace noise that PDF extraction in particular leaves
     behind, while keeping paragraph breaks intact."""
     text = text.replace("\r\n", "\n").replace("\r", "\n").replace("\xa0", " ")
+    # Every other soft hyphen sits inside a line, where the PDF drew it as a
+    # visible hyphen ("SAMW\xadRichtlinien"). Dropping those as well would turn
+    # "Spital\xad und" into "Spitalund", so they become what they render as.
+    text = _SOFT_HYPHEN_BREAK.sub("", text).replace("\xad", "-")
     text = re.sub(r"[ \t]+", " ", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
     return "\n".join(line.strip() for line in text.split("\n")).strip()

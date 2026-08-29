@@ -20,7 +20,10 @@ openai>=1.40.0
 pgqueuer>=0.14.0,<1.0.0
 
 # Document parsing
-pypdf>=4.0.0
+# >=6.16.2: earlier versions compare a cm-scaled advance against an unscaled
+# threshold and split words apart ("hochr iskant") in PDFs that put their scale
+# in the cm matrix — see T-50 and tests/test_parsing.py.
+pypdf>=6.16.2
 python-docx>=1.0.0
 tiktoken>=0.7.0
 
