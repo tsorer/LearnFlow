@@ -119,7 +119,7 @@ Drei Gruppen, abgeleitet aus den NFAs (Schwellen als Spike-kalibrierte Startwert
 2. **Citation-Format finalisieren** (gemeinsam mit ADR-007/008), damit die deterministischen Checks maschinell parsen können. Offen dabei: `Citation` liefert heute nur `filename` und `page`, keinen `heading` — für ein `.docx`- oder `.md`-Dokument bleibt die Quellenangabe damit ohne Fundstelle.
 3. **Akzeptanz-Schwellen** (False-Suppression ≤ 15 % etc.) nach dem ersten Kalibrierungslauf als „Accepted" bestätigen.
 4. ~~Repository-Ort und Zugriffsschutz für das Dataset festlegen~~ — erledigt mit T-47: `LearningCorpus/gold-eval-dataset.yaml`, Quellreferenzen statt Volltext (Schema oben).
-5. **Seitenzahlen für die SKOS-Einträge nachtragen** — deren Referenzen nennen bislang nur Kapitel; die präzisen Locator entstehen in T-48.
+5. ~~Seitenzahlen für die SKOS-Einträge nachtragen~~ — erledigt mit T-48: alle 19 SKOS-Quellen tragen `pages`, jede aus einer wörtlichen Fundstelle im PDF hergeleitet statt aus einer Kapitelschätzung.
 
 ---
 
