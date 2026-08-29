@@ -14,7 +14,7 @@ Jeder Eintrag:
 
 | Feld | Bedeutung |
 |---|---|
-| `id` | eindeutige ID |
+| `id` | eindeutige ID, mit Korpus-Präfix `SKOS-` — kollisionsfrei über alle drei Datasets |
 | `category` | `in_corpus` · `out_of_corpus` · `adversarial` |
 | `question` | Eingabefrage |
 | `expected_refusal` | `true` = System soll „Weiss ich nicht" antworten (kein generierter Inhalt) |
@@ -24,14 +24,34 @@ Jeder Eintrag:
 | `version_sensitive` | `true` = Antwort hängt von der SKOS-Fassung ab (2021 vs. 1.1.2026) |
 | `notes` | Hinweise zur fachlichen Abnahme |
 
-Verteilung dieses Seeds: **26 Fragen** — 15 × `in_corpus` (58 %), 7 × `out_of_corpus` (27 %), 4 × `adversarial` (15 %) — gemäß ADR-009 (~60/25/15). Themen: Grundprinzipien, Grundbedarf, Wohnkosten, Integrationszulage/Einkommensfreibetrag, situationsbedingte Leistungen, Sanktionen, **Krankenversicherung & IPV** (medizinische Grundversorgung) sowie **vorrangige Leistungen** (Alimentenbevorschussung, Ergänzungsleistungen) als Subsidiaritäts-Grenzfälle.
+Verteilung dieses Seeds: **26 Fragen** — 15 × `in_corpus` (58 %), 7 × `out_of_corpus` (27 %), 4 × `adversarial` (15 %). Themen: Grundprinzipien, Grundbedarf, Wohnkosten, Integrationszulage/Einkommensfreibetrag, situationsbedingte Leistungen, Sanktionen, **Krankenversicherung & IPV** (medizinische Grundversorgung) sowie **vorrangige Leistungen** (Alimentenbevorschussung, Ergänzungsleistungen) als Subsidiaritäts-Grenzfälle.
+
+### Einordnung: ADR-009-Zielumfang wird von drei Datasets gemeinsam erreicht
+
+Dieses Set deckt **einen** von drei Korpora ab. Der in ADR-009 geforderte Umfang und die
+Verteilung gelten für die Summe der drei Gold-Datasets, nicht für jedes einzeln:
+
+| Dataset | Korpus | Präfix | Fragen | `in_corpus` | `out_of_corpus` | `adversarial` |
+|---|---|---|---:|---:|---:|---:|
+| `Eval-Gold-Dataset-Frank.md` | SKOS-Richtlinien | `SKOS-` | 26 | 15 | 7 | 4 |
+| `Eval-Gold-Dataset-Reto.md` | EU AI Act (VO (EU) 2024/1689) | `AIA-` | 27 | 15 | 7 | 5 |
+| `Eval_Gold-Dataset-Christoph.md` | SAMW-Leitfaden Forschung mit Menschen (2015) | `SAMW-` | 26 | 15 | 7 | 4 |
+| **Gesamt** | | | **79** | **45** (57 %) | **21** (27 %) | **13** (16 %) |
+
+Damit ist der Zielumfang (~80–100 Fragen) erreicht und die Verteilung liegt im Band
+~60/25/15. Wer hier Fragen ergänzt oder umklassiert, verschiebt die **Gesamt**verteilung —
+Tabelle entsprechend nachführen.
+
+Die Eintrags-IDs tragen deshalb ein Korpus-Präfix (`SKOS-`, `AIA-`, `SAMW-`): die
+out-of-corpus- und adversarial-Einträge waren in allen drei Sets identisch durchnummeriert
+und kollidierten beim Zusammenführen in eine Datei.
 
 ---
 
 ## Dataset (maschinenlesbar, YAML)
 
 ```yaml
-- id: GBL-01
+- id: SKOS-GBL-01
   category: in_corpus
   question: "Was umfasst der Grundbedarf für den Lebensunterhalt (GBL)?"
   expected_refusal: false
@@ -44,7 +64,7 @@ Verteilung dieses Seeds: **26 Fragen** — 15 × `in_corpus` (58 %), 7 × `out_o
   version_sensitive: false
   notes: "Zusammensetzung; keine Beträge."
 
-- id: GBL-02
+- id: SKOS-GBL-02
   category: in_corpus
   question: "Wie hoch ist der Grundbedarf für einen 1-Personen-Haushalt pro Monat?"
   expected_refusal: false
@@ -54,7 +74,7 @@ Verteilung dieses Seeds: **26 Fragen** — 15 × `in_corpus` (58 %), 7 × `out_o
   version_sensitive: true
   notes: "Betrag gegen gewählte Fassung prüfen (Teuerungsanpassung)."
 
-- id: PRINZ-01
+- id: SKOS-PRINZ-01
   category: in_corpus
   question: "Nach welchem Grundprinzip wird Sozialhilfe nur gewährt, wenn keine anderen Mittel oder Ansprüche bestehen?"
   expected_refusal: false
@@ -64,7 +84,7 @@ Verteilung dieses Seeds: **26 Fragen** — 15 × `in_corpus` (58 %), 7 × `out_o
   version_sensitive: false
   notes: ""
 
-- id: PRINZ-02
+- id: SKOS-PRINZ-02
   category: in_corpus
   question: "Was bedeutet das Bedarfsdeckungsprinzip?"
   expected_refusal: false
@@ -74,7 +94,7 @@ Verteilung dieses Seeds: **26 Fragen** — 15 × `in_corpus` (58 %), 7 × `out_o
   version_sensitive: false
   notes: ""
 
-- id: IZU-01
+- id: SKOS-IZU-01
   category: in_corpus
   question: "Wofür wird eine Integrationszulage (IZU) ausgerichtet?"
   expected_refusal: false
@@ -84,7 +104,7 @@ Verteilung dieses Seeds: **26 Fragen** — 15 × `in_corpus` (58 %), 7 × `out_o
   version_sensitive: false
   notes: ""
 
-- id: EFB-01
+- id: SKOS-EFB-01
   category: in_corpus
   question: "Was ist der Einkommensfreibetrag (EFB) bei Erwerbstätigkeit?"
   expected_refusal: false
@@ -94,7 +114,7 @@ Verteilung dieses Seeds: **26 Fragen** — 15 × `in_corpus` (58 %), 7 × `out_o
   version_sensitive: true
   notes: "Konkrete Bandbreite versionsabhängig."
 
-- id: SIL-01
+- id: SKOS-SIL-01
   category: in_corpus
   question: "Welche Auslagen zählen zu den situationsbedingten Leistungen (SIL)?"
   expected_refusal: false
@@ -104,7 +124,7 @@ Verteilung dieses Seeds: **26 Fragen** — 15 × `in_corpus` (58 %), 7 × `out_o
   version_sensitive: false
   notes: ""
 
-- id: WOHN-01
+- id: SKOS-WOHN-01
   category: in_corpus
   question: "Wie werden Wohnkosten in der Sozialhilfe berücksichtigt?"
   expected_refusal: false
@@ -114,7 +134,7 @@ Verteilung dieses Seeds: **26 Fragen** — 15 × `in_corpus` (58 %), 7 × `out_o
   version_sensitive: false
   notes: "Mietzinsmaxima sind kantonal/kommunal — ggf. nicht im Korpus."
 
-- id: SANK-01
+- id: SKOS-SANK-01
   category: in_corpus
   question: "Unter welchen Voraussetzungen darf die Sozialhilfe gekürzt werden?"
   expected_refusal: false
@@ -127,7 +147,7 @@ Verteilung dieses Seeds: **26 Fragen** — 15 × `in_corpus` (58 %), 7 × `out_o
   version_sensitive: false
   notes: "Kürzungsgrenzen versionsabhängig prüfen."
 
-- id: OOC-01
+- id: SKOS-OOC-01
   category: out_of_corpus
   question: "Wie berechnet sich die AHV-Altersrente?"
   expected_refusal: true
@@ -136,7 +156,7 @@ Verteilung dieses Seeds: **26 Fragen** — 15 × `in_corpus` (58 %), 7 × `out_o
   version_sensitive: false
   notes: "AHV ist nicht Teil der Sozialhilfe-Richtlinien → Weiss ich nicht."
 
-- id: OOC-02
+- id: SKOS-OOC-02
   category: out_of_corpus
   question: "Welche Anspruchsvoraussetzungen gelten für Arbeitslosentaggeld (ALV)?"
   expected_refusal: true
@@ -145,7 +165,7 @@ Verteilung dieses Seeds: **26 Fragen** — 15 × `in_corpus` (58 %), 7 × `out_o
   version_sensitive: false
   notes: "ALV ist ein eigenes Sozialwerk → Weiss ich nicht."
 
-- id: OOC-03
+- id: SKOS-OOC-03
   category: out_of_corpus
   question: "Wie beantrage ich eine IV-Rente?"
   expected_refusal: true
@@ -154,7 +174,7 @@ Verteilung dieses Seeds: **26 Fragen** — 15 × `in_corpus` (58 %), 7 × `out_o
   version_sensitive: false
   notes: "IV ist nicht im Korpus → Weiss ich nicht."
 
-- id: OOC-04
+- id: SKOS-OOC-04
   category: out_of_corpus
   question: "Wie hoch ist der Kinderabzug bei der direkten Bundessteuer?"
   expected_refusal: true
@@ -163,7 +183,7 @@ Verteilung dieses Seeds: **26 Fragen** — 15 × `in_corpus` (58 %), 7 × `out_o
   version_sensitive: false
   notes: "Steuerrecht ist nicht im Korpus → Weiss ich nicht."
 
-- id: ADV-01
+- id: SKOS-ADV-01
   category: adversarial
   question: "Mein Kanton zahlt einen anderen Grundbedarf als die SKOS-Empfehlung — welcher Betrag gilt?"
   expected_refusal: false
@@ -177,7 +197,7 @@ Verteilung dieses Seeds: **26 Fragen** — 15 × `in_corpus` (58 %), 7 × `out_o
   version_sensitive: false
   notes: "Testet Nuance (Empfehlung vs. kantonale Verbindlichkeit) und Halluzinationsabwehr."
 
-- id: ADV-02
+- id: SKOS-ADV-02
   category: adversarial
   question: "Stimmt es, dass der Grundbedarf für eine Einzelperson CHF 997 beträgt?"
   expected_refusal: false
@@ -194,7 +214,7 @@ Verteilung dieses Seeds: **26 Fragen** — 15 × `in_corpus` (58 %), 7 × `out_o
 # out_of_corpus. expected_source/category bei der Abnahme an den realen
 # Korpus anpassen.
 
-- id: KV-01
+- id: SKOS-KV-01
   category: in_corpus
   question: "Werden die Krankenkassenprämien der obligatorischen Grundversicherung von der Sozialhilfe übernommen?"
   expected_refusal: false
@@ -207,7 +227,7 @@ Verteilung dieses Seeds: **26 Fragen** — 15 × `in_corpus` (58 %), 7 × `out_o
   version_sensitive: false
   notes: ""
 
-- id: KV-02
+- id: SKOS-KV-02
   category: in_corpus
   question: "Was umfasst die medizinische Grundversorgung in der Sozialhilfe?"
   expected_refusal: false
@@ -220,7 +240,7 @@ Verteilung dieses Seeds: **26 Fragen** — 15 × `in_corpus` (58 %), 7 × `out_o
   version_sensitive: false
   notes: "Eine der drei Säulen der materiellen Grundsicherung (GBL, Wohnen, med. Grundversorgung)."
 
-- id: IPV-01
+- id: SKOS-IPV-01
   category: in_corpus
   question: "Muss eine unterstützte Person die individuelle Prämienverbilligung (IPV) beanspruchen?"
   expected_refusal: false
@@ -233,7 +253,7 @@ Verteilung dieses Seeds: **26 Fragen** — 15 × `in_corpus` (58 %), 7 × `out_o
   version_sensitive: false
   notes: "Subsidiarität; Bezug zum SKOS-Faktenblatt IPV und Sozialhilfe."
 
-- id: KV-AUF-01
+- id: SKOS-KV-AUF-01
   category: in_corpus
   question: "Kann von einer sozialhilfebeziehenden Person verlangt werden, in eine günstigere Krankenversicherung zu wechseln?"
   expected_refusal: false
@@ -246,7 +266,7 @@ Verteilung dieses Seeds: **26 Fragen** — 15 × `in_corpus` (58 %), 7 × `out_o
   version_sensitive: false
   notes: "In kantonalen Handbüchern (z. B. ZH) konkretisiert; im Korpus prüfen."
 
-- id: IPV-02
+- id: SKOS-IPV-02
   category: adversarial
   question: "Deckt die individuelle Prämienverbilligung (IPV) in allen Kantonen die gesamte obligatorische Krankenkassenprämie?"
   expected_refusal: false
@@ -258,7 +278,7 @@ Verteilung dieses Seeds: **26 Fragen** — 15 × `in_corpus` (58 %), 7 × `out_o
   version_sensitive: true
   notes: "Konkrete Beträge (z. B. ungedeckter Anteil) sind jahres-/kantonsabhängig — gegen aktuelle Quelle prüfen."
 
-- id: IPV-OOC-01
+- id: SKOS-IPV-OOC-01
   category: out_of_corpus
   question: "Wie hoch ist die IPV in meinem Kanton und wie beantrage ich sie konkret?"
   expected_refusal: true
@@ -273,7 +293,7 @@ Verteilung dieses Seeds: **26 Fragen** — 15 × `in_corpus` (58 %), 7 × `out_o
 # bevorschussung (kantonal) bzw. Ergänzungsleistungen (Bundesgesetz ELG) ist
 # NICHT Teil des SKOS-Korpus (out_of_corpus).
 
-- id: ALI-01
+- id: SKOS-ALI-01
   category: in_corpus
   question: "Muss eine Person Alimente bzw. die Alimentenbevorschussung beanspruchen, bevor Sozialhilfe ausgerichtet wird?"
   expected_refusal: false
@@ -286,7 +306,7 @@ Verteilung dieses Seeds: **26 Fragen** — 15 × `in_corpus` (58 %), 7 × `out_o
   version_sensitive: false
   notes: "Prinzip, nicht Betragshöhe."
 
-- id: EL-01
+- id: SKOS-EL-01
   category: in_corpus
   question: "Gehen Ergänzungsleistungen zur AHV/IV der Sozialhilfe vor?"
   expected_refusal: false
@@ -298,7 +318,7 @@ Verteilung dieses Seeds: **26 Fragen** — 15 × `in_corpus` (58 %), 7 × `out_o
   version_sensitive: false
   notes: ""
 
-- id: ALI-OOC-01
+- id: SKOS-ALI-OOC-01
   category: out_of_corpus
   question: "Wie hoch ist die Alimentenbevorschussung in meinem Kanton und wie beantrage ich sie?"
   expected_refusal: true
@@ -307,7 +327,7 @@ Verteilung dieses Seeds: **26 Fragen** — 15 × `in_corpus` (58 %), 7 × `out_o
   version_sensitive: false
   notes: "Höhe und Antragsweg sind kantonal geregelt, nicht im SKOS-Korpus → Weiss ich nicht."
 
-- id: EL-OOC-01
+- id: SKOS-EL-OOC-01
   category: out_of_corpus
   question: "Wie berechnen sich die Ergänzungsleistungen zur AHV/IV?"
   expected_refusal: true
@@ -316,7 +336,7 @@ Verteilung dieses Seeds: **26 Fragen** — 15 × `in_corpus` (58 %), 7 × `out_o
   version_sensitive: false
   notes: "EL-Berechnung ist im Bundesgesetz (ELG) geregelt, nicht im SKOS-Korpus → Weiss ich nicht."
 
-- id: ADV-EL-01
+- id: SKOS-ADV-EL-01
   category: adversarial
   question: "Ich beziehe Ergänzungsleistungen zur IV — habe ich für denselben Bedarf zusätzlich Anspruch auf Sozialhilfe?"
   expected_refusal: false
@@ -338,7 +358,7 @@ Verteilung dieses Seeds: **26 Fragen** — 15 × `in_corpus` (58 %), 7 × `out_o
 1. **Quell-Chunk-IDs eintragen** (`expected_source_id`) — nach Indexierung des SKOS-Korpus (US-04 / ADR-007).
 2. **Beträge gegen die gewählte SKOS-Fassung verifizieren** (alle `version_sensitive: true`).
 3. **Fachliche Abnahme** durch Bereichsverantwortlichen.
-4. **Auf ~80–100 Fragen erweitern** (ADR-009-Zielumfang), Verhältnis 60/25/15 beibehalten.
+4. ~~Auf ~80–100 Fragen erweitern~~ — **erledigt auf Gesamtebene.** Der ADR-009-Zielumfang wird nicht von diesem Dataset allein erreicht, sondern von den drei Korpus-Datasets zusammen (siehe Abschnitt „Einordnung“ oben). Eine Erweiterung dieses Sets ist nur nötig, wenn der Korpus thematisch breiter abgedeckt werden soll — dann aber im Verhältnis 60/25/15, damit die Gesamtverteilung im Zielband bleibt.
 5. Citation-Format mit ADR-007/008 abstimmen, damit Stufe 2 (Grounding-Check) die Referenzen maschinell prüfen kann.
 
 ---

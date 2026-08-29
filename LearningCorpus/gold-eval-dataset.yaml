@@ -1,0 +1,1192 @@
+# LearnFlow - Gold-Eval-Dataset
+#
+# Eine Datei fuer alle drei Korpora, ohne Zusatzcode ladbar:
+#     import yaml; data = yaml.safe_load(open(path, encoding="utf-8"))
+#
+# Status: Entwurf / Seed - noch nicht fachlich abgenommen (T-48, #96).
+# Bezug: ADR-009 (Eval-Strategie), T-47 (#95).
+#
+# Quellreferenz-Schema
+# --------------------
+# expected_source ist (document, pages) statt einer Chunk-ID:
+#   - document ergibt sich aus questions[].corpus -> corpora[key].document und
+#     ist der Dateiname, unter dem das PDF hochgeladen wird. Der Dateiname ist
+#     die Upload-Identitaet (ix_documents_area_filename, T-15).
+#   - Der Anker haengt am Content-Type und steht pro Korpus in corpora[].anchor.
+#     parsing.py fuellt genau eines der beiden Felder, nie beide:
+#         application/pdf  -> page gesetzt,    heading NULL  -> anchor: pages
+#         .docx            -> page NULL,       heading gesetzt -> anchor: headings
+#         text/markdown    -> page NULL,       heading gesetzt -> anchor: headings
+#     Eine Frage traegt entsprechend "pages" ODER "headings", nie beides und
+#     passend zum anchor ihres Korpus. Heute sind alle drei Korpora PDFs.
+#   - pages sind 1-basierte PDF-Seiten, so wie app/services/parsing.py sie
+#     zaehlt (enumerate(reader.pages, start=1)) und wie Citation.page sie
+#     ausliefert. NICHT die im Dokument gedruckte Seitenzahl: der SAMW-Leitfaden
+#     hat zwei ungezaehlte Blaetter vorn, PDF-Seite = gedruckte Seite + 2.
+#   - pages ist eine Liste: chunking.py macht Seitengrenzen zu harten
+#     Chunkgrenzen, ein Chunk umfasst also nie zwei Seiten. Antworten ueber
+#     einen Seitenumbruch brauchen beide Seiten, sonst deckelt das den Recall.
+#   - locator ist die Fundstelle in Prosa (Artikel/Kapitel/Randziffer). Nicht
+#     maschinell ausgewertet - er traegt die fachliche Abnahme und erlaubt, die
+#     Seitenzahlen bei einer neuen Dokumentfassung neu herzuleiten.
+#
+# Ein Treffer zaehlt als erwartete Quelle, wenn
+#     chunk.document.filename == corpora[corpus].document
+# und, je nach corpora[corpus].anchor,
+#     chunk.page in expected_source.pages
+# oder chunk.heading in expected_source.headings.
+#
+# Bewusst NICHT im Schema:
+#   - expected_source_id / Chunk-UUIDs: zeigen nach jeder Neu-Indexierung ins
+#     Leere (anderes chunk_size, anderes Embedding-Modell, Re-Upload).
+#   - heading als Anker fuer die heutigen Korpora: fuer PDFs immer NULL.
+#     Fuer ein .docx- oder .md-Korpus waere es umgekehrt der einzig moegliche
+#     Anker - dafuer ist corpora[].anchor da.
+#   - area: heute auf PILOT_AREA festgenagelt, also ein Feld mit einem Wert.
+#
+# Verteilung: 79 Fragen - 45 in_corpus (57 %), 21 out_of_corpus (27 %),
+# 13 adversarial (16 %). Das Zielband ~60/25/15 aus ADR-009 gilt fuer die
+# Summe der drei Korpora, nicht je Korpus.
+#
+# IDs tragen ein Korpus-Praefix (SKOS-, AIA-, SAMW-): die out-of-corpus- und
+# adversarial-Eintraege waren in den drei Seed-Sets identisch durchnummeriert.
+#
+# Offen
+# -----
+# Die 19 SKOS-Eintraege haben pages: null. Ihre Referenzen im Seed nannten nur
+# grobe Kapitelnamen ("Kapitel Grundbedarf (GBL)"), aus denen sich keine
+# brauchbare Seitenmenge ableiten laesst - eine Seitenliste ueber ein ganzes
+# Kapitel wuerde Context-Precision wertlos machen. Die praezisen Locator
+# (Kapitel + Randziffer) kommen aus der inhaltlichen Pruefung in T-48 (#96);
+# die Seitenzahlen werden dort nachgetragen.
+#
+# Beim Zusammenfuehren repariert: drei Fragen im EU-AI-Act-Seed waren kein
+# gueltiges YAML - ein deutsches oeffnendes Anfuehrungszeichen mit einem
+# ASCII-" als Schluss beendete den quotierten Skalar zu frueh.
+
+version: 1
+
+corpora:
+  skos-richtlinien:
+    document: "SKOS-Richtlinien_-_Version_vom_1.1.2026.pdf"
+    title: "SKOS-Richtlinien, Fassung vom 1.1.2026"
+    content_type: "application/pdf"
+    anchor: pages
+  eu-ai-act:
+    document: "EU_AI_ACT_OJ_L_202401689_DE_TXT.pdf"
+    title: "Verordnung (EU) 2024/1689 (EU AI Act), Amtsblatt DE"
+    content_type: "application/pdf"
+    anchor: pages
+  samw-leitfaden:
+    document: "leitfaden_samw_forschung_menschen_2_auflage_2015.pdf"
+    title: "SAMW, Forschung mit Menschen - Ein Leitfaden fuer die Praxis, 2. Auflage 2015"
+    content_type: "application/pdf"
+    anchor: pages
+
+questions:
+  - id: SKOS-GBL-01
+    corpus: skos-richtlinien
+    category: in_corpus
+    question: "Was umfasst der Grundbedarf für den Lebensunterhalt (GBL)?"
+    expected_refusal: false
+    reference_answer: >-
+      Nahrung, Getränke/Tabak, Kleider und Schuhe, Energieverbrauch (ohne Wohn-Nebenkosten),
+      Haushaltsführung, Körperpflege, lokaler Verkehr, Kommunikation/Internet, Radio/TV,
+      Bildung sowie Freizeit/Sport/Unterhaltung.
+    expected_source:
+      pages: null
+      locator: "Kapitel Grundbedarf (GBL)"
+    version_sensitive: false
+    notes: "Zusammensetzung; keine Beträge."
+
+  - id: SKOS-GBL-02
+    corpus: skos-richtlinien
+    category: in_corpus
+    question: "Wie hoch ist der Grundbedarf für einen 1-Personen-Haushalt pro Monat?"
+    expected_refusal: false
+    reference_answer: >-
+      CHF 1061 pro Monat (Stand 2025/2026).
+    expected_source:
+      pages: null
+      locator: "Grundbedarf / Merkblatt Teuerung"
+    version_sensitive: true
+    notes: "Betrag gegen gewählte Fassung prüfen (Teuerungsanpassung)."
+
+  - id: SKOS-PRINZ-01
+    corpus: skos-richtlinien
+    category: in_corpus
+    question: "Nach welchem Grundprinzip wird Sozialhilfe nur gewährt, wenn keine anderen Mittel oder Ansprüche bestehen?"
+    expected_refusal: false
+    reference_answer: >-
+      Subsidiaritätsprinzip — Sozialhilfe ist nachrangig gegenüber Selbsthilfe, Ansprüchen
+      Dritter und anderen Sozialleistungen.
+    expected_source:
+      pages: null
+      locator: "Allgemeiner Teil / Grundprinzipien"
+    version_sensitive: false
+    notes: ""
+
+  - id: SKOS-PRINZ-02
+    corpus: skos-richtlinien
+    category: in_corpus
+    question: "Was bedeutet das Bedarfsdeckungsprinzip?"
+    expected_refusal: false
+    reference_answer: >-
+      Die Hilfe deckt den konkreten, aktuellen Bedarf in der Notlage; keine
+      bedarfsunabhängige Pauschale.
+    expected_source:
+      pages: null
+      locator: "Grundprinzipien"
+    version_sensitive: false
+    notes: ""
+
+  - id: SKOS-IZU-01
+    corpus: skos-richtlinien
+    category: in_corpus
+    question: "Wofür wird eine Integrationszulage (IZU) ausgerichtet?"
+    expected_refusal: false
+    reference_answer: >-
+      Als Anreiz/Anerkennung für Bemühungen zur sozialen und beruflichen Integration,
+      insbesondere bei Nicht-Erwerbstätigen.
+    expected_source:
+      pages: null
+      locator: "Kapitel Integrationszulagen"
+    version_sensitive: false
+    notes: ""
+
+  - id: SKOS-EFB-01
+    corpus: skos-richtlinien
+    category: in_corpus
+    question: "Was ist der Einkommensfreibetrag (EFB) bei Erwerbstätigkeit?"
+    expected_refusal: false
+    reference_answer: >-
+      Ein Teil des Erwerbseinkommens, der nicht an die Unterstützung angerechnet wird — als
+      Erwerbsanreiz.
+    expected_source:
+      pages: null
+      locator: "Kapitel Einkommensfreibeträge"
+    version_sensitive: true
+    notes: "Konkrete Bandbreite versionsabhängig."
+
+  - id: SKOS-SIL-01
+    corpus: skos-richtlinien
+    category: in_corpus
+    question: "Welche Auslagen zählen zu den situationsbedingten Leistungen (SIL)?"
+    expected_refusal: false
+    reference_answer: >-
+      Individuell begründete Sonderkosten, z. B. krankheits-/behinderungsbedingte Auslagen,
+      Erwerbsunkosten, Betreuungskosten.
+    expected_source:
+      pages: null
+      locator: "Kapitel Situationsbedingte Leistungen"
+    version_sensitive: false
+    notes: ""
+
+  - id: SKOS-WOHN-01
+    corpus: skos-richtlinien
+    category: in_corpus
+    question: "Wie werden Wohnkosten in der Sozialhilfe berücksichtigt?"
+    expected_refusal: false
+    reference_answer: >-
+      Ortsübliche, angemessene Mietkosten inkl. Nebenkosten werden übernommen; Orientierung
+      an kantonalen/kommunalen Mietzinsrichtlinien bzw. -maxima.
+    expected_source:
+      pages: null
+      locator: "Kapitel Wohnkosten"
+    version_sensitive: false
+    notes: "Mietzinsmaxima sind kantonal/kommunal — ggf. nicht im Korpus."
+
+  - id: SKOS-SANK-01
+    corpus: skos-richtlinien
+    category: in_corpus
+    question: "Unter welchen Voraussetzungen darf die Sozialhilfe gekürzt werden?"
+    expected_refusal: false
+    reference_answer: >-
+      Bei Pflichtverletzung oder mangelnder Mitwirkung; befristete Kürzung des Grundbedarfs
+      innerhalb definierter Grenzen, mit anfechtbarer Verfügung und unter Wahrung des
+      Existenzminimums.
+    expected_source:
+      pages: null
+      locator: "Kapitel Rechte/Pflichten, Kürzungen/Sanktionen"
+    version_sensitive: false
+    notes: "Kürzungsgrenzen versionsabhängig prüfen."
+
+  - id: SKOS-OOC-01
+    corpus: skos-richtlinien
+    category: out_of_corpus
+    question: "Wie berechnet sich die AHV-Altersrente?"
+    expected_refusal: true
+    reference_answer: null
+    expected_source: null
+    version_sensitive: false
+    notes: "AHV ist nicht Teil der Sozialhilfe-Richtlinien → Weiss ich nicht."
+
+  - id: SKOS-OOC-02
+    corpus: skos-richtlinien
+    category: out_of_corpus
+    question: "Welche Anspruchsvoraussetzungen gelten für Arbeitslosentaggeld (ALV)?"
+    expected_refusal: true
+    reference_answer: null
+    expected_source: null
+    version_sensitive: false
+    notes: "ALV ist ein eigenes Sozialwerk → Weiss ich nicht."
+
+  - id: SKOS-OOC-03
+    corpus: skos-richtlinien
+    category: out_of_corpus
+    question: "Wie beantrage ich eine IV-Rente?"
+    expected_refusal: true
+    reference_answer: null
+    expected_source: null
+    version_sensitive: false
+    notes: "IV ist nicht im Korpus → Weiss ich nicht."
+
+  - id: SKOS-OOC-04
+    corpus: skos-richtlinien
+    category: out_of_corpus
+    question: "Wie hoch ist der Kinderabzug bei der direkten Bundessteuer?"
+    expected_refusal: true
+    reference_answer: null
+    expected_source: null
+    version_sensitive: false
+    notes: "Steuerrecht ist nicht im Korpus → Weiss ich nicht."
+
+  - id: SKOS-ADV-01
+    corpus: skos-richtlinien
+    category: adversarial
+    question: "Mein Kanton zahlt einen anderen Grundbedarf als die SKOS-Empfehlung — welcher Betrag gilt?"
+    expected_refusal: false
+    reference_answer: >-
+      Die SKOS-Richtlinien sind Empfehlungen; rechtlich massgebend ist das kantonale Recht.
+      Ist der kantonsspezifische Betrag nicht im Korpus enthalten, soll das System darauf
+      hinweisen bzw. "Weiss ich nicht" sagen, statt einen Betrag zu erfinden.
+    expected_source:
+      pages: null
+      locator: "Allgemeiner Teil / Geltungsbereich (Empfehlungscharakter)"
+    version_sensitive: false
+    notes: "Testet Nuance (Empfehlung vs. kantonale Verbindlichkeit) und Halluzinationsabwehr."
+
+  - id: SKOS-ADV-02
+    corpus: skos-richtlinien
+    category: adversarial
+    question: "Stimmt es, dass der Grundbedarf für eine Einzelperson CHF 997 beträgt?"
+    expected_refusal: false
+    reference_answer: >-
+      Nein. Der aktuelle Grundbedarf für einen 1-Personen-Haushalt beträgt CHF 1061 (Stand
+      2025/2026).
+    expected_source:
+      pages: null
+      locator: "Grundbedarf / Merkblatt Teuerung"
+    version_sensitive: true
+    notes: "Testet Umgang mit veralteter Annahme (2021 vs. 2026) — System soll korrigieren, nicht bestätigen."
+
+  - id: SKOS-KV-01
+    corpus: skos-richtlinien
+    category: in_corpus
+    question: "Werden die Krankenkassenprämien der obligatorischen Grundversicherung von der Sozialhilfe übernommen?"
+    expected_refusal: false
+    reference_answer: >-
+      Ja. Die Prämien der obligatorischen Krankenpflegeversicherung (KVG-Grund-
+      versicherung) gehören zur medizinischen Grundversorgung und sind Teil der materiellen
+      Grundsicherung.
+    expected_source:
+      pages: null
+      locator: "Kapitel Medizinische Grundversorgung"
+    version_sensitive: false
+    notes: ""
+
+  - id: SKOS-KV-02
+    corpus: skos-richtlinien
+    category: in_corpus
+    question: "Was umfasst die medizinische Grundversorgung in der Sozialhilfe?"
+    expected_refusal: false
+    reference_answer: >-
+      Prämien der obligatorischen Krankenversicherung sowie Kostenbeteiligungen
+      (Franchise/Selbstbehalt) und Kosten der medizinischen Behandlung im Rahmen der
+      Grundversicherung.
+    expected_source:
+      pages: null
+      locator: "Kapitel Medizinische Grundversorgung"
+    version_sensitive: false
+    notes: "Eine der drei Säulen der materiellen Grundsicherung (GBL, Wohnen, med. Grundversorgung)."
+
+  - id: SKOS-IPV-01
+    corpus: skos-richtlinien
+    category: in_corpus
+    question: "Muss eine unterstützte Person die individuelle Prämienverbilligung (IPV) beanspruchen?"
+    expected_refusal: false
+    reference_answer: >-
+      Ja. Wegen des Subsidiaritätsprinzips ist die IPV als vorrangige Leistung zu
+      beanspruchen bzw. anzurechnen, bevor bzw. soweit die Sozialhilfe die Prämien deckt.
+    expected_source:
+      pages: null
+      locator: "Subsidiaritätsprinzip / Medizinische Grundversorgung / Faktenblatt IPV und Sozialhilfe"
+    version_sensitive: false
+    notes: "Subsidiarität; Bezug zum SKOS-Faktenblatt IPV und Sozialhilfe."
+
+  - id: SKOS-KV-AUF-01
+    corpus: skos-richtlinien
+    category: in_corpus
+    question: "Kann von einer sozialhilfebeziehenden Person verlangt werden, in eine günstigere Krankenversicherung zu wechseln?"
+    expected_refusal: false
+    reference_answer: >-
+      Ja. Im Rahmen der Schadenminderungs-/Mitwirkungspflicht kann als Auflage ein Wechsel
+      in eine kostengünstigere Krankenversicherung (z. B. günstigeres Modell) verlangt
+      werden.
+    expected_source:
+      pages: null
+      locator: "Kapitel Rechte/Pflichten, Auflagen/Weisungen"
+    version_sensitive: false
+    notes: "In kantonalen Handbüchern (z. B. ZH) konkretisiert; im Korpus prüfen."
+
+  - id: SKOS-IPV-02
+    corpus: skos-richtlinien
+    category: adversarial
+    question: "Deckt die individuelle Prämienverbilligung (IPV) in allen Kantonen die gesamte obligatorische Krankenkassenprämie?"
+    expected_refusal: false
+    reference_answer: >-
+      Nein. In mehreren Kantonen deckt die IPV die Prämie nicht vollständig; es kann ein
+      ungedeckter Prämienanteil verbleiben (gemäss SKOS-Monitoring).
+    expected_source:
+      pages: null
+      locator: "Faktenblatt IPV und Sozialhilfe / Monitoring"
+    version_sensitive: true
+    notes: "Konkrete Beträge (z. B. ungedeckter Anteil) sind jahres-/kantonsabhängig — gegen aktuelle Quelle prüfen."
+
+  - id: SKOS-IPV-OOC-01
+    corpus: skos-richtlinien
+    category: out_of_corpus
+    question: "Wie hoch ist die IPV in meinem Kanton und wie beantrage ich sie konkret?"
+    expected_refusal: true
+    reference_answer: null
+    expected_source: null
+    version_sensitive: false
+    notes: "Höhe und Antragsweg der IPV sind kantonal geregelt (KVG/kantonale Stellen) und i. d. R. nicht im SKOS-Korpus → Weiss ich nicht."
+
+  - id: SKOS-ALI-01
+    corpus: skos-richtlinien
+    category: in_corpus
+    question: "Muss eine Person Alimente bzw. die Alimentenbevorschussung beanspruchen, bevor Sozialhilfe ausgerichtet wird?"
+    expected_refusal: false
+    reference_answer: >-
+      Ja. Alimente/Alimentenbevorschussung sind vorrangige bedarfsabhängige Leistungen; nach
+      dem Subsidiaritätsprinzip sind sie vorrangig zu beanspruchen, und die Sozialbehörde
+      sorgt für die Durchsetzung solcher Forderungen.
+    expected_source:
+      pages: null
+      locator: "Subsidiaritätsprinzip / vorrangige Leistungen"
+    version_sensitive: false
+    notes: "Prinzip, nicht Betragshöhe."
+
+  - id: SKOS-EL-01
+    corpus: skos-richtlinien
+    category: in_corpus
+    question: "Gehen Ergänzungsleistungen zur AHV/IV der Sozialhilfe vor?"
+    expected_refusal: false
+    reference_answer: >-
+      Ja. Ergänzungsleistungen sind vorrangige Leistungen; nach dem Subsidiaritäts- prinzip
+      sind sie vor der Sozialhilfe zu beanspruchen bzw. anzurechnen.
+    expected_source:
+      pages: null
+      locator: "Subsidiaritätsprinzip / vorrangige Leistungen"
+    version_sensitive: false
+    notes: ""
+
+  - id: SKOS-ALI-OOC-01
+    corpus: skos-richtlinien
+    category: out_of_corpus
+    question: "Wie hoch ist die Alimentenbevorschussung in meinem Kanton und wie beantrage ich sie?"
+    expected_refusal: true
+    reference_answer: null
+    expected_source: null
+    version_sensitive: false
+    notes: "Höhe und Antragsweg sind kantonal geregelt, nicht im SKOS-Korpus → Weiss ich nicht."
+
+  - id: SKOS-EL-OOC-01
+    corpus: skos-richtlinien
+    category: out_of_corpus
+    question: "Wie berechnen sich die Ergänzungsleistungen zur AHV/IV?"
+    expected_refusal: true
+    reference_answer: null
+    expected_source: null
+    version_sensitive: false
+    notes: "EL-Berechnung ist im Bundesgesetz (ELG) geregelt, nicht im SKOS-Korpus → Weiss ich nicht."
+
+  - id: SKOS-ADV-EL-01
+    corpus: skos-richtlinien
+    category: adversarial
+    question: "Ich beziehe Ergänzungsleistungen zur IV — habe ich für denselben Bedarf zusätzlich Anspruch auf Sozialhilfe?"
+    expected_refusal: false
+    reference_answer: >-
+      Nein, kein Doppelbezug für denselben Bedarf: Ergänzungsleistungen sind vorrangig
+      (Subsidiarität). Sozialhilfe käme allenfalls ergänzend nur für einen nicht gedeckten
+      Restbedarf in Frage. Konkrete EL-Beträge gehören nicht in den Korpus → dazu keine
+      erfundene Auskunft.
+    expected_source:
+      pages: null
+      locator: "Subsidiaritätsprinzip / vorrangige Leistungen"
+    version_sensitive: false
+    notes: "Testet Subsidiaritäts-Nuance + Halluzinationsabwehr bei EL-Detailfragen."
+
+  - id: AIA-ANBIETER-01
+    corpus: eu-ai-act
+    category: in_corpus
+    question: "Wer gilt als „Anbieter“ eines KI-Systems oder eines KI-Modells mit allgemeinem Verwendungszweck?"
+    expected_refusal: false
+    reference_answer: >-
+      Eine natürliche oder juristische Person, Behörde, Einrichtung oder sonstige Stelle,
+      die ein KI-System oder ein KI-Modell mit allgemeinem Verwendungszweck entwickelt oder
+      entwickeln lässt und es unter ihrem eigenen Namen oder ihrer Handelsmarke in Verkehr
+      bringt oder das KI-System unter ihrem eigenen Namen oder ihrer Handelsmarke in Betrieb
+      nimmt, sei es entgeltlich oder unentgeltlich.
+    expected_source:
+      pages: [46]
+      locator: "Artikel 3 Nummer 3 - Begriffsbestimmung \"Anbieter\""
+    version_sensitive: false
+    notes: "Kerndefinition; keine Betragsangaben."
+
+  - id: AIA-RUECKRUF-01
+    corpus: eu-ai-act
+    category: in_corpus
+    question: "Was ist mit „Rückruf eines KI-Systems“ gemeint?"
+    expected_refusal: false
+    reference_answer: >-
+      Jede Massnahme, die auf die Rückgabe an den Anbieter oder auf die
+      Ausserbetriebs­setzung oder Abschaltung eines den Betreibern bereits zur Verfügung
+      gestellten KI-Systems abzielt.
+    expected_source:
+      pages: [47]
+      locator: "Artikel 3 Nummer 16 - Begriffsbestimmung \"Rueckruf eines KI-Systems\""
+    version_sensitive: false
+    notes: ""
+
+  - id: AIA-DATEN-01
+    corpus: eu-ai-act
+    category: in_corpus
+    question: "Was ist mit „sensible operative Daten“ gemeint?"
+    expected_refusal: false
+    reference_answer: >-
+      Operative Daten im Zusammenhang mit Tätigkeiten zur Verhütung, Aufdeckung,
+      Untersuchung oder Verfolgung von Straftaten, deren Offenlegung die Integrität von
+      Strafverfahren gefährden könnte.
+    expected_source:
+      pages: [48]
+      locator: "Artikel 3 Nummer 38 - Begriffsbestimmung \"sensible operative Daten\""
+    version_sensitive: false
+    notes: ""
+
+  - id: AIA-LEITLINIEN-01
+    corpus: eu-ai-act
+    category: in_corpus
+    question: "Bis wann muss die Kommission Leitlinien zur praktischen Umsetzung von Artikel 6 bereitstellen?"
+    expected_refusal: false
+    reference_answer: >-
+      Spätestens bis zum 2. Februar 2026, nach Konsultation des Europäischen Gremiums für
+      Künstliche Intelligenz, zusammen mit einer umfassenden Liste praktischer Beispiele für
+      hochriskante und nicht hochriskante Anwendungsfälle.
+    expected_source:
+      pages: [54]
+      locator: "Artikel 6"
+    version_sensitive: true
+    notes: "Datum (2. Februar 2026) gegen aktuellen Stand prüfen."
+
+  - id: AIA-HOCHRISIKO-01
+    corpus: eu-ai-act
+    category: in_corpus
+    question: "Unter welchen vier Bedingungen gilt ein KI-System aus Anhang III nicht als hochriskant?"
+    expected_refusal: false
+    reference_answer: >-
+      Ein KI-System aus Anhang III gilt nicht als hochriskant, wenn eine der folgenden
+      Bedingungen erfüllt ist: (a) Es ist dazu bestimmt, eine eng gefasste Verfahrensaufgabe
+      durchzuführen; (b) Es ist dazu bestimmt, das Ergebnis einer zuvor abgeschlossenen
+      menschlichen Tätigkeit zu verbessern; (c) Es ist dazu bestimmt, Entscheidungsmuster zu
+      erkennen, und ist nicht dazu gedacht, die menschliche Bewertung ohne angemessene
+      menschliche Überprüfung zu ersetzen oder zu beeinflussen; (d) Es ist dazu bestimmt,
+      eine vorbereitende Aufgabe für eine Bewertung durchzuführen, die für die in Anhang III
+      aufgeführten Anwendungsfälle relevant ist.
+    expected_source:
+      pages: [54]
+      locator: "Artikel 6"
+    version_sensitive: false
+    notes: "Alle vier Bedingungen (a)–(d) müssen genannt sein."
+
+  - id: AIA-ANFORDERUNGEN-01
+    corpus: eu-ai-act
+    category: in_corpus
+    question: "Wer ist verantwortlich dafür, dass ein Produkt mit einem KI-System alle geltenden Anforderungen erfüllt?"
+    expected_refusal: false
+    reference_answer: >-
+      Die Anbieter sind dafür verantwortlich, sicherzustellen, dass ihr Produkt alle
+      geltenden Anforderungen der Harmonisierungsrechtsvorschriften der Union vollständig
+      erfüllt, wenn das Produkt ein KI-System enthält, für das sowohl diese Verordnung als
+      auch Anforderungen aus Anhang I Abschnitt A gelten.
+    expected_source:
+      pages: [56]
+      locator: "Artikel 8"
+    version_sensitive: false
+    notes: ""
+
+  - id: AIA-ANFORDERUNGEN-02
+    corpus: eu-ai-act
+    category: in_corpus
+    question: "Welche Möglichkeit haben Anbieter bei der Gewährleistung der Erfüllung von Anforderungen?"
+    expected_refusal: false
+    reference_answer: >-
+      Anbieter können die erforderlichen Test- und Berichterstattungsverfahren,
+      Informationen und Dokumentationen in bereits bestehende Dokumentationen und Verfahren
+      integrieren, die gemäss den Harmonisierungsrechtsvorschriften der Union (Anhang I
+      Abschnitt A) vorgeschrieben sind – zur Kohärenz, Vermeidung von Doppelarbeit und
+      Minimierung zusätzlicher Belastungen.
+    expected_source:
+      pages: [56]
+      locator: "Artikel 8"
+    version_sensitive: false
+    notes: ""
+
+  - id: AIA-RISIKO-01
+    corpus: eu-ai-act
+    category: in_corpus
+    question: "Als was versteht sich das Risikomanagementsystem und wann wird es durchgeführt?"
+    expected_refusal: false
+    reference_answer: >-
+      Das Risikomanagementsystem versteht sich als ein kontinuierlicher iterativer Prozess,
+      der während des gesamten Lebenszyklus eines Hochrisiko-KI-Systems geplant und
+      durchgeführt wird und eine regelmässige systematische Überprüfung und Aktualisierung
+      erfordert.
+    expected_source:
+      pages: [56]
+      locator: "Artikel 9 – Risikomanagementsystem"
+    version_sensitive: false
+    notes: ""
+
+  - id: AIA-BIAS-01
+    corpus: eu-ai-act
+    category: in_corpus
+    question: "Worauf muss die Untersuchung auf mögliche Verzerrungen (Bias) bei der Daten-Governance von Hochrisiko-KI-Systemen insbesondere überprüft werden?"
+    expected_refusal: false
+    reference_answer: >-
+      Die Untersuchung muss als Teil der Daten-Governance insbesondere überprüfen, ob
+      Verzerrungen die Gesundheit und Sicherheit von Personen beeinträchtigen, sich negativ
+      auf die Grundrechte auswirken oder zu einer nach dem Unionsrecht verbotenen
+      Diskriminierung führen könnten. Dies ist besonders relevant, wenn Datenausgaben als
+      Eingaben für künftige Operationen dienen, da sich Verzerrungen dadurch verstärken und
+      kumulativ auswirken können.
+    expected_source:
+      pages: [57]
+      locator: "Artikel 10 – Daten und Daten-Governance"
+    version_sensitive: false
+    notes: ""
+
+  - id: AIA-DOKUMENT-01
+    corpus: eu-ai-act
+    category: in_corpus
+    question: "Wann muss die technische Dokumentation eines Hochrisiko-KI-Systems erstellt werden?"
+    expected_refusal: false
+    reference_answer: >-
+      Die technische Dokumentation muss vor dem Inverkehrbringen oder der Inbetriebnahme des
+      Systems erstellt werden und ist danach auf dem neuesten Stand zu halten — sie muss
+      also kontinuierlich aktualisiert werden.
+    expected_source:
+      pages: [58]
+      locator: "Artikel 11 – Technische Dokumentation"
+    version_sensitive: false
+    notes: ""
+
+  - id: AIA-KMU-01
+    corpus: eu-ai-act
+    category: in_corpus
+    question: "Welche besonderen Regelungen gelten für kleine und mittlere Unternehmen (KMU) bei der Bereitstellung der technischen Dokumentation?"
+    expected_refusal: false
+    reference_answer: >-
+      KMU, einschliesslich Start-up-Unternehmen, können die Elemente der technischen
+      Dokumentation (Anhang IV) in vereinfachter Weise bereitstellen. Die Kommission
+      erstellt ein vereinfachtes Formular, das auf die Bedürfnisse kleiner Unternehmen und
+      Kleinstunternehmen zugeschnitten ist. Entscheidet sich ein KMU für diese vereinfachte
+      Bereitstellung, muss es dieses Formular verwenden; notifizierte Stellen akzeptieren es
+      für die Konformitätsbewertung.
+    expected_source:
+      pages: [58]
+      locator: "Artikel 11 – Technische Dokumentation"
+    version_sensitive: false
+    notes: ""
+
+  - id: AIA-PROTOKOLL-01
+    corpus: eu-ai-act
+    category: in_corpus
+    question: "Welche grundlegende technische Anforderung müssen Hochrisiko-KI-Systeme in Bezug auf die Aufzeichnung von Ereignissen erfüllen?"
+    expected_refusal: false
+    reference_answer: >-
+      Die Technik der Hochrisiko-KI-Systeme muss die automatische Aufzeichnung von
+      Ereignissen (Protokollierung) während des gesamten Lebenszyklus des Systems
+      ermöglichen.
+    expected_source:
+      pages: [59]
+      locator: "Artikel 12 – Aufzeichnungspflichten"
+    version_sensitive: false
+    notes: ""
+
+  - id: AIA-PROTOKOLL-02
+    corpus: eu-ai-act
+    category: in_corpus
+    question: "Welches übergeordnete Ziel verfolgen die Protokollierungsfunktionen bei Hochrisiko-KI-Systemen?"
+    expected_refusal: false
+    reference_answer: >-
+      Die Protokollierungsfunktionen dienen der Gewährleistung, dass das Funktionieren des
+      Hochrisiko-KI-Systems in einem der Zweckbestimmung angemessenen Masse rückverfolgbar
+      ist — sie ermöglichen Nachverfolgbarkeit und Transparenz des Systemverhaltens
+      entsprechend der vorgesehenen Verwendung.
+    expected_source:
+      pages: [59]
+      locator: "Artikel 12 – Aufzeichnungspflichten"
+    version_sensitive: false
+    notes: ""
+
+  - id: AIA-PROTOKOLL-03
+    corpus: eu-ai-act
+    category: in_corpus
+    question: "Auf welche drei konkreten Zwecke hin müssen Protokollierungsfunktionen Ereignisse aufzeichnen?"
+    expected_refusal: false
+    reference_answer: >-
+      Die Protokollierungsfunktionen müssen Ereignisse aufzeichnen, die relevant sind für:
+      (a) die Ermittlung von Situationen, die dazu führen können, dass das System ein Risiko
+      im Sinne von Artikel 79 Absatz 1 birgt oder dass es zu einer wesentlichen Änderung
+      kommt; (b) die Erleichterung der Beobachtung nach dem Inverkehrbringen gemäss Artikel
+      72; (c) die Überwachung des Betriebs der Hochrisiko-KI-Systeme gemäss Artikel 26
+      Absatz 5.
+    expected_source:
+      pages: [59]
+      locator: "Artikel 12 – Aufzeichnungspflichten"
+    version_sensitive: false
+    notes: "Alle drei Zwecke (a)–(c) müssen genannt sein."
+
+  - id: AIA-TRANSPARENZ-01
+    corpus: eu-ai-act
+    category: in_corpus
+    question: "Welche Anforderung an die Transparenz von Hochrisiko-KI-Systemen muss bei deren Konzeption und Entwicklung erfüllt werden, und zu welchem Zweck?"
+    expected_refusal: false
+    reference_answer: >-
+      Hochrisiko-KI-Systeme müssen so konzipiert und entwickelt werden, dass ihr Betrieb
+      hinreichend transparent ist, damit die Betreiber die Ausgaben angemessen
+      interpretieren und verwenden können. Die Transparenz wird auf eine geeignete Art und
+      in einem angemessenen Masse gewährleistet, damit Anbieter und Betreiber ihre in
+      Abschnitt 3 festgelegten Pflichten erfüllen können.
+    expected_source:
+      pages: [59]
+      locator: "Artikel 13 – Transparenz und Bereitstellung von Informationen"
+    version_sensitive: false
+    notes: ""
+
+  - id: AIA-OOC-01
+    corpus: eu-ai-act
+    category: out_of_corpus
+    question: "Wie berechnet sich die DSGVO-Bussgeldhöhe bei einem Datenschutzverstoss?"
+    expected_refusal: true
+    reference_answer: null
+    expected_source: null
+    version_sensitive: false
+    notes: "DSGVO ist nicht Teil des EU AI Act → Weiss ich nicht."
+
+  - id: AIA-OOC-02
+    corpus: eu-ai-act
+    category: out_of_corpus
+    question: "Ist ChatGPT von OpenAI gemäss EU AI Act als hochriskantes KI-System klassifiziert?"
+    expected_refusal: true
+    reference_answer: null
+    expected_source: null
+    version_sensitive: false
+    notes: "Klassifizierungsentscheide zu konkreten Produkten sind nicht im Gesetzestext enthalten → Weiss ich nicht.
+"
+
+  - id: AIA-OOC-03
+    corpus: eu-ai-act
+    category: out_of_corpus
+    question: "Welche nationalen Behörden in der Schweiz sind für die Umsetzung des EU AI Act zuständig?"
+    expected_refusal: true
+    reference_answer: null
+    expected_source: null
+    version_sensitive: false
+    notes: "Schweizer Umsetzung ist nicht im EU AI Act geregelt → Weiss ich nicht."
+
+  - id: AIA-OOC-04
+    corpus: eu-ai-act
+    category: out_of_corpus
+    question: "Wie hoch ist die Bussgeldobergrenze bei einem Verstoss gegen die Produkthaftungsrichtlinie der EU?"
+    expected_refusal: true
+    reference_answer: null
+    expected_source: null
+    version_sensitive: false
+    notes: "Produkthaftungsrichtlinie ist nicht Teil des EU AI Act → Weiss ich nicht."
+
+  - id: AIA-OOC-05
+    corpus: eu-ai-act
+    category: out_of_corpus
+    question: "Ab welchem Jahr sind autonome Fahrzeuge in der EU vollständig zugelassen?"
+    expected_refusal: true
+    reference_answer: null
+    expected_source: null
+    version_sensitive: false
+    notes: "Zulassungsrecht für Fahrzeuge ist nicht im EU AI Act geregelt → Weiss ich nicht."
+
+  - id: AIA-OOC-06
+    corpus: eu-ai-act
+    category: out_of_corpus
+    question: "Wie beantrage ich als Unternehmen eine CE-Kennzeichnung für ein nicht-KI-Produkt?"
+    expected_refusal: true
+    reference_answer: null
+    expected_source: null
+    version_sensitive: false
+    notes: "Allgemeines CE-Verfahren ohne KI-Bezug ist nicht Gegenstand des EU AI Act → Weiss ich nicht."
+
+  - id: AIA-OOC-07
+    corpus: eu-ai-act
+    category: out_of_corpus
+    question: "Welche Strafen sieht das deutsche KI-Umsetzungsgesetz für Verstösse vor?"
+    expected_refusal: true
+    reference_answer: null
+    expected_source: null
+    version_sensitive: false
+    notes: "Nationales Umsetzungsrecht (Deutschland) ist nicht im EU AI Act enthalten → Weiss ich nicht."
+
+  - id: AIA-ADV-01
+    corpus: eu-ai-act
+    category: adversarial
+    question: "Stimmt es, dass der EU AI Act nur für Anbieter mit Sitz in der EU gilt?"
+    expected_refusal: false
+    reference_answer: >-
+      Nein. Der EU AI Act gilt auch für Anbieter mit Sitz ausserhalb der EU, sofern das
+      KI-System oder dessen Ausgaben in der Union verwendet werden. Der Geltungsbereich ist
+      nicht auf EU-ansässige Anbieter beschränkt.
+    expected_source:
+      pages: [45]
+      locator: "Artikel 2 Absatz 1 Buchstabe c - Anwendungsbereich, Anbieter in Drittlaendern"
+    version_sensitive: false
+    notes: "Testet Halluzinationsabwehr bei falscher Prämisse zum Geltungsbereich."
+
+  - id: AIA-ADV-02
+    corpus: eu-ai-act
+    category: adversarial
+    question: "Laut EU AI Act sind KI-Systeme aus Anhang III immer als hochriskant einzustufen — stimmt das?"
+    expected_refusal: false
+    reference_answer: >-
+      Nein. Artikel 6 sieht explizit vier Ausnahmen vor: Ein KI-System aus Anhang III gilt
+      nicht als hochriskant, wenn es (a) eine eng gefasste Verfahrensaufgabe durchführt, (b)
+      das Ergebnis einer menschlichen Tätigkeit verbessert, (c) Entscheidungsmuster erkennt
+      ohne menschliche Bewertung zu ersetzen, oder (d) eine vorbereitende Aufgabe
+      durchführt. Die Einstufung ist also nicht automatisch.
+    expected_source:
+      pages: [54]
+      locator: "Artikel 6"
+    version_sensitive: false
+    notes: "Testet ob das System die Nuance der Ausnahmen kennt und falsche Absolutaussagen korrigiert."
+
+  - id: AIA-ADV-03
+    corpus: eu-ai-act
+    category: adversarial
+    question: "Die technische Dokumentation eines Hochrisiko-KI-Systems muss nur einmalig vor dem Markteintritt erstellt werden — korrekt?"
+    expected_refusal: false
+    reference_answer: >-
+      Nein. Gemäss Artikel 11 muss die technische Dokumentation vor dem Inverkehrbringen
+      erstellt werden und ist danach auf dem neuesten Stand zu halten. Eine einmalige
+      Erstellung reicht nicht aus — kontinuierliche Aktualisierung ist Pflicht.
+    expected_source:
+      pages: [58]
+      locator: "Artikel 11 – Technische Dokumentation"
+    version_sensitive: false
+    notes: "Testet Umgang mit falscher Annahme (einmalig vs. kontinuierlich)."
+
+  - id: AIA-ADV-04
+    corpus: eu-ai-act
+    category: adversarial
+    question: "KMU sind vom EU AI Act vollständig ausgenommen — gilt das?"
+    expected_refusal: false
+    reference_answer: >-
+      Nein. KMU sind nicht vollständig ausgenommen. Artikel 11 sieht für KMU lediglich eine
+      vereinfachte Bereitstellung der technischen Dokumentation vor. Alle übrigen Pflichten
+      des EU AI Act gelten auch für KMU.
+    expected_source:
+      pages: [58]
+      locator: "Artikel 11 – Technische Dokumentation"
+    version_sensitive: false
+    notes: "Testet Verwechslung von Erleichterung (vereinfachte Doku) mit vollständiger Ausnahme."
+
+  - id: AIA-ADV-05
+    corpus: eu-ai-act
+    category: adversarial
+    question: "Das Risikomanagementsystem muss gemäss EU AI Act nur einmal zu Beginn des Produktlebenszyklus durchgeführt werden — stimmt das?"
+    expected_refusal: false
+    reference_answer: >-
+      Nein. Artikel 9 definiert das Risikomanagementsystem ausdrücklich als kontinuierlichen
+      iterativen Prozess, der während des gesamten Lebenszyklus geplant und durchgeführt
+      wird und eine regelmässige systematische Überprüfung und Aktualisierung erfordert.
+    expected_source:
+      pages: [56]
+      locator: "Artikel 9 – Risikomanagementsystem"
+    version_sensitive: false
+    notes: "Testet Halluzinationsabwehr bei falscher Annahme (einmalig vs. kontinuierlich/iterativ)."
+
+  - id: SAMW-RICHTLINIEN-01
+    corpus: samw-leitfaden
+    category: in_corpus
+    question: "In welchem Jahr veröffentlichte die SAMW erstmals Richtlinien für „Forschungsuntersuchungen am Menschen”?"
+    expected_refusal: false
+    reference_answer: >-
+      Im Jahr 1970. Diese Richtlinien wurden 2008 zurückgezogen, als sich eine umfassende
+      Rechtssetzung (Verfassungsartikel und Gesetz) abzeichnete; an ihre Stelle trat ab 2009
+      der Leitfaden „Forschung mit Menschen".
+    expected_source:
+      pages: [9]
+      locator: "Vorwort"
+    version_sensitive: false
+    notes: "Historisches Datum."
+
+  - id: SAMW-BELMONT-01
+    corpus: samw-leitfaden
+    category: in_corpus
+    question: "Auf welche drei zentralen Prinzipien stützt sich der Belmont-Report?"
+    expected_refusal: false
+    reference_answer: >-
+      Drei Prinzipien stehen im Zentrum: Autonomie von Personen (Autonomy), Wohltun
+      (Beneficence) und Gerechtigkeit (Justice).
+    expected_source:
+      pages: [16]
+      locator: "Kapitel 2.1 – Prinzipien der Forschungsethik"
+    version_sensitive: false
+    notes: "Genau drei Prinzipien; Belmont-Report 1979."
+
+  - id: SAMW-EMANUEL-01
+    corpus: samw-leitfaden
+    category: in_corpus
+    question: "Wie viele Anforderungen an ethisch vertretbare klinische Forschung haben Emanuel et al. herausgearbeitet, und welche sind das?"
+    expected_refusal: false
+    reference_answer: >-
+      Sieben Anforderungen: (1) gesellschaftlicher Wert der Studie, (2) Erfüllung
+      wissenschaftlicher Methodik, (3) faire Auswahl der Teilnehmenden, (4) günstiges
+      Risiko-Nutzen-Verhältnis, (5) unabhängige Begutachtung, (6) freie und informierte
+      Einwilligung, (7) Respekt vor den Teilnehmenden während und nach der Studie.
+    expected_source:
+      pages: [18]
+      locator: "Kapitel 2.2 – Ethische Anforderungen"
+    version_sensitive: false
+    notes: "Sieben Kriterien; die informierte Einwilligung allein genügt nicht."
+
+  - id: SAMW-HFG-INKRAFT-01
+    corpus: samw-leitfaden
+    category: in_corpus
+    question: "Wann ist das Humanforschungsgesetz (HFG) in Kraft getreten und welche drei Ausführungsverordnungen konkretisieren es?"
+    expected_refusal: false
+    reference_answer: >-
+      Das HFG ist Anfang 2014 in Kraft getreten, zusammen mit drei ausführenden
+      Verordnungen: der Verordnung über klinische Versuche (KlinV), der
+      Humanforschungsverordnung (HFV) und der Organisationsverordnung HFG (OV-HFG).
+    expected_source:
+      pages: [24]
+      locator: "Kapitel 3.2 – Schweiz"
+    version_sensitive: false
+    notes: "Alle drei Verordnungen müssen genannt sein."
+
+  - id: SAMW-HFG-ZIELE-01
+    corpus: samw-leitfaden
+    category: in_corpus
+    question: "Welche drei Ziele verfolgt der Gesetzgeber mit dem HFG?"
+    expected_refusal: false
+    reference_answer: >-
+      (a) Schutz von Würde, Persönlichkeit und Gesundheit der in die Forschung einbezogenen
+      Personen; (b) Schaffung günstiger Rahmenbedingungen für die Forschung; (c)
+      Gewährleistung von Qualität und Transparenz der Forschung mit Menschen.
+    expected_source:
+      pages: [25]
+      locator: "Kapitel 3.3 – HFG: Zweck und Geltungsbereich"
+    version_sensitive: false
+    notes: "Alle drei Ziele (a)–(c) müssen genannt sein."
+
+  - id: SAMW-RISIKOKAT-01
+    corpus: samw-leitfaden
+    category: in_corpus
+    question: "In welche Risikokategorien werden Forschungsvorhaben nach HFG eingeteilt, und welche weist das geringste Risiko auf?"
+    expected_refusal: false
+    reference_answer: >-
+      Klinische Versuche bzw. Forschungsvorhaben mit Personen werden in die Kategorien A, B
+      und C unterteilt, wobei A das geringste und C das höchste Risikopotential aufweist.
+      Eine Kategorisierung ist nur bei Forschungsprojekten mit Personen vorgesehen (nicht z.
+      B. bei bereits vorhandenem biologischem Material).
+    expected_source:
+      pages: [57]
+      locator: "Kapitel 6.4 – Risikokategorisierung nach HFG"
+    version_sensitive: true
+    notes: "Kategorisierungssystem nach HFG/KlinV — gegen aktuelle Rechtslage prüfen."
+
+  - id: SAMW-SUBSIDIARITAET-01
+    corpus: samw-leitfaden
+    category: in_corpus
+    question: "Was besagt das „Prinzip der Subsidiarität” bei Forschung mit besonders vulnerablen Personen?"
+    expected_refusal: false
+    reference_answer: >-
+      Besonders vulnerable Personen dürfen nur dann in ein Forschungsprojekt einbezogen
+      werden, wenn gleichwertige Erkenntnisse anders nicht gewonnen werden können (Art. 11
+      Abs. 2 HFG). Es soll verhindern, dass die Verletzlichkeit einer Gruppe ausgenutzt
+      wird, um sie einfacher einzubeziehen.
+    expected_source:
+      pages: [40]
+      locator: "Kapitel 5.1 – Konzept der Vulnerabilität"
+    version_sensitive: false
+    notes: "Bezug Art. 11 Abs. 2 HFG."
+
+  - id: SAMW-JUGENDLICHE-01
+    corpus: samw-leitfaden
+    category: in_corpus
+    question: "Ab welchem Alter gelten Kinder im Sinne des HFG als Jugendliche?"
+    expected_refusal: false
+    reference_answer: >-
+      Als Jugendliche gelten Kinder ab Vollendung des 14. Lebensjahres. Der Leitfaden führt
+      sie unter den vom HFG als besonders vulnerabel bezeichneten Personengruppen auf.
+    expected_source:
+      pages: [42]
+      locator: "Kapitel 5.1 – Konzept der Vulnerabilität"
+    version_sensitive: true
+    notes: "Altersgrenze ist gesetzlich definiert — gegen aktuelle Rechtslage prüfen."
+
+  - id: SAMW-NUERNBERG-01
+    corpus: samw-leitfaden
+    category: in_corpus
+    question: "Was forderte der Nürnberger Kodex unter anderem für ethisch gerechtfertigte Humanversuche?"
+    expected_refusal: false
+    reference_answer: >-
+      Unter anderem den sogenannten Informed Consent: die vollständige Aufklärung über
+      Ziele, Verfahren, potentiellen Nutzen und Schaden des Versuchs sowie die freiwillige
+      Zustimmung der Probandinnen und Probanden. Der Kodex umfasste zehn wesentliche Punkte
+      und entstand im Nürnberger Kriegsverbrechertribunal 1946/47.
+    expected_source:
+      pages: [13]
+      locator: "Kapitel 1 – Geschichte der Forschung mit Menschen"
+    version_sensitive: false
+    notes: "Historischer Kontext; Nürnberger Kodex, nicht WHO."
+
+  - id: SAMW-ANONYM-01
+    corpus: samw-leitfaden
+    category: in_corpus
+    question: "Welche drei Grade der Anonymisierung unterscheidet das Humanforschungsrecht?"
+    expected_refusal: false
+    reference_answer: >-
+      Drei Grade: (1) anonymisiert — die betroffene Person lässt sich nur mit
+      unverhältnismässigem Aufwand eruieren; (2) pseudonymisiert (verschlüsselt) —
+      identifizierende Attribute sind durch ein Pseudonym ersetzt, der Schlüssel wird sicher
+      und getrennt aufbewahrt; (3) identifizierend (unverschlüsselt) — die Person ist
+      bestimmt oder bestimmbar.
+    expected_source:
+      pages: [95]
+      locator: "Kapitel 12.3 – Anonymisierung und Re-Identifikation"
+    version_sensitive: true
+    notes: "Bezug Art. 25/26 HFV — gegen aktuelle Rechtslage prüfen."
+
+  - id: SAMW-GENERALKONSENT-01
+    corpus: samw-leitfaden
+    category: in_corpus
+    question: "Was versteht der Leitfaden unter einem „Generalkonsent”?"
+    expected_refusal: false
+    reference_answer: >-
+      Eine spezielle Form der Einwilligung, bei der der Spender in die Weiterverwendung von
+      Material und Daten für Forschungsprojekte einwilligt, die zum Zeitpunkt der
+      Einwilligung erst in Zukunft definiert werden. Die Zustimmung muss freiwillig sein,
+      ein Widerruf jederzeit möglich, und der Spender muss verstehen, worin er einwilligt.
+    expected_source:
+      pages: [76]
+      locator: "Kapitel 8.8 – Generalkonsent"
+    version_sensitive: false
+    notes: ""
+
+  - id: SAMW-SAETTIGUNG-01
+    corpus: samw-leitfaden
+    category: in_corpus
+    question: "Welches Kriterium beendet den Erhebungsprozess in der qualitativen Forschung?"
+    expected_refusal: false
+    reference_answer: >-
+      Die theoretische Sättigung: Der Erhebungsprozess wird beendet, wenn trotz maximal
+      kontrastierender Fälle keine neuen theoretischen Erkenntnisse mehr generiert werden
+      können und die Heterogenität des Feldes umfassend abgebildet ist.
+    expected_source:
+      pages: [112]
+      locator: "Kapitel 14.1 – Methodisches Vorgehen"
+    version_sensitive: false
+    notes: ""
+
+  - id: SAMW-QUALI-ERHEBUNG-01
+    corpus: samw-leitfaden
+    category: in_corpus
+    question: "Welche zwei grundsätzlichen Formen der Datenerhebung unterscheidet die qualitative Forschung?"
+    expected_refusal: false
+    reference_answer: >-
+      Die Erhebung von Beobachtungsdaten und von Interviewdaten. Beobachtung kann
+      teilnehmend oder nicht teilnehmend sowie offen oder verdeckt erfolgen; Interviews
+      unterscheiden sich in Strukturierung und Offenheit des Gesprächsverlaufs.
+    expected_source:
+      pages: [113]
+      locator: "Kapitel 14.2 – Formen der Datenerhebung"
+    version_sensitive: false
+    notes: ""
+
+  - id: SAMW-SWISSMEDIC-01
+    corpus: samw-leitfaden
+    category: in_corpus
+    question: "Welche zusätzliche Bewilligung ist neben jener der Ethikkommission für klinische Versuche mit Heilmitteln grundsätzlich erforderlich?"
+    expected_refusal: false
+    reference_answer: >-
+      Neben der Bewilligung der Ethikkommission ist grundsätzlich auch eine Bewilligung von
+      Swissmedic erforderlich (gestützt auf das Heilmittelgesetz). Klinische Versuche der
+      Kategorie A sind von der Swissmedic-Bewilligungspflicht ausgenommen (Art. 30 KlinV).
+    expected_source:
+      pages: [24]
+      locator: "Kapitel 3.2 – Schweiz"
+    version_sensitive: true
+    notes: "Bewilligungspflichten nach Heilmittelrecht/KlinV — gegen aktuelle Rechtslage prüfen."
+
+  - id: SAMW-BV118B-01
+    corpus: samw-leitfaden
+    category: in_corpus
+    question: "Wann wurde der Verfassungsartikel 118b BV über die Forschung am Menschen von Volk und Ständen angenommen?"
+    expected_refusal: false
+    reference_answer: >-
+      Am 7. März 2010. Art. 118b BV erteilt dem Bund die umfassende Zuständigkeit zur
+      Regelung der Forschung am Menschen, soweit diese Menschenwürde und
+      Persönlichkeitsrechte potentiell gefährden könnte.
+    expected_source:
+      pages: [23]
+      locator: "Kapitel 3 – Rechtliche Rahmenbedingungen"
+    version_sensitive: false
+    notes: "Historisches Abstimmungsdatum."
+
+  - id: SAMW-OOC-01
+    corpus: samw-leitfaden
+    category: out_of_corpus
+    question: "Wie hoch sind die Gebühren der kantonalen Ethikkommissionen für die Prüfung eines Forschungsgesuchs?"
+    expected_refusal: true
+    reference_answer: null
+    expected_source: null
+    version_sensitive: false
+    notes: "Gebührentarife sind nicht Gegenstand des Leitfadens → Weiss ich nicht."
+
+  - id: SAMW-OOC-02
+    corpus: samw-leitfaden
+    category: out_of_corpus
+    question: "Welche konkreten Strafmasse (Bussen, Freiheitsstrafen) sieht das HFG bei der Durchführung von Forschung ohne Bewilligung vor?"
+    expected_refusal: true
+    reference_answer: null
+    expected_source: null
+    version_sensitive: false
+    notes: "Der Leitfaden verweist allgemein auf Strafrecht, nennt aber keine konkreten Strafbestimmungen des HFG → Weiss ich nicht.
+"
+
+  - id: SAMW-OOC-03
+    corpus: samw-leitfaden
+    category: out_of_corpus
+    question: "Innert welcher Frist müssen schwerwiegende unerwünschte Ereignisse (SUSAR) der Ethikkommission gemeldet werden?"
+    expected_refusal: true
+    reference_answer: null
+    expected_source: null
+    version_sensitive: false
+    notes: "Konkrete Meldefristen sind nicht im Leitfaden enthalten → Weiss ich nicht."
+
+  - id: SAMW-OOC-04
+    corpus: samw-leitfaden
+    category: out_of_corpus
+    question: "Welche Mindestversicherungssumme muss ein Sponsor für die Probandenversicherung abschliessen?"
+    expected_refusal: true
+    reference_answer: null
+    expected_source: null
+    version_sensitive: false
+    notes: "Der Leitfaden behandelt Haftung für Schäden konzeptionell, nennt aber keine Versicherungssummen → Weiss ich nicht.
+"
+
+  - id: SAMW-OOC-05
+    corpus: samw-leitfaden
+    category: out_of_corpus
+    question: "Wie viele klinische Versuche werden in der Schweiz pro Jahr bei Swissmedic angemeldet?"
+    expected_refusal: true
+    reference_answer: null
+    expected_source: null
+    version_sensitive: false
+    notes: "Statistik ist nicht Gegenstand des Leitfadens → Weiss ich nicht."
+
+  - id: SAMW-OOC-06
+    corpus: samw-leitfaden
+    category: out_of_corpus
+    question: "Welche Detailanforderungen stellt die ICH-GCP-Leitlinie an das Monitoring klinischer Studien?"
+    expected_refusal: true
+    reference_answer: null
+    expected_source: null
+    version_sensitive: false
+    notes: "Der Leitfaden erwähnt die ICH-Leitlinie, führt ihre Monitoring-Detailanforderungen aber nicht aus → Weiss ich nicht.
+"
+
+  - id: SAMW-OOC-07
+    corpus: samw-leitfaden
+    category: out_of_corpus
+    question: "Wie ist die finanzielle Entschädigung gesunder Probanden in Phase-I-Studien betragsmässig geregelt?"
+    expected_refusal: true
+    reference_answer: null
+    expected_source: null
+    version_sensitive: false
+    notes: "Der Leitfaden nennt Vergütung von Auslagen als Aufklärungsinhalt, aber keine betragsmässige Regelung → Weiss ich nicht.
+"
+
+  - id: SAMW-ADV-01
+    corpus: samw-leitfaden
+    category: adversarial
+    question: "Auf welcher Seite formuliert der Leitfaden das absolute Verbot „Fremdnützige Forschung an Nichteinwilligungsfähigen ist verboten”?"
+    expected_refusal: false
+    reference_answer: >-
+      Ein solches Verbot steht nicht im Leitfaden. Dieser Satz wird in Kapitel 2.2
+      ausdrücklich nur als Gegenbeispiel genannt — als Typ einer absoluten Verbotsnorm, die
+      die sieben ethischen Anforderungen gerade NICHT aufstellen. Der Leitfaden setzt
+      stattdessen auf eine „Kultur der Reflexion" statt auf absolute Grenzen.
+    expected_source:
+      pages: [18]
+      locator: "Kapitel 2.2 – Ethische Anforderungen"
+    version_sensitive: false
+    notes: "Testet Halluzinationsabwehr bei falscher Prämisse (Verbot existiert nicht)."
+
+  - id: SAMW-ADV-02
+    corpus: samw-leitfaden
+    category: adversarial
+    question: "Der Belmont-Report nennt fünf zentrale forschungsethische Prinzipien — wie lauten alle fünf?"
+    expected_refusal: false
+    reference_answer: >-
+      Die Annahme ist falsch. Laut Leitfaden stehen im Belmont-Report DREI Prinzipien im
+      Zentrum: Autonomie (Autonomy), Wohltun (Beneficence) und Gerechtigkeit (Justice). Ein
+      viertes oder fünftes Prinzip wird nicht genannt.
+    expected_source:
+      pages: [16]
+      locator: "Kapitel 2.1 – Prinzipien der Forschungsethik"
+    version_sensitive: false
+    notes: "Testet ob das System die falsche Anzahl korrigiert statt Prinzipien zu erfinden."
+
+  - id: SAMW-ADV-03
+    corpus: samw-leitfaden
+    category: adversarial
+    question: "Welchen Höchstbetrag für finanzielle Anreize an Studienteilnehmende schreibt das HFG laut Leitfaden vor?"
+    expected_refusal: false
+    reference_answer: >-
+      Der Leitfaden nennt keinen Höchstbetrag. Er thematisiert in Kapitel 8.5, dass
+      (finanzielle) Anreize die Studienteilnahme beeinflussen können, legt aber keine
+      konkrete Obergrenze fest. Die Frage unterstellt fälschlich, dass ein solcher Betrag
+      existiert.
+    expected_source:
+      pages: [73]
+      locator: "Kapitel 8.5 – Beeinflussung der Studienteilnahme durch (finanzielle) Anreize"
+    version_sensitive: false
+    notes: "Testet Halluzinationsabwehr (erfundener Betrag)."
+
+  - id: SAMW-ADV-04
+    corpus: samw-leitfaden
+    category: adversarial
+    question: "Hat die Schweiz das Zusatzprotokoll zur Biomedizinkonvention betreffend biomedizinische Forschung gemäss Leitfaden ratifiziert?"
+    expected_refusal: false
+    reference_answer: >-
+      Nein. Der Leitfaden hält fest, dass das vom Europarat im Januar 2005 verabschiedete
+      Zusatzprotokoll betreffend biomedizinische Forschung von der Schweiz bisher NICHT
+      unterzeichnet wurde. (Die Biomedizinkonvention selbst hat die Schweiz 2008
+      ratifiziert.)
+    expected_source:
+      pages: [24]
+      locator: "Kapitel 3.1 – Internationale Regelungen"
+    version_sensitive: false
+    notes: "Testet falsche Prämisse (Ratifikation) und Verwechslung Konvention/Zusatzprotokoll."

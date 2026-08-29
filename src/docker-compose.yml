@@ -42,6 +42,10 @@ services:
         condition: service_healthy
     volumes:
       - ./backend:/app
+      # Nur fuer tests/test_gold_eval_dataset.py: das Gold-Dataset und die
+      # Korpus-PDFs liegen ausserhalb des Backend-Images. In CI reicht der
+      # Checkout, im Container braucht es diesen Mount.
+      - ../LearningCorpus:/LearningCorpus:ro
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 10s

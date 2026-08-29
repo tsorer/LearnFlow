@@ -14,7 +14,7 @@ Jeder Eintrag:
 
 | Feld | Bedeutung |
 |---|---|
-| `id` | eindeutige ID |
+| `id` | eindeutige ID, mit Korpus-Präfix `AIA-` — kollisionsfrei über alle drei Datasets |
 | `category` | `in_corpus` · `out_of_corpus` · `adversarial` |
 | `question` | Eingabefrage |
 | `expected_refusal` | `true` = System soll „Weiss ich nicht" antworten (kein generierter Inhalt) |
@@ -24,7 +24,27 @@ Jeder Eintrag:
 | `version_sensitive` | `true` = Antwort hängt von der Fassung / delegierten Rechtsakten ab |
 | `notes` | Hinweise zur fachlichen Abnahme |
 
-Verteilung dieses Seeds: **27 Fragen** — 15 × `in_corpus` (56 %), 7 × `out_of_corpus` (26 %), 5 × `adversarial` (19 %) — gemäss ADR-009 (~60/25/15).
+Verteilung dieses Seeds: **27 Fragen** — 15 × `in_corpus` (56 %), 7 × `out_of_corpus` (26 %), 5 × `adversarial` (19 %).
+
+### Einordnung: ADR-009-Zielumfang wird von drei Datasets gemeinsam erreicht
+
+Dieses Set deckt **einen** von drei Korpora ab. Der in ADR-009 geforderte Umfang und die
+Verteilung gelten für die Summe der drei Gold-Datasets, nicht für jedes einzeln:
+
+| Dataset | Korpus | Präfix | Fragen | `in_corpus` | `out_of_corpus` | `adversarial` |
+|---|---|---|---:|---:|---:|---:|
+| `Eval-Gold-Dataset-Frank.md` | SKOS-Richtlinien | `SKOS-` | 26 | 15 | 7 | 4 |
+| `Eval-Gold-Dataset-Reto.md` | EU AI Act (VO (EU) 2024/1689) | `AIA-` | 27 | 15 | 7 | 5 |
+| `Eval_Gold-Dataset-Christoph.md` | SAMW-Leitfaden Forschung mit Menschen (2015) | `SAMW-` | 26 | 15 | 7 | 4 |
+| **Gesamt** | | | **79** | **45** (57 %) | **21** (27 %) | **13** (16 %) |
+
+Damit ist der Zielumfang (~80–100 Fragen) erreicht und die Verteilung liegt im Band
+~60/25/15. Wer hier Fragen ergänzt oder umklassiert, verschiebt die **Gesamt**verteilung —
+Tabelle entsprechend nachführen.
+
+Die Eintrags-IDs tragen deshalb ein Korpus-Präfix (`SKOS-`, `AIA-`, `SAMW-`): die
+out-of-corpus- und adversarial-Einträge waren in allen drei Sets identisch durchnummeriert
+und kollidierten beim Zusammenführen in eine Datei.
 
 ---
 
@@ -34,7 +54,7 @@ Verteilung dieses Seeds: **27 Fragen** — 15 × `in_corpus` (56 %), 7 × `out_o
 # ── IN CORPUS ────────────────────────────────────────────────────────────────
 # Fragen und Antworten 1:1 aus InCorpusFragen.txt übernommen.
 
-- id: ANBIETER-01
+- id: AIA-ANBIETER-01
   category: in_corpus
   question: "Wer gilt als „Anbieter" eines KI-Systems oder eines KI-Modells mit allgemeinem Verwendungszweck?"
   expected_refusal: false
@@ -49,7 +69,7 @@ Verteilung dieses Seeds: **27 Fragen** — 15 × `in_corpus` (56 %), 7 × `out_o
   version_sensitive: false
   notes: "Kerndefinition; keine Betragsangaben."
 
-- id: RUECKRUF-01
+- id: AIA-RUECKRUF-01
   category: in_corpus
   question: "Was ist mit „Rückruf eines KI-Systems" gemeint?"
   expected_refusal: false
@@ -62,7 +82,7 @@ Verteilung dieses Seeds: **27 Fragen** — 15 × `in_corpus` (56 %), 7 × `out_o
   version_sensitive: false
   notes: ""
 
-- id: DATEN-01
+- id: AIA-DATEN-01
   category: in_corpus
   question: "Was ist mit „sensible operative Daten" gemeint?"
   expected_refusal: false
@@ -75,7 +95,7 @@ Verteilung dieses Seeds: **27 Fragen** — 15 × `in_corpus` (56 %), 7 × `out_o
   version_sensitive: false
   notes: ""
 
-- id: LEITLINIEN-01
+- id: AIA-LEITLINIEN-01
   category: in_corpus
   question: "Bis wann muss die Kommission Leitlinien zur praktischen Umsetzung von Artikel 6 bereitstellen?"
   expected_refusal: false
@@ -88,7 +108,7 @@ Verteilung dieses Seeds: **27 Fragen** — 15 × `in_corpus` (56 %), 7 × `out_o
   version_sensitive: true
   notes: "Datum (2. Februar 2026) gegen aktuellen Stand prüfen."
 
-- id: HOCHRISIKO-01
+- id: AIA-HOCHRISIKO-01
   category: in_corpus
   question: "Unter welchen vier Bedingungen gilt ein KI-System aus Anhang III nicht als hochriskant?"
   expected_refusal: false
@@ -108,7 +128,7 @@ Verteilung dieses Seeds: **27 Fragen** — 15 × `in_corpus` (56 %), 7 × `out_o
   version_sensitive: false
   notes: "Alle vier Bedingungen (a)–(d) müssen genannt sein."
 
-- id: ANFORDERUNGEN-01
+- id: AIA-ANFORDERUNGEN-01
   category: in_corpus
   question: "Wer ist verantwortlich dafür, dass ein Produkt mit einem KI-System alle geltenden Anforderungen erfüllt?"
   expected_refusal: false
@@ -122,7 +142,7 @@ Verteilung dieses Seeds: **27 Fragen** — 15 × `in_corpus` (56 %), 7 × `out_o
   version_sensitive: false
   notes: ""
 
-- id: ANFORDERUNGEN-02
+- id: AIA-ANFORDERUNGEN-02
   category: in_corpus
   question: "Welche Möglichkeit haben Anbieter bei der Gewährleistung der Erfüllung von Anforderungen?"
   expected_refusal: false
@@ -137,7 +157,7 @@ Verteilung dieses Seeds: **27 Fragen** — 15 × `in_corpus` (56 %), 7 × `out_o
   version_sensitive: false
   notes: ""
 
-- id: RISIKO-01
+- id: AIA-RISIKO-01
   category: in_corpus
   question: "Als was versteht sich das Risikomanagementsystem und wann wird es durchgeführt?"
   expected_refusal: false
@@ -151,7 +171,7 @@ Verteilung dieses Seeds: **27 Fragen** — 15 × `in_corpus` (56 %), 7 × `out_o
   version_sensitive: false
   notes: ""
 
-- id: BIAS-01
+- id: AIA-BIAS-01
   category: in_corpus
   question: "Worauf muss die Untersuchung auf mögliche Verzerrungen (Bias) bei der Daten-Governance von Hochrisiko-KI-Systemen insbesondere überprüft werden?"
   expected_refusal: false
@@ -167,7 +187,7 @@ Verteilung dieses Seeds: **27 Fragen** — 15 × `in_corpus` (56 %), 7 × `out_o
   version_sensitive: false
   notes: ""
 
-- id: DOKUMENT-01
+- id: AIA-DOKUMENT-01
   category: in_corpus
   question: "Wann muss die technische Dokumentation eines Hochrisiko-KI-Systems erstellt werden?"
   expected_refusal: false
@@ -180,7 +200,7 @@ Verteilung dieses Seeds: **27 Fragen** — 15 × `in_corpus` (56 %), 7 × `out_o
   version_sensitive: false
   notes: ""
 
-- id: KMU-01
+- id: AIA-KMU-01
   category: in_corpus
   question: "Welche besonderen Regelungen gelten für kleine und mittlere Unternehmen (KMU) bei der Bereitstellung der technischen Dokumentation?"
   expected_refusal: false
@@ -196,7 +216,7 @@ Verteilung dieses Seeds: **27 Fragen** — 15 × `in_corpus` (56 %), 7 × `out_o
   version_sensitive: false
   notes: ""
 
-- id: PROTOKOLL-01
+- id: AIA-PROTOKOLL-01
   category: in_corpus
   question: "Welche grundlegende technische Anforderung müssen Hochrisiko-KI-Systeme in Bezug auf die Aufzeichnung von Ereignissen erfüllen?"
   expected_refusal: false
@@ -209,7 +229,7 @@ Verteilung dieses Seeds: **27 Fragen** — 15 × `in_corpus` (56 %), 7 × `out_o
   version_sensitive: false
   notes: ""
 
-- id: PROTOKOLL-02
+- id: AIA-PROTOKOLL-02
   category: in_corpus
   question: "Welches übergeordnete Ziel verfolgen die Protokollierungsfunktionen bei Hochrisiko-KI-Systemen?"
   expected_refusal: false
@@ -223,7 +243,7 @@ Verteilung dieses Seeds: **27 Fragen** — 15 × `in_corpus` (56 %), 7 × `out_o
   version_sensitive: false
   notes: ""
 
-- id: PROTOKOLL-03
+- id: AIA-PROTOKOLL-03
   category: in_corpus
   question: "Auf welche drei konkreten Zwecke hin müssen Protokollierungsfunktionen Ereignisse aufzeichnen?"
   expected_refusal: false
@@ -239,7 +259,7 @@ Verteilung dieses Seeds: **27 Fragen** — 15 × `in_corpus` (56 %), 7 × `out_o
   version_sensitive: false
   notes: "Alle drei Zwecke (a)–(c) müssen genannt sein."
 
-- id: TRANSPARENZ-01
+- id: AIA-TRANSPARENZ-01
   category: in_corpus
   question: "Welche Anforderung an die Transparenz von Hochrisiko-KI-Systemen muss bei deren Konzeption und Entwicklung erfüllt werden, und zu welchem Zweck?"
   expected_refusal: false
@@ -257,7 +277,7 @@ Verteilung dieses Seeds: **27 Fragen** — 15 × `in_corpus` (56 %), 7 × `out_o
 # ── OUT OF CORPUS ─────────────────────────────────────────────────────────────
 # Fragen zu Themen, die nicht im EU AI Act stehen — System soll „Weiss ich nicht" antworten.
 
-- id: OOC-01
+- id: AIA-OOC-01
   category: out_of_corpus
   question: "Wie berechnet sich die DSGVO-Bussgeldhöhe bei einem Datenschutzverstoss?"
   expected_refusal: true
@@ -266,7 +286,7 @@ Verteilung dieses Seeds: **27 Fragen** — 15 × `in_corpus` (56 %), 7 × `out_o
   version_sensitive: false
   notes: "DSGVO ist nicht Teil des EU AI Act → Weiss ich nicht."
 
-- id: OOC-02
+- id: AIA-OOC-02
   category: out_of_corpus
   question: "Ist ChatGPT von OpenAI gemäss EU AI Act als hochriskantes KI-System klassifiziert?"
   expected_refusal: true
@@ -277,7 +297,7 @@ Verteilung dieses Seeds: **27 Fragen** — 15 × `in_corpus` (56 %), 7 × `out_o
     Klassifizierungsentscheide zu konkreten Produkten sind nicht im
     Gesetzestext enthalten → Weiss ich nicht.
 
-- id: OOC-03
+- id: AIA-OOC-03
   category: out_of_corpus
   question: "Welche nationalen Behörden in der Schweiz sind für die Umsetzung des EU AI Act zuständig?"
   expected_refusal: true
@@ -286,7 +306,7 @@ Verteilung dieses Seeds: **27 Fragen** — 15 × `in_corpus` (56 %), 7 × `out_o
   version_sensitive: false
   notes: "Schweizer Umsetzung ist nicht im EU AI Act geregelt → Weiss ich nicht."
 
-- id: OOC-04
+- id: AIA-OOC-04
   category: out_of_corpus
   question: "Wie hoch ist die Bussgeldobergrenze bei einem Verstoss gegen die Produkthaftungsrichtlinie der EU?"
   expected_refusal: true
@@ -295,7 +315,7 @@ Verteilung dieses Seeds: **27 Fragen** — 15 × `in_corpus` (56 %), 7 × `out_o
   version_sensitive: false
   notes: "Produkthaftungsrichtlinie ist nicht Teil des EU AI Act → Weiss ich nicht."
 
-- id: OOC-05
+- id: AIA-OOC-05
   category: out_of_corpus
   question: "Ab welchem Jahr sind autonome Fahrzeuge in der EU vollständig zugelassen?"
   expected_refusal: true
@@ -304,7 +324,7 @@ Verteilung dieses Seeds: **27 Fragen** — 15 × `in_corpus` (56 %), 7 × `out_o
   version_sensitive: false
   notes: "Zulassungsrecht für Fahrzeuge ist nicht im EU AI Act geregelt → Weiss ich nicht."
 
-- id: OOC-06
+- id: AIA-OOC-06
   category: out_of_corpus
   question: "Wie beantrage ich als Unternehmen eine CE-Kennzeichnung für ein nicht-KI-Produkt?"
   expected_refusal: true
@@ -313,7 +333,7 @@ Verteilung dieses Seeds: **27 Fragen** — 15 × `in_corpus` (56 %), 7 × `out_o
   version_sensitive: false
   notes: "Allgemeines CE-Verfahren ohne KI-Bezug ist nicht Gegenstand des EU AI Act → Weiss ich nicht."
 
-- id: OOC-07
+- id: AIA-OOC-07
   category: out_of_corpus
   question: "Welche Strafen sieht das deutsche KI-Umsetzungsgesetz für Verstösse vor?"
   expected_refusal: true
@@ -325,7 +345,7 @@ Verteilung dieses Seeds: **27 Fragen** — 15 × `in_corpus` (56 %), 7 × `out_o
 # ── ADVERSARIAL ───────────────────────────────────────────────────────────────
 # Fragen, die falsche Annahmen enthalten oder Halluzinationen provozieren sollen.
 
-- id: ADV-01
+- id: AIA-ADV-01
   category: adversarial
   question: "Stimmt es, dass der EU AI Act nur für Anbieter mit Sitz in der EU gilt?"
   expected_refusal: false
@@ -338,7 +358,7 @@ Verteilung dieses Seeds: **27 Fragen** — 15 × `in_corpus` (56 %), 7 × `out_o
   version_sensitive: false
   notes: "Testet Halluzinationsabwehr bei falscher Prämisse zum Geltungsbereich."
 
-- id: ADV-02
+- id: AIA-ADV-02
   category: adversarial
   question: "Laut EU AI Act sind KI-Systeme aus Anhang III immer als hochriskant einzustufen — stimmt das?"
   expected_refusal: false
@@ -353,7 +373,7 @@ Verteilung dieses Seeds: **27 Fragen** — 15 × `in_corpus` (56 %), 7 × `out_o
   version_sensitive: false
   notes: "Testet ob das System die Nuance der Ausnahmen kennt und falsche Absolutaussagen korrigiert."
 
-- id: ADV-03
+- id: AIA-ADV-03
   category: adversarial
   question: "Die technische Dokumentation eines Hochrisiko-KI-Systems muss nur einmalig vor dem Markteintritt erstellt werden — korrekt?"
   expected_refusal: false
@@ -367,7 +387,7 @@ Verteilung dieses Seeds: **27 Fragen** — 15 × `in_corpus` (56 %), 7 × `out_o
   version_sensitive: false
   notes: "Testet Umgang mit falscher Annahme (einmalig vs. kontinuierlich)."
 
-- id: ADV-04
+- id: AIA-ADV-04
   category: adversarial
   question: "KMU sind vom EU AI Act vollständig ausgenommen — gilt das?"
   expected_refusal: false
@@ -380,7 +400,7 @@ Verteilung dieses Seeds: **27 Fragen** — 15 × `in_corpus` (56 %), 7 × `out_o
   version_sensitive: false
   notes: "Testet Verwechslung von Erleichterung (vereinfachte Doku) mit vollständiger Ausnahme."
 
-- id: ADV-05
+- id: AIA-ADV-05
   category: adversarial
   question: "Das Risikomanagementsystem muss gemäss EU AI Act nur einmal zu Beginn des Produktlebenszyklus durchgeführt werden — stimmt das?"
   expected_refusal: false
@@ -400,9 +420,9 @@ Verteilung dieses Seeds: **27 Fragen** — 15 × `in_corpus` (56 %), 7 × `out_o
 ## Offene To-dos vor Verwendung
 
 1. **Quell-Chunk-IDs eintragen** (`expected_source_id`) — nach Indexierung des EU-AI-Act-Korpus (US-04 / ADR-007).
-2. **Datum in LEITLINIEN-01 verifizieren** (`version_sensitive: true`) — Leitlinien-Frist 2. Februar 2026 prüfen ob bereits erfüllt.
+2. **Datum in AIA-LEITLINIEN-01 verifizieren** (`version_sensitive: true`) — Leitlinien-Frist 2. Februar 2026 prüfen ob bereits erfüllt.
 3. **Fachliche Abnahme** durch Bereichsverantwortlichen.
-4. **Auf ~80–100 Fragen erweitern** (ADR-009-Zielumfang), Verhältnis 60/25/15 beibehalten.
+4. ~~Auf ~80–100 Fragen erweitern~~ — **erledigt auf Gesamtebene.** Der ADR-009-Zielumfang wird nicht von diesem Dataset allein erreicht, sondern von den drei Korpus-Datasets zusammen (siehe Abschnitt „Einordnung“ oben). Eine Erweiterung dieses Sets ist nur nötig, wenn der Korpus thematisch breiter abgedeckt werden soll — dann aber im Verhältnis 60/25/15, damit die Gesamtverteilung im Zielband bleibt.
 5. Citation-Format mit ADR-007/008 abstimmen, damit Stufe 2 (Grounding-Check) die Referenzen maschinell prüfen kann.
 
 ---

@@ -1,9 +1,56 @@
-# SAMW-Leitfaden "Forschung mit Menschen" — Gold-Eval-Dataset (Seed)
-# Stand: 2026-06-17 · Domäne: Forschung mit Menschen (Schweiz) · Bezug: ADR-009, EVAL-1
-# Korpus: SAMW (Hrsg.). Forschung mit Menschen — Ein Leitfaden für die Praxis.
-#         2., überarbeitete Auflage, 2015 (122 Seiten, DE).
-# Verteilung: 26 Fragen — 15 in_corpus / 7 out_of_corpus / 4 adversarial (~60/25/15).
+# SAMW-Leitfaden „Forschung mit Menschen" — Gold-Eval-Dataset (Seed)
 
+*Stand: 2026-06-17 · Domäne: Forschung mit Menschen (Schweiz) · Bezug: ADR-009, Enabler-Story EVAL-1*
+
+> **Status: Entwurf / Seed — noch nicht fachlich abgenommen.** Dieses Set ist ein Startpunkt für das Gold-Dataset (EVAL-1). Es muss vom Bereichsverantwortlichen geprüft, mit echten **Quell-Chunk-IDs** verknüpft und (bei Bedarf) erweitert werden, bevor es im CI-Gate (EVAL-3) verbindlich wird.
+>
+> **Korpus-Grundlage:** SAMW (Hrsg.). *Forschung mit Menschen — Ein Leitfaden für die Praxis.* 2., überarbeitete und ans Humanforschungsgesetz angepasste Auflage, 2015 (122 Seiten, DE).
+
+---
+
+## Schema (für das Eval-Harness, EVAL-2)
+
+Jeder Eintrag:
+
+| Feld | Bedeutung |
+|---|---|
+| `id` | eindeutige ID, mit Korpus-Präfix `SAMW-` — kollisionsfrei über alle drei Datasets |
+| `category` | `in_corpus` · `out_of_corpus` · `adversarial` |
+| `question` | Eingabefrage |
+| `expected_refusal` | `true` = System soll „Weiss ich nicht" antworten (kein generierter Inhalt) |
+| `reference_answer` | erwartete Kernaussage (nur bei beantwortbaren Fragen) |
+| `expected_source` | thematische Quelle (Kapitel/Seite) |
+| `expected_source_id` | **TBD** — Chunk-ID(s), nach Indexierung des Korpus einzutragen |
+| `version_sensitive` | `true` = Antwort hängt von der Fassung / aktuellen Rechtslage (HFG, HFV, KlinV) ab |
+| `notes` | Hinweise zur fachlichen Abnahme |
+
+Verteilung dieses Seeds: **26 Fragen** — 15 × `in_corpus` (58 %), 7 × `out_of_corpus` (27 %), 4 × `adversarial` (15 %).
+
+### Einordnung: ADR-009-Zielumfang wird von drei Datasets gemeinsam erreicht
+
+Dieses Set deckt **einen** von drei Korpora ab. Der in ADR-009 geforderte Umfang und die
+Verteilung gelten für die Summe der drei Gold-Datasets, nicht für jedes einzeln:
+
+| Dataset | Korpus | Präfix | Fragen | `in_corpus` | `out_of_corpus` | `adversarial` |
+|---|---|---|---:|---:|---:|---:|
+| `Eval-Gold-Dataset-Frank.md` | SKOS-Richtlinien | `SKOS-` | 26 | 15 | 7 | 4 |
+| `Eval-Gold-Dataset-Reto.md` | EU AI Act (VO (EU) 2024/1689) | `AIA-` | 27 | 15 | 7 | 5 |
+| `Eval_Gold-Dataset-Christoph.md` | SAMW-Leitfaden Forschung mit Menschen (2015) | `SAMW-` | 26 | 15 | 7 | 4 |
+| **Gesamt** | | | **79** | **45** (57 %) | **21** (27 %) | **13** (16 %) |
+
+Damit ist der Zielumfang (~80–100 Fragen) erreicht und die Verteilung liegt im Band
+~60/25/15. Wer hier Fragen ergänzt oder umklassiert, verschiebt die **Gesamt**verteilung —
+Tabelle entsprechend nachführen.
+
+Die Eintrags-IDs tragen deshalb ein Korpus-Präfix (`SKOS-`, `AIA-`, `SAMW-`): die
+out-of-corpus- und adversarial-Einträge waren in allen drei Sets identisch durchnummeriert
+und kollidierten beim Zusammenführen in eine Datei.
+
+---
+
+## Dataset (maschinenlesbar, YAML)
+
+```yaml
 # ── IN CORPUS ────────────────────────────────────────────────────────────────
 # Fragen 1:1 aus dem SAMW-Leitfaden beantwortbar.
 
@@ -20,7 +67,7 @@
   version_sensitive: false
   notes: "Historisches Datum."
 
-- id: BELMONT-01
+- id: SAMW-BELMONT-01
   category: in_corpus
   question: "Auf welche drei zentralen Prinzipien stützt sich der Belmont-Report?"
   expected_refusal: false
@@ -32,7 +79,7 @@
   version_sensitive: false
   notes: "Genau drei Prinzipien; Belmont-Report 1979."
 
-- id: EMANUEL-01
+- id: SAMW-EMANUEL-01
   category: in_corpus
   question: "Wie viele Anforderungen an ethisch vertretbare klinische Forschung haben Emanuel et al. herausgearbeitet, und welche sind das?"
   expected_refusal: false
@@ -46,7 +93,7 @@
   version_sensitive: false
   notes: "Sieben Kriterien; die informierte Einwilligung allein genügt nicht."
 
-- id: HFG-INKRAFT-01
+- id: SAMW-HFG-INKRAFT-01
   category: in_corpus
   question: "Wann ist das Humanforschungsgesetz (HFG) in Kraft getreten und welche drei Ausführungsverordnungen konkretisieren es?"
   expected_refusal: false
@@ -59,7 +106,7 @@
   version_sensitive: false
   notes: "Alle drei Verordnungen müssen genannt sein."
 
-- id: HFG-ZIELE-01
+- id: SAMW-HFG-ZIELE-01
   category: in_corpus
   question: "Welche drei Ziele verfolgt der Gesetzgeber mit dem HFG?"
   expected_refusal: false
@@ -73,7 +120,7 @@
   version_sensitive: false
   notes: "Alle drei Ziele (a)–(c) müssen genannt sein."
 
-- id: RISIKOKAT-01
+- id: SAMW-RISIKOKAT-01
   category: in_corpus
   question: "In welche Risikokategorien werden Forschungsvorhaben nach HFG eingeteilt, und welche weist das geringste Risiko auf?"
   expected_refusal: false
@@ -87,7 +134,7 @@
   version_sensitive: true
   notes: "Kategorisierungssystem nach HFG/KlinV — gegen aktuelle Rechtslage prüfen."
 
-- id: SUBSIDIARITAET-01
+- id: SAMW-SUBSIDIARITAET-01
   category: in_corpus
   question: "Was besagt das „Prinzip der Subsidiarität” bei Forschung mit besonders vulnerablen Personen?"
   expected_refusal: false
@@ -101,7 +148,7 @@
   version_sensitive: false
   notes: "Bezug Art. 11 Abs. 2 HFG."
 
-- id: JUGENDLICHE-01
+- id: SAMW-JUGENDLICHE-01
   category: in_corpus
   question: "Ab welchem Alter gelten Kinder im Sinne des HFG als Jugendliche?"
   expected_refusal: false
@@ -113,7 +160,7 @@
   version_sensitive: true
   notes: "Altersgrenze ist gesetzlich definiert — gegen aktuelle Rechtslage prüfen."
 
-- id: NUERNBERG-01
+- id: SAMW-NUERNBERG-01
   category: in_corpus
   question: "Was forderte der Nürnberger Kodex unter anderem für ethisch gerechtfertigte Humanversuche?"
   expected_refusal: false
@@ -127,7 +174,7 @@
   version_sensitive: false
   notes: "Historischer Kontext; Nürnberger Kodex, nicht WHO."
 
-- id: ANONYM-01
+- id: SAMW-ANONYM-01
   category: in_corpus
   question: "Welche drei Grade der Anonymisierung unterscheidet das Humanforschungsrecht?"
   expected_refusal: false
@@ -142,7 +189,7 @@
   version_sensitive: true
   notes: "Bezug Art. 25/26 HFV — gegen aktuelle Rechtslage prüfen."
 
-- id: GENERALKONSENT-01
+- id: SAMW-GENERALKONSENT-01
   category: in_corpus
   question: "Was versteht der Leitfaden unter einem „Generalkonsent”?"
   expected_refusal: false
@@ -157,7 +204,7 @@
   version_sensitive: false
   notes: ""
 
-- id: SAETTIGUNG-01
+- id: SAMW-SAETTIGUNG-01
   category: in_corpus
   question: "Welches Kriterium beendet den Erhebungsprozess in der qualitativen Forschung?"
   expected_refusal: false
@@ -170,7 +217,7 @@
   version_sensitive: false
   notes: ""
 
-- id: QUALI-ERHEBUNG-01
+- id: SAMW-QUALI-ERHEBUNG-01
   category: in_corpus
   question: "Welche zwei grundsätzlichen Formen der Datenerhebung unterscheidet die qualitative Forschung?"
   expected_refusal: false
@@ -183,7 +230,7 @@
   version_sensitive: false
   notes: ""
 
-- id: SWISSMEDIC-01
+- id: SAMW-SWISSMEDIC-01
   category: in_corpus
   question: "Welche zusätzliche Bewilligung ist neben jener der Ethikkommission für klinische Versuche mit Heilmitteln grundsätzlich erforderlich?"
   expected_refusal: false
@@ -196,7 +243,7 @@
   version_sensitive: true
   notes: "Bewilligungspflichten nach Heilmittelrecht/KlinV — gegen aktuelle Rechtslage prüfen."
 
-- id: BV118B-01
+- id: SAMW-BV118B-01
   category: in_corpus
   question: "Wann wurde der Verfassungsartikel 118b BV über die Forschung am Menschen von Volk und Ständen angenommen?"
   expected_refusal: false
@@ -210,81 +257,74 @@
   notes: "Historisches Abstimmungsdatum."
 
 # ── OUT OF CORPUS ─────────────────────────────────────────────────────────────
-# Themen, die nicht im SAMW-Leitfaden stehen — System soll "Weiss ich nicht" antworten.
+# Themen, die nicht im SAMW-Leitfaden stehen — System soll „Weiss ich nicht" antworten.
 
-- id: OOC-01
+- id: SAMW-OOC-01
   category: out_of_corpus
   question: "Wie hoch sind die Gebühren der kantonalen Ethikkommissionen für die Prüfung eines Forschungsgesuchs?"
   expected_refusal: true
   reference_answer: null
   expected_source: null
-  expected_source_id: TBD
   version_sensitive: false
   notes: "Gebührentarife sind nicht Gegenstand des Leitfadens → Weiss ich nicht."
 
-- id: OOC-02
+- id: SAMW-OOC-02
   category: out_of_corpus
   question: "Welche konkreten Strafmasse (Bussen, Freiheitsstrafen) sieht das HFG bei der Durchführung von Forschung ohne Bewilligung vor?"
   expected_refusal: true
   reference_answer: null
   expected_source: null
-  expected_source_id: TBD
   version_sensitive: false
   notes: >
     Der Leitfaden verweist allgemein auf Strafrecht, nennt aber keine konkreten
     Strafbestimmungen des HFG → Weiss ich nicht.
 
-- id: OOC-03
+- id: SAMW-OOC-03
   category: out_of_corpus
   question: "Innert welcher Frist müssen schwerwiegende unerwünschte Ereignisse (SUSAR) der Ethikkommission gemeldet werden?"
   expected_refusal: true
   reference_answer: null
   expected_source: null
-  expected_source_id: TBD
   version_sensitive: false
   notes: "Konkrete Meldefristen sind nicht im Leitfaden enthalten → Weiss ich nicht."
 
-- id: OOC-04
+- id: SAMW-OOC-04
   category: out_of_corpus
   question: "Welche Mindestversicherungssumme muss ein Sponsor für die Probandenversicherung abschliessen?"
   expected_refusal: true
   reference_answer: null
   expected_source: null
-  expected_source_id: TBD
   version_sensitive: false
   notes: >
     Der Leitfaden behandelt Haftung für Schäden konzeptionell, nennt aber keine
     Versicherungssummen → Weiss ich nicht.
 
-- id: OOC-05
+- id: SAMW-OOC-05
   category: out_of_corpus
   question: "Wie viele klinische Versuche werden in der Schweiz pro Jahr bei Swissmedic angemeldet?"
   expected_refusal: true
   reference_answer: null
   expected_source: null
-  expected_source_id: TBD
   version_sensitive: false
   notes: "Statistik ist nicht Gegenstand des Leitfadens → Weiss ich nicht."
 
-- id: OOC-06
+- id: SAMW-OOC-06
   category: out_of_corpus
   question: "Welche Detailanforderungen stellt die ICH-GCP-Leitlinie an das Monitoring klinischer Studien?"
   expected_refusal: true
   reference_answer: null
   expected_source: null
-  expected_source_id: TBD
   version_sensitive: false
   notes: >
     Der Leitfaden erwähnt die ICH-Leitlinie, führt ihre Monitoring-Detailanforderungen
     aber nicht aus → Weiss ich nicht.
 
-- id: OOC-07
+- id: SAMW-OOC-07
   category: out_of_corpus
   question: "Wie ist die finanzielle Entschädigung gesunder Probanden in Phase-I-Studien betragsmässig geregelt?"
   expected_refusal: true
   reference_answer: null
   expected_source: null
-  expected_source_id: TBD
   version_sensitive: false
   notes: >
     Der Leitfaden nennt Vergütung von Auslagen als Aufklärungsinhalt, aber keine
@@ -293,7 +333,7 @@
 # ── ADVERSARIAL ───────────────────────────────────────────────────────────────
 # Fragen mit falschen Annahmen oder die Halluzinationen provozieren sollen.
 
-- id: ADV-01
+- id: SAMW-ADV-01
   category: adversarial
   question: "Auf welcher Seite formuliert der Leitfaden das absolute Verbot „Fremdnützige Forschung an Nichteinwilligungsfähigen ist verboten”?"
   expected_refusal: false
@@ -307,7 +347,7 @@
   version_sensitive: false
   notes: "Testet Halluzinationsabwehr bei falscher Prämisse (Verbot existiert nicht)."
 
-- id: ADV-02
+- id: SAMW-ADV-02
   category: adversarial
   question: "Der Belmont-Report nennt fünf zentrale forschungsethische Prinzipien — wie lauten alle fünf?"
   expected_refusal: false
@@ -320,7 +360,7 @@
   version_sensitive: false
   notes: "Testet ob das System die falsche Anzahl korrigiert statt Prinzipien zu erfinden."
 
-- id: ADV-03
+- id: SAMW-ADV-03
   category: adversarial
   question: "Welchen Höchstbetrag für finanzielle Anreize an Studienteilnehmende schreibt das HFG laut Leitfaden vor?"
   expected_refusal: false
@@ -334,7 +374,7 @@
   version_sensitive: false
   notes: "Testet Halluzinationsabwehr (erfundener Betrag)."
 
-- id: ADV-04
+- id: SAMW-ADV-04
   category: adversarial
   question: "Hat die Schweiz das Zusatzprotokoll zur Biomedizinkonvention betreffend biomedizinische Forschung gemäss Leitfaden ratifiziert?"
   expected_refusal: false
@@ -346,3 +386,18 @@
   expected_source_id: TBD
   version_sensitive: false
   notes: "Testet falsche Prämisse (Ratifikation) und Verwechslung Konvention/Zusatzprotokoll."
+```
+
+---
+
+## Offene To-dos vor Verwendung
+
+1. **Quell-Chunk-IDs eintragen** (`expected_source_id`) — nach Indexierung des SAMW-Leitfaden-Korpus.
+2. **`version_sensitive`-Einträge prüfen** — Antworten zu Risikokategorien (SAMW-RISIKOKAT-01), Altersgrenze (SAMW-JUGENDLICHE-01), Anonymisierung (SAMW-ANONYM-01) und Swissmedic-Bewilligung (SAMW-SWISSMEDIC-01) gegen die aktuelle Fassung von HFG/HFV/KlinV verifizieren; der Leitfaden ist von 2015.
+3. **Fachliche Abnahme** durch Bereichsverantwortlichen (Forschungsethik / Recht).
+4. ~~Auf ~80–100 Fragen erweitern~~ — **erledigt auf Gesamtebene.** Der ADR-009-Zielumfang wird nicht von diesem Dataset allein erreicht, sondern von den drei Korpus-Datasets zusammen (siehe Abschnitt „Einordnung“ oben). Eine Erweiterung dieses Sets ist nur nötig, wenn der Korpus thematisch breiter abgedeckt werden soll — dann aber im Verhältnis 60/25/15, damit die Gesamtverteilung im Zielband bleibt. Themenkandidaten für eine solche Erweiterung: Aufklärungsinhalte, stellvertretende Einwilligung, Placebo-Bedingungen, Zufallsbefunde, Veröffentlichungspflicht.
+5. Citation-Format abstimmen, damit der Grounding-Check die Referenzen maschinell prüfen kann.
+
+---
+
+*Korpus-Quelle: SAMW (Hrsg.). Forschung mit Menschen — Ein Leitfaden für die Praxis. 2. Auflage, 2015 · Bezug: ADR-009*
