@@ -6,6 +6,20 @@ on:
   pull_request:
 
 jobs:
+  # `secrets` is not readable from a job-level `if:` (only `github`, `needs`,
+  # `vars`, `inputs` are) — a job-level `if: ${{ secrets.X != '' }}` fails
+  # workflow validation before any job runs, taking backend/frontend/e2e down
+  # with it (confirmed: run 33305089711, zero check-runs). This step-level
+  # check is the escape hatch: secrets ARE readable in a step, so its output
+  # is what the `eval` job's `if:` below actually gates on.
+  check-eval-secret:
+    runs-on: ubuntu-latest
+    outputs:
+      has_key: ${{ steps.check.outputs.has_key }}
+    steps:
+      - id: check
+        run: echo "has_key=${{ secrets.OPENAI_API_KEY != '' }}" >> "$GITHUB_OUTPUT"
+
   backend:
     runs-on: ubuntu-latest
     defaults:
@@ -74,7 +88,8 @@ jobs:
   # needs it to actually chunk and embed the uploaded documents.
   eval:
     runs-on: ubuntu-latest
-    if: ${{ secrets.OPENAI_API_KEY != '' }}
+    needs: check-eval-secret
+    if: ${{ needs.check-eval-secret.outputs.has_key == 'true' }}
     defaults:
       run:
         working-directory: src
