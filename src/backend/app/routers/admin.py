@@ -15,8 +15,8 @@ from app.services.config import CONFIDENCE_THRESHOLD_KEYS, PIPELINE_KEYS
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 # The writable whitelist is exactly the keys the `CHECK` constraint validates
-# (0012, extended by 0014 for the self-check band) — CONFIDENCE_THRESHOLD_KEYS
-# and PIPELINE_KEYS are the same tuples
+# (0012, extended by 0014 for the self-check band and by 0017 for the reaper) —
+# CONFIDENCE_THRESHOLD_KEYS and PIPELINE_KEYS are the same tuples
 # app/services/config.py reads back, so a key added there gets a reader and a
 # write path together. `chunk_size`/`chunk_overlap` are seeded (0007) but stay
 # read-only here: a change only takes effect after a full re-indexing of the
@@ -25,8 +25,20 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 # it has neither a reader nor a DB-level value constraint yet, so there is
 # nothing here to validate it against. Recorded in ADR-008's 2026-08-22
 # Nachtrag, since issue #44 left this open for T-37 to decide.
-COUNT_KEYS = frozenset({"retrieval_top_k", "context_top_n", "rrf_k"})
-WRITABLE_KEYS = frozenset(CONFIDENCE_THRESHOLD_KEYS) | frozenset(PIPELINE_KEYS)
+#
+# REAPER_KEYS (0017, T-43) are writable, because neither exclusion above
+# applies to them: they have a reader (`worker/main.py`, `read_reaper_config`)
+# and a DB-level constraint, and no re-indexing stands between a change and its
+# effect — the reaper reads them once per pass, so a new value is in force by
+# the next one, at most a quarter of the current timeout later. That is "ohne
+# Neustart" in the sense US-11 asks for, if not to the second.
+REAPER_KEYS = frozenset({"processing_timeout_seconds", "processing_max_attempts"})
+# Both reaper keys are counts, so they belong here as well as in WRITABLE_KEYS:
+# _validate_shape falls through to NUMERIC_UNIT_INTERVAL for everything outside
+# this set, and would turn a perfectly good `900` into "muss eine Zahl zwischen
+# 0 und 1 sein".
+COUNT_KEYS = frozenset({"retrieval_top_k", "context_top_n", "rrf_k"}) | REAPER_KEYS
+WRITABLE_KEYS = frozenset(CONFIDENCE_THRESHOLD_KEYS) | frozenset(PIPELINE_KEYS) | REAPER_KEYS
 
 # Mirrors migration 0012's regexes exactly (same trade-off as that migration's
 # own comment: repeated rather than imported, so this file keeps describing

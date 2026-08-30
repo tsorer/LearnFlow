@@ -87,5 +87,32 @@ Der Container-Diagram-Eintrag für den Worker ist damit konkretisiert:
 
 ---
 
+## Nachtrag 2026-08-30 — Crash-Recovery endet nicht am Job (T-43)
+
+Die Abwägung oben führt „Crash-Recovery" als Argument für pgqueuer, und für den **Job** trifft
+das zu: er bleibt persistent in der Tabelle. Für das **Dokument** trifft es nicht zu. Der
+Worker setzt `documents.status = 'processing'`, bevor er beginnt; stirbt der Container
+dazwischen — Absturz, Neustart, Deployment, OOM —, bleibt die Zeile dort stehen. Sie ist für
+Retrieval unsichtbar, nicht als Fehler erkennbar und sieht für den Nutzer aus wie „lädt
+ewig". Kein Mechanismus der Bibliothek räumt das auf; die periodische Wiedervorlage
+(`retry_timer`) ist bewusst nicht aktiviert, weil sie zwei Läufe gleichzeitig auf dasselbe
+Dokument lassen würde.
+
+Der Worker führt deshalb neben dem Job-Consumer eine zweite, periodische Aufgabe: einen
+**Reaper**, der Dokumente in `'processing'` erkennt, zu denen kein Job mehr in der Queue
+liegt, der jünger als `processing_timeout_seconds` beansprucht wurde. Er reiht sie erneut ein
+(Re-Verarbeitung ist idempotent) und gibt nach `processing_max_attempts` Versuchen mit
+`status = 'failed'` und einer lesbaren Meldung auf — unbegrenzt zu wiederholen hiesse, ein
+Dokument, das den Worker zuverlässig umbringt, endlos gegen die Pipeline laufen zu lassen.
+
+Damit der Reaper eine Zeile anfassen kann, ohne einen eventuell doch noch lebenden Lauf still
+zu verwerfen, hat der Optimistic-Lock des Workers eine eigene Spalte bekommen:
+`documents.index_version` statt `updated_at` (Details in `08_ERD.md`). Zwei Schreiber zählen
+sie hoch — der Upload, weil die Bytes neu sind, und der Reaper, weil er einen Lauf für tot
+erklärt. Ein aufwachender Zombie-Job scheitert dadurch **deterministisch** an jeder
+geschützten Schreiboperation, statt sich mit dem neuen Versuch um die Chunks zu streiten.
+
+---
+
 *Abhängigkeiten: ADR-001 (Modularer Monolith), ADR-003 (PostgreSQL als einziger Persistenz-Service)*
 *Löst auf: Offene Entscheidung aus ADR-Review (Celery+Redis-Widerspruch)*
