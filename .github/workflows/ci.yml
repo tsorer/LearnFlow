@@ -92,6 +92,18 @@ jobs:
       - run: make seed
       - run: make seed-corpus
       - run: make eval
+      - name: Upload per-question results
+        # Written under ./backend, which is bind-mounted into the api container
+        # (docker-compose.yml), so it lands here on the runner too. Uploaded
+        # whether the gate passed or failed -- a failing run is exactly when the
+        # per-question breakdown (confidence.score, self_check_ran, ...) matters
+        # for calibration.
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-out-of-corpus-results
+          path: src/backend/eval/out/refusal-results.csv
+          if-no-files-found: ignore
       - name: Container logs on failure
         if: failure()
         run: docker compose logs --no-color --tail=200
