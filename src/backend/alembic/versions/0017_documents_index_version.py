@@ -33,10 +33,10 @@ and so does an upload -- the budget is there to bound one incident, not to
 follow a document around for the rest of its life.
 
 Both config keys are counts, so they join `COUNT_KEYS` of the CHECK constraint
-established in `0009` and extended in `0012` -- same reasoning as there: there
-are two write paths (the admin API of T-37 and the `psql` path of the pilot
-checklist) and only the database sits below both. A new migration rather than
-an edit to `0012`, because that revision has already run everywhere.
+established in `0009` and extended in `0012` and `0014` -- same reasoning as
+there: there are two write paths (the admin API of T-37 and the `psql` path of
+the pilot checklist) and only the database sits below both. A new migration
+rather than an edit to `0012`, because that revision has already run everywhere.
 
 Revision ID: 0017
 Revises: 0016
@@ -59,12 +59,21 @@ CHECK_NAME = "ck_config_confidence_threshold_value"
 NUMERIC_UNIT_INTERVAL = r"^(0(\.[0-9]+)?|1(\.0+)?)$"
 POSITIVE_INTEGER = r"^[1-9][0-9]*$"
 
+# The full unit-interval branch as `0014` left it, not as `0012` wrote it: the
+# self-check band was added there. Rebuilding the constraint from 0012's list
+# alone silently drops those two keys into the `ELSE true` arm, where 1.5,
+# -0.1 and 'spaeter' all pass -- a fail-open hole in exactly the values ADR-008
+# depends on. Every future revision that touches this constraint has to carry
+# the whole set forward; `e2e/test_config_self_check_band.py` is what notices
+# when one does not.
 UNIT_INTERVAL_KEYS = (
     "confidence_threshold_high",
     "confidence_threshold_medium",
     "similarity_threshold",
     "min_retrieval_confidence",
     "min_citation_coverage",
+    "self_check_band_low",
+    "self_check_band_high",
 )
 
 OLD_COUNT_KEYS = ("retrieval_top_k", "context_top_n", "rrf_k")
