@@ -44,6 +44,25 @@ class DocumentStatus(str, Enum):
     failed = "failed"
 
 
+class QuizQuestionStatus(str, Enum):
+    """Where a generated question stands in Stefan's review (US-07).
+
+    Mirrors the `QuizQuestionStatus` schema of openapi.yaml — the values are
+    part of the API contract, not an internal detail, and
+    `tests/test_openapi_spec.py` keeps the two in step. The database holds the
+    same three values as a CHECK constraint (migration 0016), because the
+    generation endpoint is not the only writer: T-35 edits these rows too.
+
+    `pending` is the default in the column, so a question nobody has looked at
+    can never be mistaken for an approved one (ADR-008, fail-closed). A question
+    whose document was replaced is put back here (documents.py `_replace`).
+    """
+
+    pending = "pending"
+    approved = "approved"
+    rejected = "rejected"
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -134,6 +153,10 @@ class Answer(Base):
     confidence_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     citation_coverage: Mapped[float | None] = mapped_column(Float, nullable=True)
     retrieval_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # NULL means stage 3 never ran, which is the normal case — it only fires
+    # inside the trigger band (ADR-008, T-25). A default of false would make
+    # every skipped self-check look like a failed one.
+    self_check_passed: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     suppressed: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
@@ -171,16 +194,47 @@ class Config(Base):
 
 
 class QuizQuestion(Base):
+    """One generated multiple-choice question awaiting or carrying a verdict.
+
+    `options` is a JSON array of exactly four strings (a CHECK enforces the
+    count) and `correct_answer` is the label "A" to "D" indexing it. Two
+    columns rather than a flag per option, because that is the shape the LLM
+    returns and the shape T-36 renders.
+
+    `chunk_id` and `source_excerpt` are the same fact recorded twice on
+    purpose. The reference is the live link into the corpus; the excerpt is the
+    copy that outlives it. Deleting a chunk sets the reference to NULL instead
+    of deleting the question (migration 0016), so `chunk_id IS NULL` reads as
+    "the version this was generated from has been replaced" — a question in
+    that state is back at `pending` and Stefan judges it against the excerpt.
+    """
+
     __tablename__ = "quiz_questions"
-    __table_args__ = (Index("ix_quiz_questions_document_id", "document_id"),)
+    __table_args__ = (
+        Index("ix_quiz_questions_document_id", "document_id"),
+        Index("ix_quiz_questions_status", "status"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     document_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("documents.id", ondelete="CASCADE"), nullable=False
     )
+    chunk_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("chunks.id", ondelete="SET NULL"), nullable=True
+    )
     question: Mapped[str] = mapped_column(Text, nullable=False)
     # Any: JSONB has no direct Python type mapping
     options: Mapped[Any] = mapped_column(JSONB, nullable=False)
     correct_answer: Mapped[str] = mapped_column(String(10), nullable=False)
-    approved: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+    explanation: Mapped[str] = mapped_column(Text, nullable=False)
+    source_excerpt: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, server_default=QuizQuestionStatus.pending.value
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # NULL until someone approves. Written by T-35, not by the generation
+    # endpoint: US-07 asks for the moment of the approval, and `created_at`
+    # answers a different question (when the model wrote it).
+    approved_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Check-in Modul 3/4 — Kurs-Kanal</title>
+  <style>
+    :root { --fg:#1a2330; --muted:#5b6b7f; --line:#dfe5ec; --accent:#2f6fed; --amber:#b7791f; --green:#1f7a4d; --red:#c0392b; }
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+           color: var(--fg); line-height: 1.55; max-width: 820px; margin: 40px auto; padding: 0 20px; }
+    h1 { font-size: 22px; margin: 0 0 4px; }
+    .sub { color: var(--muted); font-size: 13px; margin-bottom: 28px; }
+    h2 { font-size: 16px; margin: 30px 0 10px; padding-bottom: 6px; border-bottom: 2px solid var(--line); }
+    .tag { display:inline-block; font-size:11px; font-weight:700; letter-spacing:.02em;
+           background:var(--accent); color:#fff; border-radius:20px; padding:2px 9px; margin-right:8px; vertical-align:middle; }
+    p { margin: 8px 0; }
+    code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 90%;
+           background:#f3f5f8; border:1px solid var(--line); border-radius:4px; padding:1px 5px; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+    th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background:#f3f5f8; }
+    td:first-child { color: var(--muted); white-space: nowrap; }
+    ul { margin: 8px 0; padding-left: 20px; }
+    li { margin: 4px 0; }
+    .pass { color: var(--green); font-weight: 700; }
+    .fail { color: var(--red); font-weight: 700; }
+    .note { color: var(--muted); font-size: 13px; }
+    pre { background:#1e2430; color:#e6edf5; border-radius:8px; padding:12px 14px; overflow-x:auto; font-size:12.5px; }
+  </style>
+</head>
+<body>
+
+  <h1>Team [Name] — Check-in Modul 3/4</h1>
+  <div class="sub">Post für den Kurs-Kanal (pro Team ein Beitrag)</div>
+
+  <h2><span class="tag">1</span>Blocker / Frage</h2>
+  <p>
+    Wir haben P&rarr;G&rarr;E mit <strong>echten Subagenten</strong> gebaut, die ihre
+    Artefakte per Tool (<code>Write</code>) schreiben — abgesichert durch einen
+    PreToolUse-<strong>Permission-Hook</strong>, der Pfade prüft. Dabei ist aufgefallen:
+    die Subagenten laufen <strong>nicht zuverlässig im vorgegebenen Arbeitsverzeichnis</strong>
+    (<code>opts.cwd</code>) — sie versuchten teils in <strong>Home</strong>
+    (<code>C:\Users\...</code>) oder in den CLI-Projektordner
+    (<code>~/.claude/projects/...</code>) zu schreiben statt in den Zielordner.
+    Der pfadgenaue Hook hat diese Ausbrüche <strong>jedes Mal geblockt</strong>, und der
+    Agent hat sich danach auf den richtigen Pfad korrigiert.
+    <strong>Frage:</strong> Wie bindet man das CWD für Subagenten <em>hart</em>, sodass
+    relative Pfade zuverlässig im gewünschten Ordner landen — statt sich auf absolute
+    Pfade im Prompt + den Guard als Fangnetz zu verlassen?
+  </p>
+
+  <h2><span class="tag">2</span>Fund — unsere Tests &harr; Claudes Tests (M3)</h2>
+  <p>
+    Wir haben unsere Tests aus der <strong>Spec</strong> abgeleitet, Claude seine aus dem
+    <strong>Code</strong>.
+  </p>
+  <table>
+    <thead>
+      <tr><th></th><th>Unsere Tests (aus Spec)</th><th>Claudes Tests (aus Code)</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Grundlage</td><td>was gelten <em>soll</em> (<code>spec.md</code>)</td><td>was der Code <em>tut</em> (<code>code.py</code>)</td></tr>
+      <tr><td><code>bool</code> als score</td><td>erwartet <strong><code>TypeError</code></strong> (Spec: ungültiger Typ)</td><td>behauptet <strong>still als Zahl</strong> (<code>True</code>&rarr;<code>"hoch"</code>, weil der Code bool naiv durchliess)</td></tr>
+      <tr><td>Aussage</td><td>prüft <strong>Korrektheit</strong></td><td>prüft nur <strong>Konsistenz</strong> mit sich selbst</td></tr>
+      <tr><td>Wirkung</td><td>kann eine echte Abweichung rot machen</td><td>zementiert vorhandenes (evtl. falsches) Verhalten</td></tr>
+    </tbody>
+  </table>
+  <p>
+    Kernpunkt: Bei <code>bool</code> <strong>widersprechen sich beide</strong>. Claudes
+    code-abgeleiteter Test war im M4-Loop das Gate &rarr; der Code wurde
+    <strong>gegen den Test gebogen, entgegen der Spec</strong>.
+    <span class="note">Merksatz: Test gegen den Code prüft Konsistenz, Test gegen die Spec prüft Korrektheit.</span>
+  </p>
+
+  <h2><span class="tag">3</span>M4-Ergebnis: FAIL&rarr;PASS</h2>
+  <p>
+    Geschafft, in <strong>2 Runden</strong> — Evaluator = <strong>pytest</strong>
+    (deterministisch) statt LLM.
+  </p>
+  <ul>
+    <li><span class="fail">Runde 1 — FAIL:</span> <code>test_bool_...</code> rot — der Code (nach Spec) warf <code>TypeError</code>, Claudes Test wollte bool durchlassen.</li>
+    <li>Generator las den pytest-Output &rarr; entfernte die Typprüfung.</li>
+    <li><span class="pass">Runde 2 — PASS.</span></li>
+  </ul>
+  <pre>FAILED test_bool_wird_stillschweigend_als_zahl_behandelt
+TypeError: score muss ein numerischer Typ sein, got bool
+1 failed, 17 passed  →  (Runde 2)  PASS</pre>
+
+</body>
+</html>

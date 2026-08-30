@@ -139,24 +139,32 @@ export const api = {
   listDocuments: async (token: string): Promise<DocumentResponse[]> =>
     unwrap(await client.GET("/api/documents", { headers: auth(token) })),
 
-  uploadDocument: async (file: File, area: string, token: string): Promise<DocumentResponse> =>
-    unwrap(
-      await client.POST("/api/documents", {
-        headers: auth(token),
-        body: { file: file as unknown as string, area },
-        // multipart/form-data: the generated type models `file` as a binary
-        // string, the wire format needs a real FormData.
-        bodySerializer(body) {
-          const form = new FormData();
-          form.append("file", file);
-          // Sent whenever the caller supplied one, empty string included: the
-          // backend rejects a non-pilot area with 422, and dropping the field
-          // would turn that rejection into a silent default instead.
-          if (body?.area !== undefined) form.append("area", body.area);
-          return form;
-        },
-      }),
-    ),
+  // Returns whether the upload replaced an existing document of the same name
+  // (T-15): the API answers 200 for a replacement and 201 for a new document,
+  // and unwrap() alone would drop that distinction. The UI uses it to confirm
+  // and to report a replacement rather than a new upload (#92).
+  uploadDocument: async (
+    file: File,
+    area: string,
+    token: string,
+  ): Promise<{ document: DocumentResponse; replaced: boolean }> => {
+    const result = await client.POST("/api/documents", {
+      headers: auth(token),
+      body: { file: file as unknown as string, area },
+      // multipart/form-data: the generated type models `file` as a binary
+      // string, the wire format needs a real FormData.
+      bodySerializer(body) {
+        const form = new FormData();
+        form.append("file", file);
+        // Sent whenever the caller supplied one, empty string included: the
+        // backend rejects a non-pilot area with 422, and dropping the field
+        // would turn that rejection into a silent default instead.
+        if (body?.area !== undefined) form.append("area", body.area);
+        return form;
+      },
+    });
+    return { document: unwrap(result), replaced: result.response.status === 200 };
+  },
 
   deleteDocument: async (id: string, token: string): Promise<void> => {
     unwrap(

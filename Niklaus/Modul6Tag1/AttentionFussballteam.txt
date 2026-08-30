@@ -1,0 +1,107 @@
+Jetzt können wir dein vollständiges eigenes Beispiel aufbauen. Du kannst diesen Ablauf für deine Folien 1–8 übernehmen.
+
+1. Thema
+
+Attention beim Zusammenstellen eines Fussballteams
+
+Luca ist Stürmer und sucht Mitspieler, deren Fähigkeiten seine eigenen ergänzen.
+
+2. Die Situation
+
+Im Team sind drei Spieler:
+
+Luca: Stürmer
+Mia: Verteidigerin
+Noah: Mittelfeldspieler
+
+Jeder Spieler sucht bestimmte Fähigkeiten und bringt gleichzeitig eigene Fähigkeiten mit.
+
+3. Die drei Dimensionen
+
+Jeder Vektor steht in dieser Reihenfolge:
+
+$$ [\text{Tempo},\ \text{Verteidigung},\ \text{Passspiel}] $$
+
+Dabei gilt:
+
+0 = gering
+1 = mittel
+2 = stark
+4. Q, K und V erklären
+Q – Query: Was sucht die Person?
+K – Key: Für welche Fähigkeiten wird sie wahrgenommen?
+V – Value: Was bringt sie tatsächlich ins Team ein?
+5. Vektoren festlegen
+Spieler	Q: sucht	K: wird wahrgenommen als	V: bringt ein
+Luca	\([0,2,1]\)	\([2,0,1]\)	\([2,0,1]\)
+Mia	\([2,0,1]\)	\([0,2,1]\)	\([0,2,1]\)
+Noah	\([1,1,1]\)	\([1,1,2]\)	\([1,1,2]\)
+
+Luca sucht also:
+
+$$ Q_{\text{Luca}}=[0,2,1] $$
+
+Das bedeutet: Tempo ist für ihn nicht wichtig, aber er sucht besonders starke Verteidigung und gutes Passspiel.
+
+6. Match-Scores berechnen
+
+Lucas Query wird mit jedem Key multipliziert.
+
+Luca und Mia
+$$ [0,2,1]\cdot[0,2,1] $$ $$ 0\cdot0+2\cdot2+1\cdot1=5 $$
+
+Mia passt sehr gut zu Lucas Suche.
+
+Luca und Noah
+$$ [0,2,1]\cdot[1,1,2] $$ $$ 0\cdot1+2\cdot1+1\cdot2=4 $$
+
+Noah passt ebenfalls gut.
+
+Luca mit sich selbst
+$$ [0,2,1]\cdot[2,0,1] $$ $$ 0\cdot2+2\cdot0+1\cdot1=1 $$
+
+Luca passt weniger gut zu seiner eigenen Suche, weil er Stürmer und kein Verteidiger ist.
+
+Die Scores sind somit:
+
+$$ [5,\ 4,\ 1] $$
+7. Softmax berechnen
+
+Zuerst berechnen wir:
+
+$$ e^5=148.4,\qquad e^4=54.6,\qquad e^1=2.7 $$
+
+Summe:
+
+$$ 148.4+54.6+2.7=205.7 $$
+
+Daraus entstehen die Attention-Gewichte:
+
+Spieler	Rechnung	Gewicht
+Mia	\(148.4/205.7\)	\(0.72\)
+Noah	\(54.6/205.7\)	\(0.27\)
+Luca	\(2.7/205.7\)	\(0.01\)
+
+Luca schenkt also:
+
+Mia etwa 72 % Aufmerksamkeit
+Noah etwa 27 % Aufmerksamkeit
+sich selbst etwa 1 % Aufmerksamkeit
+8. Neuer Kontext für Luca
+
+Jetzt werden die tatsächlichen Beiträge \(V\) mit den Gewichten multipliziert.
+
+Beitrag von Mia
+$$ 0.72\cdot[0,2,1]=[0,1.44,0.72] $$
+Beitrag von Noah
+$$ 0.27\cdot[1,1,2]=[0.27,0.27,0.54] $$
+Lucas eigener Beitrag
+$$ 0.01\cdot[2,0,1]=[0.02,0,0.01] $$
+
+Alles addieren:
+
+$$ [0,1.44,0.72]+[0.27,0.27,0.54]+[0.02,0,0.01] $$ $$ \boxed{[0.29,\ 1.71,\ 1.27]} $$
+
+Das Ergebnis bedeutet:
+
+Luca erhält vor allem Verteidigungsstärke und Passspiel. Mias Fähigkeiten beeinflussen seinen neuen Kontext am stärksten, weil sie am besten zu seiner Suche passen. Noah steuert zusätzlich Passspiel und etwas Tempo bei.

@@ -1,17 +1,19 @@
-"""POST /query — hybrid retrieval, the deterministic gates, generation (T-17…T-19).
+"""POST /query — hybrid retrieval and the full confidence pipeline (T-17…T-26).
 
-The order is the point. The question is embedded, both searches run, the
-candidates are fused, and stages 0 and 1 decide whether the found sources are
-solid enough to spend an LLM call on. Only then is an answer generated, and only
-from those chunks — a question that fails either gate never reaches the provider
-at all (ADR-007). Stage 2 then reads the generated text back and checks that it
-actually cites the chunks it was given; an answer that does not is suppressed
-here rather than delivered.
+The order is the point, and ADR-008 fixes it: the question is embedded, both
+searches run, the candidates are fused, and stages 0 and 1 decide whether the
+found sources are solid enough to spend an LLM call on. Only then is an answer
+generated, and only from those chunks — a question that fails either gate never
+reaches the provider at all (ADR-007). Stage 2 reads the generated text back and
+checks that it cites the chunks it was given. The composite of stages 1 and 2 is
+the confidence the user sees; below the `Mittel` band it suppresses. Only what
+survives all of that, and only in the narrow band where the score is close to
+the threshold, pays for the second LLM call of stage 3.
 
-One stage of ADR-008 is still missing: the self-check (stage 3, T-25), which is
-why `self_check_ran` is False throughout. `confidence.score` also remains the
-retrieval score alone — the composite of stages 1 and 2 is T-23, and there is no
-config key for its weights yet.
+Every stage can suppress, and each one has its own reason and its own
+standardised text, because the next step differs: a question that is too broad
+is the user's to sharpen, an invented reference is not. Nothing below a
+suppression is generated prose — that is the whole promise of the pipeline.
 """
 
 import logging
@@ -27,18 +29,37 @@ from app.limiter import account_key, limiter
 from app.models.tables import Answer, QuerySession, User
 from app.routers.documents import PILOT_AREA
 from app.services.confidence import (
+    BAND_LOW,
+    WEIGHT_CITATION_COVERAGE,
     WEIGHT_EVIDENCE_DENSITY,
     WEIGHT_MEAN_SCORE,
+    WEIGHT_RETRIEVAL_CONFIDENCE,
     WEIGHT_TOP_SCORE,
+    Band,
     CitationDetail,
+    CompositeDetail,
+    band_for,
     check_citations,
+    compute_composite,
     compute_retrieval_confidence,
+    in_self_check_band,
     passes_retrieval_gate,
 )
 from app.services.confidence import RetrievalDetail as ConfidenceDetail
-from app.services.config import ConfigurationError, PipelineConfig, read_pipeline_config
+from app.services.config import (
+    ConfidenceThresholds,
+    ConfigurationError,
+    PipelineConfig,
+    read_query_config,
+)
 from app.services.generation import GenerationResult, generate_answer
 from app.services.retrieval import RANK_ABSENT, RetrievalHit, RetrievalOutcome, retrieve
+from app.services.self_check import (
+    VERDICT_COVERED,
+    VERDICT_UNCOVERED,
+    SelfCheckResult,
+    run_self_check,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +102,21 @@ MESSAGE_CITATION_INVALID = (
     "Die erzeugte Antwort hat sich auf eine Quelle berufen, die es nicht gibt, "
     "und wird deshalb zurückgehalten. Die gefundenen Quellen sind unten aufgeführt."
 )
+# The composite band. Every single stage passed here — the sources were close
+# enough, the answer cited them — and the combined confidence still lands below
+# the lowest band, which is what "defense in depth" is supposed to catch.
+MESSAGE_CONFIDENCE_BAND = (
+    "Die Antwort war insgesamt zu wenig belastbar und wird deshalb "
+    "zurückgehalten. Die gefundenen Quellen sind unten aufgeführt."
+)
+# Stage 3. Deliberately does not repeat what the verification found: the
+# uncovered statements are quotes from an answer that was withheld, and printing
+# them would deliver the content through the suppression notice.
+MESSAGE_SELF_CHECK = (
+    "Die Prüfung der Antwort hat Aussagen gefunden, die die Quellen nicht "
+    "hergeben; die Antwort wird deshalb zurückgehalten. "
+    "Die gefundenen Quellen sind unten aufgeführt."
+)
 MESSAGE_CONFIGURATION_ERROR = (
     "Die Suche ist derzeit nicht korrekt konfiguriert und liefert deshalb keine "
     "Antwort. Bitte wende dich an die Administration."
@@ -95,18 +131,68 @@ REASON_GENERATION_REFUSED = "generation_refused"
 REASON_GENERATION_TRUNCATED = "generation_truncated"
 REASON_CITATION_COVERAGE = "citation_coverage"
 REASON_CITATION_INVALID = "citation_invalid"
+REASON_CONFIDENCE_BAND = "confidence_band"
+REASON_SELF_CHECK = "self_check"
 REASON_CONFIGURATION_ERROR = "configuration_error"
 
-# Stage identifiers are the contract of the admin debug view; T-25 appends
-# "self_check" to this sequence. MessageBubble.tsx matches "citation_coverage"
-# by name to place the composite block after it, so the value is not free.
+# Requirements §71: a "Weiss ich nicht" owes the user a next step. One text per
+# reason rather than one for all of them — the useful move after "the question
+# was too broad" is not the useful move after "the model invented a source", and
+# a hint that fits every case tells nobody anything.
+#
+# Static, not generated: the hint follows from the reason alone, and asking a
+# provider for it would put an LLM call on the one path that exists because the
+# pipeline decided not to trust one. `configuration_error` has no entry — there
+# is nothing the user can rephrase, and its message already sends them to the
+# administration.
+REFINEMENT_HINTS = {
+    REASON_NO_MATCH: (
+        "Nenne einen konkreten Prozess, ein Dokument oder einen Artikel — "
+        "etwa «Welche Pflichten gelten nach Art. 6 für Hochrisiko-Systeme?»"
+    ),
+    REASON_WEAK_EVIDENCE: (
+        "Die Unterlagen streifen das Thema nur. Verwende die Begriffe aus den "
+        "unten aufgeführten Quellen, dann findet die Suche die passende Stelle."
+    ),
+    REASON_GENERATION_REFUSED: (
+        "Frage nach einem einzelnen Aspekt statt nach dem ganzen Thema, oder "
+        "prüfe an den Quellen unten, ob die Unterlagen die Frage überhaupt abdecken."
+    ),
+    REASON_GENERATION_TRUNCATED: (
+        "Die Frage war zu breit für eine Antwort. Teile sie in Einzelfragen auf "
+        "und stelle sie nacheinander."
+    ),
+    REASON_CITATION_COVERAGE: (
+        "Grenze die Frage auf einen Punkt ein — je enger die Frage, desto eher "
+        "lässt sich die Antwort vollständig belegen."
+    ),
+    REASON_CITATION_INVALID: (
+        "Das lag an der Antwort, nicht an deiner Frage. Stelle sie noch einmal; "
+        "wiederholt sich das, melde die Frage der Administration."
+    ),
+    REASON_CONFIDENCE_BAND: (
+        "Die Belege reichten in der Summe nicht. Nenne das Dokument oder den "
+        "Abschnitt, auf den du zielst, dann steht die Antwort auf festerem Grund."
+    ),
+    REASON_SELF_CHECK: (
+        "Die Unterlagen decken die Frage nur teilweise. Frage nach dem Teil, den "
+        "die unten aufgeführten Quellen behandeln."
+    ),
+}
+
+# Stage identifiers are the contract of the admin debug view: MessageBubble.tsx
+# matches them by name to place the LLM calls and the composite breakdown inside
+# the pipeline, so the values are not free.
 STAGE_RETRIEVAL_GATE = "retrieval_gate"
 STAGE_RETRIEVAL_CONFIDENCE = "retrieval_confidence"
 STAGE_CITATION_COVERAGE = "citation_coverage"
+STAGE_CONFIDENCE_BAND = "confidence_band"
+STAGE_SELF_CHECK = "self_check"
 
-# The admin view matches this exact string to place the call inside the pipeline
-# (MessageBubble.tsx); T-25 adds "self_check" beside it.
+# The admin view matches these exact strings to place each call inside the
+# pipeline (MessageBubble.tsx).
 STEP_GROUNDING = "grounding"
+STEP_SELF_CHECK = "self_check"
 
 # Every question costs an embedding call and, past both gates, one or two LLM
 # calls (ADR-004, ADR-005) — this is the only endpoint that spends provider
@@ -135,6 +221,7 @@ class ConfidenceInfo(BaseModel):
     score: float
     retrieval_score: float
     citation_coverage: float
+    band: Band
 
 
 class ChunkDebugInfo(BaseModel):
@@ -216,7 +303,11 @@ async def create_query(
     session = await _resolve_session(body.session_id, user, db)
 
     try:
-        config = await read_pipeline_config(db)
+        # One round-trip for both halves: the band limits decide suppression too
+        # (T-23), so an unusable one is no more answerable than an unusable
+        # threshold — same table, same handler, no reason to ask twice.
+        query_config = await read_query_config(db)
+        config, thresholds = query_config.pipeline, query_config.thresholds
     except ConfigurationError:
         # A broken threshold row is an operator error, and ADR-008 (Nachtrag
         # 2026-08-16) is explicit that the caller turns it into "Weiss ich
@@ -237,6 +328,7 @@ async def create_query(
             # claim a measurement that never happened.
             confidence=None,
             citation=None,
+            self_check=None,
             debug=None,
         )
 
@@ -274,6 +366,10 @@ async def create_query(
     # be covered, so the distinction is kept all the way into the answers row.
     citation: CitationDetail | None = None
     citation_passed = False
+    # None means stage 3 was skipped, which is the normal case — it only runs
+    # for a score inside the trigger band, and that is what keeps the second
+    # provider call off the common path (ADR-008).
+    self_check: SelfCheckResult | None = None
     reason: str | None
     message: str
 
@@ -313,6 +409,34 @@ async def create_query(
             else:
                 reason, message = None, generation.answer
 
+    # The composite (T-23), computed once for every exit of the pipeline — a
+    # suppressed answer is shown its confidence too, and `None` for the coverage
+    # is what keeps a stage that never ran out of the score.
+    composite = compute_composite(detail.result, citation.coverage if citation else None)
+    band = band_for(composite.result, thresholds.medium, thresholds.high)
+
+    # Stages 2b and 3 judge an answer, so they only apply where there is one.
+    # `reason is None` at this point means every stage so far passed; the two
+    # further conditions are what mypy needs to see the same thing.
+    if reason is None and generation is not None and generation.answer is not None:
+        if band == BAND_LOW:
+            # Every individual stage passed and the combination still does not
+            # carry. This is the case defense-in-depth exists for: two signals
+            # that are each just barely acceptable do not add up to a reliable
+            # answer (ADR-008).
+            reason, message = REASON_CONFIDENCE_BAND, MESSAGE_CONFIDENCE_BAND
+        elif in_self_check_band(
+            composite.result, config.self_check_band_low, config.self_check_band_high
+        ):
+            # Stage 3, and the only branch that spends a second LLM call. Above
+            # the band the footing is clear enough that the call buys nothing;
+            # below it the answer is already suppressed.
+            self_check = await _self_check(
+                body.question, generation.answer, outcome.context, user
+            )
+            if not self_check.passed:
+                reason, message = REASON_SELF_CHECK, MESSAGE_SELF_CHECK
+
     # Nothing above the threshold means nothing worth pointing at — showing the
     # closest misses would invite reading them as an answer (ADR-008: no
     # generated content below the gate). The weak-evidence case keeps them:
@@ -322,13 +446,12 @@ async def create_query(
     # 0.0 where stage 2 never ran: the spec requires the field and declares it
     # non-nullable, so "not measured" and "measured as zero" share a value here.
     # Which of the two it was is readable in debug.stages, and the answers row
-    # keeps them apart properly (NULL vs 0.0). `score` is the retrieval score
-    # alone until T-23 combines the two — no composite weight is invented here,
-    # there is no config key for one.
+    # keeps them apart properly (NULL vs 0.0).
     confidence = ConfidenceInfo(
-        score=detail.result,
+        score=composite.result,
         retrieval_score=detail.result,
         citation_coverage=citation.coverage if citation else 0.0,
+        band=band,
     )
 
     return await _persist_and_respond(
@@ -337,9 +460,9 @@ async def create_query(
         question=body.question,
         reason=reason,
         message=message,
-        # Suppressed at stage 2 means there *is* generated text — and it still
-        # must not be stored: the column is what a later evaluation reads as
-        # "the answer the pipeline produced", and a withheld answer was not
+        # Suppressed at stage 2 or later means there *is* generated text — and it
+        # still must not be stored: the column is what a later evaluation reads
+        # as "the answer the pipeline produced", and a withheld answer was not
         # produced. Hence `reason is None`, not just `generation`.
         answer_text=generation.answer if generation and reason is None else None,
         # A suppressed answer always names the stage that suppressed it, so the
@@ -348,18 +471,23 @@ async def create_query(
         citations=citations,
         confidence=confidence,
         citation=citation,
+        self_check=self_check,
         # Only admins see the pipeline internals: chunk contents and the rendered
         # prompt would otherwise leak the full source text past the excerpt the
         # citation shows.
         debug=_to_debug(
-            outcome,
-            detail,
-            config,
-            gate_passed,
-            confidence_passed,
-            generation,
-            citation,
-            citation_passed,
+            outcome=outcome,
+            detail=detail,
+            config=config,
+            thresholds=thresholds,
+            gate_passed=gate_passed,
+            confidence_passed=confidence_passed,
+            generation=generation,
+            citation=citation,
+            citation_passed=citation_passed,
+            composite=composite,
+            band=band,
+            self_check=self_check,
         )
         if user.role == "admin"
         else None,
@@ -387,6 +515,33 @@ async def _generate(
         )
 
 
+async def _self_check(
+    question: str, answer: str, context: list[RetrievalHit], user: User
+) -> SelfCheckResult:
+    """Stage 3, with the same outage handling as the generation above.
+
+    An unreachable provider is a 503, not a suppression — even though this stage
+    suppresses on every other kind of failure. The difference is what the two
+    say: "the verification found unsupported claims" is a statement about the
+    answer, "the provider did not respond" is a statement about the system, and
+    ADR-008 keeps an outage from hiding behind a product behaviour. An unreadable
+    *verdict* is the first kind and handled inside run_self_check().
+    """
+    try:
+        return await run_self_check(question, answer, context)
+    except (TypeError, AttributeError, NameError, ImportError):
+        raise
+    except Exception:
+        # Logged, never returned — LiteLLM errors carry api_base, deployment
+        # names and, on an auth failure, a fragment of the key.
+        logger.exception("Self-Check fehlgeschlagen für user_id=%s", user.id)
+        raise HTTPException(  # noqa: B904
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Die Prüfung der Antwort ist derzeit nicht verfügbar. "
+            "Bitte später erneut versuchen.",
+        )
+
+
 async def _persist_and_respond(
     *,
     db: AsyncSession,
@@ -399,6 +554,7 @@ async def _persist_and_respond(
     citations: list[Citation],
     confidence: ConfidenceInfo | None,
     citation: CitationDetail | None,
+    self_check: SelfCheckResult | None,
     debug: DebugInfo | None,
 ) -> QueryResponse:
     """Write the answer row and build the response around its id.
@@ -424,6 +580,10 @@ async def _persist_and_respond(
         # pollute the calibration this column exists for (ADR-009).
         citation_coverage=citation.coverage if citation else None,
         retrieval_confidence=confidence.retrieval_score if confidence else None,
+        # NULL for the same reason as the coverage above: stage 3 runs only
+        # inside the trigger band, so "did not run" is the common case and must
+        # not be stored as "ran and failed" (ADR-009 reads this column).
+        self_check_passed=self_check.passed if self_check else None,
         suppressed=suppressed,
     )
     db.add(answer)
@@ -435,10 +595,11 @@ async def _persist_and_respond(
         suppressed=suppressed,
         suppression_reason=reason,
         message=message,
-        # TODO (T-26): Requirements §71 asks for a refinement hint after a
-        # "Weiss ich nicht". The field is in the contract for it; T-17 makes
-        # this path live but does not yet produce the hint.
-        refinement_hint=None,
+        # Requirements §71: the hint belongs to the suppression, so it is looked
+        # up from the reason rather than passed in — a new reason without a hint
+        # then shows up as a missing hint, not as a wrong one. None on a
+        # delivered answer: there is nothing to refine.
+        refinement_hint=REFINEMENT_HINTS.get(reason) if reason else None,
         citations=citations,
         confidence=confidence,
         debug=debug,
@@ -512,15 +673,74 @@ def _as_footnotes(indices: tuple[int, ...]) -> str:
     return "".join(f"[{index}]" for index in indices)
 
 
+def _band_detail_text(
+    composite: CompositeDetail, band: Band, thresholds: ConfidenceThresholds, ran: bool
+) -> str:
+    """The stage-2b line: where the composite came from and which band it hit."""
+    if not ran:
+        return "Nicht ausgeführt, eine frühere Stufe hat unterdrückt"
+    return (
+        f"Band «{band}» bei Score {composite.result} "
+        f"(Mittel ab {thresholds.medium}, Hoch ab {thresholds.high})"
+    )
+
+
+def _self_check_detail_text(
+    self_check: SelfCheckResult | None,
+    composite: CompositeDetail,
+    config: PipelineConfig,
+    reached: bool,
+) -> str:
+    """The stage-3 line, including *why* the stage was skipped.
+
+    That the stage did not run is the normal case and the admin needs to see the
+    reason: a band that never triggers is a misconfiguration that would otherwise
+    look exactly like a pipeline working as intended.
+
+    `reached` is what keeps that honest. Without it every skip reads as "outside
+    the trigger band", including the skips where the pipeline never got this far
+    — and a score that *is* inside the band would then be printed next to the
+    claim that it is not.
+    """
+    if self_check is None and not reached:
+        return "Nicht ausgeführt, eine frühere Stufe hat unterdrückt"
+    if self_check is None:
+        return (
+            f"Nicht ausgeführt, Score {composite.result} liegt ausserhalb des Grenzbands "
+            f"{config.self_check_band_low}–{config.self_check_band_high}"
+        )
+    if not self_check.verdict_parsed:
+        return (
+            "Kein lesbares Urteil erhalten — unterdrückt, weil eine Prüfung, "
+            "die sich nicht auswerten lässt, nicht stattgefunden hat"
+        )
+    if self_check.passed:
+        return "Alle Aussagen durch den Kontext gedeckt"
+    return f"Nicht gedeckt: {self_check.uncovered or '(ohne Angabe)'}"
+
+
+def _self_check_value(self_check: SelfCheckResult | None) -> str | None:
+    if self_check is None:
+        return None
+    if not self_check.verdict_parsed:
+        return "unlesbar"
+    return VERDICT_COVERED if self_check.passed else VERDICT_UNCOVERED
+
+
 def _to_debug(
+    *,
     outcome: RetrievalOutcome,
     detail: ConfidenceDetail,
     config: PipelineConfig,
+    thresholds: ConfidenceThresholds,
     gate_passed: bool,
     confidence_passed: bool,
     generation: GenerationResult | None,
     citation: CitationDetail | None,
     citation_passed: bool,
+    composite: CompositeDetail,
+    band: Band,
+    self_check: SelfCheckResult | None,
 ) -> DebugInfo:
     context_ids = {hit.chunk_id for hit in outcome.context}
     threshold = config.similarity_threshold
@@ -534,6 +754,12 @@ def _to_debug(
     # total_dense_retrieved next to it: the pair answers "how much of what the
     # vector search returned was actually close enough".
     dense_above_threshold = [hit for hit in above_threshold if hit.dense_rank != RANK_ABSENT]
+
+    # Whether the pipeline got as far as stage 3's decision point — which is not
+    # the same as stage 3 having run. It is the difference between "skipped
+    # because the score was clear" and "skipped because there was nothing left
+    # to check", and the admin view has to name the right one.
+    band_passed = citation_passed and band != BAND_LOW
 
     return DebugInfo(
         chunks=[
@@ -591,25 +817,43 @@ def _to_debug(
                 threshold=config.min_citation_coverage,
                 detail=_citation_detail_text(citation, len(outcome.context)),
             ),
+            StageInfo(
+                id=STAGE_CONFIDENCE_BAND,
+                name="Komposit-Konfidenz (ADR-008, US-02)",
+                ran=citation_passed,
+                passed=band_passed,
+                value=composite.result,
+                # The lower band limit is the one that suppresses; `high` only
+                # separates two bands that are both delivered.
+                threshold=thresholds.medium,
+                detail=_band_detail_text(composite, band, thresholds, citation_passed),
+            ),
+            StageInfo(
+                id=STAGE_SELF_CHECK,
+                name="Self-Check (ADR-008, Stufe 3)",
+                ran=self_check is not None,
+                passed=self_check is not None and self_check.passed,
+                value=_self_check_value(self_check),
+                # No threshold: the verdict is a judgement, not a measurement
+                # compared against a number (ADR-008 rejects the LLM's own score).
+                threshold=None,
+                detail=_self_check_detail_text(self_check, composite, config, band_passed),
+            ),
         ],
         # Empty by construction below either gate, not by omission: that the
         # list is empty is what makes "kein LLM-Aufruf" (ADR-007) visible in the
-        # admin view instead of merely asserted in a test.
-        llm_calls=[]
-        if generation is None
-        else [
-            LLMCallInfo(
-                step=STEP_GROUNDING,
-                label="Antwortgenerierung (Grounding-Prompt, ADR-007)",
-                prompt=generation.prompt,
-                response=generation.raw_response,
-            )
-        ],
+        # admin view instead of merely asserted in a test. That it holds one
+        # entry rather than two is the same evidence for stage 3 being the
+        # exception ADR-008 says it is.
+        llm_calls=_llm_calls(generation, self_check),
         similarity_threshold=config.similarity_threshold,
         min_retrieval_confidence=config.min_retrieval_confidence,
         min_citation_coverage=config.min_citation_coverage,
-        self_check_ran=False,
-        self_check_verdict=None,
+        self_check_ran=self_check is not None,
+        # The model's wording, not the parsed decision: what the stage decided is
+        # in the `self_check` entry of `stages`, and an admin looking at a
+        # suppression needs to see what it actually answered.
+        self_check_verdict=self_check.raw_response if self_check else None,
         retrieval_detail=RetrievalDetail(
             top_score=detail.top_score,
             mean_score=detail.mean_score,
@@ -617,9 +861,17 @@ def _to_debug(
             result=detail.result,
             count=detail.count,
         ),
+        # Every threshold this request was decided against, including those of
+        # stages that did not run: an operator calibrating the pipeline needs the
+        # whole set, and the frontend used to invent the missing ones.
         params_used={
             "similarity_threshold": config.similarity_threshold,
             "min_retrieval_confidence": config.min_retrieval_confidence,
+            "min_citation_coverage": config.min_citation_coverage,
+            "confidence_threshold_medium": thresholds.medium,
+            "confidence_threshold_high": thresholds.high,
+            "self_check_band_low": config.self_check_band_low,
+            "self_check_band_high": config.self_check_band_high,
             "retrieval_top_k": config.retrieval_top_k,
             "context_top_n": config.context_top_n,
             "rrf_k": config.rrf_k,
@@ -630,9 +882,48 @@ def _to_debug(
         top_n_used=len(outcome.context),
         # Built from the weight constants, not from literals: a recalibration
         # that changes the weights must not leave the admin view explaining the
-        # score with the old formula.
-        formula_breakdown=(
-            f"{WEIGHT_TOP_SCORE}*{detail.top_score} + {WEIGHT_MEAN_SCORE}*{detail.mean_score} "
-            f"+ {WEIGHT_EVIDENCE_DENSITY}*{detail.evidence_density} = {detail.result}"
-        ),
+        # score with the old formula. Both levels, because the composite hides
+        # the retrieval breakdown that produced half of it.
+        formula_breakdown=_formula_breakdown(detail, composite),
+    )
+
+
+def _llm_calls(
+    generation: GenerationResult | None, self_check: SelfCheckResult | None
+) -> list[LLMCallInfo]:
+    calls = []
+    if generation is not None:
+        calls.append(
+            LLMCallInfo(
+                step=STEP_GROUNDING,
+                label="Antwortgenerierung (Grounding-Prompt, ADR-007)",
+                prompt=generation.prompt,
+                response=generation.raw_response,
+            )
+        )
+    if self_check is not None:
+        calls.append(
+            LLMCallInfo(
+                step=STEP_SELF_CHECK,
+                label="Self-Check (Verifikations-Prompt, ADR-008 Stufe 3)",
+                prompt=self_check.prompt,
+                response=self_check.raw_response,
+            )
+        )
+    return calls
+
+
+def _formula_breakdown(detail: ConfidenceDetail, composite: CompositeDetail) -> str:
+    retrieval = (
+        f"Retrieval {WEIGHT_TOP_SCORE}*{detail.top_score} "
+        f"+ {WEIGHT_MEAN_SCORE}*{detail.mean_score} "
+        f"+ {WEIGHT_EVIDENCE_DENSITY}*{detail.evidence_density} = {detail.result}"
+    )
+    if composite.citation_coverage is None:
+        # Stage 2 never ran, so there is no second term to show. Saying so beats
+        # printing a weighted sum whose other half was never measured.
+        return f"{retrieval} · Komposit = {composite.result} (Stufe 2 nicht gelaufen)"
+    return (
+        f"{retrieval} · Komposit {WEIGHT_RETRIEVAL_CONFIDENCE}*{detail.result} "
+        f"+ {WEIGHT_CITATION_COVERAGE}*{composite.citation_coverage} = {composite.result}"
     )

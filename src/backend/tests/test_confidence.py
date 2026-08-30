@@ -1,18 +1,28 @@
-"""The deterministic stages of the confidence pipeline (ADR-008, T-17/T-19).
+"""The deterministic stages of the confidence pipeline (ADR-008, T-17…T-23).
 
 Stages 0 and 1 are the two gates that decide whether a question ever reaches an
-LLM; stage 2 decides whether the answer it produced may be delivered. All three
-are tested against exact numbers rather than ranges — they are thresholds, and a
-test that tolerates a range would not notice one drifting.
+LLM; stage 2 decides whether the answer it produced may be delivered; the
+composite of stages 1 and 2 is the confidence the user is shown and the last
+deterministic thing that can suppress. All of it is tested against exact numbers
+rather than ranges — they are thresholds, and a test that tolerates a range would
+not notice one drifting.
 """
 
 from app.services.confidence import (
+    BAND_HIGH,
+    BAND_LOW,
+    BAND_MEDIUM,
     MIN_SEGMENT_WORDS,
+    WEIGHT_CITATION_COVERAGE,
     WEIGHT_EVIDENCE_DENSITY,
     WEIGHT_MEAN_SCORE,
+    WEIGHT_RETRIEVAL_CONFIDENCE,
     WEIGHT_TOP_SCORE,
+    band_for,
     check_citations,
+    compute_composite,
     compute_retrieval_confidence,
+    in_self_check_band,
     passes_retrieval_gate,
 )
 
@@ -333,3 +343,80 @@ def test_the_abbreviations_shared_with_the_chunker_do_not_split() -> None:
 
         assert detail.segments == 1, answer
         assert detail.coverage == 1.0, answer
+
+# ── Komposit-Konfidenz & Bänder (ADR-008, T-23) ─────────────────────────────
+
+MEDIUM = 0.45
+HIGH = 0.75
+
+
+def test_the_composite_is_the_weighted_sum_of_both_stages() -> None:
+    detail = compute_composite(0.8, 0.6)
+
+    assert detail.result == round(
+        WEIGHT_RETRIEVAL_CONFIDENCE * 0.8 + WEIGHT_CITATION_COVERAGE * 0.6, 4
+    )
+    assert (detail.retrieval_score, detail.citation_coverage) == (0.8, 0.6)
+
+
+def test_the_weights_add_up_to_one() -> None:
+    """Otherwise the composite is not on the same scale as its band limits.
+
+    The limits in `config` are read as fractions of a whole; weights summing to
+    anything else would silently move every answer into a different band without
+    an operator touching a threshold.
+    """
+    assert WEIGHT_RETRIEVAL_CONFIDENCE + WEIGHT_CITATION_COVERAGE == 1.0
+
+
+def test_a_perfect_coverage_and_a_perfect_retrieval_reach_one() -> None:
+    assert compute_composite(1.0, 1.0).result == 1.0
+
+
+def test_without_stage_two_the_composite_is_the_retrieval_score_alone() -> None:
+    """A coverage of None is "not measured", and must not enter the score.
+
+    Folding it in as 0.0 would halve the score of every answer suppressed before
+    generation — a penalty for a measurement that never happened.
+    """
+    detail = compute_composite(0.8, None)
+
+    assert detail.result == 0.8
+    assert detail.citation_coverage is None
+
+
+def test_a_measured_zero_coverage_does_lower_the_score() -> None:
+    """The counterpart: 0.0 is a measurement and has to count."""
+    assert compute_composite(0.8, 0.0).result == round(WEIGHT_RETRIEVAL_CONFIDENCE * 0.8, 4)
+
+
+def test_the_band_limits_are_inclusive() -> None:
+    """ADR-008 tripwire: >=, never >, on both limits."""
+    assert band_for(HIGH, MEDIUM, HIGH) == BAND_HIGH
+    assert band_for(MEDIUM, MEDIUM, HIGH) == BAND_MEDIUM
+
+
+def test_the_bands_split_the_range() -> None:
+    assert band_for(0.9, MEDIUM, HIGH) == BAND_HIGH
+    assert band_for(0.5, MEDIUM, HIGH) == BAND_MEDIUM
+    assert band_for(0.44, MEDIUM, HIGH) == BAND_LOW
+    assert band_for(0.0, MEDIUM, HIGH) == BAND_LOW
+
+
+def test_equal_band_limits_collapse_the_middle_band() -> None:
+    """A degenerate configuration must still resolve to exactly one band."""
+    assert band_for(0.6, 0.6, 0.6) == BAND_HIGH
+    assert band_for(0.59, 0.6, 0.6) == BAND_LOW
+
+
+def test_the_self_check_band_includes_its_lower_limit_and_excludes_the_upper() -> None:
+    """Half-open on purpose: a score at `high` is already "klar hoch" (ADR-008)."""
+    assert in_self_check_band(0.50, 0.50, 0.75) is True
+    assert in_self_check_band(0.74, 0.50, 0.75) is True
+    assert in_self_check_band(0.75, 0.50, 0.75) is False
+    assert in_self_check_band(0.49, 0.50, 0.75) is False
+
+
+def test_an_empty_self_check_band_never_triggers() -> None:
+    """low == high switches stage 3 off, the way a 0.0 threshold switches off stage 0."""
+    assert in_self_check_band(0.6, 0.6, 0.6) is False

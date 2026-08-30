@@ -27,6 +27,9 @@ def make_db(existing: object | None = None) -> AsyncMock:
     result = MagicMock()
     result.scalar_one_or_none.return_value = existing
     db.execute = AsyncMock(return_value=result)
+    # get_document resolves uploaded_by to an e-mail via db.scalar(); default to
+    # None (deleted account) so tests that don't care produce a valid response.
+    db.scalar = AsyncMock(return_value=None)
     return db
 
 
@@ -71,6 +74,8 @@ async def test_upload_success_returns_201(filename: str) -> None:
     assert "id" in body
     # Nothing has replaced this document yet, so both timestamps are the upload.
     assert body["updated_at"] == body["created_at"]
+    # The uploader of a fresh document is the authenticated user (#92).
+    assert body["uploaded_by"] == "owner@example.com"
     db.add.assert_called_once()
     db.commit.assert_awaited_once()
 
@@ -182,6 +187,8 @@ async def test_upload_existing_filename_replaces_and_returns_200() -> None:
     assert existing.content == b"zweite fassung"
     # The replacement has not been validated, whatever its predecessor reached.
     assert existing.validated_at is None
+    # A replacement records the replacing user as the current uploader (#92).
+    assert body["uploaded_by"] == "owner@example.com"
     db.add.assert_not_called()
     db.commit.assert_awaited_once()
 
@@ -197,6 +204,35 @@ async def test_upload_replacement_deletes_the_previous_chunks() -> None:
 
     _, params = only(db, "DELETE FROM chunks")
     assert existing.id in params.values()
+
+
+async def test_upload_replacement_sends_approved_questions_back_to_review() -> None:
+    """The decision of T-33 (#40), and the response body cannot show it either.
+
+    Deleting the questions would discard Stefan's review silently; leaving them
+    approved would keep questions in the learners' pool that were checked
+    against a text nobody can read any more. So the approval goes and the
+    question stays — including its approval timestamp, which would otherwise
+    claim a verdict that no longer holds (US-07).
+    """
+    existing = make_document(status="available")
+    db = make_db(existing=existing)
+
+    await _post_upload(existing.filename, b"zweite fassung", db)
+
+    sql, params = only(db, "UPDATE quiz_questions")
+    assert "quiz_questions.status = " in sql
+    assert {"pending", "approved", existing.id} <= set(params.values())
+    assert None in params.values()  # approved_at
+
+
+async def test_upload_of_a_new_filename_touches_no_questions() -> None:
+    """Nothing has been generated from a document that did not exist."""
+    db = make_db()
+
+    await _post_upload("notes.pdf", b"content", db)
+
+    assert not [sql for sql, _ in statements(db) if "UPDATE quiz_questions" in sql]
 
 
 async def test_upload_of_a_new_filename_deletes_no_chunks() -> None:
@@ -254,6 +290,8 @@ async def test_get_document_returns_200_with_status() -> None:
     document = make_document(status="processing")
     db = make_db()
     db.get = AsyncMock(return_value=document)
+    # uploaded_by is a UUID on the row; the router resolves it to an e-mail.
+    db.scalar = AsyncMock(return_value="owner@example.com")
 
     r = await _get_document(document.id, db)
 
@@ -261,6 +299,22 @@ async def test_get_document_returns_200_with_status() -> None:
     body = r.json()
     assert body["id"] == str(document.id)
     assert body["status"] == "processing"
+    assert body["uploaded_by"] == "owner@example.com"
+
+
+async def test_get_document_without_uploader_returns_null() -> None:
+    # A document whose uploader account was deleted (FK ON DELETE SET NULL): the
+    # router must not run a lookup for a null id and must serve uploaded_by null.
+    document = make_document(status="available")
+    document.uploaded_by = None
+    db = make_db()
+    db.get = AsyncMock(return_value=document)
+
+    r = await _get_document(document.id, db)
+
+    assert r.status_code == 200
+    assert r.json()["uploaded_by"] is None
+    db.scalar.assert_not_awaited()
 
 
 async def test_get_document_not_found_returns_404() -> None:
@@ -306,9 +360,13 @@ async def _list_documents(db: AsyncMock, role: str | None = "knowledge_owner") -
         return await client.get("/documents")
 
 
-def make_execute_result(documents: list[object]) -> MagicMock:
+def make_execute_result(
+    documents: list[object], uploader_email: str | None = "owner@example.com"
+) -> MagicMock:
+    # list_documents selects (Document, User.email) and iterates result.all(),
+    # so each row is a (document, email) tuple — not result.scalars().all().
     result = MagicMock()
-    result.scalars.return_value.all.return_value = documents
+    result.all.return_value = [(d, uploader_email) for d in documents]
     return result
 
 
@@ -321,6 +379,18 @@ async def test_list_documents_returns_documents() -> None:
 
     assert r.status_code == 200
     assert len(r.json()) == 2
+
+
+async def test_list_documents_includes_uploader_email() -> None:
+    db = make_db()
+    db.execute = AsyncMock(
+        return_value=make_execute_result([make_document()], uploader_email="frank@example.com")
+    )
+
+    r = await _list_documents(db)
+
+    assert r.status_code == 200
+    assert r.json()[0]["uploaded_by"] == "frank@example.com"
 
 
 async def test_list_documents_empty_returns_empty_list() -> None:

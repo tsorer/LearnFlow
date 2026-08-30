@@ -3,13 +3,20 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile, status
 from pydantic import BaseModel
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import defer
 
 from app.auth.dependencies import require_knowledge_owner
 from app.database import get_db
-from app.models.tables import Chunk, Document, DocumentStatus, User
+from app.models.tables import (
+    Chunk,
+    Document,
+    DocumentStatus,
+    QuizQuestion,
+    QuizQuestionStatus,
+    User,
+)
 from app.queue import enqueue_document
 
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -39,9 +46,13 @@ class DocumentResponse(BaseModel):
     error_message: str | None
     created_at: datetime
     updated_at: datetime
+    # E-Mail statt der rohen uploaded_by-UUID: die Upload-UI nennt den bisherigen
+    # Hochladenden vor einer Ersetzung (#92), und eine UUID sagt niemandem etwas.
+    # null, wenn das Konto seither gelöscht wurde (FK ON DELETE SET NULL).
+    uploaded_by: str | None = None
 
 
-def _to_response(document: Document) -> DocumentResponse:
+def _to_response(document: Document, uploader_email: str | None) -> DocumentResponse:
     return DocumentResponse(
         id=document.id,
         filename=document.filename,
@@ -58,6 +69,7 @@ def _to_response(document: Document) -> DocumentResponse:
         error_message=document.error_message,
         created_at=document.created_at,
         updated_at=document.updated_at,
+        uploaded_by=uploader_email,
     )
 
 
@@ -79,13 +91,16 @@ async def list_documents(
 ) -> list[DocumentResponse]:
     # defer(content): DocumentResponse liefert kein content-Feld, das bis zu 10 MB
     # grosse bytea (ADR-003) soll daher gar nicht erst aus der DB geladen werden.
+    # Outer-Join auf users: uploaded_by ist nullbar (gelöschtes Konto), ein
+    # Inner-Join würde solche Dokumente aus der Liste fallen lassen.
     result = await db.execute(
-        select(Document)
+        select(Document, User.email)
         .options(defer(Document.content))
+        .outerjoin(User, Document.uploaded_by == User.id)
         .where(Document.area == PILOT_AREA)
         .order_by(Document.created_at.desc())
     )
-    return [_to_response(d) for d in result.scalars().all()]
+    return [_to_response(doc, email) for doc, email in result.all()]
 
 
 @router.post(
@@ -160,7 +175,9 @@ async def upload_document(
     await enqueue_document(db, str(document.id))
     await db.commit()
 
-    return _to_response(document)
+    # Beide Pfade (Neuanlage wie Ersetzung) setzen uploaded_by auf user.id, also
+    # ist der Hochladende hier immer der aktuelle User — kein Nachladen nötig.
+    return _to_response(document, user.email)
 
 
 async def _find_by_filename(filename: str, area: str, db: AsyncSession) -> Document | None:
@@ -203,6 +220,28 @@ async def _replace(
     sitting in the index waiting for the visibility rule to change.
     """
     await db.execute(delete(Chunk).where(Chunk.document_id == document.id))
+    # The quiz questions of the old version survive the replacement but lose
+    # their approval (decision on #40, T-33). Deleting them would throw away
+    # Stefan's review silently; leaving them approved would keep questions in
+    # the learners' pool that were checked against a text nobody can read any
+    # more. So they go back into the queue and he decides again — approve, or
+    # reject if the new version no longer supports the question.
+    #
+    # Only approved ones. A question he has already rejected stays rejected;
+    # putting it in front of him again would be work he has done.
+    #
+    # `chunk_id` needs no statement here: the delete above takes the chunks with
+    # it, and the FK sets the reference to NULL (migration 0016). That NULL is
+    # what tells this case apart from a freshly generated question in the review
+    # — one of those always has a chunk.
+    await db.execute(
+        update(QuizQuestion)
+        .where(
+            QuizQuestion.document_id == document.id,
+            QuizQuestion.status == QuizQuestionStatus.approved,
+        )
+        .values(status=QuizQuestionStatus.pending, approved_at=None)
+    )
     # created_at keeps pointing at the first upload, updated_at at this one —
     # the pair is what tells a replacement apart from a first upload in GET
     # /documents. Assigned instead of left to the column's onupdate for the
@@ -223,12 +262,6 @@ async def _replace(
     # reads as "in the corpus since T1, current text put there by this person";
     # who uploaded the version that is gone is not kept (review on #87).
     document.uploaded_by = user.id
-    # quiz_questions of the replaced version are deliberately left alone. They
-    # hang off documents by FK like chunks do, so questions generated from a
-    # text that no longer exists survive this. Harmless while the table is
-    # empty (T-33 fills it first) and not this ticket's call: whether Stefan's
-    # approvals (US-07) survive a replacement is a decision for T-33 (#40),
-    # noted there.
     return document
 
 
@@ -239,7 +272,12 @@ async def get_document(
     db: AsyncSession = Depends(get_db),
 ) -> DocumentResponse:
     document = await _get_pilot_area_document(document_id, db)
-    return _to_response(document)
+    uploader_email = (
+        await db.scalar(select(User.email).where(User.id == document.uploaded_by))
+        if document.uploaded_by is not None
+        else None
+    )
+    return _to_response(document, uploader_email)
 
 
 @router.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT)

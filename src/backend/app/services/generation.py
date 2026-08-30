@@ -16,7 +16,7 @@ switching from OpenAI Direct to Azure OpenAI EU (ADR-004) must not touch this fi
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Protocol
 
 import litellm
 
@@ -96,7 +96,37 @@ class GenerationResult:
 
 def build_prompt(question: str, context: Sequence[RetrievalHit]) -> tuple[str, str]:
     """Render the system and user message. Pure, so the contract stays testable."""
-    sections = "\n\n".join(
+    return SYSTEM_PROMPT, f"Kontext:\n\n{render_context(context)}\n\nFrage: {question}"
+
+
+class ContextChunk(Protocol):
+    """What `render_context` needs of a chunk: where it comes from, what it says.
+
+    A protocol rather than `RetrievalHit`, because quiz generation (T-33) builds
+    the same numbered block from chunks that were never retrieved and have no
+    score — `app.services.retrieval.SourceChunk`. Read-only members: both
+    implementers are frozen dataclasses.
+    """
+
+    @property
+    def filename(self) -> str: ...
+    @property
+    def page(self) -> int | None: ...
+    @property
+    def heading(self) -> str | None: ...
+    @property
+    def content(self) -> str: ...
+
+
+def render_context(context: Sequence[ContextChunk]) -> str:
+    """The numbered context block both prompts of the pipeline are built on.
+
+    Shared with the self-check (T-25) rather than written twice: stage 3 judges
+    whether the answer's references hold, so it has to see the very same numbers
+    the answer was written against. Two renderers that drift apart would have the
+    verifier reading [2] as a different chunk than the author did.
+    """
+    return "\n\n".join(
         f"{_source_line(index, hit)}\n{hit.content.strip()}"
         # 1-based and in context order, so that [n] in the answer is the same n as
         # Citation.index in the response: query.py builds both from the same
@@ -104,10 +134,9 @@ def build_prompt(question: str, context: Sequence[RetrievalHit]) -> tuple[str, s
         # footnote at the wrong source.
         for index, hit in enumerate(context, start=1)
     )
-    return SYSTEM_PROMPT, f"Kontext:\n\n{sections}\n\nFrage: {question}"
 
 
-def _source_line(index: int, hit: RetrievalHit) -> str:
+def _source_line(index: int, hit: ContextChunk) -> str:
     parts = [hit.filename]
     if hit.page is not None:
         parts.append(f"S. {hit.page}")

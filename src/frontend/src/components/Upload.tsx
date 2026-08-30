@@ -40,8 +40,36 @@ export default function Upload({ user, onClose }: Props) {
   const [docs, setDocs] = useState<Document[]>([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [dragging, setDragging] = useState(false);
+
+  // The pending "replace this document?" question, or null when none is open.
+  // isOther marks a document uploaded by someone else — while all owners share
+  // one area (PILOT_AREA), replacing it silently would take a colleague's file
+  // (#92). uploader is null when that account has since been deleted.
+  const [confirm, setConfirm] = useState<
+    { filename: string; uploader: string | null; isOther: boolean } | null
+  >(null);
+  // The batch loop in handleFiles awaits the dialog through this resolver: the
+  // buttons call it, which is what turns a click into the loop's next step.
+  const resolveConfirm = useRef<((replace: boolean) => void) | null>(null);
+
+  const askReplace = (existing: Document): Promise<boolean> =>
+    new Promise<boolean>(resolve => {
+      resolveConfirm.current = resolve;
+      setConfirm({
+        filename: existing.filename,
+        uploader: existing.uploaded_by ?? null,
+        isOther: !!existing.uploaded_by && existing.uploaded_by !== user.email,
+      });
+    });
+
+  const decideConfirm = (replace: boolean) => {
+    resolveConfirm.current?.(replace);
+    resolveConfirm.current = null;
+    setConfirm(null);
+  };
 
   // Only the newest writer may set `docs`. Four of them race: the initial
   // effect, the poll chain, the reload after an upload and the optimistic
@@ -119,10 +147,28 @@ export default function Upload({ user, onClose }: Props) {
     if (!accepted.length) return;
 
     setUploading(true);
+    setNotice("");
+    const replaced: string[] = [];
     try {
       for (const file of accepted) {
+        // Ask before overwriting a document of the same name (T-15, #92).
+        // Collision detection mirrors the backend: exact filename in the pilot
+        // area, no case folding. `docs` is what the poll last loaded — fresh
+        // enough to prompt; the 200/201 status below stays authoritative.
+        const existing = docs.find(d => d.filename === file.name);
+        if (existing && !(await askReplace(existing))) {
+          // A cancelled replacement is not a failure, but it must stay visible:
+          // dropping five files of which one was kept back should not look like
+          // a clean success. Named and appended like the validation rejections.
+          rejected.push(`${file.name}: Ersetzung abgebrochen`);
+          setError(rejected.join(" · "));
+          continue;
+        }
         try {
-          await api.uploadDocument(file, "default", user.token);
+          const result = await api.uploadDocument(file, "default", user.token);
+          // 200 came back: an existing document was replaced. Collected here
+          // rather than trusted from the list above, which may have been stale.
+          if (result.replaced) replaced.push(file.name);
         } catch (err) {
           // Per file, not per batch: a failure on the second of three must not
           // stop the third from being sent — the user would see one error, a
@@ -135,6 +181,14 @@ export default function Upload({ user, onClose }: Props) {
         }
       }
     } finally {
+      // A replacement looks exactly like a new upload otherwise — same row
+      // appearing in the list. Naming it is the visible half of #92.
+      if (replaced.length)
+        setNotice(
+          replaced.length === 1
+            ? `„${replaced[0]}“ ersetzt das bestehende Dokument gleichen Namens.`
+            : `${replaced.length} bestehende Dokumente ersetzt: ${replaced.join(", ")}`,
+        );
       // Outside the try on purpose: when the second of two files fails, the
       // first one is already on the server. Without this reload it stays
       // invisible — no entry, so nothing marks it as in flight and no polling
@@ -178,6 +232,37 @@ export default function Upload({ user, onClose }: Props) {
 
   return (
     <div style={{ flex: 1, overflowY: "auto", padding: 32 }}>
+      {confirm && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Dokument ersetzen"
+          style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)",
+            display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100,
+          }}
+        >
+          <div style={{ background: "var(--card)", borderRadius: 12, padding: 24, maxWidth: 440, boxShadow: "0 10px 40px rgba(0,0,0,0.25)" }}>
+            <h3 style={{ fontSize: 17, fontWeight: 800, color: "var(--navy)", marginBottom: 12 }}>
+              Dokument ersetzen?
+            </h3>
+            <p style={{ fontSize: 14, lineHeight: 1.5, marginBottom: 8 }}>
+              Ein Dokument namens <strong>{confirm.filename}</strong> ist bereits im Korpus
+              {confirm.uploader ? <> — zuletzt hochgeladen von <strong>{confirm.uploader}</strong></> : null}.
+              Beim Hochladen wird die bestehende Fassung überschrieben.
+            </p>
+            {confirm.isOther && (
+              <p style={{ fontSize: 13, color: "var(--amber)", fontWeight: 700, marginBottom: 8 }}>
+                Dieses Dokument stammt von einer anderen Person.
+              </p>
+            )}
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 16 }}>
+              <button className="secondary" onClick={() => decideConfirm(false)}>Abbrechen</button>
+              <button className="danger" onClick={() => decideConfirm(true)}>Ersetzen</button>
+            </div>
+          </div>
+        </div>
+      )}
       <div style={{ maxWidth: 720, margin: "0 auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
           <h2 style={{ fontSize: 20, fontWeight: 800, color: "var(--navy)" }}>Dokumente</h2>
@@ -226,6 +311,12 @@ export default function Upload({ user, onClose }: Props) {
         {error && (
           <div style={{ background: "var(--red-lt)", color: "var(--red)", borderRadius: 8, padding: "8px 14px", marginBottom: 16, fontSize: 13 }}>
             {error}
+          </div>
+        )}
+
+        {notice && (
+          <div style={{ background: "var(--green-lt)", color: "var(--green)", borderRadius: 8, padding: "8px 14px", marginBottom: 16, fontSize: 13 }}>
+            {notice}
           </div>
         )}
 
