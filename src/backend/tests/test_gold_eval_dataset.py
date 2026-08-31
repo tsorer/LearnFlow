@@ -138,6 +138,18 @@ def test_refusals_carry_no_answer_and_no_source(dataset: dict) -> None:
             assert question["reference_answer"], question["id"]
 
 
+def test_in_corpus_questions_name_a_source(dataset: dict) -> None:
+    """Without a source there is nothing to score context recall against, and
+    the gap reads as a retrieval miss rather than as a hole in the dataset.
+
+    Only in_corpus: an adversarial case may legitimately have no source, when
+    the point of the question is that the corpus says nothing on the matter.
+    """
+    for question in dataset["questions"]:
+        if question["category"] == "in_corpus":
+            assert question["expected_source"] is not None, question["id"]
+
+
 def test_out_of_corpus_questions_expect_a_refusal(dataset: dict) -> None:
     for question in dataset["questions"]:
         if question["category"] == "out_of_corpus":
@@ -154,6 +166,9 @@ def test_sources_use_the_anchor_their_corpus_declares(dataset: dict) -> None:
 
         assert anchor in source, f"{question['id']}: missing {anchor}"
         assert other not in source, f"{question['id']}: carries {other} as well"
+        # Present but empty is the same miss as absent, and harder to spot: an
+        # empty list joins against no chunk at all.
+        assert source[anchor], f"{question['id']}: empty {anchor}"
         assert source["locator"].strip(), f"{question['id']}: empty locator"
 
 
