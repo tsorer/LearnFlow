@@ -168,6 +168,24 @@ describe("Chip «Citation»", () => {
     expect(screen.queryByText(/Citation: nicht gelaufen/)).not.toBeInTheDocument();
   });
 
+  it("nennt die Quote auch bei einer Unterdrückung *durch* Stufe 2", async () => {
+    // The half the first case does not reach, and the one a screenshot of the
+    // running stack caught: suppressed, so the old lookup and the new one both
+    // have a reason to work with — but here the reason IS the citation check,
+    // which cannot have suppressed without running. Reporting "nicht gelaufen"
+    // next to «Zu wenig Aussagen belegt» contradicts the badge beside it.
+    await ask(answer({
+      suppressed: true,
+      suppression_reason: "citation_coverage",
+      message: "Die erzeugte Antwort war nicht ausreichend durch die gefundenen Stellen belegt.",
+      refinement_hint: "Grenze die Frage auf einen Punkt ein.",
+      confidence: { score: 0.46, retrieval_score: 0.59, citation_coverage: 0.33, band: "niedrig" },
+    }));
+
+    expect(screen.getByText("Citation: 33%")).toBeInTheDocument();
+    expect(screen.queryByText(/Citation: nicht gelaufen/)).not.toBeInTheDocument();
+  });
+
   it("sagt «nicht gelaufen», wenn vor der Generierung unterdrückt wurde", async () => {
     // Here 0.0 really does mean "not measured": the pipeline stopped at stage 0,
     // and reporting 0 % would blame a check that never happened (ADR-008).
