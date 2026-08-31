@@ -95,21 +95,33 @@ class Document(Base):
     chunk_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    # Read as a version token, not just as a timestamp: the worker takes it with
-    # the content and refuses to publish an indexing run whose row no longer
-    # carries the same value (worker/main.py, mark_available). `onupdate` moves
-    # it on *any* ORM write to this row, so a future route that writes a
-    # Document for an unrelated reason would make a job that is indexing this
-    # document right now discard its work silently, logged as info and reported
-    # as nothing. The reaper of T-43 is the nearest such writer: it exists to
-    # move rows out of a stuck 'processing', and its own criterion is that a
-    # document currently being processed stays untouched.
-    # A write that does not mean "this is a new version of the file" therefore
-    # has to preserve updated_at, or the guard needs a column of its own.
+    # What the API shows: with created_at it is the pair that tells a
+    # replacement apart from a first upload. Until T-43 it doubled as the
+    # worker's version token, which `onupdate` made a hazard for every writer;
+    # that role now belongs to index_version below.
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
     validated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # The worker's optimistic-lock token (T-43): read with the content, checked
+    # again before anything is published (worker/main.py, mark_available). Two
+    # writers increment it, and both mean the same thing by it — "every
+    # indexing run older than this one is void": the upload path, because the
+    # bytes changed, and the reaper, because it declared an abandoned run dead.
+    #
+    # No `onupdate`, deliberately, and no ORM write may set it for any other
+    # reason. That is what lets a future route write this row — a validation
+    # (US-06), an area rename — without silently discarding a run that is
+    # indexing the document at that moment. `tests/test_worker.py` holds the
+    # absence of `onupdate` in place.
+    index_version: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
+    # The reaper's budget: how often an abandoned run has been re-queued since
+    # this document was last indexed successfully. Re-processing is idempotent,
+    # so re-queueing is safe, but a document that reliably kills the worker must
+    # not be re-queued forever — it would take every other document's processing
+    # down with it each time. Reset by a successful run (`mark_available`) and by
+    # the upload path: the budget bounds one incident, not the document.
+    index_attempts: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
 
 
 class Chunk(Base):

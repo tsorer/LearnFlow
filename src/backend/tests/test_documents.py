@@ -184,6 +184,11 @@ async def test_upload_existing_filename_replaces_and_returns_200() -> None:
     # that pair is how the list tells a replaced document from a new one.
     assert datetime.fromisoformat(body["created_at"]) == existing.created_at
     assert datetime.fromisoformat(body["updated_at"]) > existing.created_at
+    # New bytes void every run still indexing the old ones (T-43): the token
+    # moves, so their publish fails the guard in worker/main.py. The attempt
+    # budget starts over — a new version deserves fresh attempts.
+    assert existing.index_version == 2
+    assert existing.index_attempts == 0
     assert existing.content == b"zweite fassung"
     # The replacement has not been validated, whatever its predecessor reached.
     assert existing.validated_at is None
@@ -272,6 +277,9 @@ def make_document(status: str = "processing", area: str = PILOT_AREA) -> object:
         error_message=None,
         created_at=uploaded_at,
         updated_at=uploaded_at,
+        # The first version, its attempts untouched — what a fresh insert sets.
+        index_version=1,
+        index_attempts=0,
     )
 
 
