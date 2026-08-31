@@ -82,7 +82,7 @@ NEW_COUNT_KEYS = (*OLD_COUNT_KEYS, "processing_timeout_seconds", "processing_max
 ROWS = [
     (
         "processing_timeout_seconds",
-        "900",
+        "2700",
         "Age after which a claimed indexing run counts as abandoned (T-43)",
     ),
     (

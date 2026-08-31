@@ -15,12 +15,14 @@ from app.services.parsing import MARKDOWN_CONTENT_TYPE
 from worker.main import (
     DEFAULT_PROCESSING_MAX_ATTEMPTS,
     DEFAULT_PROCESSING_TIMEOUT_SECONDS,
+    MAX_REAPER_INTERVAL_SECONDS,
     Superseded,
     make_job_handler,
     process_document,
     read_chunk_config,
     read_reaper_config,
     reap_stuck_documents,
+    reaper_interval,
 )
 
 MARKDOWN = b"# Titel\n\nErster Absatz.\n\nZweiter Absatz."
@@ -653,3 +655,31 @@ async def test_reaper_config_reads_both_keys() -> None:
     ]
 
     assert await read_reaper_config(conn) == (60, 1)
+
+
+async def test_the_entrypoint_filter_guards_the_json_cast() -> None:
+    """Postgres does not promise to evaluate the entrypoint filter before the
+    cast. A second entrypoint with a non-JSON payload would make the cast throw,
+    `reaper_loop` would swallow it, and the reaper would be off while the worker
+    looked healthy — so the guard is a CASE, which Postgres does order (#104).
+    """
+    conn = make_reaper_conn()
+
+    await reap_stuck_documents(conn, timeout_seconds=900, max_attempts=3)
+
+    sql = conn.fetch.await_args.args[0]
+    guard = sql.split("CASE WHEN q.entrypoint = 'process_document'")
+    assert len(guard) == 2, "the entrypoint filter no longer guards the cast"
+    assert "convert_from" in guard[1].split("END")[0]
+    # And nowhere outside it — a bare copy of the condition would reintroduce
+    # exactly the unordered evaluation the CASE is there to prevent.
+    assert sql.count("convert_from") == 1
+
+
+def test_the_pass_interval_follows_short_timeouts_and_is_capped_for_long_ones() -> None:
+    """The quarter keeps a short timeout responsive; the cap keeps a long one
+    from making detection slow as well. A pass is one indexed query — there is
+    nothing to save by waiting longer."""
+    assert reaper_interval(60) == 15
+    assert reaper_interval(DEFAULT_PROCESSING_TIMEOUT_SECONDS) == MAX_REAPER_INTERVAL_SECONDS
+    assert reaper_interval(4 * MAX_REAPER_INTERVAL_SECONDS) == MAX_REAPER_INTERVAL_SECONDS

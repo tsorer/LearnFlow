@@ -288,13 +288,23 @@ def _as_int(values: dict[str, str], key: str, default: int) -> int:
 # Fallbacks for the two reaper settings, used when `config` has no row for
 # them — the same "read per pass, fall back on absence" contract the chunk
 # parameters follow. Values match the seed of migration 0017.
-DEFAULT_PROCESSING_TIMEOUT_SECONDS = 900
+#
+# 2700 s is derived, not picked (ADR-006, Nachtrag): a 10 MB upload at the
+# density of the densest corpus document runs to ~29 embedding batches, the
+# batches are sequential, and each one may take TIMEOUT_SECONDS *per attempt*
+# with MAX_RETRIES on top (`app/services/embedding.py`). A run in which every
+# batch times out once and succeeds on retry is slow but valid, and reaping it
+# would end in a `failed` that no re-upload can fix.
+DEFAULT_PROCESSING_TIMEOUT_SECONDS = 2700
 DEFAULT_PROCESSING_MAX_ATTEMPTS = 3
 
-# How often the reaper looks within one timeout. Four passes mean a stuck
-# document waits at most a quarter of the timeout longer than the timeout itself
-# before anyone notices it.
+# How often the reaper looks within one timeout, and the ceiling on the pause
+# between two passes. The quarter keeps short timeouts responsive; the cap keeps
+# a long one from also making the *detection* slow, which is a separate thing:
+# the pass is one indexed query, and nothing is gained by waiting 11 minutes
+# between two of them just because the deadline being enforced is 45.
 REAPER_PASSES_PER_TIMEOUT = 4
+MAX_REAPER_INTERVAL_SECONDS = 300
 
 # A document is abandoned when nothing in the queue is working on it any more.
 #
@@ -310,6 +320,14 @@ REAPER_PASSES_PER_TIMEOUT = 4
 # The payload is matched through `->>` rather than by byte equality, unlike the
 # dedupe in `app/queue.py`: there both sides come from json.dumps, here one side
 # would be JSON rendered by Postgres, which spaces its colons differently.
+#
+# The cast sits inside a CASE, and that is not decoration: Postgres does not
+# promise to evaluate the entrypoint filter first, so a second entrypoint with a
+# non-JSON payload would let the cast see bytes it cannot parse and throw. The
+# loop below catches that, logs it, and sleeps — leaving the reaper silently
+# switched off while the worker otherwise looks healthy, which is the very class
+# of failure this ticket exists to remove. CASE is what Postgres documents for
+# forcing the order, so the guard cannot be optimised away (review on #104).
 STUCK_DOCUMENTS = """
     UPDATE documents d
        SET index_version  = d.index_version + 1,
@@ -320,10 +338,13 @@ STUCK_DOCUMENTS = """
        AND NOT EXISTS (
              SELECT 1
                FROM pgqueuer q
-              WHERE q.entrypoint = 'process_document'
-                AND q.status IN ('queued', 'picked')
-                AND convert_from(q.payload, 'UTF8')::json ->> 'document_id' = d.id::text
+              WHERE q.status IN ('queued', 'picked')
                 AND q.heartbeat > now() - make_interval(secs => $1)
+                AND CASE WHEN q.entrypoint = 'process_document'
+                         THEN convert_from(q.payload, 'UTF8')::json ->> 'document_id'
+                              = d.id::text
+                         ELSE false
+                    END
            )
  RETURNING d.id, d.index_attempts
 """
@@ -432,6 +453,11 @@ async def read_reaper_config(conn: asyncpg.Connection) -> tuple[int, int]:
     return parsed[0], parsed[1]
 
 
+def reaper_interval(timeout_seconds: float) -> float:
+    """How long to wait between two passes for a given timeout."""
+    return min(timeout_seconds / REAPER_PASSES_PER_TIMEOUT, MAX_REAPER_INTERVAL_SECONDS)
+
+
 async def reaper_loop(pool: asyncpg.Pool) -> None:
     """Run the reaper for as long as the worker lives.
 
@@ -442,13 +468,13 @@ async def reaper_loop(pool: asyncpg.Pool) -> None:
     Every failure is logged and swallowed. The reaper is a repair mechanism, and
     a broken one must not take the job consumer down with it.
     """
-    interval = DEFAULT_PROCESSING_TIMEOUT_SECONDS / REAPER_PASSES_PER_TIMEOUT
+    interval = reaper_interval(DEFAULT_PROCESSING_TIMEOUT_SECONDS)
     while True:
         await asyncio.sleep(interval)
         try:
             async with pool.acquire() as conn:
                 timeout_seconds, max_attempts = await read_reaper_config(conn)
-                interval = timeout_seconds / REAPER_PASSES_PER_TIMEOUT
+                interval = reaper_interval(timeout_seconds)
                 await reap_stuck_documents(conn, timeout_seconds, max_attempts)
         except Exception:
             log.exception("Reaper pass failed — next attempt in %s s", interval)
