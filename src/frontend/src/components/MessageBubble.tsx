@@ -65,6 +65,30 @@ const suppressLabels: Record<SuppressionReason, string> = {
 //   `niedrig` never reaches a delivered answer: it suppresses (ADR-008), and
 //             what the learner then reads is the suppression badge plus the
 //             refinement hint below, not a verdict on prose that was withheld.
+// Whether stage 2 (the citation check) ran, derived from the suppression reason
+// instead of from `debug.stages`. `debug` is filled for the admin role alone
+// (openapi.yaml), so the old lookup answered "did not run" for every learner —
+// including an answer whose `citation_coverage` was 1.0, which is how the chip
+// came to contradict the composite score printed next to it.
+//
+// The pipeline order settles it without debug: `check_citations` sits behind a
+// successful generation (app/routers/query.py), so every reason from the
+// citation stage onwards means it ran, and every earlier one means it did not.
+// A delivered answer always passed through it. `Record<SuppressionReason, …>`
+// again, so a reason added to the spec has to be classified here rather than
+// silently defaulting to one of the two answers.
+const CITATION_STAGE_RAN: Record<SuppressionReason, boolean> = {
+  retrieval_gate:       false,
+  retrieval_confidence: false,
+  generation_refused:   false,
+  generation_truncated: false,
+  configuration_error:  false,
+  citation_coverage:    true,
+  citation_invalid:     true,
+  confidence_band:      true,
+  self_check:           true,
+};
+
 const BAND_BADGES: Record<ConfidenceBand, { label: string; icon: string; note: string } | null> = {
   hoch: null,
   mittel: {
@@ -497,6 +521,26 @@ export default function MessageBubble({ message: m, token }: Props) {
   // Only for an answer that was actually delivered: a suppressed one carries no
   // prose to qualify, and its own badge already says why it is missing.
   const band = !m.suppressed && m.confidence ? BAND_BADGES[m.confidence.band] : null;
+  // One block, two roles, deliberately told apart (US-02: the states have to be
+  // distinguishable). Amber warns about prose the learner did get; the quiet one
+  // helps with a question whose answer was withheld, where the ⚠ badge above
+  // already carries the warning and a second one would only shout. The label
+  // draws the same line for a screen reader, which cannot see the colour.
+  const note = band
+    ? {
+        label: "Hinweis zur Belegung der Antwort",
+        body: band.note,
+        background: "var(--amber-lt)",
+        border: "var(--amber)",
+      }
+    : m.suppressed && m.refinement_hint
+      ? {
+          label: "Tipp zur Präzisierung der Frage",
+          body: <><strong>Tipp: </strong>{m.refinement_hint}</>,
+          background: "var(--card)",
+          border: "var(--border)",
+        }
+      : null;
 
   return (
     <div style={{ alignSelf: "flex-start", maxWidth: "90%", display: "flex", flexDirection: "column", gap: 8 }}>
@@ -547,7 +591,9 @@ export default function MessageBubble({ message: m, token }: Props) {
             // Only meaningful once stage 2 ran. Below the retrieval gates the
             // coverage is 0.0 for "not measured", and painting that red would
             // report a failure of a check that never happened (ADR-008).
-            const citRan = d?.stages?.find(s => s.id === "citation_coverage")?.ran ?? false;
+            const citRan = m.suppression_reason
+              ? CITATION_STAGE_RAN[m.suppression_reason]
+              : true;
             const citFail = citRan && minCit !== null && m.confidence!.citation_coverage < minCit;
             return (
               <>
@@ -587,19 +633,17 @@ export default function MessageBubble({ message: m, token }: Props) {
       )}
 
       {/* The badge's explanatory text (US-02: colour + icon + hint) and, after a
-          suppression, the backend's advice on what to try next. Both are the
-          same shape because they answer the same question — what now? — and
-          they never appear together: one belongs to a delivered answer, the
-          other to a withheld one. `role="note"` rather than "alert": the text
-          arrives with the answer and must not interrupt a screen reader
-          mid-sentence. */}
-      {(band || (m.suppressed && m.refinement_hint)) && (
-        <div role="note" style={{
+          suppression, the backend's advice on what to try next — see `note`
+          above for why the two look different. `role="note"` rather than
+          "alert": the text arrives with the answer and must not interrupt a
+          screen reader mid-sentence. */}
+      {note && (
+        <div role="note" aria-label={note.label} style={{
           fontSize: 12, lineHeight: 1.5, color: "var(--text)",
-          background: "var(--amber-lt)", border: "1px solid var(--amber)",
+          background: note.background, border: `1px solid ${note.border}`,
           borderRadius: 8, padding: "8px 12px",
         }}>
-          {band ? band.note : (<><strong>Tipp: </strong>{m.refinement_hint}</>)}
+          {note.body}
         </div>
       )}
 

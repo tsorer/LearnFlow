@@ -102,7 +102,8 @@ describe("Band «mittel»", () => {
       confidence: { score: 0.6, retrieval_score: 0.6, citation_coverage: 0.5, band: "mittel" },
     }));
 
-    expect(screen.getByRole("note")).toHaveTextContent(/nur teilweise/i);
+    expect(screen.getByRole("note", { name: /Belegung der Antwort/i }))
+      .toHaveTextContent(/nur teilweise/i);
   });
 });
 
@@ -130,7 +131,7 @@ describe("Unterdrückte Antwort", () => {
   it("zeigt den Präzisierungs-Hinweis des Backends", async () => {
     await ask(suppressed);
 
-    expect(screen.getByRole("note")).toHaveTextContent(
+    expect(screen.getByRole("note", { name: /Präzisierung der Frage/i })).toHaveTextContent(
       /Nenne einen konkreten Prozess, ein Dokument oder einen Artikel\./,
     );
   });
@@ -149,6 +150,40 @@ describe("Unterdrückte Antwort", () => {
   });
 });
 
+// --- The citation chip, which had been reading a field learners never get ---
+
+describe("Chip «Citation»", () => {
+  it("nennt die Quote, wenn Stufe 2 gelaufen ist — auch ohne debug", async () => {
+    // The regression this covers: `debug` is admin-only (openapi.yaml), and the
+    // chip used to derive "did it run?" from `debug.stages`. Every learner was
+    // therefore told the citation check had not run — next to a composite score
+    // that could only have come about because it had. Measured against the
+    // running stack: coverage 1.0, debug null, chip "nicht gelaufen".
+    await ask(answer({
+      confidence: { score: 0.793, retrieval_score: 0.586, citation_coverage: 1, band: "hoch" },
+      debug: null,
+    }));
+
+    expect(screen.getByText("Citation: 100%")).toBeInTheDocument();
+    expect(screen.queryByText(/Citation: nicht gelaufen/)).not.toBeInTheDocument();
+  });
+
+  it("sagt «nicht gelaufen», wenn vor der Generierung unterdrückt wurde", async () => {
+    // Here 0.0 really does mean "not measured": the pipeline stopped at stage 0,
+    // and reporting 0 % would blame a check that never happened (ADR-008).
+    await ask(answer({
+      suppressed: true,
+      suppression_reason: "retrieval_gate",
+      message: "Dazu finde ich nichts in den freigegebenen Unterlagen.",
+      refinement_hint: "Nenne einen konkreten Prozess.",
+      citations: [],
+      confidence: { score: 0.22, retrieval_score: 0.22, citation_coverage: 0, band: "niedrig" },
+    }));
+
+    expect(screen.getByText("Citation: nicht gelaufen")).toBeInTheDocument();
+  });
+});
+
 // --- AK 3: the three states stay distinguishable ---------------------------
 
 describe("Abgrenzung der Zustände", () => {
@@ -158,5 +193,18 @@ describe("Abgrenzung der Zustände", () => {
     await ask(answer({ refinement_hint: "Sollte hier nicht erscheinen." }));
 
     expect(screen.queryByText(/Sollte hier nicht erscheinen\./)).not.toBeInTheDocument();
+  });
+
+  it("beschriftet die zwei Hinweisblöcke verschieden", async () => {
+    // They never share a message, but they sit under one another in the
+    // transcript. Identical wrappers made two different states look like one —
+    // the label is what tells them apart where the colour cannot (screen
+    // reader), and it is the assertable half of that distinction.
+    await ask(answer({
+      confidence: { score: 0.6, retrieval_score: 0.6, citation_coverage: 0.5, band: "mittel" },
+    }));
+
+    expect(screen.getByRole("note")).toHaveAccessibleName(/Belegung der Antwort/i);
+    expect(screen.queryByRole("note", { name: /Präzisierung der Frage/i })).not.toBeInTheDocument();
   });
 });
