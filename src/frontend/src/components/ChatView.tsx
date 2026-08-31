@@ -160,6 +160,7 @@ export default function ChatView({ user, onLogout }: Props) {
         answer_id: res.answer_id,
         suppressed: res.suppressed,
         suppression_reason: res.suppression_reason,
+        refinement_hint: res.refinement_hint,
         citations: res.citations,
         confidence: res.confidence,
         debug: res.debug,

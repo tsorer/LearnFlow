@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import type { Message, ChunkDebugInfo, StageInfo, LLMCallInfo, DebugInfo, ConfidenceInfo, SuppressionReason } from "../types";
+import type { Message, ChunkDebugInfo, StageInfo, LLMCallInfo, DebugInfo, ConfidenceInfo, ConfidenceBand, SuppressionReason } from "../types";
 import { api, type Citation, type FeedbackCategory } from "../api/client";
 
 // Keyed by the FeedbackCategory enum in openapi.yaml, one entry per value
@@ -55,6 +55,24 @@ const suppressLabels: Record<SuppressionReason, string> = {
   confidence_band:      "Konfidenz insgesamt zu tief",
   self_check:           "Self-Check fand ungedeckte Aussagen",
   configuration_error:  "Suche nicht korrekt konfiguriert",
+};
+
+// Keyed by the spec enum (see ConfidenceBand), same guarantee as the map above.
+// Only `mittel` carries a badge, and the two nulls are the point of the table
+// rather than gaps in it (T-27, US-02):
+//   `hoch`    the answer stands on its sources — an unmarked answer is the good
+//             case, and a badge on every answer would stop being a signal.
+//   `niedrig` never reaches a delivered answer: it suppresses (ADR-008), and
+//             what the learner then reads is the suppression badge plus the
+//             refinement hint below, not a verdict on prose that was withheld.
+const BAND_BADGES: Record<ConfidenceBand, { label: string; icon: string; note: string } | null> = {
+  hoch: null,
+  mittel: {
+    label: "Eingeschränkt belegt",
+    icon: "◐",
+    note: "Die Quellen decken diese Antwort nur teilweise. Prüfe die angegebenen Stellen, bevor du dich darauf verlässt.",
+  },
+  niedrig: null,
 };
 
 function pct(v: number) { return `${Math.round(v * 100)}%`; }
@@ -476,6 +494,9 @@ export default function MessageBubble({ message: m, token }: Props) {
   }
 
   const d = m.debug;
+  // Only for an answer that was actually delivered: a suppressed one carries no
+  // prose to qualify, and its own badge already says why it is missing.
+  const band = !m.suppressed && m.confidence ? BAND_BADGES[m.confidence.band] : null;
 
   return (
     <div style={{ alignSelf: "flex-start", maxWidth: "90%", display: "flex", flexDirection: "column", gap: 8 }}>
@@ -494,6 +515,16 @@ export default function MessageBubble({ message: m, token }: Props) {
           and its badge is the only thing telling the user why nothing came back. */}
       {(m.confidence || m.suppression_reason) && (
         <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+          {/* First in the row on purpose: this is the one chip US-02 asks a
+              learner to read, the percentages behind it are the detail. */}
+          {band && (
+            <span style={{
+              fontSize: 11, padding: "2px 9px", borderRadius: 20, fontWeight: 700,
+              background: "var(--amber-lt)", color: "var(--amber)",
+            }}>
+              <span aria-hidden="true">{band.icon} </span>{band.label}
+            </span>
+          )}
           {m.confidence && (<>
           <span style={{
             background: "var(--blue-lt)", color: "var(--navy)",
@@ -552,6 +583,23 @@ export default function MessageBubble({ message: m, token }: Props) {
               {showSources ? `Quellen ▲` : `${m.citations.length} Quelle${m.citations.length > 1 ? "n" : ""} ▼`}
             </button>
           )}
+        </div>
+      )}
+
+      {/* The badge's explanatory text (US-02: colour + icon + hint) and, after a
+          suppression, the backend's advice on what to try next. Both are the
+          same shape because they answer the same question — what now? — and
+          they never appear together: one belongs to a delivered answer, the
+          other to a withheld one. `role="note"` rather than "alert": the text
+          arrives with the answer and must not interrupt a screen reader
+          mid-sentence. */}
+      {(band || (m.suppressed && m.refinement_hint)) && (
+        <div role="note" style={{
+          fontSize: 12, lineHeight: 1.5, color: "var(--text)",
+          background: "var(--amber-lt)", border: "1px solid var(--amber)",
+          borderRadius: 8, padding: "8px 12px",
+        }}>
+          {band ? band.note : (<><strong>Tipp: </strong>{m.refinement_hint}</>)}
         </div>
       )}
 
