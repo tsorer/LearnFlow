@@ -48,6 +48,18 @@ def test_parse_pdf_keeps_words_whole_when_the_page_scale_sits_in_the_cm_matrix()
     assert blocks[0].text == "hochriskant einzustufen"
 
 
+def test_parse_joins_a_soft_hyphen_whichever_side_the_line_break_falls_on() -> None:
+    # No PDF fixture can cover this: which side of the hyphen the break lands on
+    # is the extractor's choice, not the document's. pypdf 6.15 puts it in front
+    # ("Me\n\xad\nthodik"), 6.16.2 behind ("Me \xad\nthodik") — same break, and
+    # the join must not depend on the installed version.
+    source = "Me\n\xad\nthodik und ratifi \xad\nzierte"
+
+    blocks = parse_document(source.encode("utf-8"), MARKDOWN_CONTENT_TYPE)
+
+    assert blocks[0].text == "Methodik und ratifizierte"
+
+
 def test_parse_leaves_ordinary_hyphens_and_line_breaks_untouched() -> None:
     source = "Bindestrich-Wörter und Zeilen-\numbrüche bleiben, wie sie sind."
 

@@ -22,8 +22,11 @@ MARKDOWN_CONTENT_TYPE = "text/markdown"
 _MD_HEADING = re.compile(r"^\s{0,3}#{1,6}\s+(.*?)\s*#*\s*$")
 _MD_FENCE = re.compile(r"^\s{0,3}(```|~~~)")
 # A soft hyphen (U+00AD) with a line break behind it is a word the typesetter
-# split; only joining the halves makes the word searchable as one token.
-_SOFT_HYPHEN_BREAK = re.compile(r"[ \t]*\xad[ \t]*\n[ \t]*")
+# split; only joining the halves makes the word searchable as one token. The
+# leading \n is not redundant: extractors disagree on which side of the hyphen
+# the line ends — pypdf 6.15 reads "Me\n\xad\nthodik" where 6.16.2 reads
+# "Me \xad\nthodik", and both shapes mean the same break.
+_SOFT_HYPHEN_BREAK = re.compile(r"[ \t\n]*\xad[ \t]*\n[ \t]*")
 
 
 @dataclass(frozen=True)
