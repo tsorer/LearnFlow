@@ -20,7 +20,7 @@ import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom/vitest";
 import App from "./App";
 import { installApiStub, installAppEnvironment, type ApiStub } from "../test/api";
-import type { QueryResponse } from "./api/client";
+import type { DebugInfo, QueryResponse } from "./api/client";
 
 let api: ApiStub;
 
@@ -48,6 +48,39 @@ function answer(overrides: Partial<QueryResponse> = {}): QueryResponse {
     ],
     confidence: { score: 0.82, retrieval_score: 0.82, citation_coverage: 0.9, band: "hoch" },
     debug: null,
+    ...overrides,
+  };
+}
+
+/**
+ * The `debug` payload the API sends to the admin role and to nobody else
+ * (openapi.yaml). Only `params_used` carries anything a case here reads; the
+ * rest is filled because the schema requires it, which is also what keeps this
+ * fixture honest — a field added to DebugInfo fails the type check instead of
+ * quietly missing from the admin view under test.
+ */
+function debugInfo(overrides: Partial<DebugInfo> = {}): DebugInfo {
+  return {
+    chunks: [],
+    stages: [],
+    llm_calls: [],
+    similarity_threshold: 0.35,
+    min_retrieval_confidence: 0.4,
+    min_citation_coverage: 0.5,
+    self_check_ran: false,
+    retrieval_detail: {
+      top_score: 0.8,
+      mean_score: 0.6,
+      evidence_density: 0.5,
+      result: 0.59,
+      count: 5,
+    },
+    params_used: { min_retrieval_confidence: 0.4, min_citation_coverage: 0.5 },
+    dense_above_threshold: 5,
+    total_dense_retrieved: 20,
+    sparse_count: 12,
+    top_n_used: 5,
+    formula_breakdown: "0.4*0.59 + …",
     ...overrides,
   };
 }
@@ -154,14 +187,13 @@ describe("Unterdrückte Antwort", () => {
 
 describe("Chip «Citation»", () => {
   it("nennt die Quote, wenn Stufe 2 gelaufen ist — auch ohne debug", async () => {
-    // The regression this covers: `debug` is admin-only (openapi.yaml), and the
-    // chip used to derive "did it run?" from `debug.stages`. Every learner was
-    // therefore told the citation check had not run — next to a composite score
-    // that could only have come about because it had. Measured against the
-    // running stack: coverage 1.0, debug null, chip "nicht gelaufen".
+    // The chip used to derive "did it run?" from `debug.stages`, and an empty
+    // `stages` list — as here — answered "did not run" for an answer whose
+    // coverage was 1.0. It now comes from the suppression reason, which the
+    // response always carries and which the compiler checks against the spec.
     await ask(answer({
       confidence: { score: 0.793, retrieval_score: 0.586, citation_coverage: 1, band: "hoch" },
-      debug: null,
+      debug: debugInfo(),
     }));
 
     expect(screen.getByText("Citation: 100%")).toBeInTheDocument();
@@ -180,6 +212,7 @@ describe("Chip «Citation»", () => {
       message: "Die erzeugte Antwort war nicht ausreichend durch die gefundenen Stellen belegt.",
       refinement_hint: "Grenze die Frage auf einen Punkt ein.",
       confidence: { score: 0.46, retrieval_score: 0.59, citation_coverage: 0.33, band: "niedrig" },
+      debug: debugInfo(),
     }));
 
     expect(screen.getByText("Citation: 33%")).toBeInTheDocument();
@@ -196,9 +229,32 @@ describe("Chip «Citation»", () => {
       refinement_hint: "Nenne einen konkreten Prozess.",
       citations: [],
       confidence: { score: 0.22, retrieval_score: 0.22, citation_coverage: 0, band: "niedrig" },
+      debug: debugInfo(),
     }));
 
     expect(screen.getByText("Citation: nicht gelaufen")).toBeInTheDocument();
+  });
+});
+
+// --- Which numbers a learner is shown at all --------------------------------
+
+describe("Detail-Chips", () => {
+  it("zeigt Lernenden den Komposit-Score, aber nicht seine Bestandteile", async () => {
+    // Requirements §75 asks that the score be visible — that is `Composite`.
+    // `Retrieval` and `Citation` are calibration figures: next to the badge US-02
+    // wants read, they were three numbers competing with the one statement.
+    await ask(answer({ debug: null }));
+
+    expect(screen.getByText(/^Composite:/)).toBeInTheDocument();
+    expect(screen.queryByText(/^Retrieval:/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Citation:/)).not.toBeInTheDocument();
+  });
+
+  it("zeigt sie in der Admin-Ansicht weiterhin", async () => {
+    await ask(answer({ debug: debugInfo() }));
+
+    expect(screen.getByText(/^Retrieval:/)).toBeInTheDocument();
+    expect(screen.getByText(/^Citation:/)).toBeInTheDocument();
   });
 });
 

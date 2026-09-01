@@ -65,18 +65,16 @@ const suppressLabels: Record<SuppressionReason, string> = {
 //   `niedrig` never reaches a delivered answer: it suppresses (ADR-008), and
 //             what the learner then reads is the suppression badge plus the
 //             refinement hint below, not a verdict on prose that was withheld.
-// Whether stage 2 (the citation check) ran, derived from the suppression reason
-// instead of from `debug.stages`. `debug` is filled for the admin role alone
-// (openapi.yaml), so the old lookup answered "did not run" for every learner —
-// including an answer whose `citation_coverage` was 1.0, which is how the chip
-// came to contradict the composite score printed next to it.
-//
-// The pipeline order settles it without debug: `check_citations` sits behind a
-// successful generation (app/routers/query.py), so every reason from the
-// citation stage onwards means it ran, and every earlier one means it did not.
-// A delivered answer always passed through it. `Record<SuppressionReason, …>`
-// again, so a reason added to the spec has to be classified here rather than
-// silently defaulting to one of the two answers.
+// Whether stage 2 (the citation check) ran. `debug.stages` records it directly
+// (`ran = citation is not None` in app/routers/query.py) and is in reach now
+// that the chip is admin-only — but that lookup matches a stage id as a plain
+// string and answers "did not run" when it finds nothing, so a rename in the
+// backend would go unnoticed. The suppression reason carries the same fact and
+// is type-checked across the boundary: `check_citations` sits behind a
+// successful generation, so every reason from the citation stage onwards means
+// it ran, every earlier one means it did not, and a delivered answer always
+// passed through it. `Record<SuppressionReason, …>`, so a reason added to the
+// spec has to be classified here instead of defaulting to one of the answers.
 const CITATION_STAGE_RAN: Record<SuppressionReason, boolean> = {
   retrieval_gate:       false,
   retrieval_confidence: false,
@@ -576,15 +574,15 @@ export default function MessageBubble({ message: m, token }: Props) {
           }}>
             Composite: {pct(m.confidence.score)}
           </span>
-          {(() => {
-            // Coloured only against a threshold we actually have. params_used is
-            // filled for admins alone, and the invented fallback (0.55, while the
-            // backend default is 0.40) painted every learner's answer red whose
-            // score sat between the two — for a stage that had passed it.
-            // `confidence.band` is the value US-02 wants shown here, but the
-            // learner-facing badge for it is T-27; today the band appears only
-            // in the admin debug panel, so this block stays a raw comparison
-            // and simply declines to colour what it cannot judge.
+          {/* Retrieval and citation are the parts, the composite is the answer.
+              Requirements §75 asks that the score be visible, and that is the
+              chip above; these two are calibration figures, and next to the
+              badge US-02 actually wants read they were three numbers competing
+              with the one statement. Gated on `debug`, which openapi.yaml fills
+              for the admin role alone — the same signal the thresholds below
+              already depend on, so the block no longer has to decline to colour
+              what it cannot judge. */}
+          {d && (() => {
             const minRet = d?.params_used?.min_retrieval_confidence ?? null;
             const retFail = minRet !== null && m.confidence!.retrieval_score < minRet;
             const minCit = d?.params_used?.min_citation_coverage ?? null;
