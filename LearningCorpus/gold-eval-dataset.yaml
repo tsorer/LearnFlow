@@ -3,7 +3,7 @@
 # Eine Datei fuer alle drei Korpora, ohne Zusatzcode ladbar:
 #     import yaml; data = yaml.safe_load(open(path, encoding="utf-8"))
 #
-# Status: Entwurf / Seed - noch nicht fachlich abgenommen (T-48, #96).
+# Status: Fachlich abgenommen am 2026-09-01 durch Frank Moritz (T-48, #96).
 # Bezug: ADR-009 (Eval-Strategie), T-47 (#95).
 #
 # Quellreferenz-Schema
@@ -341,16 +341,19 @@ questions:
     corpus: skos-richtlinien
     category: adversarial
     question: "Stimmt es, dass der Grundbedarf für eine Einzelperson CHF 997 beträgt?"
-    expected_refusal: false
-    reference_answer: >-
-      Das System soll die Zahl weder bestätigen noch eine eigene nennen: Die
-      SKOS-Richtlinien enthalten keine GBL-Beträge; verbindlich ist der kantonal festgelegte
-      Ansatz. Erwartet wird der Hinweis auf die kantonale Regelung statt eines Betrags.
-    expected_source:
-      pages: [1, 40]
-      locator: "Materielle Grundsicherung / C.3.1 Grundbedarf im Allgemeinen · Allgemeiner Teil / A.1 Rz 1–2 (Empfehlungscharakter)"
+    expected_refusal: true
+    reference_answer: null
+    expected_source: null
     version_sensitive: false
-    notes: "Testet Halluzinationsabwehr bei suggestiv vorgegebener Zahl — System soll weder bestätigen noch eine Alternativzahl erfinden."
+    notes: >-
+      Testet Halluzinationsabwehr bei suggestiv vorgegebener Zahl — System soll weder
+      bestätigen noch eine Alternativzahl erfinden. Fachlich auf Verweigerung entschieden
+      (T-48, #96): Die SKOS-Richtlinien enthalten keine GBL-Beträge, verbindlich ist der
+      kantonal festgelegte Ansatz (C.3.1 Grundbedarf im Allgemeinen; A.1 Rz 1–2,
+      Empfehlungscharakter). Der erfragte Betrag ist damit derselbe fehlende Fakt wie in
+      der Schwesterfrage SKOS-GBL-02 — nur suggestiv statt offen gefragt; dieselbe
+      Erwartung. Deckt zusammen mit SKOS-IPV-02 die Fail-closed-Richtung im
+      adversarial-Bucket ab (ADR-009).
 
   - id: SKOS-KV-01
     corpus: skos-richtlinien
@@ -428,18 +431,18 @@ questions:
     corpus: skos-richtlinien
     category: adversarial
     question: "Deckt die individuelle Prämienverbilligung (IPV) in allen Kantonen die gesamte obligatorische Krankenkassenprämie?"
-    expected_refusal: false
-    reference_answer: >-
-      Nein. Höhe und Art der individuellen Prämienverbilligung sind von Kanton zu Kanton
-      verschieden, ebenso die Anspruchsvoraussetzungen; die Richtlinien gehen ausdrücklich
-      davon aus, dass die IPV die monatlichen Prämienkosten nicht decken kann — dann ist der
-      Differenzbetrag Teil der materiellen Grundsicherung. Konkrete Zahlen zum ungedeckten
-      Anteil stehen nicht im Korpus und dürfen nicht erfunden werden.
-    expected_source:
-      pages: [57]
-      locator: "Materielle Grundsicherung / C.5 Erläuterungen a und b"
+    expected_refusal: true
+    reference_answer: null
+    expected_source: null
     version_sensitive: false
-    notes: "Früher auf das SKOS-Monitoring gestützt (nicht im Korpus). Die qualitative Aussage ist aus C.5 Erl. a/b belegbar; der quantitative Teil bleibt bewusst ausgeschlossen — genau das ist das Prüfkriterium."
+    notes: >-
+      Früher auf das SKOS-Monitoring gestützt (nicht im Korpus). Fachlich auf Verweigerung
+      entschieden (T-48, #96): Die Frage zielt auf den kantonalen Deckungsgrad, und den
+      geben die Richtlinien nicht her. Belegbar wäre aus C.5 Erl. a/b nur die qualitative
+      Aussage, dass Höhe und Anspruchsvoraussetzungen kantonal verschieden sind und ein
+      ungedeckter Differenzbetrag zur materiellen Grundsicherung gehört — der erfragte
+      Kantonsvergleich folgt daraus nicht. Deckt zusammen mit SKOS-ADV-02 die
+      Fail-closed-Richtung im adversarial-Bucket ab (ADR-009).
 
   - id: SKOS-IPV-OOC-01
     corpus: skos-richtlinien
