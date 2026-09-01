@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import type { Message, ChunkDebugInfo, StageInfo, LLMCallInfo, DebugInfo, ConfidenceInfo, SuppressionReason } from "../types";
+import type { Message, ChunkDebugInfo, StageInfo, LLMCallInfo, DebugInfo, ConfidenceInfo, ConfidenceBand, SuppressionReason } from "../types";
 import { api, type Citation, type FeedbackCategory } from "../api/client";
 
 // Keyed by the FeedbackCategory enum in openapi.yaml, one entry per value
@@ -55,6 +55,46 @@ const suppressLabels: Record<SuppressionReason, string> = {
   confidence_band:      "Konfidenz insgesamt zu tief",
   self_check:           "Self-Check fand ungedeckte Aussagen",
   configuration_error:  "Suche nicht korrekt konfiguriert",
+};
+
+// Keyed by the spec enum (see ConfidenceBand), same guarantee as the map above.
+// Only `mittel` carries a badge, and the two nulls are the point of the table
+// rather than gaps in it (T-27, US-02):
+//   `hoch`    the answer stands on its sources — an unmarked answer is the good
+//             case, and a badge on every answer would stop being a signal.
+//   `niedrig` never reaches a delivered answer: it suppresses (ADR-008), and
+//             what the learner then reads is the suppression badge plus the
+//             refinement hint below, not a verdict on prose that was withheld.
+// Whether stage 2 (the citation check) ran. `debug.stages` records it directly
+// (`ran = citation is not None` in app/routers/query.py) and is in reach now
+// that the chip is admin-only — but that lookup matches a stage id as a plain
+// string and answers "did not run" when it finds nothing, so a rename in the
+// backend would go unnoticed. The suppression reason carries the same fact and
+// is type-checked across the boundary: `check_citations` sits behind a
+// successful generation, so every reason from the citation stage onwards means
+// it ran, every earlier one means it did not, and a delivered answer always
+// passed through it. `Record<SuppressionReason, …>`, so a reason added to the
+// spec has to be classified here instead of defaulting to one of the answers.
+const CITATION_STAGE_RAN: Record<SuppressionReason, boolean> = {
+  retrieval_gate:       false,
+  retrieval_confidence: false,
+  generation_refused:   false,
+  generation_truncated: false,
+  configuration_error:  false,
+  citation_coverage:    true,
+  citation_invalid:     true,
+  confidence_band:      true,
+  self_check:           true,
+};
+
+const BAND_BADGES: Record<ConfidenceBand, { label: string; icon: string; note: string } | null> = {
+  hoch: null,
+  mittel: {
+    label: "Eingeschränkt belegt",
+    icon: "◐",
+    note: "Die Quellen decken diese Antwort nur teilweise. Prüfe die angegebenen Stellen, bevor du dich darauf verlässt.",
+  },
+  niedrig: null,
 };
 
 function pct(v: number) { return `${Math.round(v * 100)}%`; }
@@ -476,6 +516,29 @@ export default function MessageBubble({ message: m, token }: Props) {
   }
 
   const d = m.debug;
+  // Only for an answer that was actually delivered: a suppressed one carries no
+  // prose to qualify, and its own badge already says why it is missing.
+  const band = !m.suppressed && m.confidence ? BAND_BADGES[m.confidence.band] : null;
+  // One block, two roles, deliberately told apart (US-02: the states have to be
+  // distinguishable). Amber warns about prose the learner did get; the quiet one
+  // helps with a question whose answer was withheld, where the ⚠ badge above
+  // already carries the warning and a second one would only shout. The label
+  // draws the same line for a screen reader, which cannot see the colour.
+  const note = band
+    ? {
+        label: "Hinweis zur Belegung der Antwort",
+        body: band.note,
+        background: "var(--amber-lt)",
+        border: "var(--amber)",
+      }
+    : m.suppressed && m.refinement_hint
+      ? {
+          label: "Tipp zur Präzisierung der Frage",
+          body: <><strong>Tipp: </strong>{m.refinement_hint}</>,
+          background: "var(--card)",
+          border: "var(--border)",
+        }
+      : null;
 
   return (
     <div style={{ alignSelf: "flex-start", maxWidth: "90%", display: "flex", flexDirection: "column", gap: 8 }}>
@@ -494,6 +557,16 @@ export default function MessageBubble({ message: m, token }: Props) {
           and its badge is the only thing telling the user why nothing came back. */}
       {(m.confidence || m.suppression_reason) && (
         <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+          {/* First in the row on purpose: this is the one chip US-02 asks a
+              learner to read, the percentages behind it are the detail. */}
+          {band && (
+            <span style={{
+              fontSize: 11, padding: "2px 9px", borderRadius: 20, fontWeight: 700,
+              background: "var(--amber-lt)", color: "var(--amber)",
+            }}>
+              <span aria-hidden="true">{band.icon} </span>{band.label}
+            </span>
+          )}
           {m.confidence && (<>
           <span style={{
             background: "var(--blue-lt)", color: "var(--navy)",
@@ -501,22 +574,24 @@ export default function MessageBubble({ message: m, token }: Props) {
           }}>
             Composite: {pct(m.confidence.score)}
           </span>
-          {(() => {
-            // Coloured only against a threshold we actually have. params_used is
-            // filled for admins alone, and the invented fallback (0.55, while the
-            // backend default is 0.40) painted every learner's answer red whose
-            // score sat between the two — for a stage that had passed it.
-            // `confidence.band` is the value US-02 wants shown here, but the
-            // learner-facing badge for it is T-27; today the band appears only
-            // in the admin debug panel, so this block stays a raw comparison
-            // and simply declines to colour what it cannot judge.
+          {/* Retrieval and citation are the parts, the composite is the answer.
+              Requirements §75 asks that the score be visible, and that is the
+              chip above; these two are calibration figures, and next to the
+              badge US-02 actually wants read they were three numbers competing
+              with the one statement. Gated on `debug`, which openapi.yaml fills
+              for the admin role alone — the same signal the thresholds below
+              already depend on, so the block no longer has to decline to colour
+              what it cannot judge. */}
+          {d && (() => {
             const minRet = d?.params_used?.min_retrieval_confidence ?? null;
             const retFail = minRet !== null && m.confidence!.retrieval_score < minRet;
             const minCit = d?.params_used?.min_citation_coverage ?? null;
             // Only meaningful once stage 2 ran. Below the retrieval gates the
             // coverage is 0.0 for "not measured", and painting that red would
             // report a failure of a check that never happened (ADR-008).
-            const citRan = d?.stages?.find(s => s.id === "citation_coverage")?.ran ?? false;
+            const citRan = m.suppression_reason
+              ? CITATION_STAGE_RAN[m.suppression_reason]
+              : true;
             const citFail = citRan && minCit !== null && m.confidence!.citation_coverage < minCit;
             return (
               <>
@@ -552,6 +627,21 @@ export default function MessageBubble({ message: m, token }: Props) {
               {showSources ? `Quellen ▲` : `${m.citations.length} Quelle${m.citations.length > 1 ? "n" : ""} ▼`}
             </button>
           )}
+        </div>
+      )}
+
+      {/* The badge's explanatory text (US-02: colour + icon + hint) and, after a
+          suppression, the backend's advice on what to try next — see `note`
+          above for why the two look different. `role="note"` rather than
+          "alert": the text arrives with the answer and must not interrupt a
+          screen reader mid-sentence. */}
+      {note && (
+        <div role="note" aria-label={note.label} style={{
+          fontSize: 12, lineHeight: 1.5, color: "var(--text)",
+          background: note.background, border: `1px solid ${note.border}`,
+          borderRadius: 8, padding: "8px 12px",
+        }}>
+          {note.body}
         </div>
       )}
 
