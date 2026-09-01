@@ -466,6 +466,182 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /api/quiz/questions:
+    get:
+      tags: [quiz]
+      summary: Generierte Quiz-Fragen lesen (US-07, US-08)
+      description: >
+        Ein Endpoint fuer zwei Oberflaechen: das Review-Board des
+        Bereichsverantwortlichen (T-35, alle Status) und das Quiz der Lernenden
+        (T-36, nur Freigegebenes). Welche Status sichtbar sind, entscheidet die
+        Rolle und nicht der Aufrufer: `knowledge_owner` und `admin` sehen alle
+        drei, Lernende ausschliesslich `approved` -- auch bei `?status=pending`.
+        Das ist dann eine leere Seite und kein 403: der Parameter schneidet die
+        fuer die Rolle erlaubte Teilmenge, er erweitert sie nie (ADR-008,
+        fail-closed).
+
+        Nicht nach Bereich gefiltert: US-08 nennt den Pool freigegebener Fragen
+        "pro Bereich", im MVP gibt es aber genau einen (`PILOT_AREA`) und am
+        Konto kein `area`-Feld, gegen das zu filtern waere. Bewusst vertagt,
+        bis Bereiche pro Konto existieren -- dann gehoert der Filter hierher
+        und nicht in den Client.
+      parameters:
+        - name: status
+          in: query
+          required: false
+          description: Ohne Angabe alle fuer die Rolle sichtbaren Status.
+          schema:
+            $ref: '#/components/schemas/QuizQuestionStatus'
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: >
+            Eine Seite Fragen, nach `created_at` absteigend. `limit` und
+            `offset` wirken innerhalb des gewaehlten Status-Filters und nicht
+            ueber alle Status hinweg -- das Board laedt je Spalte eine Seite,
+            und ein globales Fenster koennte eine Spalte leer lassen, obwohl
+            sie Fragen enthaelt.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuizQuestionPage'
+        '401':
+          description: Nicht authentifiziert
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: >
+            Unbekannter `status`, `limit` ueber dem Maximum von 200 oder
+            negativer `offset`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+
+  /api/quiz/questions/sample:
+    get:
+      tags: [quiz]
+      summary: Fuenf freigegebene Fragen fuer einen Quiz-Durchlauf ziehen (US-08)
+      description: >
+        Zieht eine Zufallsstichprobe aus dem Pool der freigegebenen Fragen --
+        `GET /api/quiz/questions` kann das nicht sein: es sortiert nach
+        `created_at` und liefert damit immer dieselben fuenf neuesten, was eine
+        Liste ist und keine Stichprobe. Gezogen wird im SQL, nicht im Client,
+        analog `sample_chunks` in app/services/retrieval.py: der Client muesste
+        sonst den ganzen Pool laden, um fuenf davon zu behalten.
+
+        Unabhaengig von der Rolle ausschliesslich `approved` -- auch der
+        Bereichsverantwortliche sieht hier das Quiz der Lernenden und nicht
+        seinen Pruefstand (ADR-008, fail-closed). Weniger als fuenf Fragen sind
+        ein normales Ergebnis und kein Fehler: der Bereich enthaelt, was er
+        enthaelt.
+
+        Wie beim Lese-Endpoint ohne Bereichsfilter, aus demselben Grund und mit
+        derselben Vertagung -- im MVP zieht die Stichprobe aus dem einen
+        Bereich, den es gibt.
+      responses:
+        '200':
+          description: >
+            Bis zu fuenf freigegebene Fragen in zufaelliger Reihenfolge.
+            `total` ist die Groesse des Pools, aus dem gezogen wurde -- damit
+            die Quiz-UI einen leeren oder knappen Bestand benennen kann, statt
+            eine kurze Runde als vollstaendig auszugeben.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuizQuestionPage'
+        '401':
+          description: Nicht authentifiziert
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # `question_id`, obwohl der Titel von #98 den Pfad mit `{id}` nennt: die
+  # uebrigen Pfade benennen ihren Schluessel nach der Ressource
+  # (`/api/documents/{document_id}`, `/api/answers/{answer_id}/feedback`), und
+  # ein einzelnes `{id}` waere die Ausnahme. Der generierte Client benennt
+  # daraus sein Argument -- die Abweichung waere in jedem Aufruf sichtbar.
+  /api/quiz/questions/{question_id}:
+    patch:
+      tags: [quiz]
+      summary: Frage freigeben, ablehnen oder inhaltlich korrigieren (US-07)
+      description: >
+        Das Urteil des Bereichsverantwortlichen und die Korrektur am Text sind
+        derselbe Vorgang, weil sie voneinander abhaengen. `status: approved`
+        setzt `approved_at` auf den Zeitpunkt der Freigabe, jeder andere Status
+        setzt es auf NULL. Eine inhaltliche Aenderung an einer bereits
+        freigegebenen Frage schickt sie zurueck auf `pending` und nullt
+        `approved_at` -- ausser derselbe Request bestaetigt die Freigabe mit
+        `status: approved` (Editieren und Freigeben in einem Schritt). Sonst
+        truege eine Freigabe einen Text, den in dieser Form niemand freigegeben
+        hat (ADR-008). Als inhaltliche Aenderung zaehlt nur ein Wert, der vom
+        gespeicherten abweicht: eine Oberflaeche, die beim Speichern alle
+        Felder unveraendert mitschickt, zieht damit keine Freigabe zurueck.
+      parameters:
+        - name: question_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuizQuestionUpdate'
+      responses:
+        '200':
+          description: Die Frage nach der Aenderung
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuizQuestion'
+        '401':
+          description: Nicht authentifiziert
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Keine Berechtigung (Rolle knowledge_owner erforderlich)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Frage nicht gefunden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: >
+            Leerer Rumpf, ein nicht schreibbares Feld (`document_id`,
+            `chunk_id`, `source_excerpt`), `options` mit einer anderen Anzahl
+            als vier, oder ein `correct_answer` ausserhalb von A bis D.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+
   /api/health:
     get:
       tags: [infra]
@@ -1063,3 +1239,50 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/QuizQuestion'
+
+    QuizQuestionPage:
+      type: object
+      required: [items, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/QuizQuestion'
+        total:
+          description: >
+            Anzahl aller Fragen des gewaehlten Filters, unabhaengig von `limit`
+            und `offset`. Bewusst ein Objekt statt eines blanken Arrays: das
+            Board zeigt je Spalte eine Anzahl, und `total` nachtraeglich
+            einzufuehren waere ein Breaking Change fuer T-35 und T-36.
+          type: integer
+
+    QuizQuestionUpdate:
+      type: object
+      description: >
+        Mindestens ein Feld; nicht genannte Felder bleiben unveraendert.
+        `document_id`, `chunk_id` und `source_excerpt` fehlen hier nicht
+        versehentlich -- sie sind der Beleg der Frage und nicht ihr Inhalt.
+        `additionalProperties: false` macht den Schreibversuch darauf zu einem
+        422 statt zu einem stillschweigend ignorierten Feld.
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        status:
+          $ref: '#/components/schemas/QuizQuestionStatus'
+        question:
+          type: string
+          minLength: 1
+        options:
+          description: Genau vier Antwortoptionen; `correct_answer` indiziert sie.
+          type: array
+          minItems: 4
+          maxItems: 4
+          items:
+            type: string
+            minLength: 1
+        correct_answer:
+          type: string
+          enum: [A, B, C, D]
+        explanation:
+          type: string
+          minLength: 1

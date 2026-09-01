@@ -25,6 +25,9 @@ EXPECTED_OPERATIONS = [
     ("/api/admin/config", "get"),
     ("/api/admin/config", "put"),
     ("/api/quiz/generate", "post"),
+    ("/api/quiz/questions", "get"),
+    ("/api/quiz/questions/sample", "get"),
+    ("/api/quiz/questions/{question_id}", "patch"),
 ]
 
 
