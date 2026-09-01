@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import type { AuthUser, Message } from "../types";
 import { api, ApiError } from "../api/client";
 import Upload from "./Upload";
@@ -91,6 +92,7 @@ function failureMessage(err: unknown): string {
 interface Props { user: AuthUser; onLogout: () => void; }
 
 export default function ChatView({ user, onLogout }: Props) {
+  const navigate = useNavigate();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -135,6 +137,10 @@ export default function ChatView({ user, onLogout }: Props) {
   }, [messages]);
 
   const canUpload = user.role === "knowledge_owner" || user.role === "admin";
+  // Same role set as canUpload today, but a distinct permission (T-35's
+  // /quiz-review, not document upload) — kept separate so the two do not
+  // silently start meaning "one or the other" if they ever diverge.
+  const canReview = user.role === "knowledge_owner" || user.role === "admin";
 
   const send = async () => {
     if (busy) return;
@@ -202,6 +208,11 @@ export default function ChatView({ user, onLogout }: Props) {
           {canUpload && (
             <button className="secondary" style={{ fontSize: 12 }} onClick={() => setShowUpload(v => !v)}>
               {showUpload ? "Chat" : "Dokumente"}
+            </button>
+          )}
+          {canReview && (
+            <button className="secondary" style={{ fontSize: 12 }} onClick={() => navigate("/quiz-review")}>
+              Quiz-Review
             </button>
           )}
           {/* Both hidden in the document view, because neither acts on it: the

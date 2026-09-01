@@ -14,10 +14,11 @@ import type {
   StageInfo,
 } from "./api/client";
 
-// Re-exported are the ones components actually import from here. Role and
-// Citation are needed internally only (AuthUser resp. Message); anyone needing
-// them directly takes them from ./api/client.
-export type { ChunkDebugInfo, ConfidenceInfo, DebugInfo, LLMCallInfo, StageInfo };
+// Re-exported are the ones components actually import from here. Citation is
+// needed internally only (Message); anyone needing it directly takes it from
+// ./api/client. Role is re-exported since RouteGuards (T-35) needs it for its
+// `roles` prop.
+export type { ChunkDebugInfo, ConfidenceInfo, DebugInfo, LLMCallInfo, Role, StageInfo };
 
 /**
  * The closed set of `suppression_reason` values, straight from the spec enum —
