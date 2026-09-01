@@ -284,9 +284,10 @@ def apply_update(row: QuizQuestion, patch: QuizQuestionUpdate, now: datetime) ->
     Content first, verdict second, because the second rule depends on whether
     the first one actually changed anything:
 
-    - an explicit `status` wins. `approved` stamps `approved_at`, every other
-      status clears it (US-07 asks for the moment of the approval, and a
-      withdrawn one has none);
+    - an explicit `status` wins. Every status but `approved` clears
+      `approved_at` (a withdrawn approval has no moment); `approved` stamps it
+      only when the approval is actually new — a re-sent `approved` on an
+      unchanged, already approved question is not a second approval;
     - otherwise a content change to an approved question withdraws the
       approval. A request that edits *and* sends `status: approved` therefore
       stays approved — it is one step, and the reviewer saw the new text. One
@@ -308,8 +309,21 @@ def apply_update(row: QuizQuestion, patch: QuizQuestionUpdate, now: datetime) ->
             changed_content = True
 
     if patch.status is not None:
+        was_approved = row.status == QuizQuestionStatus.approved.value
         row.status = patch.status.value
-        row.approved_at = now if patch.status is QuizQuestionStatus.approved else None
+        if patch.status is not QuizQuestionStatus.approved:
+            row.approved_at = None
+        elif changed_content or not was_approved or row.approved_at is None:
+            # Only a *new* approval gets a new timestamp. Re-sending
+            # `status: approved` for a question that already carries it is the
+            # same non-event as re-sending its unchanged text above, and the
+            # board round-trips both: without this, opening an approved
+            # question in August and saving it unchanged would move its
+            # approval date there, and US-07 asks for the moment of the
+            # approval. `not was_approved` is kept next to the NULL check on
+            # purpose — a row whose stamp was lost by hand is repaired rather
+            # than carried forward.
+            row.approved_at = now
     elif changed_content and row.status == QuizQuestionStatus.approved.value:
         row.status = QuizQuestionStatus.pending.value
         row.approved_at = None

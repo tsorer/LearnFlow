@@ -740,6 +740,7 @@ export interface paths {
         /**
          * Generierte Quiz-Fragen lesen (US-07, US-08)
          * @description Ein Endpoint fuer zwei Oberflaechen: das Review-Board des Bereichsverantwortlichen (T-35, alle Status) und das Quiz der Lernenden (T-36, nur Freigegebenes). Welche Status sichtbar sind, entscheidet die Rolle und nicht der Aufrufer: `knowledge_owner` und `admin` sehen alle drei, Lernende ausschliesslich `approved` -- auch bei `?status=pending`. Das ist dann eine leere Seite und kein 403: der Parameter schneidet die fuer die Rolle erlaubte Teilmenge, er erweitert sie nie (ADR-008, fail-closed).
+         *     Nicht nach Bereich gefiltert: US-08 nennt den Pool freigegebener Fragen "pro Bereich", im MVP gibt es aber genau einen (`PILOT_AREA`) und am Konto kein `area`-Feld, gegen das zu filtern waere. Bewusst vertagt, bis Bereiche pro Konto existieren -- dann gehoert der Filter hierher und nicht in den Client.
          */
         get: {
             parameters: {
@@ -803,6 +804,7 @@ export interface paths {
          * Fuenf freigegebene Fragen fuer einen Quiz-Durchlauf ziehen (US-08)
          * @description Zieht eine Zufallsstichprobe aus dem Pool der freigegebenen Fragen -- `GET /api/quiz/questions` kann das nicht sein: es sortiert nach `created_at` und liefert damit immer dieselben fuenf neuesten, was eine Liste ist und keine Stichprobe. Gezogen wird im SQL, nicht im Client, analog `sample_chunks` in app/services/retrieval.py: der Client muesste sonst den ganzen Pool laden, um fuenf davon zu behalten.
          *     Unabhaengig von der Rolle ausschliesslich `approved` -- auch der Bereichsverantwortliche sieht hier das Quiz der Lernenden und nicht seinen Pruefstand (ADR-008, fail-closed). Weniger als fuenf Fragen sind ein normales Ergebnis und kein Fehler: der Bereich enthaelt, was er enthaelt.
+         *     Wie beim Lese-Endpoint ohne Bereichsfilter, aus demselben Grund und mit derselben Vertagung -- im MVP zieht die Stichprobe aus dem einen Bereich, den es gibt.
          */
         get: {
             parameters: {

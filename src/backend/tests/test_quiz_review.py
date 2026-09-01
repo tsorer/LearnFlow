@@ -171,6 +171,53 @@ def test_editing_and_approving_in_one_request_stays_approved() -> None:
     assert row.approved_at == NOW
 
 
+def test_resending_approved_on_an_unchanged_question_keeps_the_original_stamp() -> None:
+    """A save that changes nothing is not a second approval.
+
+    The board round-trips `status` alongside the content fields, so without
+    this an approved question would take the date of the last time anyone
+    opened and saved it — while US-07 asks for the moment of the approval.
+    Same rule as for the content fields, which is where this one was missing.
+    """
+    row = make_row(QuizQuestionStatus.approved, approved_at=YESTERDAY)
+    apply_update(row, QuizQuestionUpdate(status=QuizQuestionStatus.approved), NOW)
+    assert row.status == "approved"
+    assert row.approved_at == YESTERDAY
+
+
+def test_resending_approved_together_with_the_identical_text_keeps_the_stamp() -> None:
+    """The full round-trip a board actually sends: status plus all four
+    content fields, none of them changed."""
+    row = make_row(QuizQuestionStatus.approved, approved_at=YESTERDAY)
+    apply_update(
+        row,
+        QuizQuestionUpdate(
+            status=QuizQuestionStatus.approved,
+            question=row.question,
+            options=list(row.options),
+            correct_answer=row.correct_answer,
+            explanation=row.explanation,
+        ),
+        NOW,
+    )
+    assert row.approved_at == YESTERDAY
+
+
+def test_approving_again_after_a_withdrawal_stamps_anew() -> None:
+    """Not the same case: the approval really is new, so its moment is now."""
+    row = make_row(QuizQuestionStatus.rejected, approved_at=None)
+    apply_update(row, QuizQuestionUpdate(status=QuizQuestionStatus.approved), NOW)
+    assert row.approved_at == NOW
+
+
+def test_an_approved_row_without_a_stamp_is_repaired() -> None:
+    """`approved` with no `approved_at` is not a state this code writes — a row
+    edited by hand can carry it. Stamping beats leaving the contradiction."""
+    row = make_row(QuizQuestionStatus.approved, approved_at=None)
+    apply_update(row, QuizQuestionUpdate(status=QuizQuestionStatus.approved), NOW)
+    assert row.approved_at == NOW
+
+
 def test_resending_the_identical_text_is_not_an_edit() -> None:
     """The board round-trips all four content fields when saving one of them —
     an unchanged value must not withdraw the approval."""

@@ -479,6 +479,12 @@ paths:
         Das ist dann eine leere Seite und kein 403: der Parameter schneidet die
         fuer die Rolle erlaubte Teilmenge, er erweitert sie nie (ADR-008,
         fail-closed).
+
+        Nicht nach Bereich gefiltert: US-08 nennt den Pool freigegebener Fragen
+        "pro Bereich", im MVP gibt es aber genau einen (`PILOT_AREA`) und am
+        Konto kein `area`-Feld, gegen das zu filtern waere. Bewusst vertagt,
+        bis Bereiche pro Konto existieren -- dann gehoert der Filter hierher
+        und nicht in den Client.
       parameters:
         - name: status
           in: query
@@ -545,6 +551,10 @@ paths:
         seinen Pruefstand (ADR-008, fail-closed). Weniger als fuenf Fragen sind
         ein normales Ergebnis und kein Fehler: der Bereich enthaelt, was er
         enthaelt.
+
+        Wie beim Lese-Endpoint ohne Bereichsfilter, aus demselben Grund und mit
+        derselben Vertagung -- im MVP zieht die Stichprobe aus dem einen
+        Bereich, den es gibt.
       responses:
         '200':
           description: >
