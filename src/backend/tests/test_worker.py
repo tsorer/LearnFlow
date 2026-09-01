@@ -10,23 +10,34 @@ import pytest
 from pgqueuer.models import Job
 
 from app.exceptions import UserFacingError
-from app.models.tables import DocumentStatus
+from app.models.tables import Document, DocumentStatus
 from app.services.parsing import MARKDOWN_CONTENT_TYPE
-from worker.main import Superseded, make_job_handler, process_document, read_chunk_config
+from worker.main import (
+    DEFAULT_PROCESSING_MAX_ATTEMPTS,
+    DEFAULT_PROCESSING_TIMEOUT_SECONDS,
+    MAX_REAPER_INTERVAL_SECONDS,
+    Superseded,
+    make_job_handler,
+    process_document,
+    read_chunk_config,
+    read_reaper_config,
+    reap_stuck_documents,
+    reaper_interval,
+)
 
 MARKDOWN = b"# Titel\n\nErster Absatz.\n\nZweiter Absatz."
 
 
-# The document's updated_at, which a run carries as its version token: read
+# The document's index_version, which a run carries as its version token: read
 # together with the content, it has to match again before anything is published
-# (T-15 — an upload replacing the document in between moves it).
-VERSION = datetime(2026, 8, 19, 8, 0, tzinfo=UTC)
+# (T-15 — an upload replacing the document moves it, T-43 — so does the reaper).
+VERSION = 7
 
 # The failed-update carries the same token, so a run that fails after a
 # replacement cannot report its failure on the new version.
 FAILED_UPDATE = (
     "UPDATE documents SET status = $4, error_message = $2 "
-    "WHERE id = $1 AND updated_at = $3"
+    "WHERE id = $1 AND index_version = $3"
 )
 
 
@@ -70,7 +81,7 @@ def make_conn(
     content: bytes = MARKDOWN,
     content_type: str = MARKDOWN_CONTENT_TYPE,
     config: Sequence[tuple[str, str]] = (("chunk_size", "512"), ("chunk_overlap", "64")),
-    version: datetime = VERSION,
+    version: int = VERSION,
 ) -> AsyncMock:
     conn = AsyncMock()
     # transaction() is a sync call returning an async context manager.
@@ -78,7 +89,7 @@ def make_conn(
     conn.fetchrow.return_value = {
         "content": content,
         "content_type": content_type,
-        "updated_at": version,
+        "index_version": version,
     }
     conn.fetch.return_value = [{"key": key, "value": value} for key, value in config]
     return conn
@@ -98,7 +109,7 @@ async def test_process_document_writes_chunks_and_marks_available() -> None:
     # every other status this worker sets.
     assert conn.fetchrow.await_args.args[0].startswith("SELECT content")
     assert conn.fetchval.await_args_list[0].args == (
-        "UPDATE documents SET status = $2 WHERE id = $1 AND updated_at = $3 RETURNING id",
+        "UPDATE documents SET status = $2 WHERE id = $1 AND index_version = $3 RETURNING id",
         document_id,
         DocumentStatus.processing,
         VERSION,
@@ -123,12 +134,25 @@ async def test_process_document_writes_chunks_and_marks_available() -> None:
 
     assert conn.fetchval.await_args_list[1].args == (
         "UPDATE documents SET status = $4, chunk_count = $2, "
-        "error_message = NULL WHERE id = $1 AND updated_at = $3 RETURNING id",
+        "error_message = NULL, index_attempts = 0 "
+        "WHERE id = $1 AND index_version = $3 RETURNING id",
         document_id,
         1,
         VERSION,
         DocumentStatus.available,
     )
+
+
+async def test_a_successful_run_returns_the_attempt_budget() -> None:
+    """The budget bounds one incident, not the document: without this a document
+    reaped twice and then indexed successfully would carry those two attempts
+    for good, and a crash weeks later would get one retry instead of three."""
+    conn = make_conn()
+
+    await process_document(conn, make_job(str(uuid.uuid4())))
+
+    publish = conn.fetchval.await_args_list[1].args[0]
+    assert "index_attempts = 0" in publish.split(" WHERE ")[0]
 
 
 async def test_a_document_replaced_while_indexing_is_not_published() -> None:
@@ -143,7 +167,7 @@ async def test_a_document_replaced_while_indexing_is_not_published() -> None:
     document_id = str(uuid.uuid4())
     conn = make_conn()
     # The run claims the document, and by the time it publishes no row carries
-    # the updated_at it read any more.
+    # the index_version it read any more.
     conn.fetchval.side_effect = [document_id, None]
 
     await process_document(conn, make_job(document_id))
@@ -164,12 +188,12 @@ async def test_the_version_read_with_the_content_is_the_one_published() -> None:
     second query, an upload landing between the two would leave the run indexing
     the old bytes under the new version's token — and publishing them."""
     document_id = str(uuid.uuid4())
-    conn = make_conn(version=datetime(2026, 8, 19, 9, 30, tzinfo=UTC))
+    conn = make_conn(version=42)
 
     await process_document(conn, make_job(document_id))
 
-    read_version = datetime(2026, 8, 19, 9, 30, tzinfo=UTC)
-    assert "updated_at" in conn.fetchrow.await_args.args[0]
+    read_version = 42
+    assert "index_version" in conn.fetchrow.await_args.args[0]
     # Both guarded writes compare against the version that came with the bytes.
     assert conn.fetchval.await_args_list[0].args[3] == read_version
     assert conn.fetchval.await_args_list[1].args[3] == read_version
@@ -462,15 +486,14 @@ async def test_non_numeric_chunk_config_fails_with_a_configuration_message() -> 
     )
 
 
-async def test_the_worker_never_writes_updated_at() -> None:
-    """`updated_at` is the version token the guard compares against, and it only
-    means anything as long as the upload path is the one that moves it.
+async def test_a_processing_run_never_writes_its_own_version_token() -> None:
+    """`index_version` is the token the guard compares against, and it only means
+    anything as long as the run being guarded is not the one moving it.
 
-    A worker statement that set it would make the guard compare a value the
-    worker moved itself — every run would look current, and the whole
-    construction would be decoration. The ORM side of the same invariant (a
-    future route writing a Document, where `onupdate` moves the column
-    unasked) is out of reach of a test; it is noted at the column and on #69.
+    A statement in `process_document` that set it would make the guard compare a
+    value the run moved itself — every run would look current, and the whole
+    construction would be decoration. The reaper in the same module does write
+    the column, and must: that is how it invalidates the run it gives away.
     """
     document_id = str(uuid.uuid4())
     conn = make_conn()
@@ -485,4 +508,178 @@ async def test_the_worker_never_writes_updated_at() -> None:
     assert writes, "no document write happened — the assertion below proves nothing"
     for sql in writes:
         assignments = sql.split(" WHERE ")[0]
-        assert "updated_at" not in assignments, sql
+        assert "index_version" not in assignments, sql
+
+
+def test_the_version_token_does_not_move_on_an_unrelated_orm_write() -> None:
+    """The other half of the same invariant, and the reason T-43 gave the guard a
+    column of its own (#69).
+
+    `updated_at` carries `onupdate=func.now()`: any ORM write to a Document moves
+    it, so while it was the token, a route writing the row for an unrelated
+    reason — a validation (US-06), an area rename, the reaper itself — silently
+    invalidated a run that was indexing the document at that moment. Logged as
+    info, reported as nothing, document left without chunks. `index_version` has
+    no `onupdate`, which is what makes that impossible rather than merely
+    documented.
+    """
+    assert Document.__table__.c.index_version.onupdate is None
+    assert Document.__table__.c.index_attempts.onupdate is None
+
+
+def make_reaper_conn(rows: Sequence[dict[str, Any]] = ()) -> AsyncMock:
+    """A connection whose reaping UPDATE returns `rows` — id plus the attempt
+    count the statement has already incremented."""
+    conn = AsyncMock()
+    conn.transaction = MagicMock(return_value=AsyncMock())
+    conn.fetch.return_value = list(rows)
+    return conn
+
+
+async def test_the_reaper_only_looks_at_processing_documents_without_a_live_job() -> None:
+    """AK 4 — a document that is being processed right now stays untouched.
+
+    Both halves of that live in the statement: the status filter, and a NOT
+    EXISTS over the queue that spares any document whose job was handed out
+    within the timeout.
+    """
+    conn = make_reaper_conn()
+
+    await reap_stuck_documents(conn, timeout_seconds=900, max_attempts=3)
+
+    sql, timeout, max_attempts, pending, failed, message, status = conn.fetch.await_args.args
+    assert status == DocumentStatus.processing
+    assert "NOT EXISTS" in sql
+    assert "q.heartbeat > now() - make_interval(secs => $1)" in sql
+    assert "q.status IN ('queued', 'picked')" in sql
+    # float, not int: make_interval takes double precision, and asyncpg refuses
+    # to encode an int where the query says float8.
+    assert timeout == 900.0
+    assert isinstance(timeout, float)
+    assert (max_attempts, pending, failed) == (3, DocumentStatus.pending, DocumentStatus.failed)
+    assert "3 Versuchen" in message
+
+
+async def test_the_reaper_invalidates_the_run_it_takes_away() -> None:
+    """The point of the version token (#69): `index_version` moves in both
+    branches, unconditionally, so a job presumed dead that wakes up anyway fails
+    every guarded write instead of racing the new attempt for the chunks."""
+    conn = make_reaper_conn()
+
+    await reap_stuck_documents(conn, timeout_seconds=900, max_attempts=3)
+
+    sql = conn.fetch.await_args.args[0]
+    assert "index_version  = d.index_version + 1" in sql
+    # The status is the part that branches, the token is not.
+    assert "CASE WHEN" not in sql.split("index_version  = d.index_version + 1")[1].split("\n")[0]
+
+
+async def test_the_reaper_requeues_a_document_below_the_attempt_budget() -> None:
+    document_id = uuid.uuid4()
+    conn = make_reaper_conn([{"id": document_id, "index_attempts": 1}])
+
+    reaped = await reap_stuck_documents(conn, timeout_seconds=900, max_attempts=3)
+
+    assert reaped == 1
+    sql, rows = conn.executemany.await_args.args
+    assert "INSERT INTO pgqueuer" in sql
+    # Byte-identical to what app/queue.py enqueues, so its dedupe still
+    # recognises the job a later upload replaces.
+    assert rows == [(json.dumps({"document_id": str(document_id)}).encode(),)]
+
+
+async def test_the_reaper_gives_up_at_the_attempt_budget() -> None:
+    """The document is marked failed and *not* queued again — otherwise a
+    document that reliably kills the worker would be retried forever, taking
+    every other document's processing down with it each time."""
+    conn = make_reaper_conn([{"id": uuid.uuid4(), "index_attempts": 3}])
+
+    reaped = await reap_stuck_documents(conn, timeout_seconds=900, max_attempts=3)
+
+    assert reaped == 1
+    conn.executemany.assert_not_awaited()
+
+
+async def test_the_reaper_queues_only_the_documents_that_got_another_attempt() -> None:
+    kept, given_up = uuid.uuid4(), uuid.uuid4()
+    conn = make_reaper_conn(
+        [{"id": kept, "index_attempts": 2}, {"id": given_up, "index_attempts": 3}]
+    )
+
+    await reap_stuck_documents(conn, timeout_seconds=900, max_attempts=3)
+
+    _, rows = conn.executemany.await_args.args
+    assert rows == [(json.dumps({"document_id": str(kept)}).encode(),)]
+
+
+async def test_reaping_and_requeueing_share_one_transaction() -> None:
+    """A document back on 'pending' without a job to pick it up is exactly the
+    state this function repairs — it must not be able to create it."""
+    conn = make_reaper_conn([{"id": uuid.uuid4(), "index_attempts": 1}])
+
+    await reap_stuck_documents(conn, timeout_seconds=900, max_attempts=3)
+
+    conn.transaction.assert_called_once()
+    conn.transaction.return_value.__aexit__.assert_awaited()
+
+
+async def test_reaper_config_falls_back_when_the_keys_are_missing() -> None:
+    conn = AsyncMock()
+    conn.fetch.return_value = []
+
+    assert await read_reaper_config(conn) == (
+        DEFAULT_PROCESSING_TIMEOUT_SECONDS,
+        DEFAULT_PROCESSING_MAX_ATTEMPTS,
+    )
+
+
+@pytest.mark.parametrize("value", ["neunhundert", "0", "-5"])
+async def test_reaper_config_falls_back_instead_of_raising_on_a_bad_value(value: str) -> None:
+    """Unlike the chunk parameters, a bad value here has no document to be
+    reported on, and a reaper that stops on a typo is the very failure this
+    ticket repairs. The CHECK of 0017 keeps such values out of the table."""
+    conn = AsyncMock()
+    conn.fetch.return_value = [
+        {"key": "processing_timeout_seconds", "value": value},
+        {"key": "processing_max_attempts", "value": "2"},
+    ]
+
+    assert await read_reaper_config(conn) == (DEFAULT_PROCESSING_TIMEOUT_SECONDS, 2)
+
+
+async def test_reaper_config_reads_both_keys() -> None:
+    conn = AsyncMock()
+    conn.fetch.return_value = [
+        {"key": "processing_timeout_seconds", "value": "60"},
+        {"key": "processing_max_attempts", "value": "1"},
+    ]
+
+    assert await read_reaper_config(conn) == (60, 1)
+
+
+async def test_the_entrypoint_filter_guards_the_json_cast() -> None:
+    """Postgres does not promise to evaluate the entrypoint filter before the
+    cast. A second entrypoint with a non-JSON payload would make the cast throw,
+    `reaper_loop` would swallow it, and the reaper would be off while the worker
+    looked healthy — so the guard is a CASE, which Postgres does order (#104).
+    """
+    conn = make_reaper_conn()
+
+    await reap_stuck_documents(conn, timeout_seconds=900, max_attempts=3)
+
+    sql = conn.fetch.await_args.args[0]
+    guard = sql.split("CASE WHEN q.entrypoint = 'process_document'")
+    assert len(guard) == 2, "the entrypoint filter no longer guards the cast"
+    assert "convert_from" in guard[1].split("END")[0]
+    # And nowhere outside it — a bare copy of the condition would reintroduce
+    # exactly the unordered evaluation the CASE is there to prevent.
+    assert sql.count("convert_from") == 1
+
+
+def test_the_pass_interval_follows_short_timeouts_and_is_capped_for_long_ones() -> None:
+    """The quarter keeps a short timeout responsive; the cap keeps a long one
+    from making detection slow as well. A pass is one indexed query — there is
+    nothing to save by waiting longer."""
+    assert reaper_interval(60) == 15
+    assert reaper_interval(DEFAULT_PROCESSING_TIMEOUT_SECONDS) == MAX_REAPER_INTERVAL_SECONDS
+    assert reaper_interval(4 * MAX_REAPER_INTERVAL_SECONDS) == MAX_REAPER_INTERVAL_SECONDS

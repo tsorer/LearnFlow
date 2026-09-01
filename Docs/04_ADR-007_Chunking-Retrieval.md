@@ -56,6 +56,29 @@ Pro Anfrage laufen **zwei Suchen parallel** und werden fusioniert:
 
 Ablauf: Kandidaten-`k = 20` je Suche abrufen → RRF-Fusion → **Schwellenwert-Gate** → Top-`n = 5` als Kontext an das LLM.
 
+**Präzisierung (T-50): Die Sparse-Hälfte steht und fällt mit der Textextraktion.**
+Die Dense-Suche verkraftet ein zerrissenes Wort, die Sparse-Suche nicht: `hochr iskant` und
+`hochriskant` sind für `to_tsvector('german', …)` verschiedene Tokens. Der zentrale Begriff
+der KI-Verordnung war dadurch per Stichwortsuche gar nicht auffindbar (0 von 625 Chunks bei
+37 Vorkommen), während `Anbieter` weiter traf — ein selektiver Ausfall, der von aussen wie
+schwaches Retrieval aussieht. Beide Ursachen liegen im Parsing (`app/services/parsing.py`),
+keine im Retrieval:
+
+- **Soft Hyphens (U+00AD).** Am Zeilenumbruch trennen sie ein Wort (`Zu\xad\nsatzprotokoll`),
+  innerhalb der Zeile sind sie ein sichtbarer Bindestrich (`SAMW\xadRichtlinien`).
+  `_normalise` fügt nur den ersten Fall zusammen; der zweite wird zu `-`, sonst würde aus
+  `Spital\xad und` ein `Spitalund`.
+- **Der EU-AI-Act-Text-Layer ist intakt** — entgegen dem ersten Verdacht. Das PDF setzt seine
+  Skalierung in die `cm`-Matrix und zeichnet jedes Wort in `Td`-positionierten Fragmenten;
+  pypdf < 6.16.2 verglich diese Offsets gegen eine **un**skalierte Schwelle und erfand so
+  Wortlücken. Das PDF wird deshalb **weder neu beschafft noch der Text heuristisch repariert**
+  — beides hätte einen Fehler kompensiert, der nicht in den Daten liegt. Stattdessen setzt
+  `requirements.txt` die Untergrenze `pypdf>=6.16.2`, und `tests/test_parsing.py` hält sie mit
+  einem Minimal-PDF fest, das ohne den Fix `hochr iskant` liefert.
+
+Beides verändert indexierte Inhalte: nach der Änderung müssen bestehende Dokumente neu
+hochgeladen werden.
+
 ### 3. Schwellenwert-Gate — retrieval-seitiger Beitrag zur Reliability-NFA
 
 Bevor überhaupt ein LLM-Aufruf erfolgt:

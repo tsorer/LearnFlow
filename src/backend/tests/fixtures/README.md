@@ -8,7 +8,13 @@ Inhalte aus dem Fachkorpus.
 | `sample.pdf` | 2 Seiten, je 2 Zeilen Text (Helvetica, WinAnsi) — prüft Seitenzuordnung |
 | `sample.docx` | 5 Absätze mit `Heading 1` / `Heading 2` — prüft Heading-Erkennung |
 | `sample.md` | Überschriften, Absätze und ein Codeblock — prüft, dass `#` im Codeblock kein Heading ist |
+| `hyphenated.pdf` | 1 Seite mit Soft Hyphens (U+00AD) in beiden Rollen — am Zeilenumbruch als Worttrennung, innerhalb der Zeile als sichtbarer Bindestrich (T-50, Fehlerbild SAMW-Leitfaden) |
+| `scaled_text.pdf` | 1 Seite, deren Skalierung in der `cm`-Matrix statt in der Schriftgrösse steckt und die Wörter in `Td`-positionierten Fragmenten zeichnet (T-50, Fehlerbild EU AI Act) |
 
-`sample.pdf` und `sample.docx` wurden mit einem Wegwerf-Skript aus der Python-
+Alle PDFs und `sample.docx` wurden mit einem Wegwerf-Skript aus der Python-
 Standardbibliothek erzeugt (PDF von Hand, DOCX als OOXML-ZIP), damit sie
 deterministisch und wenige KB gross sind.
+
+`scaled_text.pdf` ist zugleich die Untergrenze `pypdf>=6.16.2` aus
+`requirements.txt`: ältere Versionen lesen daraus `hochr iskant` statt
+`hochriskant`, der Test schlägt dann fehl.
