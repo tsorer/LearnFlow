@@ -39,8 +39,15 @@ export default function DocumentViewer({ citation, token, onClose }: Props) {
     return () => { cancelled = true; };
   }, [citation.document_id, citation.chunk_id, token]);
 
+  // Eigener Effekt mit leerem Dependency-Array: läuft nur beim Mount. An
+  // [onClose] gehängt lief er bei jedem Rerender der Elternkomponente neu
+  // (MessageBubble übergibt ein bei jedem Render neues onClose) und riss den
+  // Fokus vom Schliessen-Button zurück, egal wo der Nutzer gerade war.
   useEffect(() => {
     closeRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);

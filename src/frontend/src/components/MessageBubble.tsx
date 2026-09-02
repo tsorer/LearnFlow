@@ -418,7 +418,6 @@ function CitationEntry({ citation, onOpenViewer }: { citation: Citation; onOpenV
       <button
         onClick={() => setExpanded(v => !v)}
         aria-expanded={expanded}
-        aria-label={`Auszug ${expanded ? "einklappen" : "ausklappen"}: ${label}`}
         style={{
           background: "none", border: "none", padding: 0, fontSize: 12, textAlign: "left",
           width: "100%", cursor: "pointer", fontFamily: "inherit", color: "var(--muted)", lineHeight: 1.45,
@@ -430,6 +429,11 @@ function CitationEntry({ citation, onOpenViewer }: { citation: Citation; onOpenV
           }),
         }}
       >
+        {/* Kein aria-label hier: das würde den Auszug als Accessible Name
+            ersetzen und ihn für Screenreader unhörbar machen, auch aufgeklappt.
+            Der sichtbare Auszug bleibt Teil des Namens, der Kontext kommt als
+            unsichtbarer Zusatz davor (wie QuizCard.tsx "— richtige Antwort"). */}
+        <span className="sr-only">{`Auszug ${expanded ? "einklappen" : "ausklappen"}: ${label}. `}</span>
         {citation.excerpt}
       </button>
     </div>

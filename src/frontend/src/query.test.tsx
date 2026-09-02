@@ -316,6 +316,10 @@ describe("Frage-UI", () => {
 
     expect(excerptToggle).toHaveAttribute("aria-expanded", "false");
     expect(screen.getByText("Der belegende Abschnitt.")).toBeInTheDocument();
+    // Der Auszug muss Teil des Accessible Name bleiben, nicht nur sichtbarer
+    // Text — ein aria-label auf dem Button würde ihn für Screenreader
+    // verschlucken, auch aufgeklappt (Review-Fund zu #112).
+    expect(excerptToggle).toHaveAccessibleName(/Der belegende Abschnitt\./);
 
     await userEvent.click(excerptToggle);
 
@@ -352,6 +356,34 @@ describe("Frage-UI", () => {
 
     await userEvent.click(within(dialog).getByRole("button", { name: /schliessen/i }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("keeps focus where the user put it while the viewer is open, across a rerender of the message", async () => {
+    // Regression: the focus-on-mount effect used to depend on `onClose`, a
+    // function MessageBubble recreates every render. Any rerender of the
+    // message underneath the open viewer (here: a feedback click) reran it and
+    // stole focus back to the close button, wherever the user had it.
+    api.route("post", "/api/query", 200, answer({
+      citations: [citation(1, "skos.pdf", "Der belegende Abschnitt.")],
+    }));
+    api.routeQuery("get", "/api/documents/{document_id}/content", { around: "chunk-1" }, 200, {
+      id: "doc-1",
+      filename: "skos.pdf",
+      status: "available",
+      chunks: [{ chunk_id: "chunk-1", chunk_index: 0, page: 1, heading: null, content: "Der belegende Abschnitt." }],
+    });
+    const field = await openChat();
+
+    await userEvent.type(field, "Was regelt der EU AI Act?");
+    await send();
+    await userEvent.click(await screen.findByRole("button", { name: /1 Quelle/i }));
+    await userEvent.click(screen.getByRole("button", { name: /Originaldokument öffnen: \[1\] skos\.pdf/ }));
+    await screen.findByRole("dialog", { name: /skos\.pdf/ });
+
+    const helpfulButton = screen.getByRole("button", { name: "Hilfreich" });
+    await userEvent.click(helpfulButton); // rerendert MessageBubble (pendingThumb), Viewer bleibt offen
+
+    expect(document.activeElement).toBe(helpfulButton);
   });
 
   it("offers no sources when the gate suppressed without any", async () => {
