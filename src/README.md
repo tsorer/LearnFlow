@@ -15,6 +15,17 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
+Die Werte in `.env.example` sind bewusst so gewählt, dass der Stack damit **nicht**
+startet: `app/config.py` weist jedes `JWT_SECRET` ab, das kürzer als 32 Zeichen ist
+oder `changeme` enthält. Ein brauchbares Secret erzeugen:
+
+```bash
+openssl rand -hex 32
+```
+
+Ist Port 80 belegt, in `.env` `WEBAPP_PORT` setzen (z. B. `WEBAPP_PORT=8080`) — es ist
+der einzige Port, den der Stack nach aussen veröffentlicht.
+
 Nach dem Start aller Services:
 
 ```bash
@@ -36,13 +47,19 @@ Browser: **http://localhost**
 
 ## Zugang
 
-| Service | URL / Adresse         |
-|---------|-----------------------|
-| App     | http://localhost      |
-| API     | http://localhost:8000 |
-| DB      | localhost:5432        |
+| Service | Zugang                                            |
+|---------|---------------------------------------------------|
+| App     | http://localhost (bzw. `WEBAPP_PORT`)             |
+| API     | http://localhost/api/ — via nginx                 |
+| DB      | nur containerintern, kein veröffentlichter Port   |
 
-DB: user `learnflow`, Passwort aus `DB_PASSWORD`, Database `learnflow`.
+`webapp` ist der einzige Container mit einem `ports:`-Eintrag. `api` und `db` hängen an
+internen Netzen (`docker-compose.yml`); nginx proxyt `/api/*` auf `api:8000` und entfernt
+dabei das Prefix. Ein direkter Zugriff auf `localhost:8000` oder `localhost:5432`
+funktioniert deshalb nicht — die DB erreicht man über `docker exec` (siehe unten).
+
+Für das Frontend-Dev-Setup (`npm run dev` in `frontend/`) gilt derselbe Weg: der
+Vite-Proxy leitet `/api` an nginx weiter, der Stack muss also laufen.
 
 ### API-Typen nach einer Spec-Änderung neu generieren
 
@@ -81,7 +98,9 @@ make seed       # Testuser anlegen
 make logs       # Logs aller Services
 make check      # Health-Checks prüfen
 make qa         # Lint + Types + Tests (Backend + Frontend) — CI-Jobs backend/frontend
-make e2e        # Login-Flow gegen den laufenden Stack (nach up + seed) — CI-Job e2e
+make qa-be      # nur Backend: ruff + mypy + pytest — läuft im api-Container, braucht `make up`
+make qa-fe      # nur Frontend: eslint + tsc + vitest — ephemerer node:22-alpine, ohne laufenden Stack
+make e2e        # E2E-Tests gegen den laufenden Stack (nach up + seed) — CI-Job e2e
 ```
 
 ```bash
@@ -96,10 +115,58 @@ docker exec src-api-1 alembic upgrade head
 docker exec -it src-db-1 psql -U learnflow -d learnflow
 ```
 
+## Zurücksetzen & Stolpersteine
+
+```bash
+# Datenbank komplett neu aufsetzen
+docker compose down
+docker volume rm learnflow_pgdata
+make up && make seed
+```
+
+Das Volume heisst bewusst global `learnflow_pgdata` statt projekt-scoped — ein
+`docker compose down -v` löscht es damit **nicht**, ein Verzeichnis-Rename behält die
+Daten. Wegräumen geht nur über `docker volume rm`.
+
+Nach einem Versionssprung von `openapi-typescript` generiert `make generate-api` weiter
+mit der alten Version aus dem gecachten Volume; die committeten Typen fallen dann in der
+CI durch. Einmalig:
+
+```bash
+docker volume rm learnflow-fe-node-modules
+```
+
 ## VS Code Debugger (debugpy)
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.debug.yml up -d api
 ```
 
+Die passende Konfiguration liegt nicht im Repo (`.vscode/` ist nicht eingecheckt) — einmalig
+selbst in `.vscode/launch.json` anlegen, mit dem Repo-Root als geöffnetem Ordner:
+
+```json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Attach to FastAPI",
+      "type": "debugpy",
+      "request": "attach",
+      "connect": { "host": "localhost", "port": 5678 },
+      "pathMappings": [
+        { "localRoot": "${workspaceFolder}/src/backend", "remoteRoot": "/app" }
+      ]
+    }
+  ]
+}
+```
+
 Dann in VS Code: **Run & Debug → Attach to FastAPI**. Breakpoints in `backend/app/` funktionieren sofort.
+
+## Weiterführend
+
+- **Entscheide (ADRs, C4, Anforderungen, DoD):** `Docs/` — Übersicht in `../CLAUDE.md`
+- **CI-Pipeline und ihre drei Jobs:** `Ops/09_CI-Runbook.md`
+- **Vor dem Pilotstart:** `Ops/07_Pilotstart-Checkliste.md`
+- **API-Vertrag:** `backend/openapi.yaml` (ADR-010)
