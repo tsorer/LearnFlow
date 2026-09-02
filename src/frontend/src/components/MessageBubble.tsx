@@ -109,23 +109,64 @@ const COL_CARET: CSSProperties = { width: 8, fontSize: 9, flexShrink: 0, color: 
 
 const CHUNK_ROW: CSSProperties = { display: "flex", alignItems: "center", gap: 6 };
 
-/** Header for the chunk list — names the three columns T-54 added. */
+const COLUMN_LABEL: CSSProperties = {
+  fontSize: 8, fontWeight: 700, letterSpacing: "0.05em",
+  textTransform: "uppercase", color: "var(--muted)",
+};
+
+/**
+ * Header for the chunk list — names the three columns T-54 added.
+ *
+ * `D` and `S` are single letters in a 20px column, so each carries the spelled
+ * out name for a screen reader as well: this is a flex layout, not a table, and
+ * nothing associates a cell with its heading.
+ */
 function ChunkColumns() {
-  const label: CSSProperties = {
-    fontSize: 8, fontWeight: 700, letterSpacing: "0.05em",
-    textTransform: "uppercase", color: "var(--muted)",
-  };
   return (
     <div style={{ ...CHUNK_ROW, paddingBottom: 4, marginBottom: 6, borderBottom: "1px solid var(--border)" }}>
-      <span style={{ ...COL_SCORE, ...label, fontWeight: 700 }}>Cos</span>
+      <span style={{ ...COL_SCORE, ...COLUMN_LABEL }}>Cos</span>
       <span style={COL_BAR} />
-      <span style={{ ...COL_RANK, ...label }} title="Rang in der Vektorsuche">D</span>
-      <span style={{ ...COL_RANK, ...label }} title="Rang in der Volltextsuche">S</span>
-      <span style={{ ...COL_RRF, ...label }} title="Sortierschlüssel: Summe von 1/(k + Rang) über beide Suchen">RRF ↓</span>
-      <span style={{ ...COL_SRC, ...label }}>Quelle</span>
+      <span style={{ ...COL_RANK, ...COLUMN_LABEL }} title="Rang in der Vektorsuche">
+        <span aria-hidden="true">D</span>
+        <span className="sr-only">Rang in der Vektorsuche</span>
+      </span>
+      <span style={{ ...COL_RANK, ...COLUMN_LABEL }} title="Rang in der Volltextsuche">
+        <span aria-hidden="true">S</span>
+        <span className="sr-only">Rang in der Volltextsuche</span>
+      </span>
+      <span style={{ ...COL_RRF, ...COLUMN_LABEL }} title="Sortierschlüssel: Summe von 1/(k + Rang) über beide Suchen">
+        RRF ↓
+      </span>
+      <span style={{ ...COL_SRC, ...COLUMN_LABEL }}>Quelle</span>
       <span style={COL_BADGE} />
       <span style={COL_CARET} />
     </div>
+  );
+}
+
+/**
+ * One rank cell: the number, or a dash where that search did not find the chunk.
+ *
+ * The dash used to be drawn in `--border`, inherited from the old `#0` it
+ * replaced. That was decoration then and a signal now — the issue asks that a
+ * chunk found by only one of the two searches be recognisable as such — and
+ * `--border` on `--card` is barely over a 1:1 contrast ratio. `--muted` is the
+ * colour the rest of this panel uses for secondary text.
+ *
+ * `title` alone would not carry it either: screen readers do not announce it
+ * reliably, and a bare "—" says nothing. Hence the `.sr-only` sentence, the
+ * same idiom QuizCard uses for its correct-answer marker.
+ */
+function RankCell({ rank, search }: { rank: number; search: string }) {
+  const found = rank !== RANK_ABSENT;
+  return (
+    <span
+      style={{ ...COL_RANK, color: found ? "var(--navy)" : "var(--muted)", fontWeight: found ? 700 : 400 }}
+      title={found ? `${search}: Rang ${rank}` : `${search}: nicht gefunden`}
+    >
+      <span aria-hidden="true">{rankLabel(rank)}</span>
+      <span className="sr-only">{found ? `${search} Rang ${rank}` : `${search}: nicht gefunden`}</span>
+    </span>
   );
 }
 
@@ -187,20 +228,11 @@ function ChunkBar({ chunk, threshold, rrfK }: { chunk: ChunkDebugInfo; threshold
           {/* threshold marker */}
           <div style={{ position: "absolute", top: -2, left: `${thPct}%`, width: 2, height: 9, background: "var(--navy)", borderRadius: 1 }} />
         </div>
-        <span
-          style={{ ...COL_RANK, color: foundDense ? "var(--navy)" : "var(--border)", fontWeight: foundDense ? 700 : 400 }}
-          title={foundDense ? `Vektorsuche: Rang ${chunk.dense_rank}` : "Vektorsuche: nicht gefunden"}
-        >
-          {rankLabel(chunk.dense_rank)}
-        </span>
-        <span
-          style={{ ...COL_RANK, color: foundSparse ? "var(--navy)" : "var(--border)", fontWeight: foundSparse ? 700 : 400 }}
-          title={foundSparse ? `Volltextsuche: Rang ${chunk.sparse_rank}` : "Volltextsuche: nicht gefunden"}
-        >
-          {rankLabel(chunk.sparse_rank)}
-        </span>
+        <RankCell rank={chunk.dense_rank} search="Vektorsuche" />
+        <RankCell rank={chunk.sparse_rank} search="Volltextsuche" />
         <span style={{ ...COL_RRF, color: "var(--navy)" }} title={`RRF ${rrfFormula}`}>
-          {chunk.rrf_score.toFixed(4).replace(/^0/, "")}
+          <span aria-hidden="true">{chunk.rrf_score.toFixed(4).replace(/^0/, "")}</span>
+          <span className="sr-only">RRF-Score {chunk.rrf_score}</span>
         </span>
         <span style={{ ...COL_SRC, color: "var(--muted)" }}>{parts}</span>
         <span style={COL_BADGE}>
@@ -411,7 +443,7 @@ function DebugPanel({ debug, confidence }: { debug: DebugInfo; confidence: Confi
           <span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: "var(--red)", marginRight: 3 }} />darunter</span>
           <span><span style={{ display: "inline-block", padding: "0 4px", borderRadius: 6, background: "var(--blue)", color: "#fff", fontSize: 8, fontWeight: 700, marginRight: 3 }}>LLM</span>ans LLM gesendet</span>
           <span>▌ = Schwellwert</span>
-          <span><strong style={{ color: "var(--navy)" }}>D</strong>/<strong style={{ color: "var(--navy)" }}>S</strong> = Rang in Vektor-/Volltextsuche, <span style={{ color: "var(--border)", fontWeight: 700 }}>—</span> = dort nicht gefunden</span>
+          <span><strong style={{ color: "var(--navy)" }}>D</strong>/<strong style={{ color: "var(--navy)" }}>S</strong> = Rang in Vektor-/Volltextsuche, <span style={{ color: "var(--muted)", fontWeight: 700 }}>—</span> = dort nicht gefunden</span>
         </div>
         <ChunkColumns />
         {debug.chunks.map(c => (

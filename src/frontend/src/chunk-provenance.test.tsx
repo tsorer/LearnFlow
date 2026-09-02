@@ -190,6 +190,18 @@ describe("Herkunft je Chunk (T-54)", () => {
     ).toBeInTheDocument();
   });
 
+  it("sagt einem Screenreader, was der Gedankenstrich bedeutet", async () => {
+    // Der Strich ist ein rein optisches Signal, und `title` wird nicht
+    // verlässlich vorgelesen. Dieselbe Lösung wie bei QuizCard: die Aussage
+    // steht als .sr-only-Text daneben, die Glyphe ist aria-hidden.
+    await ask(answer([SPARSE_ONLY]));
+
+    const cell = screen.getByTitle("Vektorsuche: nicht gefunden");
+    const spoken = within(cell).getByText("Vektorsuche: nicht gefunden");
+    expect(spoken).toHaveClass("sr-only");
+    expect(within(cell).getByText("—")).toHaveAttribute("aria-hidden", "true");
+  });
+
   it("benennt die neuen Spalten in einer Kopfzeile", async () => {
     await ask(answer([chunk()]));
 
