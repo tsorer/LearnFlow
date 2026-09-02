@@ -42,10 +42,11 @@ services:
         condition: service_healthy
     volumes:
       - ./backend:/app
-      # T-28: read-only access to the LearningCorpus PDFs and the Gold-Eval-Dataset
-      # seed files, so seed_corpus.py and the eval harness (backend/eval/) can reach
-      # them without baking fixture data into the api image.
-      - ../LearningCorpus:/learning-corpus:ro
+      # Nur fuer tests/test_gold_eval_dataset.py: das Gold-Dataset und die
+      # Korpus-PDFs liegen ausserhalb des Backend-Images. In CI reicht der
+      # Checkout, im Container braucht es diesen Mount. Auch von T-28 genutzt
+      # (seed_corpus.py, backend/eval/) -- ein Mount statt zweier.
+      - ../LearningCorpus:/LearningCorpus:ro
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 10s

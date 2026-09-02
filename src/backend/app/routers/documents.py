@@ -164,6 +164,11 @@ async def upload_document(
             # expire objects on commit, so an attribute the database fills in
             # would still be None in the response below.
             updated_at=uploaded_at,
+            # The first version, with its attempts untouched. Set here for the
+            # same reason as updated_at: the server default would leave the
+            # attribute None on the object this request answers from.
+            index_version=1,
+            index_attempts=0,
         )
         db.add(document)
     else:
@@ -248,6 +253,13 @@ async def _replace(
     # same reason as on the insert path: with expire_on_commit=False the
     # response would otherwise carry the value from before the replacement.
     document.updated_at = datetime.now(UTC)
+    # New bytes, so every run that is still indexing the old ones is void
+    # (T-43): the token moves, and their publish fails the guard in
+    # `worker/main.py`. Incremented rather than set to a timestamp — this is
+    # the column `updated_at` used to double as, and the reason it no longer
+    # has to. The attempts start over with the new version.
+    document.index_version = document.index_version + 1
+    document.index_attempts = 0
     document.content = content
     document.content_type = content_type
     document.status = DocumentStatus.pending

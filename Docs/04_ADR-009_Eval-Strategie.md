@@ -30,8 +30,26 @@ Ein kuratiertes Frage-Antwort-Dataset als „Source of Truth" für alle Eval-Lä
 | **Out-of-Corpus** (nicht beantwortbar) | ~25 % | „Weiss ich nicht"-Quote (≥ 90 %-Ziel) |
 | **Grenzfälle / Adversarial** (teilweise gedeckt, mehrdeutig, suggestiv) | ~15 % | Fail-closed-Verhalten, False-Suppression |
 
-- **Umfang Pilot:** Start **~80–100 Fragen**, mit dem Fachbereich (Stefan) erstellt/abgenommen. Jede In-Corpus-Frage hat erwartete **Quell-Chunk-IDs** und eine Referenzantwort.
-- **Datenschutz/Versionierung:** Das Dataset speichert **Fragen + erwartete Quell-IDs/-Referenzen**, nicht den vollständigen Dokumenttext. Es lebt versioniert im Repo neben dem Code; sensible Volltext-Passagen bleiben in der (freigegebenen) Korpus-DB referenziert statt dupliziert.
+- **Umfang Pilot:** Start **~80–100 Fragen**, gemeinsam mit dem Fachbereich erstellt und von ihm freigegeben. Jede In-Corpus-Frage hat eine Referenzantwort und eine erwartete **Quellreferenz** (Schema unten). Der Seed erreicht diesen Umfang über drei Korpora gemeinsam (SKOS-Richtlinien, EU AI Act, SAMW-Leitfaden), nicht je Korpus.
+- **Fachliche Freigabe (verbindlich):** Das Dataset gilt erst als Source of Truth, wenn der Fachbereich Fragen, Referenzantworten und Quellreferenzen geprüft und freigegeben hat. Die Freigabe steht mit Datum im Kopf von `LearningCorpus/gold-eval-dataset.yaml`. Jede spätere inhaltliche Änderung — neue Frage, geänderte Referenzantwort oder Quellreferenz, geänderte `expected_refusal` — braucht eine erneute Freigabe. Ohne sie misst ein Eval-Lauf nur, ob die Pipeline mit den Annahmen der Entwicklung übereinstimmt, nicht ob die Antworten fachlich richtig sind.
+- **Ablage:** **eine** Datei, `LearningCorpus/gold-eval-dataset.yaml`, mit einem `yaml.safe_load` ladbar. `src/backend/tests/test_gold_eval_dataset.py` prüft Schema und Konsistenz bei jedem CI-Lauf mit.
+- **Datenschutz/Versionierung:** Das Dataset speichert **Fragen + Quellreferenzen**, nicht den vollständigen Dokumenttext. Es lebt versioniert im Repo neben dem Code — im PR reviewbar, mit `git blame`, wenn jemand eine Referenzantwort ändert — und kommt **nicht** in die DB: läge die Erwartung in derselben DB wie das geprüfte System, könnte ein Test grün werden, weil sich beide zusammen verschoben haben. Sensible Volltext-Passagen bleiben in der (freigegebenen) Korpus-DB referenziert statt dupliziert.
+
+#### Quellreferenz-Schema
+
+`expected_source` verweist auf **Dokument + Position**, nicht auf eine Chunk-ID:
+
+```yaml
+expected_source:
+  pages: [46]
+  locator: "Artikel 3 Nummer 3 — Begriffsbestimmung „Anbieter“"
+```
+
+- **Dokument:** kommt über `questions[].corpus` aus dem `corpora`-Block. Der nennt es **zweimal**, weil es zwei Dinge sind: `path` ist die Datei in `LearningCorpus/` (nur für den Test und um Seitenzahlen herzuleiten), `filename` die Upload-Identität in `documents` (eindeutiger Index über `(area, filename)`, T-15). Der Eval joint auf `filename`, und derselbe Name steht über `Citation.filename` unter der Antwort, die der Nutzer liest (US-01). Heute sind beide gleich — aber nur, solange der Korpus so hochgeladen wird. **Der Korpus ist unter genau diesen `filename` zu indexieren**; unter einem anderen Namen misst der Eval null Recall, ohne dass am Retrieval etwas falsch wäre.
+- **Anker:** hängt am Content-Type und steht pro Korpus in `corpora[].anchor`. `parse_document` füllt genau eines der beiden Felder, nie beide: für `application/pdf` nur `page`, für `.docx` und `text/markdown` nur `heading`. Eine Frage trägt entsprechend `pages` **oder** `headings`.
+- **`pages`:** 1-basierte PDF-Seiten, so wie der Parser sie zählt und wie `Citation.page` sie ausliefert — **nicht** die im Dokument gedruckte Seitenzahl (die kann abweichen, beim SAMW-Leitfaden um zwei). Eine Liste, weil Seitengrenzen harte Chunkgrenzen sind: eine Antwort über einen Seitenumbruch braucht beide Seiten, sonst deckelt das den Recall.
+- **`locator`:** die Fundstelle in Prosa (Artikel/Kapitel/Randziffer). Nicht maschinell ausgewertet — sie trägt die fachliche Abnahme und erlaubt, die Seiten für eine neue Dokumentfassung neu herzuleiten.
+- **Keine Chunk-IDs:** `chunks.id` ist ein UUID, und jede Neu-Indexierung vergibt neue — anderes `chunk_size`, anderes Embedding-Modell, Re-Upload desselben Dateinamens. Eingetragene IDs zeigten danach ins Leere, und das Eval-Gate würde rot, ohne dass sich an der Antwortqualität etwas geändert hätte.
 
 ### 2. Metriken & Akzeptanz-Gates
 
@@ -43,7 +61,7 @@ Drei Gruppen, abgeleitet aus den NFAs (Schwellen als Spike-kalibrierte Startwert
 - **False-Suppression-Rate** (In-Corpus fälschlich unterdrückt): **≤ 15 %** Startwert — schützt die Nützlichkeit (Recall) gegen ein zu aggressives Fail-closed.
 
 **B. Retrieval-Güte (deterministisch)**
-- **Context-Recall@k** und **Context-Precision@k** gegen die erwarteten Quell-Chunk-IDs; **MRR/nDCG** für die Rangqualität. Primär für die Chunking-/Retrieval-Kalibrierung (ADR-007).
+- **Context-Recall@k** und **Context-Precision@k** gegen die erwarteten Quellreferenzen; **MRR/nDCG** für die Rangqualität. Ein Treffer zählt, wenn `chunk.document.filename == corpora[corpus].filename` und — je nach dessen `anchor` — `chunk.page` in `pages` bzw. `chunk.heading` in `headings` liegt. Primär für die Chunking-/Retrieval-Kalibrierung (ADR-007).
 
 **C. Antwortqualität (LLM-as-Judge)**
 - **Faithfulness/Groundedness** (ist die Antwort durch den Kontext gedeckt?) und **Answer-Relevancy** — via RAGAS.
@@ -76,7 +94,7 @@ Drei Gruppen, abgeleitet aus den NFAs (Schwellen als Spike-kalibrierte Startwert
 
 ### Negative Konsequenzen
 
-- **−** Erstellung des Gold-Datasets kostet **Fachbereichs-Zeit** (Stefan) — der teuerste, aber unverzichtbare Aufwand; ohne fachlich abgenommene Referenzen ist der Eval wertlos.
+- **−** Erstellung und Freigabe des Gold-Datasets kosten **Fachbereichs-Zeit** — der teuerste, aber unverzichtbare Aufwand; ohne fachlich freigegebene Referenzen ist der Eval wertlos.
 - **−** LLM-as-Judge verursacht Token-Kosten pro CI-Lauf. Mitigation: festes, begrenztes Dataset (~100 Fragen); Judge nur für Gruppe C, nicht für die deterministischen Gates.
 - **−** „0 % Halluzination" ist auf einem endlichen Dataset nur *demonstrierbar*, nicht beweisbar. Mitigation: explizit als Schranke kommuniziert + Produktions-Monitoring als Ergänzung.
 - **−** Ein zu kleines/unrepräsentatives Dataset gibt falsche Sicherheit. Mitigation: bewusste Adversarial-/Grenzfall-Quote, kontinuierliche Erweiterung aus Feedback.
@@ -98,10 +116,12 @@ Drei Gruppen, abgeleitet aus den NFAs (Schwellen als Spike-kalibrierte Startwert
 
 ## Offene Punkte / nächste Schritte
 
-1. **Gold-Dataset mit dem Fachbereich aufbauen** (Stefan) — Voraussetzung für jeden Eval; vor Spike-Kalibrierung.
-2. **Citation-Format finalisieren** (gemeinsam mit ADR-007/008), damit die deterministischen Checks maschinell parsen können.
-3. **Akzeptanz-Schwellen** (False-Suppression ≤ 15 % etc.) nach dem ersten Kalibrierungslauf als „Accepted" bestätigen.
-4. Repository-Ort und Zugriffsschutz für das Dataset festlegen (referenzierte Quell-IDs statt Volltext).
+1. ~~Gold-Dataset fachlich freigeben~~ (T-48) — erledigt: Freigabe am 2026-09-01 erteilt, mit Datum im Kopf von `LearningCorpus/gold-eval-dataset.yaml` vermerkt. Damit ist die Voraussetzung für Eval-Läufe und die Spike-Kalibrierung erfüllt.
+2. **Citation-Format finalisieren** (gemeinsam mit ADR-007/008), damit die deterministischen Checks maschinell parsen können. Offen dabei: `Citation` liefert heute nur `filename` und `page`, keinen `heading` — für ein `.docx`- oder `.md`-Dokument bleibt die Quellenangabe damit ohne Fundstelle.
+3. **Harness prüft die Upload-Zusage** (T-28) — findet er zu `corpora[].filename` kein Dokument in `documents`, muss er laut abbrechen statt still 0 % Context-Recall zu melden. Bis dahin ist `filename` eine Zusage, die keine Instanz gegen die DB hält; `tests/test_gold_eval_dataset.py` prüft nur, dass Endung und `content_type` zueinander passen und der Upload-Endpoint den Namen nicht mit 415 abweisen würde.
+4. **Akzeptanz-Schwellen** (False-Suppression ≤ 15 % etc.) nach dem ersten Kalibrierungslauf als „Accepted" bestätigen.
+5. ~~Repository-Ort und Zugriffsschutz für das Dataset festlegen~~ — erledigt mit T-47: `LearningCorpus/gold-eval-dataset.yaml`, Quellreferenzen statt Volltext (Schema oben).
+6. ~~Seitenzahlen für die SKOS-Einträge nachtragen~~ — erledigt mit T-48: alle 19 SKOS-Quellen tragen `pages`, jede aus einer wörtlichen Fundstelle im PDF hergeleitet statt aus einer Kapitelschätzung.
 
 ---
 

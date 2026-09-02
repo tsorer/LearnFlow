@@ -26,6 +26,13 @@ export type { ChunkDebugInfo, ConfidenceInfo, DebugInfo, LLMCallInfo, StageInfo 
  */
 export type SuppressionReason = NonNullable<QueryResponse["suppression_reason"]>;
 
+/**
+ * The closed set of `confidence.band` values, same arrangement and same reason
+ * as SuppressionReason above: a band added in openapi.yaml breaks the badge map
+ * in MessageBubble at compile time instead of leaving the learner unlabelled.
+ */
+export type ConfidenceBand = NonNullable<QueryResponse["confidence"]>["band"];
+
 /** A document as the API returns it. */
 export type Document = DocumentResponse;
 
@@ -48,6 +55,8 @@ export interface Message {
   answer_id?: string;
   suppressed?: boolean;
   suppression_reason?: SuppressionReason | null;
+  /** The suppression's advice on what to try next (US-02, Requirements §71). */
+  refinement_hint?: string | null;
   citations?: Citation[];
   confidence?: ConfidenceInfo | null;
   debug?: DebugInfo | null;

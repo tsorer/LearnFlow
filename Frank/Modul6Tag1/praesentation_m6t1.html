@@ -132,11 +132,24 @@
     color: var(--pass);
   }
 
-  .standfirst {
+  /* Einleitung: was wir gebaut haben. */
+  .lede {
     font-size: clamp(1.1rem, 1rem + 0.5vw, 1.35rem);
     color: var(--ink-soft);
     max-width: var(--measure);
     margin: 0;
+  }
+
+  .lede strong { color: var(--ink); font-weight: 600; }
+
+  /* These: gleiche Markierung wie die Pointe am Schluss (.kicker). */
+  .standfirst {
+    font-size: clamp(1.02rem, 0.96rem + 0.35vw, 1.2rem);
+    color: var(--ink);
+    max-width: var(--measure);
+    margin: 0;
+    border-left: 3px solid var(--accent);
+    padding: 0.1rem 0 0.1rem 1.15rem;
   }
 
   .byline {
@@ -437,13 +450,20 @@
   <header class="masthead">
     <span class="eyebrow">CAS ADAI 2026 · Modul 6 · Tag 1 · M5-Kurzpräsentation</span>
     <h1>Beweis statt<span class="turn">Meinung</span></h1>
+    <p class="lede">
+      Unser Testobjekt ist selbst gebaut: eine Python-Funktion, die für alle
+      uncommitteten Dateien im Git-Repo das Encoding prüft und auf
+      <strong>UTF-8 ohne BOM</strong> umstellt — inklusive BOM-Erkennung,
+      Binärdateien überspringen und Zeilenenden erhalten.
+    </p>
     <p class="standfirst">
-      Claude hat 73 Tests geschrieben und drei echte Bugs in unserem Code gefunden.
-      Den Fall, den Claude übersehen hat, hat ein Mensch gefunden — und die eine
-      Stelle, an der zwei grüne Lösungen sich unterscheiden, sieht pytest gar nicht.
+      Claude hat dafür 64 Tests geschrieben, nach der Nacharbeit 73. Sie fanden drei
+      echte Bugs. Den Fall, den Claude übersehen hat, hat ein Mensch gefunden — und
+      die eine Stelle, an der zwei grüne Lösungen sich unterscheiden, sieht pytest
+      gar nicht.
     </p>
     <div class="byline">
-      <span>Frank Moritz</span>
+      <span>Gruppe 3 — LearnFlow</span>
       <span>26.08.2026</span>
       <span>3 Minuten</span>
       <span>Testobjekt: check_encoding.py</span>
@@ -473,8 +493,9 @@
             <tr>
               <td class="q">Wie viele Tests hat Claude geschrieben?</td>
               <td class="a">
-                <strong>73</strong> aus einem Prompt, in 6 Blöcken: Happy Path,
+                <strong>64</strong> aus einem einzigen Prompt, in 6 Blöcken: Happy Path,
                 Grenzwerte, falsche Typen, Git-Integration, <code>main()</code>-Exitcodes.
+                Durch die Nacharbeit an den Bugs wuchs die Suite auf <strong>73</strong>.
               </td>
             </tr>
             <tr>
@@ -489,11 +510,12 @@
             <tr class="spot">
               <td class="q">Welche haben wir, die Claude fehlten?</td>
               <td class="a">
-                Die <strong>schreibgeschützte Datei</strong>. 73 Tests — und keiner
-                prüfte, was passiert, wenn <code>open(…, "w")</code> scheitert. Der
-                Modus kürzt die Datei beim Öffnen: schlägt der Schreibzugriff fehl,
-                ist der Inhalt weg. Gefunden hat das ein Mensch, der auf eine
-                <code>test.txt</code> mit Readonly-Flag zeigte.
+                Die <strong>schreibgeschützte Datei</strong>. 69 Tests standen da
+                schon — und keiner prüfte, was passiert, wenn
+                <code>open(…, "w")</code> scheitert. Der Modus kürzt die Datei beim
+                Öffnen: schlägt der Schreibzugriff fehl, ist der Inhalt weg. Gefunden
+                hat das ein Mensch, der auf eine <code>test.txt</code> mit
+                Readonly-Flag zeigte. Die vier Tests dafür brachten die Suite auf 73.
               </td>
             </tr>
             <tr>

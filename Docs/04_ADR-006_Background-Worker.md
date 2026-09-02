@@ -87,5 +87,67 @@ Der Container-Diagram-Eintrag für den Worker ist damit konkretisiert:
 
 ---
 
+## Nachtrag 2026-08-30 — Crash-Recovery endet nicht am Job (T-43)
+
+Die Abwägung oben führt „Crash-Recovery" als Argument für pgqueuer, und für den **Job** trifft
+das zu: er bleibt persistent in der Tabelle. Für das **Dokument** trifft es nicht zu. Der
+Worker setzt `documents.status = 'processing'`, bevor er beginnt; stirbt der Container
+dazwischen — Absturz, Neustart, Deployment, OOM —, bleibt die Zeile dort stehen. Sie ist für
+Retrieval unsichtbar, nicht als Fehler erkennbar und sieht für den Nutzer aus wie „lädt
+ewig". Kein Mechanismus der Bibliothek räumt das auf; die periodische Wiedervorlage
+(`retry_timer`) ist bewusst nicht aktiviert, weil sie zwei Läufe gleichzeitig auf dasselbe
+Dokument lassen würde.
+
+Der Worker führt deshalb neben dem Job-Consumer eine zweite, periodische Aufgabe: einen
+**Reaper**, der Dokumente in `'processing'` erkennt, zu denen kein Job mehr in der Queue
+liegt, der jünger als `processing_timeout_seconds` beansprucht wurde. Er reiht sie erneut ein
+(Re-Verarbeitung ist idempotent) und gibt nach `processing_max_attempts` Versuchen mit
+`status = 'failed'` und einer lesbaren Meldung auf — unbegrenzt zu wiederholen hiesse, ein
+Dokument, das den Worker zuverlässig umbringt, endlos gegen die Pipeline laufen zu lassen.
+
+### Woher die 2700 s kommen
+
+Weil `heartbeat` bei uns den Zeitpunkt der Übernahme trägt und kein Lebenszeichen ist, muss die
+Frist den **längsten legitimen Lauf** übersteigen — sonst wird ein gültiges Dokument
+unterbrochen, erneut versucht, wieder unterbrochen und landet nach `processing_max_attempts`
+auf `failed`, wo kein erneuter Upload hilft. Die Obergrenze ist rechenbar:
+
+| Grösse | Wert | Quelle |
+|---|---|---|
+| Upload-Limit | 10 MiB | `MAX_UPLOAD_BYTES`, ADR-003 |
+| Chunk-Dichte, dichtestes Korpusdokument | ~185 Chunks/MB | EU AI Act, 2,84 MB → 525 Chunks |
+| Chunks bei 10 MB | ~1850 | |
+| Batch-Grösse | 64, **sequenziell** abgearbeitet | `embedding.py`, `BATCH_SIZE` |
+| Batches | ~29 | |
+| Zeitlimit je Versuch | 30 s | `embedding.py`, `TIMEOUT_SECONDS` |
+| Versuche je Batch | 1 + 2 Retries | `embedding.py`, `MAX_RETRIES` |
+
+Der kritische Fall ist nicht der tote Provider — dann scheitert der Job selbst und wird sauber
+`failed` — sondern der zähe: jeder Batch läuft einmal in sein Zeitlimit und gelingt im zweiten
+Anlauf. Das sind ~29 × 60 s ≈ 1740 s für einen Lauf, der **erfolgreich** endet. 2700 s lässt
+darüber Luft für Parsing, Chunking und den Chunk-Insert, ohne die Reparatur beliebig träge zu
+machen. Die Zahl steht in `config` und ist über die Admin-API änderbar (US-11).
+
+Der Preis ist Wiederherstellungslatenz: ein abgestürzter Lauf wird erst nach dieser Frist
+befreit. Der Takt der Schleife ist deshalb bei 300 s gedeckelt statt an die Frist gekoppelt —
+ein Pass ist eine indizierte Abfrage, und die Erkennung soll nicht mitwachsen, nur weil die
+erzwungene Frist wächst.
+
+Die eigentliche Auflösung dieses Zielkonflikts wäre ein Fortschritts-Zeitstempel, den der
+Worker zwischen den Batches hochschreibt: dann misst der Reaper „seit X kein Fortschritt"
+statt „seit X beansprucht", und X darf klein sein, unabhängig von der Gesamtdauer. Offen als
+eigener Vorgang.
+
+### Ein eigenes Versions-Token
+
+Damit der Reaper eine Zeile anfassen kann, ohne einen eventuell doch noch lebenden Lauf still
+zu verwerfen, hat der Optimistic-Lock des Workers eine eigene Spalte bekommen:
+`documents.index_version` statt `updated_at` (Details in `08_ERD.md`). Zwei Schreiber zählen
+sie hoch — der Upload, weil die Bytes neu sind, und der Reaper, weil er einen Lauf für tot
+erklärt. Ein aufwachender Zombie-Job scheitert dadurch **deterministisch** an jeder
+geschützten Schreiboperation, statt sich mit dem neuen Versuch um die Chunks zu streiten.
+
+---
+
 *Abhängigkeiten: ADR-001 (Modularer Monolith), ADR-003 (PostgreSQL als einziger Persistenz-Service)*
 *Löst auf: Offene Entscheidung aus ADR-Review (Celery+Redis-Widerspruch)*

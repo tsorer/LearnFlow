@@ -27,6 +27,8 @@ TABLE = {
     "rrf_k": "60",
     "retrieval_top_k": "20",
     "context_top_n": "5",
+    "processing_timeout_seconds": "900",
+    "processing_max_attempts": "3",
 }
 
 
@@ -166,6 +168,29 @@ async def test_put_accepts_a_positive_integer_count_key() -> None:
 
     assert r.status_code == 200
     assert db.updates[0]["value"] == "30"
+
+
+async def test_put_accepts_the_reaper_keys() -> None:
+    """0017 put both reaper keys under the same CHECK, and the whitelist here is
+    meant to be exactly that set (T-43). They are counts, not thresholds — a
+    timeout of 900 would fail the unit-interval shape every non-count key gets.
+    """
+    db = make_db()
+
+    r = await _put_config(
+        {"config": {"processing_timeout_seconds": "900", "processing_max_attempts": "5"}}, db
+    )
+
+    assert r.status_code == 200
+    assert [update["value"] for update in db.updates] == ["900", "5"]
+
+
+async def test_put_rejects_a_reaper_key_that_is_not_a_positive_integer() -> None:
+    db = make_db()
+
+    r = await _put_config({"config": {"processing_max_attempts": "0"}}, db)
+
+    assert r.status_code == 422
 
 
 # ---- PUT: the round-trip fix (blocker from review) -------------------------
