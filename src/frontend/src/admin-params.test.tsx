@@ -22,8 +22,33 @@ import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom/vitest";
 import App from "./App";
 import { installApiStub, installAppEnvironment, type ApiStub } from "../test/api";
+import { PARAM_LABELS } from "./params";
 
 let api: ApiStub;
+
+/**
+ * Die Schlüssel, die `POST /api/query` in `debug.params_used` legt
+ * (`app/routers/query.py`) — jede Schwelle, gegen die entschieden wurde, auch
+ * die von Stufen, die nicht liefen.
+ *
+ * Bewusst als Literal und nicht aus PARAM_LABELS abgeleitet: das hier ist ein
+ * Vertrag mit dem Backend, und eine Schwelle, die dort dazukommt, ohne hier eine
+ * Beschriftung zu haben, erscheint dem Admin als roher Bezeichner. Genau so
+ * standen `retrieval_top_k`, `context_top_n` und `rrf_k` unbeschriftet in der
+ * Debug-Ansicht, während das Panel sie unter falschem Namen verschickte.
+ */
+const PARAMS_USED_KEYS = [
+  "similarity_threshold",
+  "min_retrieval_confidence",
+  "min_citation_coverage",
+  "confidence_threshold_medium",
+  "confidence_threshold_high",
+  "self_check_band_low",
+  "self_check_band_high",
+  "retrieval_top_k",
+  "context_top_n",
+  "rrf_k",
+] as const;
 
 /** Every row `GET /admin/config` returns — the writable ones and the rest. */
 const CONFIG: Record<string, string> = {
@@ -167,6 +192,25 @@ describe("admin parameter panel", () => {
     expect(sent.confidence_threshold_high).toBe("0.8");
     expect(sent.chunk_size).toBe(CONFIG.chunk_size);
     expect(sent.stale_days).toBe(CONFIG.stale_days);
+  });
+});
+
+describe("PARAM_LABELS", () => {
+  it("beschriftet jede Schwelle, die die Debug-Ansicht einer Antwort erhält", () => {
+    for (const key of PARAMS_USED_KEYS) {
+      expect(PARAM_LABELS[key]).toBeTruthy();
+    }
+  });
+
+  it("kennt keinen Schlüssel, den es in der config-Tabelle nicht gibt", () => {
+    // Die vier llm_* standen hier, ohne dass es je eine Zeile für sie gab —
+    // tote Einträge, die nichts beschrifteten und die Liste plausibel aussehen
+    // liessen. Ihr Feature ist in ein eigenes Issue vertagt.
+    for (const key of Object.keys(PARAM_LABELS)) {
+      expect(key.startsWith("llm_")).toBe(false);
+    }
+    expect(PARAM_LABELS).not.toHaveProperty("top_k");
+    expect(PARAM_LABELS).not.toHaveProperty("top_n");
   });
 });
 

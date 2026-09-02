@@ -4,51 +4,12 @@ import type { AuthUser, Message } from "../types";
 import { api, ApiError } from "../api/client";
 import Upload from "./Upload";
 import MessageBubble from "./MessageBubble";
-
-// The panel splits by consequence, not by topic. Everything in these two groups
-// is read from `config` per request and applies to the next question — no
-// re-index, no restart, which is what US-11 asks of this screen.
-//
-// Every key is in WRITABLE_KEYS (app/routers/admin.py) and has to survive that
-// endpoint's shape check, which mirrors migration 0012's CHECK: the floats must
-// stay inside [0, 1], the counts must be positive integers. The min/max/step
-// below are that contract expressed in the widget, because PUT is
-// all-or-nothing — a single out-of-range field fails the whole save, taking the
-// untouched values next to it with it.
-type ParamDef = {
-  key: string;
-  label: string;
-  type: "float" | "int";
-  min: number;
-  max: number;
-  step: number;
-};
-
-const RETRIEVAL_PARAM_DEFS: readonly ParamDef[] = [
-  { key: "similarity_threshold",     label: "Similarity-Schwellwert",   type: "float", min: 0, max: 1,   step: 0.01 },
-  { key: "min_retrieval_confidence", label: "Min. Retrieval-Konfidenz", type: "float", min: 0, max: 1,   step: 0.01 },
-  { key: "retrieval_top_k",          label: "Kandidaten je Suche",      type: "int",   min: 1, max: 100, step: 1    },
-  { key: "context_top_n",            label: "Chunks ans LLM",           type: "int",   min: 1, max: 50,  step: 1    },
-  { key: "rrf_k",                    label: "RRF-Dämpfung",             type: "int",   min: 1, max: 200, step: 1    },
-];
-
-const ANSWER_PARAM_DEFS: readonly ParamDef[] = [
-  { key: "min_citation_coverage",       label: "Min. Citation-Coverage",  type: "float", min: 0, max: 1, step: 0.01 },
-  { key: "confidence_threshold_medium", label: "Band «mittel» ab",        type: "float", min: 0, max: 1, step: 0.01 },
-  { key: "confidence_threshold_high",   label: "Band «hoch» ab",          type: "float", min: 0, max: 1, step: 0.01 },
-  { key: "self_check_band_low",         label: "Self-Check Zone (unten)", type: "float", min: 0, max: 1, step: 0.01 },
-  { key: "self_check_band_high",        label: "Self-Check Zone (oben)",  type: "float", min: 0, max: 1, step: 0.01 },
-];
-
-// Shown because a calibration view that hides half the parameters invites wrong
-// conclusions — but not editable. A new chunk size only applies to documents
-// indexed after the change, so without a full re-index the corpus ends up half
-// old and half new with nothing saying so (ADR-007). Making them writable is
-// T-42's job, together with the re-indexing it forces.
-const READ_ONLY_PARAM_DEFS = [
-  { key: "chunk_size",    label: "Chunk-Grösse (Tokens)" },
-  { key: "chunk_overlap", label: "Chunk-Overlap (Tokens)" },
-] as const;
+import {
+  ANSWER_PARAM_DEFS,
+  READ_ONLY_PARAM_DEFS,
+  RETRIEVAL_PARAM_DEFS,
+  type ParamDef,
+} from "../params";
 
 const GROUP_LABEL_STYLE = {
   fontSize: 10,
