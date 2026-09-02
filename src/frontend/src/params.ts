@@ -16,10 +16,16 @@
  * Re-Indexierung des Korpus und werden von `PUT /api/admin/config` deshalb
  * abgelehnt (T-42).
  *
- * `min`/`max`/`step` sind der Wertebereich aus Migration `0012`s CHECK:
- * Schwellen in [0, 1], Zähler als positive Ganzzahlen. PUT ist all-or-nothing,
- * also kostet ein einziges Feld ausserhalb des Bereichs die gesamte
- * Speicherung — auch die unberührten Werte daneben.
+ * Aus Migration `0012`s CHECK stammt, was die Datenbank erzwingt: Schwellen in
+ * [0, 1], die drei Zähler als positive Ganzzahlen — also `min` und, bei den
+ * Schwellen, `max`. Die Obergrenzen der Zähler (100/50/200) stehen dort
+ * **nicht**; der CHECK ist nach oben offen. Sie sind hier als Bedienschutz
+ * gewählt und dürfen bewegt werden, ohne dass eine Migration nachzieht — was
+ * die Datenbank ablehnt, sagen die anderen Grenzen.
+ *
+ * `step` ist reine Bedienung. PUT ist all-or-nothing, also kostet ein einziges
+ * Feld ausserhalb des von der DB erzwungenen Bereichs die gesamte Speicherung —
+ * auch die unberührten Werte daneben.
  */
 
 export type ParamDef = {

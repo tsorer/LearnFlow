@@ -174,8 +174,21 @@ export default function ChatView({ user, onLogout }: Props) {
       // was stored that wasn't (ADR-008).
       setParamSaved(true);
       setTimeout(() => setParamSaved(false), 2000);
-    } catch {
-      setParamError("Parameter konnten nicht gespeichert werden.");
+    } catch (err) {
+      // The backend names the offending key and the rule it broke — a shape
+      // violation from `_validate_shape`, or the message of the deferred band
+      // trigger ("confidence_threshold_medium (0.8) darf nicht über
+      // confidence_threshold_high (0.75) liegen"), which `errorMessage` in the
+      // client lifts out of `detail`. Swallowing it left the admin with a panel
+      // of ten fields, an all-or-nothing PUT, and nothing to say which one
+      // broke — the failure this panel exists to end.
+      //
+      // `HTTP <status>` is what `errorMessage` returns when it found no usable
+      // `detail`, so it is the one message worth replacing: a bare status code
+      // helps an admin less than the sentence below.
+      const detail =
+        err instanceof ApiError && err.message !== `HTTP ${err.status}` ? err.message : null;
+      setParamError(detail ?? "Parameter konnten nicht gespeichert werden.");
     }
   };
 
