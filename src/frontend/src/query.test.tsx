@@ -465,7 +465,7 @@ describe("Frage-UI", () => {
     // Both used to sit in the header regardless: "Neuer Chat" cleared a
     // transcript nobody could see, and "⚙ Parameter" flipped its arrow over a
     // panel that only renders in the chat branch.
-    api.route("get", "/api/admin/config", 200, { config: { top_k: "20" } });
+    api.route("get", "/api/admin/config", 200, { config: { retrieval_top_k: "20" } });
     api.route("get", "/api/documents", 200, []);
     await openChat("admin");
     expect(screen.getByRole("button", { name: /neuer chat/i })).toBeInTheDocument();

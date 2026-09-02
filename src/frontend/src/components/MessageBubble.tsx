@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import type { Message, ChunkDebugInfo, StageInfo, LLMCallInfo, DebugInfo, ConfidenceInfo, ConfidenceBand, SuppressionReason } from "../types";
 import { api, type Citation, type FeedbackCategory } from "../api/client";
+import { PARAM_LABELS } from "../params";
 
 // Keyed by the FeedbackCategory enum in openapi.yaml, one entry per value
 // (US-03: the first four apply to a thumbs-up, the remaining five to a
@@ -26,21 +27,6 @@ const categoriesFor = (helpful: boolean) => CATEGORY_ENTRIES.filter(([, meta]) =
 const COMMENT_MAX_LENGTH = 500;
 
 
-const PARAM_LABELS: Record<string, string> = {
-  similarity_threshold:     "Similarity-Schwellwert",
-  min_retrieval_confidence: "Min. Retrieval-Konfidenz",
-  min_citation_coverage:    "Min. Citation-Coverage",
-  confidence_threshold_high:   "Band-Grenze «Hoch»",
-  confidence_threshold_medium: "Band-Grenze «Mittel»",
-  top_k:                    "Top-K Kandidaten",
-  top_n:                    "Top-N ans LLM",
-  self_check_band_low:      "Self-Check Zone (unten)",
-  self_check_band_high:     "Self-Check Zone (oben)",
-  llm_temperature:          "Temperature",
-  llm_max_tokens:           "Max Tokens",
-  llm_top_p:                "Top-P",
-  llm_seed:                 "Seed",
-};
 
 // Keyed by the spec enum (see SuppressionReason): a reason added in
 // openapi.yaml fails the type check here instead of rendering the raw key in

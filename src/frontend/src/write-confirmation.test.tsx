@@ -57,30 +57,57 @@ afterEach(() => {
 describe("admin parameters (T-37)", () => {
   async function openPanel() {
     authRoutes("admin");
-    api.route("get", "/api/admin/config", 200, { config: { top_k: "20" } });
+    api.route("get", "/api/admin/config", 200, { config: { retrieval_top_k: "20" } });
     render(<App />);
     await login("admin@learnflow.ch");
     await userEvent.click(await screen.findByRole("button", { name: /parameter/i }));
   }
 
-  it("reports no success when the write fails", async () => {
+  it("reports no success when the write fails, and says what the backend said", async () => {
     // The core of the finding: `.catch(() => {})` showed the green check even
     // when the config table had never seen anything — the admin would go on
     // working against a threshold that is not set.
+    //
+    // The message matters as much as the absence of the check mark. `PUT` is
+    // all-or-nothing over ten fields, so "es hat nicht geklappt" leaves the
+    // admin to find the offending value by bisection. The backend already
+    // names it — 422 with the shape rule or the deferred band trigger's own
+    // text — and the panel has to pass that through.
     await openPanel();
-    api.route("put", "/api/admin/config", 422, { detail: "Unbekannter Schluessel" });
+    api.route("put", "/api/admin/config", 422, {
+      detail: "confidence_threshold_medium (0.8) darf nicht über confidence_threshold_high (0.75) liegen",
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /^speichern$/i }));
+
+    expect(
+      await screen.findByText(/confidence_threshold_medium \(0\.8\) darf nicht über/i),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/✓ Gespeichert/)).not.toBeInTheDocument();
+  });
+
+  it("falls back to its own sentence when the rejection carries no detail", async () => {
+    // `errorMessage` in the client answers a body it cannot read with
+    // `HTTP <status>`. Showing that to an admin is worse than saying nothing
+    // useful in German, so it is the one message the panel replaces.
+    //
+    // An empty `detail` is the only way to reach that branch through the typed
+    // stub — the spec declares `detail` as required for 422. In production the
+    // branch also catches what never went through FastAPI at all: a proxy error
+    // page, a dropped connection.
+    await openPanel();
+    api.route("put", "/api/admin/config", 422, { detail: "" });
 
     await userEvent.click(screen.getByRole("button", { name: /^speichern$/i }));
 
     expect(await screen.findByText(/konnten nicht gespeichert werden/i)).toBeInTheDocument();
-    // Match the check mark, not /gespeichert/i: the error message contains that
-    // word itself ("konnten nicht gespeichert werden").
+    expect(screen.queryByText(/HTTP 422/)).not.toBeInTheDocument();
     expect(screen.queryByText(/✓ Gespeichert/)).not.toBeInTheDocument();
   });
 
   it("reports success when the write goes through", async () => {
     await openPanel();
-    api.route("put", "/api/admin/config", 200, { config: { top_k: "20" } });
+    api.route("put", "/api/admin/config", 200, { config: { retrieval_top_k: "20" } });
 
     await userEvent.click(screen.getByRole("button", { name: /^speichern$/i }));
 

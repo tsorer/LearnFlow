@@ -4,25 +4,72 @@ import type { AuthUser, Message } from "../types";
 import { api, ApiError } from "../api/client";
 import Upload from "./Upload";
 import MessageBubble from "./MessageBubble";
+import {
+  ANSWER_PARAM_DEFS,
+  READ_ONLY_PARAM_DEFS,
+  RETRIEVAL_PARAM_DEFS,
+  type ParamDef,
+} from "../params";
 
-const PARAM_DEFS = [
-  { key: "similarity_threshold",     label: "Similarity-Schwellwert",   type: "float", min: 0,  max: 1,    step: 0.01 },
-  { key: "min_retrieval_confidence", label: "Min. Retrieval-Konfidenz", type: "float", min: 0,  max: 1,    step: 0.01 },
-  { key: "min_citation_coverage",    label: "Min. Citation-Coverage",   type: "float", min: 0,  max: 1,    step: 0.01 },
-  { key: "self_check_band_low",      label: "Self-Check Zone (unten)", type: "float", min: 0,  max: 1,    step: 0.01 },
-  { key: "self_check_band_high",     label: "Self-Check Zone (oben)",  type: "float", min: 0,  max: 1,    step: 0.01 },
-  { key: "top_k",                    label: "Top-K Kandidaten",         type: "int",   min: 1,  max: 100,  step: 1    },
-  { key: "top_n",                    label: "Top-N ans LLM",            type: "int",   min: 1,  max: 50,   step: 1    },
-  { key: "chunk_size",               label: "Chunk-Grösse (Tokens)",    type: "int",   min: 64, max: 2048, step: 64   },
-  { key: "chunk_overlap",            label: "Chunk-Overlap (Tokens)",   type: "int",   min: 0,  max: 512,  step: 16   },
-] as const;
+const GROUP_LABEL_STYLE = {
+  fontSize: 10,
+  fontWeight: 700,
+  color: "var(--muted)",
+  textTransform: "uppercase",
+  letterSpacing: ".06em",
+  marginBottom: 8,
+} as const;
 
-const LLM_PARAM_DEFS = [
-  { key: "llm_temperature", label: "Temperature",         min: 0,  max: 2,          step: 0.01, hint: "Standard: 1.0 — für RAG empfohlen: 0.0–0.2" },
-  { key: "llm_max_tokens",  label: "Max Tokens",          min: 1,  max: 8192,       step: 1,    hint: "Standard: Modell-Max (kein Limit)" },
-  { key: "llm_top_p",       label: "Top-P",               min: 0,  max: 1,          step: 0.01, hint: "Standard: 1.0 — nicht gleichzeitig mit Temperature setzen" },
-  { key: "llm_seed",        label: "Seed (Reproduzierb.)", min: 0,  max: 2147483647, step: 1,    hint: "Standard: zufällig — gleicher Seed → gleiche Antwort" },
-] as const;
+/** One labelled block of sliders. Declared outside ChatView so React keeps the
+ *  inputs mounted across re-renders — a component defined inside the parent is
+ *  a new type on every render and would drop focus after each keystroke. */
+function ParamGroup({
+  title,
+  defs,
+  params,
+  onChange,
+}: {
+  title: string;
+  defs: readonly ParamDef[];
+  params: Record<string, string>;
+  onChange: (key: string, value: string) => void;
+}) {
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div style={GROUP_LABEL_STYLE}>{title}</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "10px 20px" }}>
+        {defs.map(p => {
+          const raw = params[p.key] ?? "";
+          return (
+            <div key={p.key}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, fontWeight: 700, color: "var(--navy)", marginBottom: 3 }}>
+                <label htmlFor={`param-${p.key}`}>{p.label}</label>
+                <input
+                  id={`param-${p.key}`}
+                  type="number"
+                  value={raw}
+                  min={p.min} max={p.max} step={p.step}
+                  onChange={e => onChange(p.key, e.target.value)}
+                  style={{ width: 56, textAlign: "right", fontSize: 11, padding: "1px 4px", fontWeight: 700 }}
+                />
+              </div>
+              {p.type === "float" && (
+                <input
+                  type="range"
+                  aria-label={`${p.label} (Schieberegler)`}
+                  min={p.min} max={p.max} step={p.step}
+                  value={parseFloat(raw) || 0}
+                  onChange={e => onChange(p.key, e.target.value)}
+                  style={{ width: "100%", accentColor: "var(--blue)", height: 4 }}
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 // Mirrors QueryRequest in openapi.yaml (question: minLength 3, maxLength 1000).
 // Checked here as well as there because the backend answers a violation with a
@@ -127,8 +174,21 @@ export default function ChatView({ user, onLogout }: Props) {
       // was stored that wasn't (ADR-008).
       setParamSaved(true);
       setTimeout(() => setParamSaved(false), 2000);
-    } catch {
-      setParamError("Parameter konnten nicht gespeichert werden.");
+    } catch (err) {
+      // The backend names the offending key and the rule it broke — a shape
+      // violation from `_validate_shape`, or the message of the deferred band
+      // trigger ("confidence_threshold_medium (0.8) darf nicht über
+      // confidence_threshold_high (0.75) liegen"), which `errorMessage` in the
+      // client lifts out of `detail`. Swallowing it left the admin with a panel
+      // of ten fields, an all-or-nothing PUT, and nothing to say which one
+      // broke — the failure this panel exists to end.
+      //
+      // `HTTP <status>` is what `errorMessage` returns when it found no usable
+      // `detail`, so it is the one message worth replacing: a bare status code
+      // helps an admin less than the sentence below.
+      const detail =
+        err instanceof ApiError && err.message !== `HTTP ${err.status}` ? err.message : null;
+      setParamError(detail ?? "Parameter konnten nicht gespeichert werden.");
     }
   };
 
@@ -270,70 +330,30 @@ export default function ChatView({ user, onLogout }: Props) {
           {showParams && isAdmin && (
             <div style={{ borderTop: "1px solid var(--border)", background: "var(--blue-lt)", padding: "14px 24px", flexShrink: 0 }}>
               <div style={{ maxWidth: 760, margin: "0 auto" }}>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "10px 20px", marginBottom: 10 }}>
-                  {PARAM_DEFS.map(p => {
-                    const raw = params[p.key] ?? "";
-                    const num = parseFloat(raw) || 0;
-                    return (
-                      <div key={p.key}>
-                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, fontWeight: 700, color: "var(--navy)", marginBottom: 3 }}>
-                          <span>{p.label}</span>
-                          <input
-                            type="number"
-                            value={raw}
-                            min={p.min} max={p.max} step={p.step}
-                            onChange={e => updateParam(p.key, e.target.value)}
-                            style={{ width: 56, textAlign: "right", fontSize: 11, padding: "1px 4px", fontWeight: 700 }}
-                          />
-                        </div>
-                        {p.type === "float" && (
-                          <input
-                            type="range"
-                            min={p.min} max={p.max} step={p.step}
-                            value={num}
-                            onChange={e => updateParam(p.key, e.target.value)}
-                            style={{ width: "100%", accentColor: "var(--blue)", height: 4 }}
-                          />
-                        )}
+                <ParamGroup
+                  title="Retrieval · welche Quellen in den Kontext kommen"
+                  defs={RETRIEVAL_PARAM_DEFS}
+                  params={params}
+                  onChange={updateParam}
+                />
+                <ParamGroup
+                  title="Antwort · wann der Antwort getraut wird"
+                  defs={ANSWER_PARAM_DEFS}
+                  params={params}
+                  onChange={updateParam}
+                />
+
+                {/* Nur zur Ansicht. Eine Änderung wirkt erst nach vollständiger
+                    Re-Indexierung des Korpus, deshalb weist PUT sie zurück (T-42). */}
+                <div style={{ borderTop: "1px solid var(--border)", paddingTop: 10, marginTop: 2, marginBottom: 12 }}>
+                  <div style={GROUP_LABEL_STYLE}>Indexierung · erfordert Re-Indexierung, hier nicht änderbar</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "10px 20px" }}>
+                    {READ_ONLY_PARAM_DEFS.map(p => (
+                      <div key={p.key} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, fontWeight: 700, color: "var(--muted)" }}>
+                        <span>{p.label}</span>
+                        <span>{params[p.key] ?? "—"}</span>
                       </div>
-                    );
-                  })}
-                </div>
-                {/* LLM-Parameter — optional, leer = OpenAI-Standard */}
-                <div style={{ borderTop: "1px solid var(--border)", paddingTop: 10, marginTop: 2 }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8 }}>
-                    LLM-Parameter · leer = OpenAI-Standard
-                  </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "10px 20px", marginBottom: 10 }}>
-                    {LLM_PARAM_DEFS.map(p => {
-                      const raw = params[p.key] ?? "";
-                      return (
-                        <div key={p.key}>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11, fontWeight: 700, color: "var(--navy)", marginBottom: 3 }}>
-                            <span>{p.label}</span>
-                            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                              <input
-                                type="number"
-                                value={raw}
-                                min={p.min} max={p.max} step={p.step}
-                                onChange={e => updateParam(p.key, e.target.value)}
-                                style={{ width: 76, textAlign: "right", fontSize: 11, padding: "1px 4px", fontWeight: raw ? 700 : 400 }}
-                              />
-                              {raw !== "" && (
-                                <button
-                                  onClick={() => updateParam(p.key, "")}
-                                  title="Auf OpenAI-Standard zurücksetzen"
-                                  style={{ fontSize: 13, lineHeight: "14px", padding: "0 4px", background: "none", border: "1px solid var(--border)", cursor: "pointer", color: "var(--muted)", borderRadius: 3 }}
-                                >×</button>
-                              )}
-                            </div>
-                          </div>
-                          <div style={{ fontSize: 10, color: "var(--muted)", fontStyle: "italic" }}>
-                            {raw === "" ? p.hint : ""}
-                          </div>
-                        </div>
-                      );
-                    })}
+                    ))}
                   </div>
                 </div>
 
