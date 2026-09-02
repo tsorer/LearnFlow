@@ -24,7 +24,7 @@ export default function DocumentViewer({ citation, token, onClose }: Props) {
     let cancelled = false;
     setContent(null);
     setError(null);
-    api.getDocumentContent(citation.document_id, token)
+    api.getDocumentContent(citation.document_id, citation.chunk_id, token)
       .then(result => { if (!cancelled) setContent(result); })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -37,7 +37,7 @@ export default function DocumentViewer({ citation, token, onClose }: Props) {
         }
       });
     return () => { cancelled = true; };
-  }, [citation.document_id, token]);
+  }, [citation.document_id, citation.chunk_id, token]);
 
   useEffect(() => {
     closeRef.current?.focus();

@@ -173,11 +173,18 @@ export const api = {
     return { document: unwrap(result), replaced: result.response.status === 200 };
   },
 
-  getDocumentContent: async (id: string, token: string): Promise<DocumentContent> =>
+  // `around` (Pflicht): das Kontextfenster ist auf den zitierten Chunk begrenzt,
+  // nicht das ganze Dokument (T-21) — der Rest hat dem Retrieval-Gate für diese
+  // Frage nie genügt.
+  getDocumentContent: async (
+    documentId: string,
+    around: string,
+    token: string,
+  ): Promise<DocumentContent> =>
     unwrap(
       await client.GET("/api/documents/{document_id}/content", {
         headers: auth(token),
-        params: { path: { document_id: id } },
+        params: { path: { document_id: documentId }, query: { around } },
       }),
     ),
 

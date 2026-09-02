@@ -326,7 +326,11 @@ describe("Frage-UI", () => {
     api.route("post", "/api/query", 200, answer({
       citations: [citation(1, "skos.pdf", "Der belegende Abschnitt.")],
     }));
-    api.route("get", "/api/documents/{document_id}/content", 200, {
+    // Nur mit around=chunk-1 beantwortet (T-21: Fenster um den zitierten
+    // Chunk, nicht das ganze Dokument) — schickt der Viewer den falschen oder
+    // gar keinen `around`-Parameter, bleibt die Anfrage unbeantwortet und der
+    // Dialog zeigt den Fehlerzustand statt des Abschnitts.
+    api.routeQuery("get", "/api/documents/{document_id}/content", { around: "chunk-1" }, 200, {
       id: "doc-1",
       filename: "skos.pdf",
       status: "available",

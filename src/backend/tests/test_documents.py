@@ -441,63 +441,133 @@ async def test_list_documents_no_auth_returns_401() -> None:
     assert r.status_code == 401
 
 
-def make_chunk(document_id: uuid.UUID, chunk_index: int, heading: str | None = None) -> object:
-    from app.models.tables import Chunk
+def make_chunk_row(
+    chunk_id: uuid.UUID,
+    chunk_index: int,
+    page: int | None = None,
+    heading: str | None = None,
+    content: str = "Inhalt",
+) -> object:
+    """A fake Row for the column-select in get_document_content: the route
+    selects only id/chunk_index/page/heading/content (not embedding/tsv), so
+    a real Chunk ORM instance would test the wrong shape."""
+    from types import SimpleNamespace
 
-    return Chunk(
-        id=uuid.uuid4(),
-        document_id=document_id,
-        content=f"Inhalt {chunk_index}",
-        chunk_index=chunk_index,
-        page=chunk_index + 1,
-        heading=heading,
-    )
+    return SimpleNamespace(id=chunk_id, chunk_index=chunk_index, page=page, heading=heading, content=content)
 
 
 async def _get_document_content(
-    document_id: uuid.UUID, db: AsyncMock, role: str | None = "learner"
+    document_id: uuid.UUID,
+    db: AsyncMock,
+    around: uuid.UUID | None = None,
+    window: int | None = None,
+    role: str | None = "learner",
 ) -> "object":
     if role is not None:
         app.dependency_overrides[get_current_user] = lambda: make_user(role)
     app.dependency_overrides[get_db] = lambda: db
 
+    params: dict[str, str] = {}
+    if around is not None:
+        params["around"] = str(around)
+    if window is not None:
+        params["window"] = str(window)
+
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        return await client.get(f"/documents/{document_id}/content")
+        return await client.get(f"/documents/{document_id}/content", params=params)
 
 
-async def test_get_document_content_returns_chunks_in_order() -> None:
-    # Lernende (nicht nur knowledge_owner) duerfen die Chunks sehen (T-21): eine
-    # Query-Antwort zitiert sie ohnehin bereits.
+async def test_get_document_content_returns_the_window_around_the_cited_chunk() -> None:
+    # Lernende (nicht nur knowledge_owner) duerfen das Fenster sehen (T-21): eine
+    # Query-Antwort zitiert den Chunk unter `around` ohnehin bereits.
     document = make_document(status="available")
+    around = uuid.uuid4()
     db = make_db()
     db.get = AsyncMock(return_value=document)
-    chunks = [make_chunk(document.id, 1, heading="Einleitung"), make_chunk(document.id, 0)]
+    db.scalar = AsyncMock(return_value=5)  # chunk_index of `around`
     result = MagicMock()
-    result.scalars.return_value.all.return_value = chunks
+    result.all.return_value = [
+        make_chunk_row(around, 5, heading="Einleitung"),
+        make_chunk_row(uuid.uuid4(), 6),
+    ]
     db.execute = AsyncMock(return_value=result)
 
-    r = await _get_document_content(document.id, db)
+    r = await _get_document_content(document.id, db, around=around)
 
     assert r.status_code == 200
     body = r.json()
     assert body["id"] == str(document.id)
     assert body["status"] == "available"
-    assert [c["chunk_index"] for c in body["chunks"]] == [1, 0]
+    assert [c["chunk_index"] for c in body["chunks"]] == [5, 6]
     assert body["chunks"][0]["heading"] == "Einleitung"
 
 
-async def test_get_document_content_orders_by_chunk_index() -> None:
+async def test_get_document_content_window_bounds_the_chunk_index_range() -> None:
+    """A mocked db.execute ignores the statement it's called with, so the test
+    above stays green even if the window bound were dropped. This test inspects
+    the actual compiled SQL and its bound values instead."""
+    document = make_document(status="available")
+    around = uuid.uuid4()
+    db = make_db()
+    db.get = AsyncMock(return_value=document)
+    db.scalar = AsyncMock(return_value=5)
+    result = MagicMock()
+    result.all.return_value = []
+    db.execute = AsyncMock(return_value=result)
+
+    await _get_document_content(document.id, db, around=around, window=3)
+
+    sql, params = only(db, "FROM chunks")
+    assert "chunks.chunk_index BETWEEN " in sql
+    assert "ORDER BY chunks.chunk_index" in sql
+    assert {2, 8} <= set(params.values())  # 5-3, 5+3
+
+
+async def test_get_document_content_default_window_is_two() -> None:
+    document = make_document(status="available")
+    around = uuid.uuid4()
+    db = make_db()
+    db.get = AsyncMock(return_value=document)
+    db.scalar = AsyncMock(return_value=10)
+    result = MagicMock()
+    result.all.return_value = []
+    db.execute = AsyncMock(return_value=result)
+
+    await _get_document_content(document.id, db, around=around)  # kein window angegeben
+
+    _, params = only(db, "FROM chunks")
+    assert {8, 12} <= set(params.values())  # 10-2, 10+2
+
+
+async def test_get_document_content_window_above_maximum_returns_422() -> None:
     document = make_document(status="available")
     db = make_db()
     db.get = AsyncMock(return_value=document)
-    result = MagicMock()
-    result.scalars.return_value.all.return_value = []
-    db.execute = AsyncMock(return_value=result)
 
-    await _get_document_content(document.id, db)
+    r = await _get_document_content(document.id, db, around=uuid.uuid4(), window=11)
 
-    sql, _ = only(db, "FROM chunks")
-    assert "ORDER BY chunks.chunk_index" in sql
+    assert r.status_code == 422
+
+
+async def test_get_document_content_missing_around_returns_422() -> None:
+    document = make_document(status="available")
+    db = make_db()
+    db.get = AsyncMock(return_value=document)
+
+    r = await _get_document_content(document.id, db)  # kein around
+
+    assert r.status_code == 422
+
+
+async def test_get_document_content_around_not_in_document_returns_404() -> None:
+    document = make_document(status="available")
+    db = make_db()
+    db.get = AsyncMock(return_value=document)
+    db.scalar = AsyncMock(return_value=None)  # kein Treffer in diesem Dokument
+
+    r = await _get_document_content(document.id, db, around=uuid.uuid4())
+
+    assert r.status_code == 404
 
 
 async def test_get_document_content_not_available_returns_409() -> None:
@@ -505,7 +575,7 @@ async def test_get_document_content_not_available_returns_409() -> None:
     db = make_db()
     db.get = AsyncMock(return_value=document)
 
-    r = await _get_document_content(document.id, db)
+    r = await _get_document_content(document.id, db, around=uuid.uuid4())
 
     assert r.status_code == 409
 
@@ -514,7 +584,7 @@ async def test_get_document_content_not_found_returns_404() -> None:
     db = make_db()
     db.get = AsyncMock(return_value=None)
 
-    r = await _get_document_content(uuid.uuid4(), db)
+    r = await _get_document_content(uuid.uuid4(), db, around=uuid.uuid4())
 
     assert r.status_code == 404
 
@@ -524,14 +594,14 @@ async def test_get_document_content_wrong_area_returns_404() -> None:
     db = make_db()
     db.get = AsyncMock(return_value=document)
 
-    r = await _get_document_content(document.id, db)
+    r = await _get_document_content(document.id, db, around=uuid.uuid4())
 
     assert r.status_code == 404
 
 
 async def test_get_document_content_no_auth_returns_401() -> None:
     db = make_db()
-    r = await _get_document_content(uuid.uuid4(), db, role=None)
+    r = await _get_document_content(uuid.uuid4(), db, around=uuid.uuid4(), role=None)
     assert r.status_code == 401
 
 

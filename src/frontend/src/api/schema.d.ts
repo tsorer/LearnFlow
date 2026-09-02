@@ -546,12 +546,17 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Dokumentinhalt als Chunks abrufen, für den Quellenlink-Viewer (US-01, T-21)
-         * @description Für jede Rolle erreichbar, nicht nur `knowledge_owner`: eine Antwort auf `/api/query` zitiert bereits den Inhalt dieser Chunks, ein Lernender darf also öffnen, was ihm ohnehin zitiert wurde. Liefert den geparsten Text, nicht die hochgeladene Originaldatei (ADR-003) — der belegende Abschnitt ist der Chunk, und nur damit ist "hervorgehoben" ohne Koordinaten- Rückrechnung exakt umsetzbar.
+         * Kontextfenster um einen zitierten Chunk abrufen, für den Quellenlink-Viewer (US-01, T-21)
+         * @description Für jede Rolle erreichbar, nicht nur `knowledge_owner`: eine Antwort auf `/api/query` zitiert bereits den Inhalt des Chunks unter `around`, ein Lernender darf also öffnen, was ihm ohnehin zitiert wurde. Deshalb ist `around` Pflicht und die Antwort ist auf ein Fenster um diesen Chunk begrenzt — anders als der zitierte Chunk hat der Rest des Dokuments dem Retrieval-Gate für diese Frage nie genügt, und der Endpoint liefert ihn deshalb nicht mit. Liefert den geparsten Text, nicht die hochgeladene Originaldatei (ADR-003) — der belegende Abschnitt ist der Chunk, und nur damit ist "hervorgehoben" ohne Koordinaten-Rückrechnung exakt umsetzbar.
          */
         get: {
             parameters: {
-                query?: never;
+                query: {
+                    /** @description chunk_id einer Citation (US-01) — der Chunk, um den das Fenster liegt. */
+                    around: string;
+                    /** @description Chunks vor und nach `around`, die zusätzlich mitgeliefert werden (US-01 "Abschnitt" — Kontext für den belegenden Chunk, nicht das ganze Dokument). */
+                    window?: number;
+                };
                 header?: never;
                 path: {
                     document_id: string;
@@ -560,7 +565,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Dokument mit seinen Chunks in Lesereihenfolge */
+                /** @description Fenster von Chunks um `around`, in Lesereihenfolge */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -578,7 +583,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description Dokument nicht gefunden (auch bei fremdem Bereich) */
+                /** @description Dokument nicht gefunden (auch bei fremdem Bereich), oder `around` gehört nicht zu diesem Dokument. */
                 404: {
                     headers: {
                         [name: string]: unknown;

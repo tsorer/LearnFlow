@@ -338,14 +338,17 @@ paths:
   /api/documents/{document_id}/content:
     get:
       tags: [documents]
-      summary: Dokumentinhalt als Chunks abrufen, für den Quellenlink-Viewer (US-01, T-21)
+      summary: Kontextfenster um einen zitierten Chunk abrufen, für den Quellenlink-Viewer (US-01, T-21)
       description: >
         Für jede Rolle erreichbar, nicht nur `knowledge_owner`: eine Antwort auf
-        `/api/query` zitiert bereits den Inhalt dieser Chunks, ein Lernender darf
-        also öffnen, was ihm ohnehin zitiert wurde. Liefert den geparsten Text,
-        nicht die hochgeladene Originaldatei (ADR-003) — der belegende Abschnitt
-        ist der Chunk, und nur damit ist "hervorgehoben" ohne Koordinaten-
-        Rückrechnung exakt umsetzbar.
+        `/api/query` zitiert bereits den Inhalt des Chunks unter `around`, ein
+        Lernender darf also öffnen, was ihm ohnehin zitiert wurde. Deshalb ist
+        `around` Pflicht und die Antwort ist auf ein Fenster um diesen Chunk
+        begrenzt — anders als der zitierte Chunk hat der Rest des Dokuments dem
+        Retrieval-Gate für diese Frage nie genügt, und der Endpoint liefert ihn
+        deshalb nicht mit. Liefert den geparsten Text, nicht die hochgeladene
+        Originaldatei (ADR-003) — der belegende Abschnitt ist der Chunk, und nur
+        damit ist "hervorgehoben" ohne Koordinaten-Rückrechnung exakt umsetzbar.
       parameters:
         - name: document_id
           in: path
@@ -353,9 +356,28 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: around
+          in: query
+          required: true
+          description: chunk_id einer Citation (US-01) — der Chunk, um den das Fenster liegt.
+          schema:
+            type: string
+            format: uuid
+        - name: window
+          in: query
+          required: false
+          description: >
+            Chunks vor und nach `around`, die zusätzlich mitgeliefert werden
+            (US-01 "Abschnitt" — Kontext für den belegenden Chunk, nicht das
+            ganze Dokument).
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 10
+            default: 2
       responses:
         '200':
-          description: Dokument mit seinen Chunks in Lesereihenfolge
+          description: Fenster von Chunks um `around`, in Lesereihenfolge
           content:
             application/json:
               schema:
@@ -367,7 +389,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: Dokument nicht gefunden (auch bei fremdem Bereich)
+          description: >
+            Dokument nicht gefunden (auch bei fremdem Bereich), oder `around`
+            gehört nicht zu diesem Dokument.
           content:
             application/json:
               schema:
