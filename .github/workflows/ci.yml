@@ -6,20 +6,6 @@ on:
   pull_request:
 
 jobs:
-  # `secrets` is not readable from a job-level `if:` (only `github`, `needs`,
-  # `vars`, `inputs` are) — a job-level `if: ${{ secrets.X != '' }}` fails
-  # workflow validation before any job runs, taking backend/frontend/e2e down
-  # with it (confirmed: run 33305089711, zero check-runs). This step-level
-  # check is the escape hatch: secrets ARE readable in a step, so its output
-  # is what the `eval` job's `if:` below actually gates on.
-  check-eval-secret:
-    runs-on: ubuntu-latest
-    outputs:
-      has_key: ${{ steps.check.outputs.has_key }}
-    steps:
-      - id: check
-        run: echo "has_key=${{ secrets.OPENAI_API_KEY != '' }}" >> "$GITHUB_OUTPUT"
-
   backend:
     runs-on: ubuntu-latest
     defaults:
@@ -76,52 +62,6 @@ jobs:
       # `learnflow_pgdata`, so it is not project-scoped — `down -v` would wipe the
       # development database on a self-hosted runner (or wherever this step gets
       # copied). On GitHub-hosted runners it is discarded anyway.
-      - name: Tear down the stack
-        if: always()
-        run: docker compose down
-
-  # T-28: out-of-corpus refusal rate (ADR-009, DoD Kriterium 4) against the real,
-  # indexed LearningCorpus. Skipped until OPENAI_API_KEY is set as a repo secret --
-  # this job spends real provider budget indexing three real PDFs and embedding
-  # each question, so it is left out entirely rather than pretending to pass
-  # without a key. Unlike `e2e`, the worker has to come up too: seed_corpus.py
-  # needs it to actually chunk and embed the uploaded documents.
-  eval:
-    runs-on: ubuntu-latest
-    needs: check-eval-secret
-    if: ${{ needs.check-eval-secret.outputs.has_key == 'true' }}
-    defaults:
-      run:
-        working-directory: src
-    steps:
-      - uses: actions/checkout@v4
-      - name: Create .env for the throwaway stack
-        run: |
-          cp .env.example .env
-          sed -i 's|^DB_PASSWORD=.*|DB_PASSWORD=ci-eval-password|' .env
-          sed -i 's|^JWT_SECRET=.*|JWT_SECRET=ci-eval-secret-with-at-least-32-chars|' .env
-          sed -i 's|^BCRYPT_ROUNDS=.*|BCRYPT_ROUNDS=4|' .env
-          sed -i 's|^# WEBAPP_PORT=.*|WEBAPP_PORT=8081|' .env
-          sed -i "s|^OPENAI_API_KEY=.*|OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}|" .env
-      - run: docker compose up -d --build --wait --wait-timeout 300
-      - run: make seed
-      - run: make seed-corpus
-      - run: make eval
-      - name: Upload per-question results
-        # Written under ./backend, which is bind-mounted into the api container
-        # (docker-compose.yml), so it lands here on the runner too. Uploaded
-        # whether the gate passed or failed -- a failing run is exactly when the
-        # per-question breakdown (confidence.score, self_check_ran, ...) matters
-        # for calibration.
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: eval-out-of-corpus-results
-          path: src/backend/eval/out/refusal-results.csv
-          if-no-files-found: ignore
-      - name: Container logs on failure
-        if: failure()
-        run: docker compose logs --no-color --tail=200
       - name: Tear down the stack
         if: always()
         run: docker compose down

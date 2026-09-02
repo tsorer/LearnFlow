@@ -18,6 +18,7 @@ from pathlib import Path
 
 import httpx
 
+from eval.gold_dataset import load_corpora
 from seed_users import USERS
 
 BASE_URL = os.environ.get("E2E_BASE_URL", "http://webapp")
@@ -32,9 +33,10 @@ PASSWORD = os.environ.get("E2E_OWNER_PASSWORD", _OWNER["password"])
 
 
 def main() -> None:
-    pdfs = sorted(CORPUS_DIR.glob("*.pdf"))
-    if not pdfs:
-        sys.exit(f"No PDFs found under {CORPUS_DIR}")
+    # The dataset's corpora, not "whatever PDFs happen to be in the directory":
+    # an extra or unrelated file there must not silently become part of what
+    # the eval measures against (review on #100).
+    corpora = load_corpora()
 
     with httpx.Client(base_url=BASE_URL, timeout=60.0) as client:
         r = client.post("/api/auth/login", json={"email": EMAIL, "password": PASSWORD})
@@ -43,17 +45,20 @@ def main() -> None:
         headers = {"Authorization": f"Bearer {token}"}
 
         pending: dict[str, str] = {}  # document_id -> filename
-        for pdf in pdfs:
-            with pdf.open("rb") as f:
+        for corpus in corpora:
+            file_path = CORPUS_DIR / corpus.path
+            if not file_path.is_file():
+                sys.exit(f"{corpus.path}: not found under {CORPUS_DIR}")
+            with file_path.open("rb") as f:
                 r = client.post(
                     "/api/documents",
-                    files={"file": (pdf.name, f, "application/pdf")},
+                    files={"file": (corpus.filename, f, "application/pdf")},
                     headers=headers,
                 )
             r.raise_for_status()
             body = r.json()
-            pending[body["id"]] = pdf.name
-            print(f"uploaded {pdf.name} -> {body['id']} ({body['status']})")
+            pending[body["id"]] = corpus.filename
+            print(f"uploaded {corpus.filename} -> {body['id']} ({body['status']})")
 
         deadline = time.monotonic() + POLL_TIMEOUT_S
         while pending and time.monotonic() < deadline:

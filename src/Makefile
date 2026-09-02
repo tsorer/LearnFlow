@@ -12,7 +12,7 @@ seed:
 
 # T-28: uploads + indexes the real LearningCorpus PDFs (needs a real OPENAI_API_KEY,
 # real embedding calls). Separate from `seed`: costs provider budget and time, so
-# only the eval job needs it, not every e2e run.
+# only `make eval` needs it, not every e2e run.
 seed-corpus:
 	docker exec src-api-1 python seed_corpus.py
 
@@ -82,10 +82,11 @@ generate-api:
 e2e:
 	docker exec -e E2E_BASE_URL=http://webapp src-api-1 pytest e2e
 
-# --- out-of-corpus eval gate (T-28, requires: make up && make seed && make seed-corpus) ---
+# --- out-of-corpus refusal rate (T-28, requires: make up && make seed && make seed-corpus) ---
 # Same execution path as `e2e`: inside the api container, through nginx. Needs a
-# real OPENAI_API_KEY (real embedding calls against the indexed corpus) and is not
-# part of `make qa` or `make e2e` for that reason.
+# real OPENAI_API_KEY (real embedding calls against the indexed corpus), so this is
+# a manually run release gate, not a CI job (T-53, #110) -- not part of `make qa`
+# or `make e2e` either way.
 eval:
 	docker exec -e E2E_BASE_URL=http://webapp src-api-1 pytest eval
 
