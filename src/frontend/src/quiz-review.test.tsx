@@ -78,9 +78,30 @@ describe("Board (AK: drei Spalten, Karteninhalt)", () => {
     expect(screen.getByText(/abgelehnt \(0\)/i)).toBeInTheDocument();
 
     expect(screen.getByText("Was verlangt SKOS je Sprache?")).toBeInTheDocument();
-    expect(screen.getByText("Genau ein prefLabel")).toBeInTheDocument();
+    // Enthält jetzt zusätzlich das Häkchen als sichtbaren Text davor, deshalb
+    // eine Teilübereinstimmung statt des exakten Optionstexts.
+    expect(screen.getByText(/Genau ein prefLabel/)).toBeInTheDocument();
     expect(screen.getByText(/SKOS erlaubt je Sprache genau ein prefLabel/)).toBeInTheDocument();
     expect(screen.getByText(/Jede Konzeptbezeichnung darf pro Sprache/)).toBeInTheDocument();
+  });
+
+  it("markiert die richtige Antwort für Screenreader — nicht nur über Farbe (WCAG 1.4.1)", async () => {
+    routeQuestions({ pending: [question()] });
+    await openBoard();
+
+    // Ein `aria-label` auf einem rollenlosen <span> wird von der
+    // Accessible-Name-Berechnung ignoriert (Chrome); die Markierung muss
+    // deshalb echter, nicht versteckter Text sein. Das Häkchen ist sichtbarer
+    // Text, der Zusatz "— richtige Antwort" eine per .sr-only nur optisch
+    // versteckte Ergänzung — beides zusammen bildet den Accessible Name.
+    const srOnlySuffix = screen.getByText(/— richtige Antwort/);
+    expect(srOnlySuffix).toHaveClass("sr-only");
+    // Der umschliessende <span> traegt die volle Information als Text — nicht
+    // nur der versteckte Zusatz.
+    expect(srOnlySuffix.parentElement?.textContent).toBe("✓ Genau ein prefLabel — richtige Antwort");
+
+    // Die falschen Optionen tragen keinen solchen Zusatz.
+    expect(screen.queryByText(/Beliebig viele altLabel.*richtige Antwort/)).not.toBeInTheDocument();
   });
 
   it("markiert eine Frage mit chunk_id: null als 'Quelle ersetzt'", async () => {
@@ -295,6 +316,24 @@ describe("Generierung (AK: Button, Pending-Spalte, Fehlerfälle 409/429/503)", (
 
     await waitFor(() => expect(api.count("post", "/api/quiz/generate")).toBe(1));
     expect(await screen.findByText(/2 neue frage/i)).toBeInTheDocument();
+  });
+
+  it("blendet die Erfolgsmeldung der Generierung aus, sobald eine andere Aktion läuft", async () => {
+    routeQuestions({});
+    await openBoard();
+    api.route("post", "/api/quiz/generate", 201, { generated: 1, questions: [question()] });
+    routeQuestions({ pending: [question()] });
+
+    await userEvent.click(screen.getByRole("button", { name: /fragen generieren/i }));
+    expect(await screen.findByText(/1 neue frage/i)).toBeInTheDocument();
+
+    // Ohne setNotice("") in mutate() bliebe die Meldung stehen, obwohl sie
+    // sich auf die Generierung bezieht und nichts mehr mit dem Freigeben zu
+    // tun hat.
+    api.route("patch", "/api/quiz/questions/{question_id}", 200, question({ status: "approved" }));
+    await userEvent.click(screen.getByRole("button", { name: /^freigeben$/i }));
+
+    await waitFor(() => expect(screen.queryByText(/1 neue frage/i)).not.toBeInTheDocument());
   });
 
   it("meldet 409 (kein indexiertes Dokument) sichtbar", async () => {

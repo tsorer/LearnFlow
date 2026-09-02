@@ -85,6 +85,7 @@ export default function QuizReview({ user }: Props) {
   const loadMore = async (status: QuizQuestionStatus) => {
     setLoadingMore(status);
     setError("");
+    setNotice("");
     try {
       const offset = columns[status].items.length;
       const page = await api.listQuizQuestions(status, PAGE_SIZE, offset, user.token);
@@ -122,6 +123,7 @@ export default function QuizReview({ user }: Props) {
   const mutate = async (questionId: string, patch: QuizQuestionUpdate): Promise<boolean> => {
     setMutating(questionId);
     setError("");
+    setNotice("");
     try {
       await api.updateQuizQuestion(questionId, patch, user.token);
       await loadFirstPage();

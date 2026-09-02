@@ -135,18 +135,20 @@ export default function QuizCard({ question: q, busy, onAction, onSave }: Props)
                 />
               ) : (
                 // Colour alone (WCAG 1.4.1) is not enough to mark the correct
-                // option for colour-blind reviewers or screen readers, so a
-                // checkmark and an aria-label carry the same information.
+                // option for colour-blind reviewers or screen readers. A plain
+                // <span> carries no ARIA role of its own, so `aria-label` on it
+                // is dropped from the accessible name in Chrome — the ✓ and the
+                // text must be real, non-hidden content instead.
                 <span
                   style={{
                     fontSize: 13, flex: 1,
                     color: isCorrect ? "var(--green)" : "var(--text)",
                     fontWeight: isCorrect ? 700 : 400,
                   }}
-                  aria-label={isCorrect ? `${q.options[i]} — richtige Antwort` : undefined}
                 >
-                  {isCorrect && <span aria-hidden="true">✓ </span>}
+                  {isCorrect && "✓ "}
                   {q.options[i]}
+                  {isCorrect && <span className="sr-only"> — richtige Antwort</span>}
                 </span>
               )}
             </div>
