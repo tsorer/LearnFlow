@@ -1066,15 +1066,36 @@ export interface components {
              */
             band: "hoch" | "mittel" | "niedrig";
         };
+        /** @description Ein Kandidat der Fusion, in der Reihenfolge, in der `fuse()` ihn einsortiert hat — also nach `rrf_score` absteigend, bei Gleichstand nach `score`. Jedes Feld stammt unverändert aus dem `RetrievalHit`; die Ansicht rechnet nichts nach (T-54). */
         ChunkDebugInfo: {
+            /**
+             * Format: uuid
+             * @description Derselbe Wert wie `Citation.chunk_id`, wenn dieser Chunk zitiert wurde — damit lässt sich eine Fussnote der Antwort einer Zeile des Panels zuordnen.
+             */
+            chunk_id: string;
+            /** Format: uuid */
+            document_id: string;
             filename: string;
             page?: number | null;
             heading?: string | null;
-            /** Format: float */
+            /**
+             * Format: float
+             * @description Cosine-Similarity zur Frage, unabhängig davon, welche der beiden Suchen den Chunk gefunden hat: die Sparse-Query selektiert sie mit, damit auch ein reiner Volltext-Treffer für Stufe 0 und Stufe 1 einen Wert hat (ADR-007).
+             */
             score: number;
+            /** @description `score >= similarity_threshold`. */
             above_threshold: boolean;
+            /** @description Ob der Chunk im Kontext steht, der an das LLM ging — die ersten `context_top_n` dieser Liste. */
             in_top_n: boolean;
+            /** @description Platz in der Dense-Rangliste, ab 1 gezählt. `0` heisst «von der Dense-Suche nicht gefunden» (`RANK_ABSENT`) und ist kein Rang: echte Ränge beginnen bei 1, der Wert kann also nicht kollidieren. Die Ansicht stellt ihn nicht als «#0» dar. */
             dense_rank: number;
+            /** @description Dasselbe für die Volltextsuche. Zusammen mit `dense_rank` erklärt er die Sortierung: ein Chunk unter der Similarity-Schwelle kann im Kontext stehen, weil er auf der Sparse-Seite vorne liegt. */
+            sparse_rank: number;
+            /**
+             * Format: float
+             * @description `Σ 1/(rrf_k + rang)` über beide Ranglisten (ADR-007). Sortierschlüssel dieser Liste; zwei Chunks können ihn teilen, dann entscheidet `score`.
+             */
+            rrf_score: number;
             content: string;
         };
         /** @description Eine Stufe der Defense-in-Depth-Pipeline (ADR-008), in Ausführungsreihenfolge. Übersprungene Stufen bleiben in der Liste mit `ran: false` — dass eine Stufe nicht lief, ist die Aussage, nicht ihre Abwesenheit. */

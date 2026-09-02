@@ -225,6 +225,20 @@ class ConfidenceInfo(BaseModel):
 
 
 class ChunkDebugInfo(BaseModel):
+    """One fused candidate, exactly as `fuse()` left it.
+
+    Every field is copied from the `RetrievalHit`; nothing here is recomputed.
+    `dense_rank`/`sparse_rank`/`rrf_score` travel together because they are the
+    three values that produce the order of this list — showing the order without
+    them made a correctly ranked sparse hit look like a bug (T-54).
+
+    `chunk_id` and `document_id` cost nothing to carry and are what a view needs
+    to link a row to something else: `chunk_id` is the same value as
+    `Citation.chunk_id`, `document_id` is what the document viewer (T-21) opens.
+    """
+
+    chunk_id: uuid.UUID
+    document_id: uuid.UUID
     filename: str
     page: int | None
     heading: str | None
@@ -232,6 +246,8 @@ class ChunkDebugInfo(BaseModel):
     above_threshold: bool
     in_top_n: bool
     dense_rank: int
+    sparse_rank: int
+    rrf_score: float
     content: str
 
 
@@ -764,6 +780,8 @@ def _to_debug(
     return DebugInfo(
         chunks=[
             ChunkDebugInfo(
+                chunk_id=hit.chunk_id,
+                document_id=hit.document_id,
                 filename=hit.filename,
                 page=hit.page,
                 heading=hit.heading,
@@ -771,6 +789,15 @@ def _to_debug(
                 above_threshold=hit.score >= config.similarity_threshold,
                 in_top_n=hit.chunk_id in context_ids,
                 dense_rank=hit.dense_rank,
+                sparse_rank=hit.sparse_rank,
+                # Six digits, not the four `score` gets: the gap between
+                # consecutive RRF values is ~1/(rrf_k + rank)², which at the
+                # default top_k of 20 is still visible at four digits but falls
+                # below it around rank 40. `retrieval_top_k` goes to 100 in the
+                # admin panel, so four digits would silently collapse the tail
+                # of a widened candidate list onto one value — and telling the
+                # ranks apart is the whole point of showing the score (T-54).
+                rrf_score=round(hit.rrf_score, 6),
                 content=hit.content,
             )
             for hit in outcome.candidates
