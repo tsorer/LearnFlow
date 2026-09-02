@@ -19,6 +19,11 @@ export type ChunkDebugInfo = Schemas["ChunkDebugInfo"];
 export type StageInfo = Schemas["StageInfo"];
 export type LLMCallInfo = Schemas["LLMCallInfo"];
 export type DocumentResponse = Schemas["DocumentResponse"];
+export type QuizQuestion = Schemas["QuizQuestion"];
+export type QuizQuestionStatus = Schemas["QuizQuestionStatus"];
+export type QuizQuestionPage = Schemas["QuizQuestionPage"];
+export type QuizQuestionUpdate = Schemas["QuizQuestionUpdate"];
+export type QuizGenerationResponse = Schemas["QuizGenerationResponse"];
 
 type User = Schemas["User"];
 type TokenResponse = Schemas["TokenResponse"];
@@ -190,6 +195,35 @@ export const api = {
       }),
     );
   },
+
+  listQuizQuestions: async (
+    status: QuizQuestionStatus,
+    limit: number,
+    offset: number,
+    token: string,
+  ): Promise<QuizQuestionPage> =>
+    unwrap(
+      await client.GET("/api/quiz/questions", {
+        headers: auth(token),
+        params: { query: { status, limit, offset } },
+      }),
+    ),
+
+  generateQuiz: async (token: string): Promise<QuizGenerationResponse> =>
+    unwrap(await client.POST("/api/quiz/generate", { headers: auth(token) })),
+
+  updateQuizQuestion: async (
+    questionId: string,
+    patch: QuizQuestionUpdate,
+    token: string,
+  ): Promise<QuizQuestion> =>
+    unwrap(
+      await client.PATCH("/api/quiz/questions/{question_id}", {
+        headers: auth(token),
+        params: { path: { question_id: questionId } },
+        body: patch,
+      }),
+    ),
 
   getConfig: async (token: string): Promise<Record<string, string>> =>
     unwrap(await client.GET("/api/admin/config", { headers: auth(token) })).config,

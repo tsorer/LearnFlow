@@ -91,6 +91,23 @@ export interface ApiStub {
     status: S,
     ...body: BodyArg<P, M, S>
   ): void;
+  /**
+   * Like `route`, but only answers a request whose query string carries every
+   * key/value in `query` — the rest of the query string is unconstrained.
+   * Needed for an endpoint whose response depends on a query parameter (e.g.
+   * GET /api/quiz/questions?status=…, T-35's three board columns): `route`
+   * alone keeps a single answer per method+path and the last call would
+   * silently overwrite the previous status's fixture. A query-matched route
+   * always wins over a query-less one for the same method+path, so a test can
+   * combine one specific case with a catch-all default.
+   */
+  routeQuery<P extends SpecPath, M extends SpecMethod<P>, S extends SpecStatus<P, M>>(
+    method: M,
+    path: P,
+    query: Record<string, string>,
+    status: S,
+    ...body: BodyArg<P, M, S>
+  ): void;
   /** Every recorded request, optionally narrowed to one endpoint. */
   requests<P extends SpecPath>(method?: SpecMethod<P>, path?: P): RecordedRequest[];
   /** How many requests reached one endpoint. Accurate synchronously. */
@@ -132,6 +149,7 @@ interface Route {
   method: string;
   path: string;
   pattern: RegExp;
+  query?: Record<string, string>;
   status: number;
   body?: unknown;
 }
@@ -150,8 +168,14 @@ export function installApiStub(): ApiStub {
     const request = input instanceof Request ? input : new Request(String(input), init);
     const url = new URL(request.url, "http://localhost");
 
-    const answer = routes.find(r => r.method === request.method && r.pattern.test(url.pathname));
-    if (!answer) throw new Error(`Unmocked request: ${request.method} ${url.pathname}`);
+    const candidates = routes.filter(r => r.method === request.method && r.pattern.test(url.pathname));
+    // A query-matched route always wins over a query-less one for the same
+    // method+path, so registering both a specific case and a catch-all default
+    // resolves in favour of the specific one regardless of registration order.
+    const answer =
+      candidates.find(r => r.query && Object.entries(r.query).every(([k, v]) => url.searchParams.get(k) === v)) ??
+      candidates.find(r => !r.query);
+    if (!answer) throw new Error(`Unmocked request: ${request.method} ${url.pathname}${url.search}`);
 
     // Pushed before the body is parsed, so count() is correct synchronously —
     // a test that clicks three times and asserts immediately must not race the
@@ -190,6 +214,9 @@ export function installApiStub(): ApiStub {
         (path === undefined || r.path === path),
     );
 
+  const sameQuery = (a: Record<string, string>, b: Record<string, string>) =>
+    Object.keys(a).length === Object.keys(b).length && Object.entries(a).every(([k, v]) => b[k] === v);
+
   return {
     route: (method, path, status, ...body) => {
       const entry: Route = {
@@ -201,8 +228,24 @@ export function installApiStub(): ApiStub {
       };
       // Replace an existing answer rather than shadowing it: a test that moves
       // a document from "processing" to "available" registers the same route
-      // twice, and find() would otherwise keep returning the first one.
-      const existing = routes.findIndex(r => r.method === entry.method && r.path === entry.path);
+      // twice, and find() would otherwise keep returning the first one. Only
+      // compared against other query-less entries — those are routeQuery's.
+      const existing = routes.findIndex(r => r.method === entry.method && r.path === entry.path && !r.query);
+      if (existing === -1) routes.push(entry);
+      else routes[existing] = entry;
+    },
+    routeQuery: (method, path, query, status, ...body) => {
+      const entry: Route = {
+        method: String(method).toUpperCase(),
+        path: String(path),
+        pattern: patternFor(String(path)),
+        query,
+        status: Number(status),
+        body: body[0],
+      };
+      const existing = routes.findIndex(
+        r => r.method === entry.method && r.path === entry.path && r.query && sameQuery(r.query, query),
+      );
       if (existing === -1) routes.push(entry);
       else routes[existing] = entry;
     },

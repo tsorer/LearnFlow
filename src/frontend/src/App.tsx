@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import type { AuthUser } from "./types";
 import Login from "./components/Login";
 import ChatView from "./components/ChatView";
+import QuizReview from "./components/QuizReview";
 import { ProtectedRoute, GuestRoute } from "./components/RouteGuards";
 import { setUnauthorizedHandler } from "./api/client";
 
@@ -42,6 +43,14 @@ export default function App() {
           element={
             <ProtectedRoute user={user}>
               {u => <ChatView user={u} onLogout={() => setUser(null)} />}
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/quiz-review"
+          element={
+            <ProtectedRoute user={user} roles={["knowledge_owner", "admin"]}>
+              {u => <QuizReview user={u} />}
             </ProtectedRoute>
           }
         />
