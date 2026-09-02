@@ -453,7 +453,9 @@ def make_chunk_row(
     a real Chunk ORM instance would test the wrong shape."""
     from types import SimpleNamespace
 
-    return SimpleNamespace(id=chunk_id, chunk_index=chunk_index, page=page, heading=heading, content=content)
+    return SimpleNamespace(
+        id=chunk_id, chunk_index=chunk_index, page=page, heading=heading, content=content
+    )
 
 
 async def _get_document_content(

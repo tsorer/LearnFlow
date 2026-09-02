@@ -7,6 +7,8 @@ interface Props {
   onClose: () => void;
 }
 
+const FOCUSABLE_SELECTOR = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+
 /**
  * Renders the parsed document text (its chunks), not the uploaded original
  * (ADR-003): the belegende Abschnitt *is* the chunk, so highlighting it is
@@ -19,6 +21,7 @@ export default function DocumentViewer({ citation, token, onClose }: Props) {
   const [error, setError] = useState<string | null>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const highlightRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -43,12 +46,38 @@ export default function DocumentViewer({ citation, token, onClose }: Props) {
   // [onClose] gehängt lief er bei jedem Rerender der Elternkomponente neu
   // (MessageBubble übergibt ein bei jedem Render neues onClose) und riss den
   // Fokus vom Schliessen-Button zurück, egal wo der Nutzer gerade war.
+  //
+  // Die Cleanup-Funktion stellt den Fokus auf das Element zurück, das den
+  // Viewer geöffnet hat (WAI-ARIA-Dialog-Pattern): sie läuft beim Unmount,
+  // und MessageBubble unmountet den Viewer genau dann, wenn onClose den
+  // State zurücksetzt.
   useEffect(() => {
+    const previouslyFocused = document.activeElement as HTMLElement | null;
     closeRef.current?.focus();
+    return () => previouslyFocused?.focus();
   }, []);
 
   useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+      // Fokus-Falle: Tab zirkuliert innerhalb des Dialogs statt in die Seite
+      // dahinter weiterzulaufen (WAI-ARIA-Dialog-Pattern).
+      if (e.key !== "Tab" || !dialogRef.current) return;
+      const focusables = dialogRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [onClose]);
@@ -67,6 +96,7 @@ export default function DocumentViewer({ citation, token, onClose }: Props) {
       }}
     >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={`Originaldokument ${citation.filename}`}
@@ -102,12 +132,17 @@ export default function DocumentViewer({ citation, token, onClose }: Props) {
               <div
                 key={chunk.chunk_id}
                 ref={isHighlighted ? highlightRef : undefined}
+                // aria-current, nicht nur Farbe/Rahmen: "welcher Abschnitt
+                // belegt die Antwort" ist genau die Information, die T-21
+                // liefern soll, und Farbe allein kommt bei Screenreadern nicht an.
+                aria-current={isHighlighted ? "true" : undefined}
                 style={{
                   padding: "8px 10px", marginBottom: 8, borderRadius: 8,
                   background: isHighlighted ? "var(--blue-lt)" : "transparent",
                   border: isHighlighted ? "1px solid var(--navy)" : "1px solid transparent",
                 }}
               >
+                {isHighlighted && <span className="sr-only">Belegender Abschnitt: </span>}
                 {chunk.heading && (
                   <div style={{ fontWeight: 700, marginBottom: 4, color: "var(--navy)" }}>
                     {chunk.heading}

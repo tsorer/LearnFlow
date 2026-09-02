@@ -353,9 +353,65 @@ describe("Frage-UI", () => {
 
     const dialog = await screen.findByRole("dialog", { name: /skos\.pdf/ });
     expect(within(dialog).getAllByText("Der belegende Abschnitt.")).toHaveLength(1);
+    // Die Hervorhebung darf nicht nur Farbe sein (AK 2 "Abschnitt ist
+    // hervorgehoben") — aria-current markiert genau den belegenden Chunk,
+    // nicht den davor.
+    const highlighted = dialog.querySelectorAll('[aria-current="true"]');
+    expect(highlighted).toHaveLength(1);
+    expect(highlighted[0]).toHaveTextContent("Der belegende Abschnitt.");
 
     await userEvent.click(within(dialog).getByRole("button", { name: /schliessen/i }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("restores focus to the triggering source reference when the viewer closes", async () => {
+    api.route("post", "/api/query", 200, answer({
+      citations: [citation(1, "skos.pdf", "Der belegende Abschnitt.")],
+    }));
+    api.routeQuery("get", "/api/documents/{document_id}/content", { around: "chunk-1" }, 200, {
+      id: "doc-1",
+      filename: "skos.pdf",
+      status: "available",
+      chunks: [{ chunk_id: "chunk-1", chunk_index: 0, page: 1, heading: null, content: "Der belegende Abschnitt." }],
+    });
+    const field = await openChat();
+
+    await userEvent.type(field, "Was regelt der EU AI Act?");
+    await send();
+    await userEvent.click(await screen.findByRole("button", { name: /1 Quelle/i }));
+    const openButton = screen.getByRole("button", { name: /Originaldokument öffnen: \[1\] skos\.pdf/ });
+    await userEvent.click(openButton);
+
+    const dialog = await screen.findByRole("dialog", { name: /skos\.pdf/ });
+    await userEvent.click(within(dialog).getByRole("button", { name: /schliessen/i }));
+
+    expect(document.activeElement).toBe(openButton);
+  });
+
+  it("traps Tab inside the viewer instead of leaving it into the page behind", async () => {
+    api.route("post", "/api/query", 200, answer({
+      citations: [citation(1, "skos.pdf", "Der belegende Abschnitt.")],
+    }));
+    api.routeQuery("get", "/api/documents/{document_id}/content", { around: "chunk-1" }, 200, {
+      id: "doc-1",
+      filename: "skos.pdf",
+      status: "available",
+      chunks: [{ chunk_id: "chunk-1", chunk_index: 0, page: 1, heading: null, content: "Der belegende Abschnitt." }],
+    });
+    const field = await openChat();
+
+    await userEvent.type(field, "Was regelt der EU AI Act?");
+    await send();
+    await userEvent.click(await screen.findByRole("button", { name: /1 Quelle/i }));
+    await userEvent.click(screen.getByRole("button", { name: /Originaldokument öffnen: \[1\] skos\.pdf/ }));
+    const dialog = await screen.findByRole("dialog", { name: /skos\.pdf/ });
+    const closeButton = within(dialog).getByRole("button", { name: /schliessen/i });
+
+    expect(document.activeElement).toBe(closeButton); // Fokus landet beim Öffnen darauf
+
+    await userEvent.tab(); // einziges fokussierbares Element im Dialog -> zirkuliert auf sich selbst
+
+    expect(document.activeElement).toBe(closeButton);
   });
 
   it("keeps focus where the user put it while the viewer is open, across a rerender of the message", async () => {
