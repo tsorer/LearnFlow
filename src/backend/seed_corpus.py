@@ -21,7 +21,7 @@ import httpx
 from seed_users import USERS
 
 BASE_URL = os.environ.get("E2E_BASE_URL", "http://webapp")
-CORPUS_DIR = Path(os.environ.get("LEARNING_CORPUS_DIR", "/learning-corpus"))
+CORPUS_DIR = Path(os.environ.get("LEARNING_CORPUS_DIR", "/LearningCorpus"))
 POLL_TIMEOUT_S = 600
 POLL_INTERVAL_S = 5
 

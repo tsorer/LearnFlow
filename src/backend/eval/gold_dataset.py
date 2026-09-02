@@ -1,39 +1,39 @@
-"""T-28: loads the `out_of_corpus` questions from the three Gold-Eval-Dataset
-seed files in LearningCorpus/.
+"""T-28: loads the `out_of_corpus` questions from the consolidated gold-eval
+dataset (T-47/T-48, #101) at LearningCorpus/gold-eval-dataset.yaml.
 
-There is no single consolidated dataset yet — T-47 (#95) tracks merging the three
-files and, more importantly, deciding a source-reference schema that survives
-re-indexing. That problem does not touch this loader: out-of-corpus entries carry
-no `expected_source_id` (there is no source to reference), so reading all three
-files directly here means T-28 does not wait on T-47. Once the consolidated file
-exists, only `_SOURCE_FILES` needs to change.
-
-Fachlich noch nicht abgenommen (T-48, #96) — the refusal expectation itself is
-trivial ("this is not in any of the three corpora"), so that review matters far
-less here than for `in_corpus` reference answers.
+Loadability, unique ids, and the declared field set are already guaranteed by
+`tests/test_gold_eval_dataset.py` (same directory depth as this file, so the
+same walk-up logic applies) — this loader does not re-check those, only
+filters to the category this ticket's gate measures.
 """
 
 from __future__ import annotations
 
-import os
-import re
+import pathlib
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Any
 
 import yaml
 
-CORPUS_DIR = Path(os.environ.get("LEARNING_CORPUS_DIR", "/learning-corpus"))
+DATASET_NAME = "gold-eval-dataset.yaml"
 
-# One Markdown file per author with an embedded ```yaml fence; Christoph's set is
-# also checked in as a plain YAML file, which is simpler to parse directly.
-_SOURCE_FILES = [
-    CORPUS_DIR / "Eval-Gold-Dataset-Frank.md",
-    CORPUS_DIR / "Eval-Gold-Dataset-Reto.md",
-    CORPUS_DIR / "Eval_Gold-Dataset-Christoph.yaml",
-]
 
-_YAML_FENCE = re.compile(r"```yaml\n(.*?)\n```", re.DOTALL)
+def _corpus_dir() -> pathlib.Path:
+    """Walk up until LearningCorpus/ turns up.
+
+    Mirrors tests/test_gold_eval_dataset.py::_corpus_dir(): src/backend/eval/
+    and src/backend/tests/ sit at the same depth, so the same walk finds the
+    repo-root LearningCorpus/ locally and the /LearningCorpus mount
+    (docker-compose.yml) inside the api container.
+    """
+    here = pathlib.Path(__file__).resolve()
+    for base in (here, *here.parents):
+        candidate = base / "LearningCorpus"
+        if (candidate / DATASET_NAME).is_file():
+            return candidate
+    raise AssertionError(
+        f"{DATASET_NAME} not found. Outside CI the api container needs the "
+        "LearningCorpus mount from docker-compose.yml."
+    )
 
 
 @dataclass(frozen=True)
@@ -41,50 +41,25 @@ class OutOfCorpusQuestion:
     id: str
     question: str
     expected_refusal: bool
-    source_file: str
-
-
-def _entries(path: Path) -> list[dict[str, Any]]:
-    text = path.read_text(encoding="utf-8")
-    if path.suffix == ".yaml":
-        raw = text
-    else:
-        match = _YAML_FENCE.search(text)
-        if match is None:
-            raise ValueError(f"No ```yaml fence found in {path}")
-        raw = match.group(1)
-    entries = yaml.safe_load(raw)
-    if not isinstance(entries, list):
-        raise ValueError(f"{path} did not parse to a list of entries")
-    return entries  # type: ignore[no-any-return]
 
 
 def load_out_of_corpus_questions() -> list[OutOfCorpusQuestion]:
-    """All `category: out_of_corpus` entries across the three seed files.
+    """All `category: out_of_corpus` entries from the consolidated dataset.
 
-    Raises on a duplicate `id` across files — the three sets were written
-    independently and are not guaranteed to have disjoint id spaces (T-47's
-    problem in miniature), so a silent collision would drop a question.
+    No dedup check needed here (unlike the three-file version this replaced):
+    id uniqueness across the whole file is already a CI-enforced invariant,
+    test_gold_eval_dataset.py::test_question_ids_are_unique.
     """
-    questions: list[OutOfCorpusQuestion] = []
-    seen_ids: dict[str, str] = {}
-    for path in _SOURCE_FILES:
-        for entry in _entries(path):
-            if entry.get("category") != "out_of_corpus":
-                continue
-            entry_id = str(entry["id"])
-            if entry_id in seen_ids:
-                raise ValueError(
-                    f"Duplicate question id {entry_id!r} in {path.name} "
-                    f"(already seen in {seen_ids[entry_id]})"
-                )
-            seen_ids[entry_id] = path.name
-            questions.append(
-                OutOfCorpusQuestion(
-                    id=entry_id,
-                    question=str(entry["question"]),
-                    expected_refusal=bool(entry["expected_refusal"]),
-                    source_file=path.name,
-                )
-            )
-    return questions
+    path = _corpus_dir() / DATASET_NAME
+    with path.open(encoding="utf-8") as f:
+        data = yaml.safe_load(f)
+
+    return [
+        OutOfCorpusQuestion(
+            id=q["id"],
+            question=q["question"],
+            expected_refusal=bool(q["expected_refusal"]),
+        )
+        for q in data["questions"]
+        if q["category"] == "out_of_corpus"
+    ]

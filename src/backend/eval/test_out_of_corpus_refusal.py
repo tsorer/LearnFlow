@@ -6,8 +6,8 @@ LLM's own refusal (`generation_refused`), because an out-of-corpus question neve
 reaches stage 3 (composite confidence / self-check) — confirmed against the live
 stack in the calibration note on #35 (`suppression_reason: retrieval_gate`,
 `llm_calls: []`, stages 2/2b/3 all `ran=false`). In-corpus reliability
-(hallucination rate, false-suppression) needs a fachlich abgenommenes Dataset
-(T-47 #95, T-48 #96) and is out of this ticket's scope.
+(hallucination rate, false-suppression) needs the gold dataset's in_corpus
+questions and is a separate, later slice of ADR-009.
 
 Precondition: a running stack with seeded users and the LearningCorpus PDFs
 indexed — `make up && make seed && make seed-corpus`.
@@ -29,8 +29,8 @@ BASE_URL = os.environ.get("E2E_BASE_URL", "http://webapp")
 
 # Admin, not a knowledge_owner or learner: `debug` in the response (self_check_ran,
 # per-chunk scores) is only populated for the admin role. The calibration note on
-# #35 asks for this harness to capture it so a later in-corpus extension (once
-# T-47/T-48 land) does not have to re-derive that decision.
+# #35 asks for this harness to capture it so a later in-corpus extension does not
+# have to re-derive that decision.
 _ADMIN = next(u for u in USERS if u["role"] == "admin")
 EMAIL = os.environ.get("E2E_ADMIN_EMAIL", _ADMIN["email"])
 PASSWORD = os.environ.get("E2E_ADMIN_PASSWORD", _ADMIN["password"])
@@ -107,7 +107,6 @@ def test_out_of_corpus_refusal_rate(client: httpx.Client, token: str) -> None:
                 "citation_coverage",
                 "self_check_ran",
                 "self_check_verdict",
-                "source_file",
             ]
         )
 
@@ -129,7 +128,6 @@ def test_out_of_corpus_refusal_rate(client: httpx.Client, token: str) -> None:
                     confidence.get("citation_coverage"),
                     debug.get("self_check_ran"),
                     debug.get("self_check_verdict"),
-                    q.source_file,
                 ]
             )
             f.flush()  # one row survives even if a later question crashes the run

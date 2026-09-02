@@ -27,8 +27,8 @@ den echten bcrypt-Hash aus der `users`-Tabelle.
 
 Der vierte Job **`eval`** (T-28, ADR-009 DoD-Kriterium 4) indexiert die drei echten
 LearningCorpus-Dokumente und misst die Out-of-Corpus-Refusal-Rate: mindestens 90 %
-der 20+ Out-of-Corpus-Fragen aus den Gold-Eval-Seeds (`LearningCorpus/Eval*.md/.yaml`)
-müssen mit „Weiss ich nicht" beantwortet werden. Er läuft **nur, wenn das Secret
+der 20+ Out-of-Corpus-Fragen aus dem Gold-Eval-Dataset (`LearningCorpus/gold-eval-dataset.yaml`,
+T-47/T-48) müssen mit „Weiss ich nicht" beantwortet werden. Er läuft **nur, wenn das Secret
 `OPENAI_API_KEY` im Repo gesetzt ist** — echte Embedding-Aufrufe pro Frage und pro
 Korpus-Chunk kosten Provider-Budget und Laufzeit, deshalb kein Dummy-Key wie bei
 `e2e`. In-Corpus-Metriken (Halluzinationsrate, False-Suppression) sind bewusst nicht
