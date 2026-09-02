@@ -441,6 +441,100 @@ async def test_list_documents_no_auth_returns_401() -> None:
     assert r.status_code == 401
 
 
+def make_chunk(document_id: uuid.UUID, chunk_index: int, heading: str | None = None) -> object:
+    from app.models.tables import Chunk
+
+    return Chunk(
+        id=uuid.uuid4(),
+        document_id=document_id,
+        content=f"Inhalt {chunk_index}",
+        chunk_index=chunk_index,
+        page=chunk_index + 1,
+        heading=heading,
+    )
+
+
+async def _get_document_content(
+    document_id: uuid.UUID, db: AsyncMock, role: str | None = "learner"
+) -> "object":
+    if role is not None:
+        app.dependency_overrides[get_current_user] = lambda: make_user(role)
+    app.dependency_overrides[get_db] = lambda: db
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        return await client.get(f"/documents/{document_id}/content")
+
+
+async def test_get_document_content_returns_chunks_in_order() -> None:
+    # Lernende (nicht nur knowledge_owner) duerfen die Chunks sehen (T-21): eine
+    # Query-Antwort zitiert sie ohnehin bereits.
+    document = make_document(status="available")
+    db = make_db()
+    db.get = AsyncMock(return_value=document)
+    chunks = [make_chunk(document.id, 1, heading="Einleitung"), make_chunk(document.id, 0)]
+    result = MagicMock()
+    result.scalars.return_value.all.return_value = chunks
+    db.execute = AsyncMock(return_value=result)
+
+    r = await _get_document_content(document.id, db)
+
+    assert r.status_code == 200
+    body = r.json()
+    assert body["id"] == str(document.id)
+    assert body["status"] == "available"
+    assert [c["chunk_index"] for c in body["chunks"]] == [1, 0]
+    assert body["chunks"][0]["heading"] == "Einleitung"
+
+
+async def test_get_document_content_orders_by_chunk_index() -> None:
+    document = make_document(status="available")
+    db = make_db()
+    db.get = AsyncMock(return_value=document)
+    result = MagicMock()
+    result.scalars.return_value.all.return_value = []
+    db.execute = AsyncMock(return_value=result)
+
+    await _get_document_content(document.id, db)
+
+    sql, _ = only(db, "FROM chunks")
+    assert "ORDER BY chunks.chunk_index" in sql
+
+
+async def test_get_document_content_not_available_returns_409() -> None:
+    document = make_document(status="processing")
+    db = make_db()
+    db.get = AsyncMock(return_value=document)
+
+    r = await _get_document_content(document.id, db)
+
+    assert r.status_code == 409
+
+
+async def test_get_document_content_not_found_returns_404() -> None:
+    db = make_db()
+    db.get = AsyncMock(return_value=None)
+
+    r = await _get_document_content(uuid.uuid4(), db)
+
+    assert r.status_code == 404
+
+
+async def test_get_document_content_wrong_area_returns_404() -> None:
+    document = make_document(area="other")
+    db = make_db()
+    db.get = AsyncMock(return_value=document)
+
+    r = await _get_document_content(document.id, db)
+
+    assert r.status_code == 404
+
+
+async def test_get_document_content_no_auth_returns_401() -> None:
+    db = make_db()
+    r = await _get_document_content(uuid.uuid4(), db, role=None)
+    assert r.status_code == 401
+
+
 async def _delete_document(
     document_id: uuid.UUID, db: AsyncMock, role: str | None = "knowledge_owner"
 ) -> "object":

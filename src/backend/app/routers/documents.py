@@ -7,7 +7,7 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import defer
 
-from app.auth.dependencies import require_knowledge_owner
+from app.auth.dependencies import get_current_user, require_knowledge_owner
 from app.database import get_db
 from app.models.tables import (
     Chunk,
@@ -71,6 +71,21 @@ def _to_response(document: Document, uploader_email: str | None) -> DocumentResp
         updated_at=document.updated_at,
         uploaded_by=uploader_email,
     )
+
+
+class DocumentContentChunk(BaseModel):
+    chunk_id: uuid.UUID
+    chunk_index: int
+    page: int | None
+    heading: str | None
+    content: str
+
+
+class DocumentContent(BaseModel):
+    id: uuid.UUID
+    filename: str
+    status: DocumentStatus
+    chunks: list[DocumentContentChunk]
 
 
 async def _get_pilot_area_document(document_id: uuid.UUID, db: AsyncSession) -> Document:
@@ -290,6 +305,41 @@ async def get_document(
         else None
     )
     return _to_response(document, uploader_email)
+
+
+@router.get("/{document_id}/content", response_model=DocumentContent)
+async def get_document_content(
+    document_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> DocumentContent:
+    # Jede Rolle, nicht nur knowledge_owner (Spec-Kommentar in openapi.yaml):
+    # eine Query-Antwort zitiert diese Chunks bereits, der Viewer zeigt einem
+    # Lernenden also nichts, was ihm nicht ohnehin belegt wurde.
+    document = await _get_pilot_area_document(document_id, db)
+    if document.status != DocumentStatus.available:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Dokument ist noch nicht verfügbar",
+        )
+    result = await db.execute(
+        select(Chunk)
+        .where(Chunk.document_id == document_id)
+        .order_by(Chunk.chunk_index)
+    )
+    chunks = [
+        DocumentContentChunk(
+            chunk_id=chunk.id,
+            chunk_index=chunk.chunk_index,
+            page=chunk.page,
+            heading=chunk.heading,
+            content=chunk.content,
+        )
+        for chunk in result.scalars().all()
+    ]
+    return DocumentContent(
+        id=document.id, filename=document.filename, status=document.status, chunks=chunks
+    )
 
 
 @router.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT)

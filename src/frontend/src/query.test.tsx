@@ -12,7 +12,7 @@
  * does.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { render, screen, cleanup, waitFor } from "@testing-library/react";
+import { render, screen, cleanup, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom/vitest";
 import App from "./App";
@@ -312,14 +312,42 @@ describe("Frage-UI", () => {
     await send();
 
     await userEvent.click(await screen.findByRole("button", { name: /2 Quellen/i }));
-    const source = screen.getByRole("button", { name: /\[1\] skos\.pdf/ });
+    const excerptToggle = screen.getByRole("button", { name: /Auszug ausklappen: \[1\] skos\.pdf/ });
 
-    expect(source).toHaveAttribute("aria-expanded", "false");
+    expect(excerptToggle).toHaveAttribute("aria-expanded", "false");
     expect(screen.getByText("Der belegende Abschnitt.")).toBeInTheDocument();
 
-    await userEvent.click(source);
+    await userEvent.click(excerptToggle);
 
-    expect(source).toHaveAttribute("aria-expanded", "true");
+    expect(excerptToggle).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("opens the document viewer on the source reference with the belegenden Abschnitt highlighted", async () => {
+    api.route("post", "/api/query", 200, answer({
+      citations: [citation(1, "skos.pdf", "Der belegende Abschnitt.")],
+    }));
+    api.route("get", "/api/documents/{document_id}/content", 200, {
+      id: "doc-1",
+      filename: "skos.pdf",
+      status: "available",
+      chunks: [
+        { chunk_id: "chunk-other", chunk_index: 0, page: null, heading: null, content: "Vorheriger Abschnitt." },
+        { chunk_id: "chunk-1", chunk_index: 1, page: 1, heading: "Labels", content: "Der belegende Abschnitt." },
+      ],
+    });
+    const field = await openChat();
+
+    await userEvent.type(field, "Was regelt der EU AI Act?");
+    await send();
+
+    await userEvent.click(await screen.findByRole("button", { name: /1 Quelle/i }));
+    await userEvent.click(screen.getByRole("button", { name: /Originaldokument öffnen: \[1\] skos\.pdf/ }));
+
+    const dialog = await screen.findByRole("dialog", { name: /skos\.pdf/ });
+    expect(within(dialog).getAllByText("Der belegende Abschnitt.")).toHaveLength(1);
+
+    await userEvent.click(within(dialog).getByRole("button", { name: /schliessen/i }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("offers no sources when the gate suppressed without any", async () => {
@@ -353,7 +381,9 @@ describe("Frage-UI", () => {
 
     await userEvent.click(await screen.findByRole("button", { name: /1 Quelle/i }));
 
-    expect(screen.getByRole("button", { name: "[1] richtlinien.md" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Originaldokument öffnen: [1] richtlinien.md" }),
+    ).toBeInTheDocument();
   });
 
   it("numbers the sources as the answer will cite them", async () => {
@@ -366,8 +396,12 @@ describe("Frage-UI", () => {
 
     await userEvent.click(await screen.findByRole("button", { name: /2 Quellen/i }));
 
-    expect(screen.getByRole("button", { name: /\[1\] skos\.pdf · S\. 1/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /\[2\] ai-act\.pdf · S\. 2/ })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Originaldokument öffnen: \[1\] skos\.pdf · S\. 1/ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Originaldokument öffnen: \[2\] ai-act\.pdf · S\. 2/ }),
+    ).toBeInTheDocument();
   });
 
   // --- US-01: a failing service must not look like an answer ----------------

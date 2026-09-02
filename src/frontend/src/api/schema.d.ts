@@ -538,6 +538,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/documents/{document_id}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Dokumentinhalt als Chunks abrufen, für den Quellenlink-Viewer (US-01, T-21)
+         * @description Für jede Rolle erreichbar, nicht nur `knowledge_owner`: eine Antwort auf `/api/query` zitiert bereits den Inhalt dieser Chunks, ein Lernender darf also öffnen, was ihm ohnehin zitiert wurde. Liefert den geparsten Text, nicht die hochgeladene Originaldatei (ADR-003) — der belegende Abschnitt ist der Chunk, und nur damit ist "hervorgehoben" ohne Koordinaten- Rückrechnung exakt umsetzbar.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    document_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Dokument mit seinen Chunks in Lesereihenfolge */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DocumentContent"];
+                    };
+                };
+                /** @description Nicht authentifiziert */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Dokument nicht gefunden (auch bei fremdem Bereich) */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Dokument ist noch nicht `available` (Status `pending`, `processing` oder `failed`) — es gibt noch keine oder keine gültigen Chunks zu zeigen. */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/config": {
         parameters: {
             query?: never;
@@ -1042,6 +1110,8 @@ export interface components {
             document_id: string;
             filename: string;
             page?: number | null;
+            /** @description Abschnittsüberschrift des Chunks, sofern beim Parsen erkannt (US-01 "Abschnitt"). Identifiziert zusammen mit `chunk_id` den Abschnitt, den der Dokument-Viewer hervorhebt (T-21). */
+            heading?: string | null;
             excerpt: string;
             /** @description Fussnotennummer im Antworttext */
             index: number;
@@ -1196,6 +1266,24 @@ export interface components {
             uploaded_by?: string | null;
         };
         DocumentList: components["schemas"]["DocumentResponse"][];
+        /** @description Ein Chunk in Lesereihenfolge (T-21) */
+        DocumentContentChunk: {
+            /** Format: uuid */
+            chunk_id: string;
+            chunk_index: number;
+            page: number | null;
+            heading: string | null;
+            content: string;
+        };
+        /** @description Geparster Dokumentinhalt für den Quellenlink-Viewer (US-01, T-21) */
+        DocumentContent: {
+            /** Format: uuid */
+            id: string;
+            filename: string;
+            status: components["schemas"]["DocumentStatus"];
+            /** @description Sortiert nach `chunk_index` */
+            chunks: components["schemas"]["DocumentContentChunk"][];
+        };
         /**
          * @description Stand der Pruefung durch den Bereichsverantwortlichen (US-07). Eine neu generierte Frage ist `pending`; wird das Dokument durch eine neue Fassung ersetzt, faellt eine freigegebene Frage hierher zurueck und muss erneut geprueft werden (T-15/T-33).
          * @enum {string}
