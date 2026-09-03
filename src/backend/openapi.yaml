@@ -901,7 +901,11 @@ components:
     Citation:
       type: object
       description: Quellenbeleg auf Chunk-Ebene (US-01)
-      required: [chunk_id, document_id, filename, excerpt, index]
+      # page und heading gehoeren dazu: das Pydantic-Modell (Citation in
+      # query.py) hat beide ohne Default, sendet sie also immer -- nullable,
+      # aber nie fehlend. Wie DocumentContentChunk unten, das dieselbe
+      # Konvention schon richtig anwendet.
+      required: [chunk_id, document_id, filename, page, heading, excerpt, index]
       properties:
         chunk_id:
           type: string

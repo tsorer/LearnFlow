@@ -42,6 +42,7 @@ function answer(overrides: Partial<QueryResponse> = {}): QueryResponse {
         document_id: "doc-1",
         filename: "skos.pdf",
         page: 1,
+        heading: null,
         excerpt: "Ein Auszug.",
         index: 1,
       },

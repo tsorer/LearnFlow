@@ -32,6 +32,7 @@ function citation(index: number, filename: string, excerpt = "Ein Auszug."): Cit
     document_id: `doc-${index}`,
     filename,
     page: index,
+    heading: null,
     excerpt,
     index,
   };

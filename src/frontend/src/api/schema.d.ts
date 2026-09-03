@@ -1114,9 +1114,9 @@ export interface components {
             /** Format: uuid */
             document_id: string;
             filename: string;
-            page?: number | null;
+            page: number | null;
             /** @description Abschnittsüberschrift des Chunks, sofern beim Parsen erkannt (US-01 "Abschnitt"). Identifiziert zusammen mit `chunk_id` den Abschnitt, den der Dokument-Viewer hervorhebt (T-21). */
-            heading?: string | null;
+            heading: string | null;
             excerpt: string;
             /** @description Fussnotennummer im Antworttext */
             index: number;
