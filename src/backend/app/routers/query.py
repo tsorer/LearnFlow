@@ -213,6 +213,7 @@ class Citation(BaseModel):
     document_id: uuid.UUID
     filename: str
     page: int | None
+    heading: str | None
     excerpt: str
     index: int
 
@@ -636,6 +637,7 @@ def _to_citations(hits: list[RetrievalHit]) -> list[Citation]:
             document_id=hit.document_id,
             filename=hit.filename,
             page=hit.page,
+            heading=hit.heading,
             excerpt=_excerpt(hit.content),
             # 1-based: `index` is the footnote number the answer text cites as
             # [1], [2], … — build_prompt() numbers the same list the same way.

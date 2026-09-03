@@ -12,7 +12,7 @@
  * does.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { render, screen, cleanup, waitFor } from "@testing-library/react";
+import { render, screen, cleanup, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom/vitest";
 import App from "./App";
@@ -32,6 +32,7 @@ function citation(index: number, filename: string, excerpt = "Ein Auszug."): Cit
     document_id: `doc-${index}`,
     filename,
     page: index,
+    heading: null,
     excerpt,
     index,
   };
@@ -312,14 +313,134 @@ describe("Frage-UI", () => {
     await send();
 
     await userEvent.click(await screen.findByRole("button", { name: /2 Quellen/i }));
-    const source = screen.getByRole("button", { name: /\[1\] skos\.pdf/ });
+    const excerptToggle = screen.getByRole("button", { name: /Auszug ausklappen: \[1\] skos\.pdf/ });
 
-    expect(source).toHaveAttribute("aria-expanded", "false");
+    expect(excerptToggle).toHaveAttribute("aria-expanded", "false");
     expect(screen.getByText("Der belegende Abschnitt.")).toBeInTheDocument();
+    // Der Auszug muss Teil des Accessible Name bleiben, nicht nur sichtbarer
+    // Text — ein aria-label auf dem Button würde ihn für Screenreader
+    // verschlucken, auch aufgeklappt (Review-Fund zu #112).
+    expect(excerptToggle).toHaveAccessibleName(/Der belegende Abschnitt\./);
 
-    await userEvent.click(source);
+    await userEvent.click(excerptToggle);
 
-    expect(source).toHaveAttribute("aria-expanded", "true");
+    expect(excerptToggle).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("opens the document viewer on the source reference with the belegenden Abschnitt highlighted", async () => {
+    api.route("post", "/api/query", 200, answer({
+      citations: [citation(1, "skos.pdf", "Der belegende Abschnitt.")],
+    }));
+    // Nur mit around=chunk-1 beantwortet (T-21: Fenster um den zitierten
+    // Chunk, nicht das ganze Dokument) — schickt der Viewer den falschen oder
+    // gar keinen `around`-Parameter, bleibt die Anfrage unbeantwortet und der
+    // Dialog zeigt den Fehlerzustand statt des Abschnitts.
+    api.routeQuery("get", "/api/documents/{document_id}/content", { around: "chunk-1" }, 200, {
+      id: "doc-1",
+      filename: "skos.pdf",
+      status: "available",
+      chunks: [
+        { chunk_id: "chunk-other", chunk_index: 0, page: null, heading: null, content: "Vorheriger Abschnitt." },
+        { chunk_id: "chunk-1", chunk_index: 1, page: 1, heading: "Labels", content: "Der belegende Abschnitt." },
+      ],
+    });
+    const field = await openChat();
+
+    await userEvent.type(field, "Was regelt der EU AI Act?");
+    await send();
+
+    await userEvent.click(await screen.findByRole("button", { name: /1 Quelle/i }));
+    await userEvent.click(screen.getByRole("button", { name: /Originaldokument öffnen: \[1\] skos\.pdf/ }));
+
+    const dialog = await screen.findByRole("dialog", { name: /skos\.pdf/ });
+    expect(within(dialog).getAllByText("Der belegende Abschnitt.")).toHaveLength(1);
+    // Die Hervorhebung darf nicht nur Farbe sein (AK 2 "Abschnitt ist
+    // hervorgehoben") — aria-current markiert genau den belegenden Chunk,
+    // nicht den davor.
+    const highlighted = dialog.querySelectorAll('[aria-current="true"]');
+    expect(highlighted).toHaveLength(1);
+    expect(highlighted[0]).toHaveTextContent("Der belegende Abschnitt.");
+
+    await userEvent.click(within(dialog).getByRole("button", { name: /schliessen/i }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("restores focus to the triggering source reference when the viewer closes", async () => {
+    api.route("post", "/api/query", 200, answer({
+      citations: [citation(1, "skos.pdf", "Der belegende Abschnitt.")],
+    }));
+    api.routeQuery("get", "/api/documents/{document_id}/content", { around: "chunk-1" }, 200, {
+      id: "doc-1",
+      filename: "skos.pdf",
+      status: "available",
+      chunks: [{ chunk_id: "chunk-1", chunk_index: 0, page: 1, heading: null, content: "Der belegende Abschnitt." }],
+    });
+    const field = await openChat();
+
+    await userEvent.type(field, "Was regelt der EU AI Act?");
+    await send();
+    await userEvent.click(await screen.findByRole("button", { name: /1 Quelle/i }));
+    const openButton = screen.getByRole("button", { name: /Originaldokument öffnen: \[1\] skos\.pdf/ });
+    await userEvent.click(openButton);
+
+    const dialog = await screen.findByRole("dialog", { name: /skos\.pdf/ });
+    await userEvent.click(within(dialog).getByRole("button", { name: /schliessen/i }));
+
+    expect(document.activeElement).toBe(openButton);
+  });
+
+  it("traps Tab inside the viewer instead of leaving it into the page behind", async () => {
+    api.route("post", "/api/query", 200, answer({
+      citations: [citation(1, "skos.pdf", "Der belegende Abschnitt.")],
+    }));
+    api.routeQuery("get", "/api/documents/{document_id}/content", { around: "chunk-1" }, 200, {
+      id: "doc-1",
+      filename: "skos.pdf",
+      status: "available",
+      chunks: [{ chunk_id: "chunk-1", chunk_index: 0, page: 1, heading: null, content: "Der belegende Abschnitt." }],
+    });
+    const field = await openChat();
+
+    await userEvent.type(field, "Was regelt der EU AI Act?");
+    await send();
+    await userEvent.click(await screen.findByRole("button", { name: /1 Quelle/i }));
+    await userEvent.click(screen.getByRole("button", { name: /Originaldokument öffnen: \[1\] skos\.pdf/ }));
+    const dialog = await screen.findByRole("dialog", { name: /skos\.pdf/ });
+    const closeButton = within(dialog).getByRole("button", { name: /schliessen/i });
+
+    expect(document.activeElement).toBe(closeButton); // Fokus landet beim Öffnen darauf
+
+    await userEvent.tab(); // einziges fokussierbares Element im Dialog -> zirkuliert auf sich selbst
+
+    expect(document.activeElement).toBe(closeButton);
+  });
+
+  it("keeps focus where the user put it while the viewer is open, across a rerender of the message", async () => {
+    // Regression: the focus-on-mount effect used to depend on `onClose`, a
+    // function MessageBubble recreates every render. Any rerender of the
+    // message underneath the open viewer (here: a feedback click) reran it and
+    // stole focus back to the close button, wherever the user had it.
+    api.route("post", "/api/query", 200, answer({
+      citations: [citation(1, "skos.pdf", "Der belegende Abschnitt.")],
+    }));
+    api.routeQuery("get", "/api/documents/{document_id}/content", { around: "chunk-1" }, 200, {
+      id: "doc-1",
+      filename: "skos.pdf",
+      status: "available",
+      chunks: [{ chunk_id: "chunk-1", chunk_index: 0, page: 1, heading: null, content: "Der belegende Abschnitt." }],
+    });
+    const field = await openChat();
+
+    await userEvent.type(field, "Was regelt der EU AI Act?");
+    await send();
+    await userEvent.click(await screen.findByRole("button", { name: /1 Quelle/i }));
+    await userEvent.click(screen.getByRole("button", { name: /Originaldokument öffnen: \[1\] skos\.pdf/ }));
+    await screen.findByRole("dialog", { name: /skos\.pdf/ });
+
+    const helpfulButton = screen.getByRole("button", { name: "Hilfreich" });
+    await userEvent.click(helpfulButton); // rerendert MessageBubble (pendingThumb), Viewer bleibt offen
+
+    expect(document.activeElement).toBe(helpfulButton);
   });
 
   it("offers no sources when the gate suppressed without any", async () => {
@@ -353,7 +474,9 @@ describe("Frage-UI", () => {
 
     await userEvent.click(await screen.findByRole("button", { name: /1 Quelle/i }));
 
-    expect(screen.getByRole("button", { name: "[1] richtlinien.md" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Originaldokument öffnen: [1] richtlinien.md" }),
+    ).toBeInTheDocument();
   });
 
   it("numbers the sources as the answer will cite them", async () => {
@@ -366,8 +489,12 @@ describe("Frage-UI", () => {
 
     await userEvent.click(await screen.findByRole("button", { name: /2 Quellen/i }));
 
-    expect(screen.getByRole("button", { name: /\[1\] skos\.pdf · S\. 1/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /\[2\] ai-act\.pdf · S\. 2/ })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Originaldokument öffnen: \[1\] skos\.pdf · S\. 1/ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Originaldokument öffnen: \[2\] ai-act\.pdf · S\. 2/ }),
+    ).toBeInTheDocument();
   });
 
   // --- US-01: a failing service must not look like an answer ----------------

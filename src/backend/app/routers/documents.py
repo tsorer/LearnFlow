@@ -1,13 +1,23 @@
 import uuid
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    Response,
+    UploadFile,
+    status,
+)
 from pydantic import BaseModel
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import defer
 
-from app.auth.dependencies import require_knowledge_owner
+from app.auth.dependencies import get_current_user, require_knowledge_owner
 from app.database import get_db
 from app.models.tables import (
     Chunk,
@@ -26,6 +36,13 @@ router = APIRouter(prefix="/documents", tags=["documents"])
 PILOT_AREA = "default"
 
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # ADR-003: hartes 10-MB-Limit
+
+# Kontextfenster um den zitierten Chunk (T-21): genug, um den Abschnitt in
+# seiner Umgebung zu lesen, ohne dass ein einzelner Quellenlink das ganze
+# Dokument ausliefert -- der Rest hat dem Retrieval-Gate für diese Frage nie
+# genügt (Spec-Kommentar in openapi.yaml).
+CONTENT_WINDOW_DEFAULT = 2
+CONTENT_WINDOW_MAX = 10
 
 ALLOWED_CONTENT_TYPES: dict[str, str] = {
     ".pdf": "application/pdf",
@@ -71,6 +88,21 @@ def _to_response(document: Document, uploader_email: str | None) -> DocumentResp
         updated_at=document.updated_at,
         uploaded_by=uploader_email,
     )
+
+
+class DocumentContentChunk(BaseModel):
+    chunk_id: uuid.UUID
+    chunk_index: int
+    page: int | None
+    heading: str | None
+    content: str
+
+
+class DocumentContent(BaseModel):
+    id: uuid.UUID
+    filename: str
+    status: DocumentStatus
+    chunks: list[DocumentContentChunk]
 
 
 async def _get_pilot_area_document(document_id: uuid.UUID, db: AsyncSession) -> Document:
@@ -290,6 +322,59 @@ async def get_document(
         else None
     )
     return _to_response(document, uploader_email)
+
+
+@router.get("/{document_id}/content", response_model=DocumentContent)
+async def get_document_content(
+    document_id: uuid.UUID,
+    around: uuid.UUID,
+    window: int = Query(CONTENT_WINDOW_DEFAULT, ge=0, le=CONTENT_WINDOW_MAX),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> DocumentContent:
+    # Jede Rolle, nicht nur knowledge_owner (Spec-Kommentar in openapi.yaml):
+    # eine Query-Antwort zitiert den Chunk unter `around` bereits, der Viewer
+    # zeigt einem Lernenden also nichts, was ihm nicht ohnehin belegt wurde --
+    # deshalb ist `around` Pflicht und die Antwort auf ein Fenster darum
+    # begrenzt, statt das ganze Dokument auszuliefern.
+    document = await _get_pilot_area_document(document_id, db)
+    if document.status != DocumentStatus.available:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Dokument ist noch nicht verfügbar",
+        )
+    target_index = await db.scalar(
+        select(Chunk.chunk_index).where(Chunk.id == around, Chunk.document_id == document_id)
+    )
+    if target_index is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="`around` gehört nicht zu diesem Dokument",
+        )
+    # Spaltenauswahl statt select(Chunk): embedding (Vector, 1536-dim) und tsv
+    # sind hier ungenutzt und sollen die Leitung nicht belasten (ADR-003-artiges
+    # Sparsamkeitsprinzip, wie defer(Document.content) oben im File).
+    result = await db.execute(
+        select(Chunk.id, Chunk.chunk_index, Chunk.page, Chunk.heading, Chunk.content)
+        .where(
+            Chunk.document_id == document_id,
+            Chunk.chunk_index.between(target_index - window, target_index + window),
+        )
+        .order_by(Chunk.chunk_index)
+    )
+    chunks = [
+        DocumentContentChunk(
+            chunk_id=row.id,
+            chunk_index=row.chunk_index,
+            page=row.page,
+            heading=row.heading,
+            content=row.content,
+        )
+        for row in result.all()
+    ]
+    return DocumentContent(
+        id=document.id, filename=document.filename, status=document.status, chunks=chunks
+    )
 
 
 @router.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT)

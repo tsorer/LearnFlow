@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import type { Message, ChunkDebugInfo, StageInfo, LLMCallInfo, DebugInfo, ConfidenceInfo, ConfidenceBand, SuppressionReason } from "../types";
 import { api, type Citation, type FeedbackCategory } from "../api/client";
 import { PARAM_LABELS } from "../params";
+import DocumentViewer from "./DocumentViewer";
 
 // Keyed by the FeedbackCategory enum in openapi.yaml, one entry per value
 // (US-03: the first four apply to a thumbs-up, the remaining five to a
@@ -387,47 +388,55 @@ function DebugPanel({ debug, confidence }: { debug: DebugInfo; confidence: Confi
 const EXCERPT_CLAMP_LINES = 2;
 
 /**
- * One clickable source reference (US-01, T-20).
+ * One clickable source reference (US-01, T-20/T-21).
  *
- * Clicking unfolds the full excerpt. That is deliberately a real behaviour and
- * not a placeholder: T-21 (#28) hangs the document viewer off this same
- * control, and until the backend can deliver a document's content there is
- * nothing honest for a click to open. What T-20 owes is the reference the user
- * can operate; what T-21 adds is where it leads.
+ * Clicking the reference opens the document viewer with the belegenden
+ * Abschnitt hervorgehoben (T-21, #28). Expanding the excerpt is a separate,
+ * secondary control — one surface opening the viewer and toggling the excerpt
+ * at once would make the primary action ambiguous.
  */
-function CitationEntry({ citation }: { citation: Citation }) {
+function CitationEntry({ citation, onOpenViewer }: { citation: Citation; onOpenViewer: () => void }) {
   const [expanded, setExpanded] = useState(false);
-  const label = `[${citation.index}] ${citation.filename}${citation.page ? ` · S. ${citation.page}` : ""}`;
+  const section = citation.heading ? ` · ${citation.heading}` : "";
+  const page = citation.page ? ` · S. ${citation.page}` : "";
+  const label = `[${citation.index}] ${citation.filename}${section}${page}`;
 
   return (
-    <button
-      onClick={() => setExpanded(v => !v)}
-      aria-expanded={expanded}
-      aria-label={label}
-      style={{
-        // fontFamily, not the `font` shorthand: `font: inherit` would reset
-        // font-size along with it and, applied after fontSize in key order,
-        // silently undo the 12px the label below relies on.
-        background: "var(--blue-lt)", border: "none", borderRadius: 8,
-        padding: "8px 12px", fontSize: 12, textAlign: "left", width: "100%",
-        cursor: "pointer", display: "block", fontFamily: "inherit",
-      }}
-    >
-      <div style={{ fontWeight: 700, color: "var(--navy)", marginBottom: 4 }}>
-        {label} <span style={{ fontWeight: 400, color: "var(--muted)" }}>{expanded ? "▲" : "▼"}</span>
-      </div>
-      <div style={{
-        color: "var(--muted)", lineHeight: 1.45, fontSize: 12,
-        ...(expanded ? {} : {
-          display: "-webkit-box",
-          WebkitLineClamp: EXCERPT_CLAMP_LINES,
-          WebkitBoxOrient: "vertical" as const,
-          overflow: "hidden",
-        }),
-      }}>
+    <div style={{ background: "var(--blue-lt)", borderRadius: 8, padding: "8px 12px" }}>
+      <button
+        onClick={onOpenViewer}
+        aria-label={`Originaldokument öffnen: ${label}`}
+        style={{
+          background: "none", border: "none", padding: 0, fontSize: 12, textAlign: "left",
+          width: "100%", cursor: "pointer", fontFamily: "inherit", fontWeight: 700,
+          color: "var(--navy)", marginBottom: 4, display: "flex", justifyContent: "space-between",
+        }}
+      >
+        <span>{label}</span>
+        <span aria-hidden="true" style={{ fontWeight: 400, color: "var(--muted)" }}>↗</span>
+      </button>
+      <button
+        onClick={() => setExpanded(v => !v)}
+        aria-expanded={expanded}
+        style={{
+          background: "none", border: "none", padding: 0, fontSize: 12, textAlign: "left",
+          width: "100%", cursor: "pointer", fontFamily: "inherit", color: "var(--muted)", lineHeight: 1.45,
+          ...(expanded ? {} : {
+            display: "-webkit-box",
+            WebkitLineClamp: EXCERPT_CLAMP_LINES,
+            WebkitBoxOrient: "vertical" as const,
+            overflow: "hidden",
+          }),
+        }}
+      >
+        {/* Kein aria-label hier: das würde den Auszug als Accessible Name
+            ersetzen und ihn für Screenreader unhörbar machen, auch aufgeklappt.
+            Der sichtbare Auszug bleibt Teil des Namens, der Kontext kommt als
+            unsichtbarer Zusatz davor (wie QuizCard.tsx "— richtige Antwort"). */}
+        <span className="sr-only">{`Auszug ${expanded ? "einklappen" : "ausklappen"}: ${label}. `}</span>
         {citation.excerpt}
-      </div>
-    </button>
+      </button>
+    </div>
   );
 }
 
@@ -448,6 +457,7 @@ export default function MessageBubble({ message: m, token }: Props) {
   // dependency for a guard whose whole job is to be unconditional.
   const submitting = useRef(false);
   const [showSources, setShowSources] = useState(false);
+  const [viewerCitation, setViewerCitation] = useState<Citation | null>(null);
 
   const selectThumb = (helpful: boolean) => {
     if (feedback !== null || submitting.current) return;
@@ -634,8 +644,18 @@ export default function MessageBubble({ message: m, token }: Props) {
       {/* Sources */}
       {showSources && m.citations && (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          {m.citations.map(c => <CitationEntry key={c.chunk_id} citation={c} />)}
+          {m.citations.map(c => (
+            <CitationEntry key={c.chunk_id} citation={c} onOpenViewer={() => setViewerCitation(c)} />
+          ))}
         </div>
+      )}
+
+      {viewerCitation && (
+        <DocumentViewer
+          citation={viewerCitation}
+          token={token}
+          onClose={() => setViewerCitation(null)}
+        />
       )}
 
       {/* Always-visible debug panel */}
