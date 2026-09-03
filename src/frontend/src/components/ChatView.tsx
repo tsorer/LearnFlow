@@ -136,13 +136,21 @@ function failureMessage(err: unknown): string {
   return "Fehler beim Abrufen der Antwort. Bitte versuche es erneut.";
 }
 
-interface Props { user: AuthUser; onLogout: () => void; }
+interface Props {
+  user: AuthUser;
+  onLogout: () => void;
+  // Liegen in App (T-36): /quiz und /quiz-review unmounten ChatView, ein
+  // hier lokaler State wäre beim Zurücknavigieren leer — US-09 verlangt die
+  // Historie für die ganze Browser-Session.
+  messages: Message[];
+  setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
+  sessionId: string | null;
+  setSessionId: React.Dispatch<React.SetStateAction<string | null>>;
+}
 
-export default function ChatView({ user, onLogout }: Props) {
+export default function ChatView({ user, onLogout, messages, setMessages, sessionId, setSessionId }: Props) {
   const navigate = useNavigate();
-  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
-  const [sessionId, setSessionId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [inputError, setInputError] = useState("");
   const [showUpload, setShowUpload] = useState(false);
@@ -271,6 +279,9 @@ export default function ChatView({ user, onLogout }: Props) {
               {showUpload ? "Chat" : "Dokumente"}
             </button>
           )}
+          <button className="secondary" style={{ fontSize: 12 }} onClick={() => navigate("/quiz")}>
+            Quiz starten
+          </button>
           {canReview && (
             <button className="secondary" style={{ fontSize: 12 }} onClick={() => navigate("/quiz-review")}>
               Quiz-Review

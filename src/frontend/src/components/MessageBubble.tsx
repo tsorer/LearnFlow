@@ -652,7 +652,9 @@ export default function MessageBubble({ message: m, token }: Props) {
 
       {viewerCitation && (
         <DocumentViewer
-          citation={viewerCitation}
+          documentId={viewerCitation.document_id}
+          chunkId={viewerCitation.chunk_id}
+          filename={viewerCitation.filename}
           token={token}
           onClose={() => setViewerCitation(null)}
         />
