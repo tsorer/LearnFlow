@@ -189,6 +189,86 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /api/feedback:
+    get:
+      tags: [feedback]
+      summary: Alle Feedbacks lesen (T-32)
+      description: >
+        Stefans Bereichs-Uebersicht: Bewertung, Kategorie und Freitext ueber
+        alle Antworten, ohne Personenbezug -- die Antwort traegt bewusst keine
+        `answer_id` und keinen sonstigen Bezug auf `answers`/`query_sessions`,
+        obwohl beide ueber `feedback.answer_id` erreichbar waeren. Auch die
+        Frage selbst ist nicht Teil der Antwort: sie ist Freitext einer
+        Lernenden und beim Nutzerkreis des Piloten (< 30 Personen,
+        Docs/06_Architecture-Draft.md) potenziell re-identifizierend, wie
+        bereits fuer US-10 entschieden (Cluster < 5 Fragen werden dort aus
+        demselben Grund nicht angezeigt). `answer_id` bleibt nur AK-relevant
+        fuer T-30, nicht fuer T-32.
+
+        Nicht nach Bereich gefiltert, aus demselben Grund wie
+        `GET /api/quiz/questions`: im MVP gibt es nur `PILOT_AREA` und am
+        Konto kein `area`-Feld.
+      parameters:
+        - name: helpful
+          in: query
+          required: false
+          description: Ohne Angabe beide Werte.
+          schema:
+            type: boolean
+        - name: category
+          in: query
+          required: false
+          description: >
+            Ohne Angabe alle Kategorien. Eine mit `helpful` widerspruechliche
+            Kombination (z. B. `helpful=true` mit `category=faktisch_falsch`)
+            ist kein Fehler, sondern ergibt eine leere Seite -- Filter
+            schneiden die Ergebnismenge, sie werden nicht gegeneinander
+            validiert.
+          schema:
+            $ref: '#/components/schemas/FeedbackCategory'
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: >
+            Eine Seite Feedback, nach `created_at` absteigend. `limit` und
+            `offset` wirken innerhalb der gewaehlten Filter.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedbackPage'
+        '401':
+          description: Nicht authentifiziert
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Keine Berechtigung (Rolle knowledge_owner oder admin erforderlich)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: '`limit` ueber dem Maximum von 200 oder negativer `offset`'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+
   /api/documents:
     get:
       tags: [documents]
@@ -1166,6 +1246,44 @@ components:
           maxLength: 500
           nullable: true
           description: Optionale Freitext-Ergänzung
+
+    FeedbackItem:
+      type: object
+      description: >
+        Eine Zeile in Stefans Bereichs-Uebersicht (T-32). Keine `answer_id`
+        und kein sonstiger Bezug auf `answers`/`query_sessions` -- siehe
+        Beschreibung von GET /api/feedback.
+      required: [id, helpful, category, comment, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        helpful:
+          type: boolean
+        category:
+          allOf:
+            - $ref: '#/components/schemas/FeedbackCategory'
+          nullable: true
+        comment:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    FeedbackPage:
+      type: object
+      required: [items, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/FeedbackItem'
+        total:
+          description: >
+            Anzahl aller Feedbacks der gewaehlten Filter, unabhaengig von
+            `limit` und `offset` (analog QuizQuestionPage.total).
+          type: integer
 
     ConfigResponse:
       type: object

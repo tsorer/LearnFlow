@@ -4,6 +4,7 @@ import type { AuthUser } from "./types";
 import Login from "./components/Login";
 import ChatView from "./components/ChatView";
 import QuizReview from "./components/QuizReview";
+import FeedbackReview from "./components/FeedbackReview";
 import { ProtectedRoute, GuestRoute } from "./components/RouteGuards";
 import { setUnauthorizedHandler } from "./api/client";
 
@@ -51,6 +52,14 @@ export default function App() {
           element={
             <ProtectedRoute user={user} roles={["knowledge_owner", "admin"]}>
               {u => <QuizReview user={u} />}
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/feedback"
+          element={
+            <ProtectedRoute user={user} roles={["knowledge_owner", "admin"]}>
+              {u => <FeedbackReview user={u} />}
             </ProtectedRoute>
           }
         />
