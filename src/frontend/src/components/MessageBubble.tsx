@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, type CSSProperties } from "react";
 import type { Message, ChunkDebugInfo, StageInfo, LLMCallInfo, DebugInfo, ConfidenceInfo, ConfidenceBand, SuppressionReason } from "../types";
 import { api, type Citation, type FeedbackCategory } from "../api/client";
 import { PARAM_LABELS } from "../params";
@@ -87,49 +87,203 @@ const BAND_BADGES: Record<ConfidenceBand, { label: string; icon: string; note: s
 function pct(v: number) { return `${Math.round(v * 100)}%`; }
 
 // ── Chunk bar ──────────────────────────────────────────────────────────────
-function ChunkBar({ chunk, threshold }: { chunk: ChunkDebugInfo; threshold: number }) {
+
+// `dense_rank` / `sparse_rank` carry 0 for "this search did not return the
+// chunk" — RANK_ABSENT in app/services/retrieval.py, a sentinel that cannot
+// collide because real ranks start at 1. It must not render as "#0", which
+// reads like a rank rather than like an absence (T-54).
+const RANK_ABSENT = 0;
+const rankLabel = (rank: number) => (rank === RANK_ABSENT ? "—" : String(rank));
+
+// One source of truth for the column widths, because the header row below and
+// every chunk row have to line up. Two elastic columns share what the fixed
+// ones leave: the bar grows from 90px, the source twice as fast from 160px, and
+// the source wraps instead of truncating — the filename is what an admin reads
+// to find the chunk again, so it is the one thing that must not be cut off.
+const COL_SCORE: CSSProperties = { width: 30, textAlign: "right", fontSize: 10, fontWeight: 700, flexShrink: 0 };
+const COL_BAR: CSSProperties   = { flex: "1 1 90px" };
+const COL_RANK: CSSProperties  = { width: 20, textAlign: "center", fontSize: 9, flexShrink: 0 };
+const COL_RRF: CSSProperties   = { width: 40, textAlign: "right", fontSize: 9, flexShrink: 0 };
+const COL_SRC: CSSProperties   = { flex: "2 1 160px", minWidth: 0, fontSize: 10, lineHeight: 1.35, overflowWrap: "anywhere" };
+const COL_BADGE: CSSProperties = { width: 28, textAlign: "center", flexShrink: 0 };
+const COL_CARET: CSSProperties = { width: 8, fontSize: 9, flexShrink: 0, color: "var(--muted)" };
+
+const CHUNK_ROW: CSSProperties = { display: "flex", alignItems: "center", gap: 6 };
+
+const COLUMN_LABEL: CSSProperties = {
+  fontSize: 8, fontWeight: 700, letterSpacing: "0.05em",
+  textTransform: "uppercase", color: "var(--muted)",
+};
+
+/**
+ * Header for the chunk list — names the three columns T-54 added.
+ *
+ * `D` and `S` are single letters in a 20px column, so each carries the spelled
+ * out name for a screen reader as well: this is a flex layout, not a table, and
+ * nothing associates a cell with its heading.
+ */
+function ChunkColumns() {
+  return (
+    <div style={{ ...CHUNK_ROW, paddingBottom: 4, marginBottom: 6, borderBottom: "1px solid var(--border)" }}>
+      <span style={{ ...COL_SCORE, ...COLUMN_LABEL }}>Cos</span>
+      <span style={COL_BAR} />
+      <span style={{ ...COL_RANK, ...COLUMN_LABEL }} title="Rang in der Vektorsuche">
+        <span aria-hidden="true">D</span>
+        <span className="sr-only">Rang in der Vektorsuche</span>
+      </span>
+      <span style={{ ...COL_RANK, ...COLUMN_LABEL }} title="Rang in der Volltextsuche">
+        <span aria-hidden="true">S</span>
+        <span className="sr-only">Rang in der Volltextsuche</span>
+      </span>
+      <span style={{ ...COL_RRF, ...COLUMN_LABEL }} title="Sortierschlüssel: Summe von 1/(k + Rang) über beide Suchen">
+        RRF ↓
+      </span>
+      <span style={{ ...COL_SRC, ...COLUMN_LABEL }}>Quelle</span>
+      <span style={COL_BADGE} />
+      <span style={COL_CARET} />
+    </div>
+  );
+}
+
+/**
+ * One rank cell: the number, or a dash where that search did not find the chunk.
+ *
+ * The dash used to be drawn in `--border`, inherited from the old `#0` it
+ * replaced. That was decoration then and a signal now — the issue asks that a
+ * chunk found by only one of the two searches be recognisable as such — and
+ * `--border` on `--card` is barely over a 1:1 contrast ratio. `--muted` is the
+ * colour the rest of this panel uses for secondary text.
+ *
+ * `title` alone would not carry it either: screen readers do not announce it
+ * reliably, and a bare "—" says nothing. Hence the `.sr-only` sentence, the
+ * same idiom QuizCard uses for its correct-answer marker.
+ */
+function RankCell({ rank, search }: { rank: number; search: string }) {
+  const found = rank !== RANK_ABSENT;
+  return (
+    <span
+      style={{ ...COL_RANK, color: found ? "var(--navy)" : "var(--muted)", fontWeight: found ? 700 : 400 }}
+      title={found ? `${search}: Rang ${rank}` : `${search}: nicht gefunden`}
+    >
+      <span aria-hidden="true">{rankLabel(rank)}</span>
+      <span className="sr-only">{found ? `${search} Rang ${rank}` : `${search}: nicht gefunden`}</span>
+    </span>
+  );
+}
+
+/**
+ * One candidate chunk: its similarity, where each search ranked it, and the
+ * RRF score those ranks produced (T-54).
+ *
+ * The three numbers sit left of the filename on purpose. Appending them on the
+ * right would have taken the width from the source, which is the column an
+ * admin actually reads; this way the fixed columns come out of the bar and the
+ * source keeps the rest of the row.
+ */
+function ChunkBar({ chunk, threshold, rrfK }: { chunk: ChunkDebugInfo; threshold: number; rrfK: number | null }) {
   const [open, setOpen] = useState(false);
   const scorePct = Math.max(0, Math.min(100, Math.round(chunk.score * 100)));
   const thPct    = Math.round(threshold * 100);
   const color    = chunk.above_threshold ? "var(--green)" : "var(--red)";
   const parts    = [chunk.filename, chunk.page ? `S.${chunk.page}` : null, chunk.heading ? `— ${chunk.heading}` : null].filter(Boolean).join(" ");
 
+  const foundDense  = chunk.dense_rank !== RANK_ABSENT;
+  const foundSparse = chunk.sparse_rank !== RANK_ABSENT;
+
+  // The arithmetic behind the sort key, spelled out with the k this request
+  // actually used. Without it the score is a number to trust; with it the
+  // ordering is something an admin can check.
+  const ranks = [foundDense ? chunk.dense_rank : null, foundSparse ? chunk.sparse_rank : null]
+    .filter((rank): rank is number => rank !== null);
+  const rrfFormula = rrfK !== null && ranks.length > 0
+    ? `${ranks.map(rank => `1/(${rrfK}+${rank})`).join(" + ")} = ${chunk.rrf_score}`
+    : String(chunk.rrf_score);
+
+  const origin = foundDense && foundSparse
+    ? "Beide Suchen haben ihn gefunden — die Ränge addieren sich im RRF-Score."
+    : foundSparse
+      ? "Nur die Volltextsuche hat ihn gefunden: ein wörtlicher Treffer, den die Vektorsuche verfehlt (ADR-007)."
+      : "Nur die Vektorsuche hat ihn gefunden: inhaltlich nah, ohne wörtliche Übereinstimmung.";
+
+  // The two cases the panel could not explain before — a red chunk in the
+  // context, and a green one that was cut. Both are the fusion working as
+  // designed, and both look like a bug without this sentence.
+  const placement = chunk.in_top_n && !chunk.above_threshold
+    ? "Trotzdem im Kontext: die Auswahl folgt dem RRF-Rang, nicht der Similarity."
+    : !chunk.in_top_n && chunk.above_threshold
+      ? "Über der Schwelle, aber nicht im Kontext: andere Chunks haben einen höheren RRF-Score."
+      : null;
+
+  const term: CSSProperties = { width: 62, flexShrink: 0, color: "var(--muted)", fontWeight: 700 };
+  const defRow: CSSProperties = { display: "flex", gap: 8, fontSize: 10 };
+
   return (
     <div style={{ marginBottom: 5 }}>
       <div
-        style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", userSelect: "none" }}
+        style={{ ...CHUNK_ROW, cursor: "pointer", userSelect: "none" }}
         onClick={() => setOpen(v => !v)}
       >
-        <span style={{ width: 30, textAlign: "right", fontSize: 10, fontWeight: 700, color, flexShrink: 0 }}>
-          {scorePct}%
-        </span>
-        <div style={{ flex: 1, position: "relative", height: 5, background: "var(--border)", borderRadius: 3 }}>
+        <span style={{ ...COL_SCORE, color }}>{scorePct}%</span>
+        <div style={{ ...COL_BAR, position: "relative", height: 5, background: "var(--border)", borderRadius: 3 }}>
           <div style={{ width: `${scorePct}%`, height: "100%", background: color, borderRadius: 3 }} />
           {/* threshold marker */}
           <div style={{ position: "absolute", top: -2, left: `${thPct}%`, width: 2, height: 9, background: "var(--navy)", borderRadius: 1 }} />
         </div>
-        <span style={{ fontSize: 10, color: "var(--muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 190 }}>
-          {parts}
+        <RankCell rank={chunk.dense_rank} search="Vektorsuche" />
+        <RankCell rank={chunk.sparse_rank} search="Volltextsuche" />
+        <span style={{ ...COL_RRF, color: "var(--navy)" }} title={`RRF ${rrfFormula}`}>
+          <span aria-hidden="true">{chunk.rrf_score.toFixed(4).replace(/^0/, "")}</span>
+          <span className="sr-only">RRF-Score {chunk.rrf_score}</span>
         </span>
-        {chunk.in_top_n ? (
-          <span style={{ flexShrink: 0, fontSize: 9, padding: "1px 5px", borderRadius: 8, background: "var(--blue)", color: "#fff", fontWeight: 700 }}>
-            LLM
-          </span>
-        ) : (
-          <span style={{ flexShrink: 0, fontSize: 9, color: "var(--border)", fontWeight: 600 }}>#{chunk.dense_rank}</span>
-        )}
-        <span style={{ fontSize: 9, color: "var(--muted)", flexShrink: 0 }}>{open ? "▲" : "▼"}</span>
+        <span style={{ ...COL_SRC, color: "var(--muted)" }}>{parts}</span>
+        <span style={COL_BADGE}>
+          {chunk.in_top_n && (
+            <span style={{ fontSize: 9, padding: "1px 5px", borderRadius: 8, background: "var(--blue)", color: "#fff", fontWeight: 700 }}>
+              LLM
+            </span>
+          )}
+        </span>
+        <span style={COL_CARET}>{open ? "▲" : "▼"}</span>
       </div>
       {open && (
-        <pre style={{
-          margin: "4px 0 0 36px", padding: "7px 10px",
-          background: chunk.above_threshold ? "var(--green-lt)" : "var(--red-lt)",
-          borderRadius: 6, fontSize: 10, lineHeight: 1.5,
-          whiteSpace: "pre-wrap", wordBreak: "break-word",
-          maxHeight: 180, overflowY: "auto", color: "var(--navy)",
-        }}>
-          {chunk.content}
-        </pre>
+        <div style={{ margin: "5px 0 0 36px", display: "flex", flexDirection: "column", gap: 5 }}>
+          <div style={{
+            background: "var(--amber-lt)", border: "1px solid var(--amber)", borderRadius: 6,
+            padding: "8px 10px", display: "flex", flexDirection: "column", gap: 3,
+          }}>
+            <div style={defRow}>
+              <span style={term}>Herkunft</span>
+              <span style={{ color: "var(--navy)" }}>
+                Dense {foundDense ? chunk.dense_rank : "— nicht gefunden"} · Sparse {foundSparse ? chunk.sparse_rank : "— nicht gefunden"}
+              </span>
+            </div>
+            <div style={defRow}>
+              <span style={term}>RRF</span>
+              <span style={{ color: "var(--navy)", fontFamily: "monospace" }}>{rrfFormula}</span>
+            </div>
+            <div style={defRow}>
+              <span style={term}>Cosine</span>
+              <span style={{ color }}>
+                {chunk.score} — {chunk.above_threshold ? "über" : "unter"} Schwelle {threshold}
+              </span>
+            </div>
+            <div style={{
+              fontSize: 10, lineHeight: 1.5, color: "var(--text)",
+              marginTop: 3, paddingTop: 5, borderTop: "1px solid var(--amber)",
+            }}>
+              {origin}{placement && ` ${placement}`}
+            </div>
+          </div>
+          <pre style={{
+            margin: 0, padding: "7px 10px",
+            background: chunk.above_threshold ? "var(--green-lt)" : "var(--red-lt)",
+            borderRadius: 6, fontSize: 10, lineHeight: 1.5,
+            whiteSpace: "pre-wrap", wordBreak: "break-word",
+            maxHeight: 180, overflowY: "auto", color: "var(--navy)",
+          }}>
+            {chunk.content}
+          </pre>
+        </div>
       )}
     </div>
   );
@@ -290,9 +444,16 @@ function DebugPanel({ debug, confidence }: { debug: DebugInfo; confidence: Confi
           <span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: "var(--red)", marginRight: 3 }} />darunter</span>
           <span><span style={{ display: "inline-block", padding: "0 4px", borderRadius: 6, background: "var(--blue)", color: "#fff", fontSize: 8, fontWeight: 700, marginRight: 3 }}>LLM</span>ans LLM gesendet</span>
           <span>▌ = Schwellwert</span>
+          <span><strong style={{ color: "var(--navy)" }}>D</strong>/<strong style={{ color: "var(--navy)" }}>S</strong> = Rang in Vektor-/Volltextsuche, <span style={{ color: "var(--muted)", fontWeight: 700 }}>—</span> = dort nicht gefunden</span>
         </div>
-        {debug.chunks.map((c, i) => (
-          <ChunkBar key={i} chunk={c} threshold={debug.similarity_threshold} />
+        <ChunkColumns />
+        {debug.chunks.map(c => (
+          <ChunkBar
+            key={c.chunk_id}
+            chunk={c}
+            threshold={debug.similarity_threshold}
+            rrfK={debug.params_used.rrf_k ?? null}
+          />
         ))}
       </div>
 

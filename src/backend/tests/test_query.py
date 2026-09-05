@@ -1,6 +1,7 @@
 """POST /query — the contract T-17…T-26 owe the frontend (US-01, US-02, ADR-008)."""
 
 import uuid
+from dataclasses import replace
 from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
@@ -44,7 +45,7 @@ from app.services.config import (
     QueryConfig,
 )
 from app.services.generation import GenerationResult, build_prompt
-from app.services.retrieval import RetrievalHit, RetrievalOutcome
+from app.services.retrieval import RANK_ABSENT, RetrievalHit, RetrievalOutcome
 from app.services.self_check import SelfCheckResult
 
 ANSWER = "Der AI Act regelt Hochrisiko-Systeme [1]."
@@ -292,6 +293,39 @@ async def test_debug_shows_the_pipeline_to_an_admin(monkeypatch: pytest.MonkeyPa
     assert debug["min_citation_coverage"] == CONFIG.min_citation_coverage
     assert debug["dense_above_threshold"] == 2
     assert len(debug["chunks"]) == 2
+
+
+async def test_debug_chunks_carry_the_fusion_provenance(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """T-54: every value that produced the order travels with its chunk.
+
+    The second hit is the case the panel could not explain before: below the
+    similarity threshold and still in the context, because the full-text search
+    ranked it first and RRF fuses ranks, not scores (ADR-007). Nothing is
+    recomputed here — the payload has to repeat what `fuse()` already decided,
+    including the RANK_ABSENT sentinel for the search that missed the chunk.
+    """
+    dense_hit = make_hit(0.62, dense_rank=1)
+    sparse_hit = replace(
+        make_hit(0.24), dense_rank=RANK_ABSENT, sparse_rank=1, rrf_score=1 / 61
+    )
+    hits = [dense_hit, sparse_hit]
+    outcome = RetrievalOutcome(candidates=hits, context=hits, dense_count=1, sparse_count=1)
+
+    r = await post_query(monkeypatch, outcome, role="admin")
+
+    chunks = r.json()["debug"]["chunks"]
+    assert [chunk["dense_rank"] for chunk in chunks] == [1, RANK_ABSENT]
+    assert [chunk["sparse_rank"] for chunk in chunks] == [RANK_ABSENT, 1]
+    assert chunks[1]["rrf_score"] == pytest.approx(1 / 61, abs=1e-6)
+    # Identity, so a row can be tied to a citation (same chunk_id) and to the
+    # document behind it without a second request.
+    assert chunks[1]["chunk_id"] == str(sparse_hit.chunk_id)
+    assert chunks[1]["document_id"] == str(sparse_hit.document_id)
+    # The combination the view has to be able to explain on its own.
+    assert chunks[1]["above_threshold"] is False
+    assert chunks[1]["in_top_n"] is True
 
 
 async def test_debug_marks_the_confidence_stage_as_skipped_below_the_gate(
