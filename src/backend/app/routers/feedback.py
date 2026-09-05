@@ -2,16 +2,24 @@ import uuid
 from datetime import UTC, datetime
 from enum import Enum
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import get_current_user
+from app.auth.dependencies import get_current_user, require_knowledge_owner
 from app.database import get_db
 from app.models.tables import Answer, Feedback, QuerySession, User
 
 router = APIRouter(prefix="/answers", tags=["feedback"])
+
+# Separate router (own prefix `/feedback`, not `/answers/{answer_id}/feedback`):
+# the GET below reads the whole list and belongs to no single answer.
+read_router = APIRouter(prefix="/feedback", tags=["feedback"])
+
+DEFAULT_PAGE_SIZE = 50
+MAX_PAGE_SIZE = 200
 
 
 class FeedbackCategory(str, Enum):
@@ -115,3 +123,73 @@ async def create_feedback(
     )
     await db.execute(upsert_stmt)
     await db.commit()
+
+
+class FeedbackItem(BaseModel):
+    """One row of Stefan's area overview (T-32).
+
+    No `answer_id` and nothing derived from `answers`/`query_sessions` --
+    pseudonymisation stays end to end, not just at the `feedback` table
+    (openapi.yaml, GET /api/feedback).
+    """
+
+    id: uuid.UUID
+    helpful: bool
+    category: FeedbackCategory | None
+    comment: str | None
+    created_at: datetime
+
+
+class FeedbackPage(BaseModel):
+    items: list[FeedbackItem]
+    total: int
+
+
+def _to_item(row: Feedback) -> FeedbackItem:
+    try:
+        category = FeedbackCategory(row.category) if row.category is not None else None
+    except ValueError:
+        # `category` has no DB CHECK (unlike quiz_questions.status) and a value
+        # outside the current enum -- a category renamed or removed after this
+        # row was written -- must not 500 the whole dashboard for every other
+        # row. Surfaced as "no category" for this one row instead.
+        category = None
+    return FeedbackItem(
+        id=row.id,
+        helpful=row.helpful,
+        category=category,
+        comment=row.comment,
+        created_at=row.created_at,
+    )
+
+
+@read_router.get("", response_model=FeedbackPage, dependencies=[Depends(require_knowledge_owner)])
+async def list_feedback(
+    helpful: bool | None = Query(None),
+    category: FeedbackCategory | None = Query(None),
+    limit: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
+    offset: int = Query(0, ge=0),
+    db: AsyncSession = Depends(get_db),
+) -> FeedbackPage:
+    filters = []
+    if helpful is not None:
+        filters.append(Feedback.helpful == helpful)
+    if category is not None:
+        filters.append(Feedback.category == category.value)
+
+    # Counted separately and without limit/offset -- the dashboard needs the
+    # size of the filtered set, not the size of the page it happens to show
+    # (same reasoning as list_questions in app/routers/quiz.py).
+    total = await db.scalar(select(func.count()).select_from(Feedback).where(*filters))
+    result = await db.execute(
+        select(Feedback)
+        # `id` as the tie-breaker: rows from the same instant would otherwise
+        # leave the order of a paged query undefined (same reasoning as
+        # list_questions in app/routers/quiz.py).
+        .where(*filters)
+        .order_by(Feedback.created_at.desc(), Feedback.id.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+    items = [_to_item(row) for row in result.scalars().all()]
+    return FeedbackPage(items=items, total=total or 0)
