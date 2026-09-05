@@ -25,6 +25,27 @@ echte Datenbank. Er deckt die Nahtstellen ab, welche die beiden Sprach-Jobs
 prinzipbedingt nicht sehen — das `/api`-Rewrite von nginx, den SPA-Fallback und
 den echten bcrypt-Hash aus der `users`-Tabelle.
 
+**Kein vierter CI-Job für den Eval:** Es gibt (noch) kein `OPENAI_API_KEY`-Secret
+im Repo — nicht auf Repo-, Environment- oder Org-Ebene. Ein Job, der sich deshalb
+bei jedem Lauf bedingungslos selbst überspringt, wurde bewusst **nicht** gemergt:
+er erschiene in der Checks-Liste und sähe wie ein Gate aus, ohne je etwas zu
+messen — GitHub wertet einen übersprungenen Required Check als bestanden, was
+genau die stille Aufweichung wäre, die ADR-009 verhindern soll (Review auf #100).
+Die Out-of-Corpus-Refusal-Rate (T-28, ADR-009 DoD-Kriterium 4: ≥ 90 % „Weiss ich
+nicht" auf den 22 Out-of-Corpus-Fragen aus `LearningCorpus/gold-eval-dataset.yaml`,
+T-47/T-48) ist deshalb vorerst ein **manuell auszuführendes Release-Gate**:
+
+```bash
+make up && make seed && make seed-corpus && make eval
+```
+
+Automatisierung in CI folgt mit **T-53 (#110)**, gekoppelt an den ohnehin
+anstehenden Wechsel auf Azure OpenAI EU (ADR-004) — dort auch die Fragen nach
+Trigger (`pull_request` vs. `push`/`workflow_dispatch`) und Secret-Scope geklärt.
+In-Corpus-Metriken (Halluzinationsrate, False-Suppression) sind unabhängig davon
+nicht Teil dieses Gates — sie brauchen die In-Corpus-Fragen des Gold-Datasets und
+folgen als eigener Ausbauschritt von ADR-009.
+
 `tsc --noEmit` und `mypy` sind das Review-Netz aus ADR-002: sie fangen genau die
 Fehlerklasse KI-generierten Codes (falsche Props, erfundene Signaturen, ungenutzte
 Variablen) zur Compile-Zeit ab.
@@ -57,8 +78,16 @@ make qa-fe   # nur TypeScript
 make up && make seed && make e2e   # Job `e2e` — braucht den laufenden Stack
 ```
 
-`make e2e` ist bewusst nicht Teil von `make qa`: es setzt gestartete Container
-voraus, während `make qa` ohne sie auskommen soll.
+Zusätzlich, aber **kein CI-Job** (siehe oben — manuelles Release-Gate bis T-53 #110):
+
+```bash
+make up && make seed && make seed-corpus && make eval   # braucht ausserdem
+                                                          # einen echten
+                                                          # OPENAI_API_KEY in .env
+```
+
+`make e2e` und `make eval` sind bewusst nicht Teil von `make qa`: sie setzen
+gestartete Container voraus, während `make qa` ohne sie auskommen soll.
 
 Eine separate Toolchain-Installation braucht es nicht — `make qa-be` läuft im
 api-Container, `make qa-fe` in einem `node:22-alpine`-Wegwerfcontainer. Für das
@@ -100,7 +129,7 @@ erzwungen**, einmalig in GitHub einstellen:
 2. Branch-Pattern: `main`
 3. **Require status checks to pass before merging** aktivieren
 4. Als erforderliche Checks **`backend`**, **`frontend`** und **`e2e`** auswählen
-   (erscheinen in der Liste, sobald der Workflow einmal gelaufen ist)
+   (erscheinen in der Liste, sobald der Workflow einmal gelaufen ist).
 5. Empfohlen: **Require a pull request before merging** (greift mit DoD-Kriterium 1,
    Review durch eine zweite Person)
 
@@ -122,5 +151,7 @@ Ergebnis: Ein roter PR lässt sich nicht mergen. **„CI grün" = grüner Haken 
 Neue Checks gehören an **eine** Stelle und werden von beiden Verifikationswegen
 übernommen: einen Befehl in `frontend/package.json` (`scripts.check`) bzw. ins
 `Makefile` aufnehmen — `make check` und die CI ziehen automatisch nach.
-Das spätere Eval-Gate (DoD-Kriterium 4, ADR-009) wird als zusätzlicher CI-Job nach
-demselben Muster ergänzt.
+Das Eval-Gate (DoD-Kriterium 4, ADR-009) ist als `make eval` nach demselben Muster
+vorbereitet (T-28) — vorerst nur für die Out-of-Corpus-Refusal-Rate und als manueller
+Schritt, mangels CI-Secret noch kein eigener Job (siehe oben, T-53 #110). Die
+In-Corpus-Metriken folgen als eigener Ausbauschritt von ADR-009.
