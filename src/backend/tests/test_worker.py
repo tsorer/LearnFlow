@@ -623,6 +623,37 @@ async def test_reaping_and_requeueing_share_one_transaction() -> None:
     conn.transaction.return_value.__aexit__.assert_awaited()
 
 
+async def test_the_reaper_deletes_the_orphaned_job_row_it_leaves_behind() -> None:
+    """T-52 — nothing else in the system ever removes a 'picked' row: pgqueuer
+    only retires finished jobs to `pgqueuer_log`, and `enqueue_document`
+    (`app/queue.py`) only deletes 'queued' ones. Left alone, every reaped run
+    leaves one behind forever. The same heartbeat age that proves a document's
+    run is dead proves the job row is too, so the delete reuses $1.
+    """
+    conn = make_reaper_conn()
+
+    await reap_stuck_documents(conn, timeout_seconds=900, max_attempts=3)
+
+    sql, timeout = conn.execute.await_args.args
+    assert "DELETE FROM pgqueuer" in sql
+    assert "entrypoint = 'process_document'" in sql
+    assert "status = 'picked'" in sql
+    assert "heartbeat < now() - make_interval(secs => $1)" in sql
+    assert timeout == 900.0
+    assert isinstance(timeout, float)
+
+
+async def test_the_cleanup_delete_runs_exactly_once_per_pass() -> None:
+    """Unconditional, unlike the requeue insert: cleanup does not depend on this
+    pass having reaped a document — a row from an earlier pass is still there
+    to remove."""
+    conn = make_reaper_conn()
+
+    await reap_stuck_documents(conn, timeout_seconds=900, max_attempts=3)
+
+    conn.execute.assert_awaited_once()
+
+
 async def test_reaper_config_falls_back_when_the_keys_are_missing() -> None:
     conn = AsyncMock()
     conn.fetch.return_value = []
