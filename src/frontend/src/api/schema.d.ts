@@ -294,6 +294,80 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Alle Feedbacks lesen (T-32)
+         * @description Stefans Bereichs-Uebersicht: Bewertung, Kategorie und Freitext ueber alle Antworten, ohne Personenbezug -- die Antwort traegt bewusst keine `answer_id` und keinen sonstigen Bezug auf `answers`/`query_sessions`, obwohl beide ueber `feedback.answer_id` erreichbar waeren. Auch die Frage selbst ist nicht Teil der Antwort: sie ist Freitext einer Lernenden und beim Nutzerkreis des Piloten (< 30 Personen, Docs/06_Architecture-Draft.md) potenziell re-identifizierend, wie bereits fuer US-10 entschieden (Cluster < 5 Fragen werden dort aus demselben Grund nicht angezeigt). `answer_id` bleibt nur AK-relevant fuer T-30, nicht fuer T-32.
+         *     Nicht nach Bereich gefiltert, aus demselben Grund wie `GET /api/quiz/questions`: im MVP gibt es nur `PILOT_AREA` und am Konto kein `area`-Feld.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Ohne Angabe beide Werte. */
+                    helpful?: boolean;
+                    /** @description Ohne Angabe alle Kategorien. Eine mit `helpful` widerspruechliche Kombination (z. B. `helpful=true` mit `category=faktisch_falsch`) ist kein Fehler, sondern ergibt eine leere Seite -- Filter schneiden die Ergebnismenge, sie werden nicht gegeneinander validiert. */
+                    category?: components["schemas"]["FeedbackCategory"];
+                    limit?: number;
+                    offset?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Eine Seite Feedback, nach `created_at` absteigend. `limit` und `offset` wirken innerhalb der gewaehlten Filter. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FeedbackPage"];
+                    };
+                };
+                /** @description Nicht authentifiziert */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Keine Berechtigung (Rolle knowledge_owner oder admin erforderlich) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description `limit` ueber dem Maximum von 200 oder negativer `offset` */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ValidationError"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/documents": {
         parameters: {
             query?: never;
@@ -1219,6 +1293,21 @@ export interface components {
             category?: components["schemas"]["FeedbackCategory"] | null;
             /** @description Optionale Freitext-Ergänzung */
             comment?: string | null;
+        };
+        /** @description Eine Zeile in Stefans Bereichs-Uebersicht (T-32). Keine `answer_id` und kein sonstiger Bezug auf `answers`/`query_sessions` -- siehe Beschreibung von GET /api/feedback. */
+        FeedbackItem: {
+            /** Format: uuid */
+            id: string;
+            helpful: boolean;
+            category: components["schemas"]["FeedbackCategory"] | null;
+            comment: string | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        FeedbackPage: {
+            items: components["schemas"]["FeedbackItem"][];
+            /** @description Anzahl aller Feedbacks der gewaehlten Filter, unabhaengig von `limit` und `offset` (analog QuizQuestionPage.total). */
+            total: number;
         };
         ConfigResponse: {
             /** @description Schlüssel-Wert-Paare aus der config-Tabelle; Werte immer als String */
