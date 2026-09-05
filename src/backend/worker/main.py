@@ -355,6 +355,20 @@ REQUEUE_DOCUMENT = """
     VALUES (0, now(), now(), now(), now(), 'queued', 'process_document', $1)
 """
 
+# The row STUCK_DOCUMENTS frees the document from is never removed: pgqueuer
+# only retires finished jobs to `pgqueuer_log`, and `enqueue_document` deletes
+# 'queued' rows, not 'picked' ones (T-52). The same heartbeat age that proves a
+# document's run is dead proves the job row is too, so it reuses $1 rather than
+# a threshold of its own. Restricted to our one entrypoint and to 'picked' so a
+# future second job type, or a job that already failed into 'exception', is
+# someone else's to clean up.
+DELETE_ORPHANED_PICKED_ROWS = """
+    DELETE FROM pgqueuer
+     WHERE entrypoint = 'process_document'
+       AND status = 'picked'
+       AND heartbeat < now() - make_interval(secs => $1)
+"""
+
 
 async def reap_stuck_documents(
     conn: asyncpg.Connection, timeout_seconds: int, max_attempts: int
@@ -374,6 +388,8 @@ async def reap_stuck_documents(
 
     Below the attempt budget the document goes back to 'pending' and is queued
     again; at the budget it is marked failed with a message its owner can act on.
+    The abandoned run's own 'picked' row in `pgqueuer` is deleted in the same
+    pass (T-52) — nothing else ever does.
     Returns how many rows were touched, for the caller's log.
     """
     # The message names no cause on purpose. The condition below is "claimed
@@ -407,6 +423,7 @@ async def reap_stuck_documents(
                 REQUEUE_DOCUMENT,
                 [(json.dumps({"document_id": str(row["id"])}).encode(),) for row in requeued],
             )
+        await conn.execute(DELETE_ORPHANED_PICKED_ROWS, float(timeout_seconds))
     for row in rows:
         log.warning(
             "Reaped document_id=%s: indexing run abandoned, attempt %s of %s — %s",
