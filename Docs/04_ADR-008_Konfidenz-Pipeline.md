@@ -140,7 +140,7 @@ Die Startwerte sind bewusst **deckungsgleich mit den Konfidenz-Bändern**: `low`
 
 **Persistenz.** `answers.self_check_passed` ist `NULL`, wenn Stufe 3 nicht lief — der Normalfall, weil sie nur im Grenzband feuert. Ein Default `false` würde jede übersprungene Prüfung wie eine gescheiterte aussehen lassen. Der Wortlaut des Urteils wird nicht gespeichert: er ist Material zum Debuggen einer einzelnen Anfrage und stünde sonst als generierte Prosa in einer Tabelle, deren `answer_text` bei unterdrückten Antworten bewusst `NULL` bleibt.
 
-**Offen bleibt die Latenz.** Stufe 3 addiert einen zweiten Provider-Aufruf auf eine Anfrage, auf die ohne Streaming (ADR-002) jemand wartet. Das Grenzband begrenzt die *Häufigkeit*, nicht die Dauer im Einzelfall; ob die Performance-NFA (p95 ≤ 10 s) damit hält, misst T-22 und ist mit diesem Stand nicht gezeigt.
+**Offen bleibt die Latenz.** Stufe 3 addiert einen zweiten Provider-Aufruf auf eine Anfrage, auf die ohne Streaming (ADR-002) jemand wartet. Das Grenzband begrenzt die *Häufigkeit*, nicht die Dauer im Einzelfall; ob die Performance-NFA (p95 ≤ 10 s) damit hält, kann jetzt lokal vermessen werden (`make perf`, T-22/#29); der tatsächliche Wert steht noch aus.
 
 ### Nachtrag 2026-08-26 — Warum die Quiz-Generierung nicht durch diese Pipeline läuft (T-33)
 
@@ -199,9 +199,10 @@ Fail-closed bleibt es trotzdem, auf drei anderen Beinen:
    alle Stufen sind umgesetzt, der angezeigte `score` ist das Komposit, Stufe 3 läuft im
    Grenzband. Details im Nachtrag 2026-08-22. Im MVP werden weiterhin keine echten internen
    Dokumente verarbeitet (ADR-004).
-5. **Latenz von Stufe 3 messen (T-22, #29):** Der zweite LLM-Aufruf im Grenzband ist gegen die
-   Performance-NFA (p95 ≤ 10 s) nicht vermessen. Fällt er zu teuer aus, ist der Hebel das
-   Grenzband, nicht das Abschalten der Stufe.
+5. **Latenz von Stufe 3 messen (T-22, #29):** Der zweite LLM-Aufruf im Grenzband kann jetzt
+   lokal gegen die Performance-NFA (p95 ≤ 10 s) vermessen werden (`make perf`); der
+   tatsächliche Wert steht noch aus. Fällt er zu teuer aus, ist der Hebel das Grenzband,
+   nicht das Abschalten der Stufe.
 
 ---
 

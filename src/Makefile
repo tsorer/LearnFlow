@@ -1,4 +1,4 @@
-.PHONY: up down seed seed-corpus logs check qa qa-be qa-fe generate-api lint-be typecheck-be test-be e2e eval
+.PHONY: up down seed seed-corpus logs check qa qa-be qa-fe generate-api lint-be typecheck-be test-be e2e eval perf
 
 # --- infra ---
 up:
@@ -89,6 +89,15 @@ e2e:
 # or `make e2e` either way.
 eval:
 	docker exec -e E2E_BASE_URL=http://webapp src-api-1 pytest eval
+
+# --- query latency (T-22, #29, requires: make up && make seed && make seed-corpus) ---
+# Same execution path as eval: inside the api container, through nginx. Needs a real
+# OPENAI_API_KEY (real embedding + generation calls against the indexed corpus) and
+# fires several seeded accounts concurrently to approximate Normallast, so this is a
+# manually run local check, not a CI job (T-53, #110, same constraint as `eval`) --
+# not part of `make qa` or `make e2e` either way.
+perf:
+	docker exec -e E2E_BASE_URL=http://webapp src-api-1 pytest perf
 
 # --- full local quality gate ---
 qa: qa-be qa-fe
