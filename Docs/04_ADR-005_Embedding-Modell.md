@@ -4,7 +4,7 @@
 | ---------------- | ------------------------------------------------------------------------- |
 | **Status**       | Proposed                                                                  |
 | **Datum**        | 2026-05-27                                                                |
-| **Aktualisiert** | 2026-05-31 — MVP-Prämisse (keine echten internen Dokumente) eingearbeitet |
+| **Aktualisiert** | 2026-05-31 — MVP-Prämisse (keine echten internen Dokumente) eingearbeitet; 2026-09-05 — Persistenz/Startup-Check umgesetzt (T-42) |
 | **Verfasser**    | LearnFlow-Team (Frank, Niklaus, Reto, Christoph)                                     |
 
 ---
@@ -42,6 +42,16 @@ Die aktive Konfiguration (Modell-Name + Dimension) wird beim Start in der Datenb
 **Offen für den Tech-Spike (Sprint 0):** `text-embedding-3-small` ist als kosteneffizienter Standard gesetzt, aber für einen *deutschsprachigen Fachkorpus* nicht zwingend die qualitativ beste Wahl (das Modell ist englisch-optimiert). Vor Festlegung ist ein kurzer Retrieval-Eval auf echten Fachtexten vorgesehen — `text-embedding-3-small` vs. `text-embedding-3-large` vs. ein dediziert multilinguales Modell. Auffällig: das stärkste Deutsch-Modell (`bge-m3`) ist aktuell nur lokal vorgesehen, nicht in Produktion.
 
 **Constraint (Kopplung an ADR-003):** pgvector indexiert HNSW nur bis **2000 Dimensionen**. Die gesetzten Werte (1536, 1024) sind unkritisch; ein Wechsel auf ein höherdimensionales Modell (z. B. `text-embedding-3-large`, 3072) erfordert Matryoshka-Reduktion auf ≤ 2000 oder den `halfvec`-Typ — sonst lässt sich der HNSW-Index nicht anlegen.
+
+### Nachtrag 2026-09-05 — Wie „beim Start persistiert" konkret aussieht (T-42, Issue #68)
+
+Der Satz oben („Die aktive Konfiguration wird beim Start in der Datenbank persistiert") liess offen, was bei einer Abweichung zwischen `Settings` (`EMBED_MODEL`/`EMBED_DIMENSIONS`) und dem persistierten Wert passiert. Naheliegend, aber verworfen: der Worker gleicht die Abweichung selbst aus und stösst automatisch eine Re-Indexierung an. Ein Container-Neustart löst dann unbeaufsichtigt einen vollen, kostenpflichtigen Embedding-Lauf über den gesamten Korpus aus — bei einem Tippfehler im Env-Var ebenso wie bei einem beabsichtigten Wechsel, ohne dass ein Mensch das je bestätigt hat. Das ist derselbe Fail-open-Fehler, den ADR-008 an anderer Stelle ausschliesst, nur mit Seiteneffekt statt mit einer stillen Zahl.
+
+**Entscheid:** harter Abbruch, kein Auto-Reindex. `app/services/embedding_config.py` vergleicht `Settings` gegen die `config`-Tabelle (Migration `0018`, seedet `embed_model`/`embed_dimensions` mit den MVP-Defaults) bei jedem Start — API (`app/main.py`, `lifespan`) *und* Worker (`worker/main.py`), nicht nur der Worker, wie der ursprüngliche Satz oben nahelegt: die API embedded Queries mit denselben `Settings`, ein Auseinanderlaufen der beiden Prozesse wäre selbst wieder der stille Fehler, den dieses Ticket schliesst. Eine Abweichung lässt beide Prozesse abbrechen (API: `lifespan` wirft, Uvicorn beendet den Start; Worker: `asyncio.run(main())` propagiert, der Container-Restart-Loop macht sichtbar, dass etwas ansteht) — analog zu `Settings.validate_secrets()`s Abbruch bei einem schwachen JWT-Secret.
+
+Eine Abweichung aufzulösen ist damit immer eine bewusste, separate Handlung: `apply_embedding_config.py` (`docker exec src-api-1 python apply_embedding_config.py`), von Hand ausgeführt, nachdem ein Operator `EMBED_MODEL`/`EMBED_DIMENSIONS` absichtlich geändert hat. Das Script übernimmt den neuen Wert in `config`, baut `chunks.embedding` neu auf, falls sich die Dimension geändert hat (die pgvector-Spaltenbreite ist bei Anlage fix, ein Dimensionswechsel ist also immer eine Schema-Änderung, nicht nur eine Konfigurationsänderung), und queued den gesamten Korpus für eine Re-Indexierung — der „Migrations-Script"-Satz oben ist damit eingelöst. Eine bereits synchrone Konfiguration ist ein No-op.
+
+`embed_dimensions` teilt sich ab `0018` den `CHECK`-Constraint-Mechanismus mit den Konfidenz-Schwellen (ADR-008, Nachtrag 2026-08-16): ein Wert über 2000 (das HNSW-Limit oben) oder ein leerer `embed_model` werden von der Datenbank abgelehnt, unabhängig vom Schreibpfad.
 
 ---
 

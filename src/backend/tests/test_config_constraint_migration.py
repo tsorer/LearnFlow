@@ -61,11 +61,11 @@ def _validated_by_0014() -> tuple[set[str], set[str]]:
 
 def test_the_latest_revision_keeps_every_validated_key() -> None:
     unit_interval, _ = _validated_by_0014()
-    current = _literals("0017_documents_index_version")
+    current = _literals("0018_embedding_config")
 
     missing = unit_interval - set(current["UNIT_INTERVAL_KEYS"])
     assert not missing, (
-        f"0017 drops {sorted(missing)} from the CHECK — those keys would take any value"
+        f"0018 drops {sorted(missing)} from the CHECK — those keys would take any value"
     )
 
 

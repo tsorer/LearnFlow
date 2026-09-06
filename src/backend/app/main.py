@@ -1,12 +1,57 @@
+import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
+from sqlalchemy import select
 from starlette.responses import Response
 
 from app.config import settings
+from app.database import AsyncSessionLocal
+from app.exceptions import EmbeddingConfigError
 from app.limiter import limiter
+from app.models.tables import Config
 from app.routers import admin, auth, documents, feedback, query, quiz
+from app.services.embedding_config import (
+    EMBEDDING_CONFIG_KEYS,
+    EmbeddingConfig,
+    embedding_config_from,
+    verify_embedding_config,
+)
+
+log = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    """Abort startup if `Settings.embed_model`/`embed_dimensions` disagree
+    with what migration 0018 persisted (ADR-005, T-42).
+
+    The API embeds query text with the same Settings the worker embeds
+    documents with (`app/services/embedding.py`); letting only the worker
+    check this would leave the API answering queries against an index it no
+    longer matches while the worker refuses to start. See
+    `app/services/embedding_config.py` for why this is a hard abort rather
+    than a silent continue or an automatic re-index.
+    """
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(
+            select(Config.key, Config.value).where(Config.key.in_(EMBEDDING_CONFIG_KEYS))
+        )
+        values: dict[str, str] = {key: value for key, value in result.all()}
+    try:
+        persisted = embedding_config_from(values)
+        configured = EmbeddingConfig(
+            model=settings.embed_model, dimensions=settings.embed_dimensions
+        )
+        verify_embedding_config(persisted, configured)
+    except EmbeddingConfigError:
+        log.exception("Embedding-Konfiguration inkonsistent — API wird nicht gestartet")
+        raise
+    yield
 
 # Passing None removes the route entirely rather than hiding it, so there is no
 # unauthenticated endpoint left to find. app.openapi() keeps working in-process,
@@ -24,6 +69,7 @@ app = FastAPI(
     openapi_url="/openapi.json" if _docs else None,
     docs_url="/docs" if _docs else None,
     redoc_url="/redoc" if _docs else None,
+    lifespan=lifespan,
 )
 app.state.limiter = limiter
 

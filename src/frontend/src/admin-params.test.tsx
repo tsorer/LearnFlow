@@ -67,6 +67,8 @@ const CONFIG: Record<string, string> = {
   stale_days: "90",
   processing_timeout_seconds: "2700",
   processing_max_attempts: "3",
+  embed_model: "text-embedding-3-small",
+  embed_dimensions: "1536",
 };
 
 /** The ten parameters that take effect on the next question, with the value
@@ -136,13 +138,23 @@ describe("admin parameter panel", () => {
   it("shows the values a change would invalidate the index for, without offering to edit them", async () => {
     // `chunk_size`/`chunk_overlap` are real and worth seeing while calibrating,
     // but PUT refuses them: a new chunk size only applies to documents indexed
-    // after the change (T-42). Visible, not editable.
+    // after the change. `embed_model`/`embed_dimensions` (T-42) joined them for
+    // the same reason, only stricter -- a live PUT could not even keep
+    // `chunks.embedding` in step with the value it just wrote. Visible, not
+    // editable, all four.
     await openPanel();
 
     expect(screen.getByText("Chunk-Grösse (Tokens)")).toBeInTheDocument();
     expect(screen.getByText("512")).toBeInTheDocument();
     expect(screen.queryByLabelText("Chunk-Grösse (Tokens)")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Chunk-Overlap (Tokens)")).not.toBeInTheDocument();
+
+    expect(screen.getByText("Embedding-Modell")).toBeInTheDocument();
+    expect(screen.getByText("text-embedding-3-small")).toBeInTheDocument();
+    expect(screen.getByText("Embedding-Dimension")).toBeInTheDocument();
+    expect(screen.getByText("1536")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Embedding-Modell")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Embedding-Dimension")).not.toBeInTheDocument();
   });
 
   it("has no control for a key the config table does not have", async () => {
@@ -192,6 +204,8 @@ describe("admin parameter panel", () => {
     expect(sent.confidence_threshold_high).toBe("0.8");
     expect(sent.chunk_size).toBe(CONFIG.chunk_size);
     expect(sent.stale_days).toBe(CONFIG.stale_days);
+    expect(sent.embed_model).toBe(CONFIG.embed_model);
+    expect(sent.embed_dimensions).toBe(CONFIG.embed_dimensions);
   });
 });
 

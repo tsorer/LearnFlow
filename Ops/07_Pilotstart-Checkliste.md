@@ -29,6 +29,7 @@ Diese Checkliste beschreibt alle Schritte, die **vor dem ersten Login eines echt
 |---|---------|---------------|--------|
 | 2.1 | LiteLLM-`config` auf **Azure OpenAI EU** umgestellt (kein OpenAI Direct US mehr) | Dev | ⬜ |
 | 2.2 | Embedding-Modell ebenfalls auf Azure OpenAI EU konfiguriert | Dev | ⬜ |
+| 2.2a | Nach 2.2, **vor** `docker compose up`/-restart mit der neuen `.env`: `docker compose run --rm api python apply_embedding_config.py` ausgeführt — sonst brechen API und Worker beim Start ab (ADR-005, T-42), weil `EMBED_MODEL`/`EMBED_DIMENSIONS` von der `config`-Tabelle abweichen. `docker compose run` startet einen Einweg-Container ohne den `alembic upgrade head && uvicorn ...`-Befehl des `api`-Service und damit ohne dessen Startup-Check — nötig, weil genau der bei dieser Abweichung sofort abbricht; `docker exec src-api-1 ...` griffe hier ins Leere, sobald `api` deswegen im Crash-Loop hängt. Setzt `db` bereits laufend voraus (`docker compose up -d db`), stösst zugleich die volle Re-Indexierung unter dem neuen Modell an | Dev | ⬜ |
 | 2.3 | Smoke-Test: eine Frage stellen, Antwort mit Quellenangabe erscheint korrekt | Dev | ⬜ |
 
 ---

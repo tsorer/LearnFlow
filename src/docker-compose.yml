@@ -68,6 +68,16 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      # Not for network reachability (worker never talks to api directly, see
+      # the networks comment above) but for sequencing: api's healthcheck only
+      # passes once `alembic upgrade head` *and* its startup embedding-config
+      # check (T-42) have both succeeded. Without this, `db: service_healthy`
+      # alone (pg_isready) says nothing about whether migration 0018 has run
+      # yet — worker's own startup check (verify_embedding_config_at_startup)
+      # would race it on a fresh boot and crash-loop over a `config` table
+      # that migrations haven't populated.
+      api:
+        condition: service_healthy
     volumes:
       - ./backend:/app
     healthcheck:

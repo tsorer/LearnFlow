@@ -74,7 +74,7 @@ LearnFlow ist eine interne RAG-Lernplattform für neue Mitarbeitende. Neue Mitar
 
 ## Datenarchitektur (ADR-003)
 
-- **Ein Persistenz-Service:** PostgreSQL 17 für relationale Daten (`users`, `documents`, `feedback`, `config`, `quiz_questions`), Vektor-Embeddings (`embeddings` mit HNSW), Volltext-Index (`tsvector`/GIN) und Original-Dokumente (`bytea`, max. 10 MB).
+- **Ein Persistenz-Service:** PostgreSQL 17 für relationale Daten (`users`, `documents`, `feedback`, `config`, `quiz_questions`), Vektor-Embeddings (`chunks.embedding` mit HNSW), Volltext-Index (`tsvector`/GIN) und Original-Dokumente (`bytea`, max. 10 MB).
 - **Migrationen:** Alembic, versioniert in Git.
 - **Konfiguration:** `config`-Tabelle hält alle Schwellenwerte → ohne Deployment kalibrierbar (Maintainability-NFA).
 - **Constraint:** pgvector indexiert HNSW nur bis **2000 Dimensionen** (1536/1024 unkritisch; `text-embedding-3-large`/3072 erfordert Matryoshka-Reduktion oder `halfvec`).

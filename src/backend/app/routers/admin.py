@@ -32,6 +32,16 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 # effect — the reaper reads them once per pass, so a new value is in force by
 # the next one, at most a quarter of the current timeout later. That is "ohne
 # Neustart" in the sense US-11 asks for, if not to the second.
+#
+# `embed_model`/`embed_dimensions` (0018, T-42) are excluded for the same
+# reason as `chunk_size`/`chunk_overlap`, only more so: a live PUT changing
+# either would not just need a full re-index, a dimension change would leave
+# `chunks.embedding` mismatched against the value this endpoint just wrote,
+# since the column's width is fixed at creation (`0003_documents_chunks.py`).
+# The startup check (`app/services/embedding_config.py`) would then crash-loop
+# both processes over a value this very endpoint claimed to accept. Changing
+# either is `apply_embedding_config.py`'s job, run by hand once an operator
+# has actually changed `Settings` — never a request this API answers.
 REAPER_KEYS = frozenset({"processing_timeout_seconds", "processing_max_attempts"})
 # Both reaper keys are counts, so they belong here as well as in WRITABLE_KEYS:
 # _validate_shape falls through to NUMERIC_UNIT_INTERVAL for everything outside

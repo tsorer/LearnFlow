@@ -136,7 +136,17 @@ class Chunk(Base):
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
     page: Mapped[int | None] = mapped_column(Integer, nullable=True)
     heading: Mapped[str | None] = mapped_column(Text, nullable=True)
-    # Any: pgvector and tsvector have no SQLAlchemy-native Python type
+    # Any: pgvector and tsvector have no SQLAlchemy-native Python type.
+    # `Vector(1536)` is the MVP default (ADR-005) and stays hardcoded here even
+    # after a real embedding-model reconciliation: `apply_embedding_config.py`
+    # (T-42) changes the live column's width with raw DDL, outside Alembic and
+    # outside this model, because a dimension change is an operator action
+    # against a running system, not a code change to review and deploy. This
+    # annotation goes stale the moment that happens. Consequence: do not run
+    # `alembic revision --autogenerate` on a database that has been through a
+    # real reconciliation without first checking its diff for `chunks.embedding`
+    # — autogenerate would otherwise propose silently reverting the live
+    # column back to whatever width this line still says.
     embedding: Mapped[Any] = mapped_column(Vector(1536), nullable=True)
     tsv: Mapped[Any] = mapped_column(TSVECTOR, nullable=True)
 

@@ -9,7 +9,8 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from pgqueuer.models import Job
 
-from app.exceptions import UserFacingError
+from app.config import settings
+from app.exceptions import EmbeddingConfigError, UserFacingError
 from app.models.tables import Document, DocumentStatus
 from app.services.parsing import MARKDOWN_CONTENT_TYPE
 from worker.main import (
@@ -23,6 +24,7 @@ from worker.main import (
     read_reaper_config,
     reap_stuck_documents,
     reaper_interval,
+    verify_embedding_config_at_startup,
 )
 
 MARKDOWN = b"# Titel\n\nErster Absatz.\n\nZweiter Absatz."
@@ -463,6 +465,52 @@ async def test_read_chunk_config(
     conn = make_conn(config=config)
 
     assert await read_chunk_config(conn) == expected
+
+
+async def test_verify_embedding_config_at_startup_passes_on_a_matching_row(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "embed_model", "text-embedding-3-small")
+    monkeypatch.setattr(settings, "embed_dimensions", 1536)
+    conn = AsyncMock()
+    conn.fetch.return_value = [
+        {"key": "embed_model", "value": "text-embedding-3-small"},
+        {"key": "embed_dimensions", "value": "1536"},
+    ]
+
+    await verify_embedding_config_at_startup(conn)  # must not raise
+
+
+async def test_verify_embedding_config_at_startup_aborts_on_a_mismatch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The T-42 bug this guards: a model swap that keeps the same dimension is
+    invisible to pgvector and would otherwise embed silently with the wrong
+    model."""
+    monkeypatch.setattr(settings, "embed_model", "bge-m3")
+    monkeypatch.setattr(settings, "embed_dimensions", 1536)
+    conn = AsyncMock()
+    conn.fetch.return_value = [
+        {"key": "embed_model", "value": "text-embedding-3-small"},
+        {"key": "embed_dimensions", "value": "1536"},
+    ]
+
+    with pytest.raises(EmbeddingConfigError):
+        await verify_embedding_config_at_startup(conn)
+
+
+async def test_verify_embedding_config_at_startup_aborts_when_rows_are_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A database that has not run migration 0018 yet must not be waved
+    through with Settings' own values -- there is nothing to compare against."""
+    monkeypatch.setattr(settings, "embed_model", "text-embedding-3-small")
+    monkeypatch.setattr(settings, "embed_dimensions", 1536)
+    conn = AsyncMock()
+    conn.fetch.return_value = []
+
+    with pytest.raises(EmbeddingConfigError):
+        await verify_embedding_config_at_startup(conn)
 
 
 async def test_non_numeric_chunk_config_fails_with_a_configuration_message() -> None:
