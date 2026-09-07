@@ -48,6 +48,14 @@ BASE_URL = os.environ.get("E2E_BASE_URL", "http://webapp")
 
 P95_GATE_S = 10.0  # Docs/03_QualityAttributes.md Performance-NFA, ADR-008:143
 
+# POST /query allows 10/minute per account (app/routers/query.py, QUERY_RATE_LIMIT).
+# Each account only fires ~9 requests here, comfortably under that on paper, but a
+# slow provider response can still push a request into the next account over the
+# limit -- hence the 429 retry below rather than a hard assert on the status (same
+# reasoning as eval/test_out_of_corpus_refusal.py).
+RATE_LIMIT_RETRY_S = 65  # outlives a 1-minute window with margin
+MAX_RETRIES = 2
+
 # Login is 5/minute/IP (app/routers/auth.py): using all 6 seed accounts would
 # refuse the 6th login within the same run, so this measurement uses 5.
 ACCOUNTS = USERS[:5]
@@ -75,6 +83,24 @@ def _login(client: httpx.Client, email: str, password: str) -> str:
     return str(r.json()["access_token"])
 
 
+async def _query_with_retry(
+    client: httpx.AsyncClient, headers: dict[str, str], question: str
+) -> tuple[httpx.Response, float]:
+    for attempt in range(MAX_RETRIES + 1):
+        start = time.perf_counter()
+        r = await client.post("/api/query", json={"question": question}, headers=headers)
+        latency_s = time.perf_counter() - start
+        if r.status_code == 429:
+            if attempt == MAX_RETRIES:
+                pytest.fail(f"Rate limit exhausted after {MAX_RETRIES} retries: {question!r}")
+            wait_s = float(r.headers.get("Retry-After", RATE_LIMIT_RETRY_S))
+            await asyncio.sleep(wait_s)
+            continue
+        assert r.status_code == 200, r.text
+        return r, latency_s
+    raise AssertionError("unreachable")  # pragma: no cover
+
+
 async def _run_account(
     client: httpx.AsyncClient,
     email: str,
@@ -84,10 +110,7 @@ async def _run_account(
 ) -> None:
     headers = {"Authorization": f"Bearer {token}"}
     for q in questions:
-        start = time.perf_counter()
-        r = await client.post("/api/query", json={"question": q.question}, headers=headers)
-        latency_s = time.perf_counter() - start
-        assert r.status_code == 200, r.text
+        r, latency_s = await _query_with_retry(client, headers, q.question)
         body = r.json()
         rows.append(
             {
@@ -117,7 +140,16 @@ def test_query_latency_p95() -> None:
                 sync_client, account["email"], account["password"]
             )
 
-        admin = next(a for a in ACCOUNTS if a["role"] == "admin")
+        # Searched over the full USERS list, not ACCOUNTS: which account is admin is
+        # a property of seed_users.py, not of the slice this measurement happens to
+        # use. The assertion below is what actually ties the two together.
+        admin = next(u for u in USERS if u["role"] == "admin")
+        assert admin["email"] in tokens, (
+            f"Admin account {admin['email']!r} is not among the {len(ACCOUNTS)} accounts "
+            "this measurement logs in -- seed_users.USERS was reordered/extended. "
+            "assert_corpus_is_indexed needs an admin/knowledge_owner token; adjust ACCOUNTS "
+            "or this lookup."
+        )
         assert_corpus_is_indexed(
             sync_client, {"Authorization": f"Bearer {tokens[admin['email']]}"}
         )
