@@ -46,6 +46,17 @@ In-Corpus-Metriken (Halluzinationsrate, False-Suppression) sind unabhängig davo
 nicht Teil dieses Gates — sie brauchen die In-Corpus-Fragen des Gold-Datasets und
 folgen als eigener Ausbauschritt von ADR-009.
 
+Aus demselben Grund kein eigener CI-Job für die p95-Latenzmessung (T-22, #29,
+ADR-008: „Offen bleibt die Latenz" — der optionale zweite LLM-Aufruf im
+Self-Check-Grenzband ist das Latenzrisiko): kein `OPENAI_API_KEY`-Secret, und
+zusätzlich ungeeignet für einen Required Check, weil das Ergebnis von externer
+Provider-Latenz abhängt, nicht nur vom Code. Auch das bleibt vorerst ein
+manuell auszuführender lokaler Check:
+
+```bash
+make up && make seed && make seed-corpus && make perf
+```
+
 `tsc --noEmit` und `mypy` sind das Review-Netz aus ADR-002: sie fangen genau die
 Fehlerklasse KI-generierten Codes (falsche Props, erfundene Signaturen, ungenutzte
 Variablen) zur Compile-Zeit ab.
@@ -84,9 +95,10 @@ Zusätzlich, aber **kein CI-Job** (siehe oben — manuelles Release-Gate bis T-5
 make up && make seed && make seed-corpus && make eval   # braucht ausserdem
                                                           # einen echten
                                                           # OPENAI_API_KEY in .env
+make up && make seed && make seed-corpus && make perf    # dito, p95-Latenz (T-22)
 ```
 
-`make e2e` und `make eval` sind bewusst nicht Teil von `make qa`: sie setzen
+`make e2e`, `make eval` und `make perf` sind bewusst nicht Teil von `make qa`: sie setzen
 gestartete Container voraus, während `make qa` ohne sie auskommen soll.
 
 Eine separate Toolchain-Installation braucht es nicht — `make qa-be` läuft im
@@ -154,4 +166,6 @@ Neue Checks gehören an **eine** Stelle und werden von beiden Verifikationswegen
 Das Eval-Gate (DoD-Kriterium 4, ADR-009) ist als `make eval` nach demselben Muster
 vorbereitet (T-28) — vorerst nur für die Out-of-Corpus-Refusal-Rate und als manueller
 Schritt, mangels CI-Secret noch kein eigener Job (siehe oben, T-53 #110). Die
-In-Corpus-Metriken folgen als eigener Ausbauschritt von ADR-009.
+In-Corpus-Metriken folgen als eigener Ausbauschritt von ADR-009. Dieselbe
+Automatisierungslücke gilt für `make perf` (T-22, #29, p95-Latenz), das nach exakt
+demselben Muster gebaut ist.

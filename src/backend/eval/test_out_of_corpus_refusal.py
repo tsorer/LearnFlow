@@ -24,7 +24,7 @@ from pathlib import Path
 import httpx
 import pytest
 
-from eval.gold_dataset import load_corpora, load_out_of_corpus_questions
+from eval.gold_dataset import assert_corpus_is_indexed, load_out_of_corpus_questions
 from seed_users import USERS
 
 BASE_URL = os.environ.get("E2E_BASE_URL", "http://webapp")
@@ -77,32 +77,6 @@ def token(client: httpx.Client) -> str:
     return str(r.json()["access_token"])
 
 
-def _assert_corpus_is_indexed(client: httpx.Client, headers: dict[str, str]) -> None:
-    """A refusal is only evidence of anything if there was a corpus to miss.
-
-    Without this, a dead worker or a `seed-corpus` that silently uploaded
-    nothing looks identical to a perfect run: every question hits the
-    retrieval gate and refusal_rate reads 100% either way (review on #100).
-    """
-    r = client.get("/api/documents", headers=headers)
-    assert r.status_code == 200, r.text
-    by_filename = {d["filename"]: d for d in r.json()}
-
-    missing = []
-    for corpus in load_corpora():
-        doc = by_filename.get(corpus.filename)
-        if doc is None:
-            missing.append(f"{corpus.filename}: not uploaded")
-        elif doc["status"] != "available":
-            missing.append(f"{corpus.filename}: status={doc['status']}")
-    if missing:
-        pytest.fail(
-            "Corpus not fully indexed, refusal rate would be meaningless: "
-            + "; ".join(missing)
-            + ". Run `make seed-corpus` against the running stack first."
-        )
-
-
 def _query_with_retry(
     client: httpx.Client, headers: dict[str, str], question: str
 ) -> dict[str, object]:
@@ -121,7 +95,7 @@ def _query_with_retry(
 
 def test_out_of_corpus_refusal_rate(client: httpx.Client, token: str) -> None:
     headers = {"Authorization": f"Bearer {token}"}
-    _assert_corpus_is_indexed(client, headers)
+    assert_corpus_is_indexed(client, headers)
 
     questions = load_out_of_corpus_questions()
     # Guards the acceptance criterion itself: if a future edit to the seed files

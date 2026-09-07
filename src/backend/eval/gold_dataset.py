@@ -1,20 +1,25 @@
-"""T-28: loads the `out_of_corpus` questions and the corpus list from the
-consolidated gold-eval dataset (T-47/T-48, #101) at
-LearningCorpus/gold-eval-dataset.yaml.
+"""T-28/T-22: loads questions and the corpus list from the consolidated
+gold-eval dataset (T-47/T-48, #101) at LearningCorpus/gold-eval-dataset.yaml,
+plus the corpus-indexed precondition shared by both gates built on it (the
+out-of-corpus refusal-rate gate and the in-corpus latency measurement).
 
 Loadability, unique ids, and the declared field set are already guaranteed by
 `tests/test_gold_eval_dataset.py` (same directory depth as this file, so the
 same walk-up logic applies) — this loader does not re-check those, only
-projects the dataset to what this ticket's gate needs.
+projects the dataset to what each ticket's gate needs.
 """
 
 from __future__ import annotations
 
 import pathlib
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
+import pytest
 import yaml
+
+if TYPE_CHECKING:
+    import httpx
 
 DATASET_NAME = "gold-eval-dataset.yaml"
 
@@ -70,6 +75,27 @@ def load_out_of_corpus_questions() -> list[OutOfCorpusQuestion]:
 
 
 @dataclass(frozen=True)
+class InCorpusQuestion:
+    id: str
+    question: str
+
+
+def load_in_corpus_questions() -> list[InCorpusQuestion]:
+    """All `category: in_corpus` entries from the consolidated dataset.
+
+    Unlike out_of_corpus questions, these produce real answers rather than
+    refusals -- they reach retrieval and generation (and, in the self-check
+    boundary band, stage 3's second provider call), which makes them the
+    right question pool for a latency measurement (T-22, #29).
+    """
+    return [
+        InCorpusQuestion(id=q["id"], question=q["question"])
+        for q in _load()["questions"]
+        if q["category"] == "in_corpus"
+    ]
+
+
+@dataclass(frozen=True)
 class Corpus:
     path: str
     filename: str
@@ -85,3 +111,31 @@ def load_corpora() -> list[Corpus]:
     the list from whatever happens to be in the directory.
     """
     return [Corpus(path=c["path"], filename=c["filename"]) for c in _load()["corpora"].values()]
+
+
+def assert_corpus_is_indexed(client: httpx.Client, headers: dict[str, str]) -> None:
+    """A measurement against the corpus is only meaningful if it was indexed.
+
+    Without this, a dead worker or a `seed-corpus` that silently uploaded
+    nothing looks identical to a working stack: every question would hit the
+    retrieval gate instead of exercising retrieval/generation (review on
+    #100, originally guarding the refusal-rate gate; T-22 reuses it because an
+    unindexed corpus would make a latency measurement equally meaningless --
+    every request would return in milliseconds via the gate, not seconds).
+    """
+    r = client.get("/api/documents", headers=headers)
+    assert r.status_code == 200, r.text
+    by_filename = {d["filename"]: d for d in r.json()}
+
+    missing = []
+    for corpus in load_corpora():
+        doc = by_filename.get(corpus.filename)
+        if doc is None:
+            missing.append(f"{corpus.filename}: not uploaded")
+        elif doc["status"] != "available":
+            missing.append(f"{corpus.filename}: status={doc['status']}")
+    if missing:
+        pytest.fail(
+            "Corpus not fully indexed: " + "; ".join(missing) + ". Run `make seed-corpus` "
+            "against the running stack first."
+        )
