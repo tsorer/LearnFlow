@@ -11,7 +11,7 @@ import DocumentViewer from "./DocumentViewer";
 // matching entry here fails the build instead of silently missing from the
 // picker, the same guarantee app/routers/feedback.py already has at import
 // time for its own category split.
-const CATEGORY_META: Record<FeedbackCategory, { label: string; helpful: boolean }> = {
+export const CATEGORY_META: Record<FeedbackCategory, { label: string; helpful: boolean }> = {
   verstaendlich:       { label: "Verständlich",       helpful: true },
   vollstaendig:        { label: "Vollständig",        helpful: true },
   hilfreich_fuer_code: { label: "Hilfreich für Code",  helpful: true },

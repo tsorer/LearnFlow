@@ -19,6 +19,7 @@ EXPECTED_OPERATIONS = [
     # Feedback hangs off the answer, not the query (US-03, ERD:
     # feedback.answer_id). Until T-39 this was /api/feedback with {query_id}.
     ("/api/answers/{answer_id}/feedback", "post"),
+    ("/api/feedback", "get"),
     ("/api/documents", "get"),
     ("/api/documents", "post"),
     ("/api/documents/{document_id}", "delete"),

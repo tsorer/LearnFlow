@@ -26,6 +26,8 @@ export type QuizQuestionStatus = Schemas["QuizQuestionStatus"];
 export type QuizQuestionPage = Schemas["QuizQuestionPage"];
 export type QuizQuestionUpdate = Schemas["QuizQuestionUpdate"];
 export type QuizGenerationResponse = Schemas["QuizGenerationResponse"];
+export type FeedbackItem = Schemas["FeedbackItem"];
+export type FeedbackPage = Schemas["FeedbackPage"];
 
 type User = Schemas["User"];
 type TokenResponse = Schemas["TokenResponse"];
@@ -212,6 +214,23 @@ export const api = {
       }),
     );
   },
+
+  // Stefans Bereichs-Uebersicht (T-32) -- helpful/category filtern serverseitig
+  // und schneiden sich gegenseitig nicht: eine widerspruechliche Kombination
+  // ergibt eine leere Seite, keinen Fehler (openapi.yaml).
+  listFeedback: async (
+    helpful: boolean | null,
+    category: FeedbackCategory | null,
+    limit: number,
+    offset: number,
+    token: string,
+  ): Promise<FeedbackPage> =>
+    unwrap(
+      await client.GET("/api/feedback", {
+        headers: auth(token),
+        params: { query: { helpful: helpful ?? undefined, category: category ?? undefined, limit, offset } },
+      }),
+    ),
 
   listQuizQuestions: async (
     status: QuizQuestionStatus,

@@ -215,6 +215,10 @@ export default function ChatView({ user, onLogout, messages, setMessages, sessio
   // /quiz-review, not document upload) — kept separate so the two do not
   // silently start meaning "one or the other" if they ever diverge.
   const canReview = user.role === "knowledge_owner" || user.role === "admin";
+  // Same role set as canReview today, but T-32's own permission (Feedback-
+  // Übersicht, not Quiz-Review) — kept separate for the same reason canUpload
+  // and canReview are: no silent "one or the other" if they ever diverge.
+  const canViewFeedback = user.role === "knowledge_owner" || user.role === "admin";
 
   const send = async () => {
     if (busy) return;
@@ -291,6 +295,11 @@ export default function ChatView({ user, onLogout, messages, setMessages, sessio
           {canReview && (
             <button className="secondary" style={{ fontSize: 12 }} onClick={() => navigate("/quiz-review")}>
               Quiz-Review
+            </button>
+          )}
+          {canViewFeedback && (
+            <button className="secondary" style={{ fontSize: 12 }} onClick={() => navigate("/feedback")}>
+              Feedback
             </button>
           )}
           {/* Both hidden in the document view, because neither acts on it: the

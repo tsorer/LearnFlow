@@ -62,6 +62,7 @@ app.include_router(auth.router)
 app.include_router(documents.router)
 app.include_router(query.router)
 app.include_router(feedback.router)
+app.include_router(feedback.read_router)
 app.include_router(admin.router)
 app.include_router(quiz.router)
 
