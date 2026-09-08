@@ -627,8 +627,7 @@ async def test_the_reaper_deletes_the_orphaned_job_row_it_leaves_behind() -> Non
     """T-52 — nothing else in the system ever removes a 'picked' row: pgqueuer
     only retires finished jobs to `pgqueuer_log`, and `enqueue_document`
     (`app/queue.py`) only deletes 'queued' ones. Left alone, every reaped run
-    leaves one behind forever. The same heartbeat age that proves a document's
-    run is dead proves the job row is too, so the delete reuses $1.
+    leaves one behind forever.
     """
     conn = make_reaper_conn()
 
@@ -638,9 +637,29 @@ async def test_the_reaper_deletes_the_orphaned_job_row_it_leaves_behind() -> Non
     assert "DELETE FROM pgqueuer" in sql
     assert "entrypoint = 'process_document'" in sql
     assert "status = 'picked'" in sql
-    assert "heartbeat < now() - make_interval(secs => $1)" in sql
+    assert "heartbeat < now() - make_interval(secs => $1 * 2)" in sql
     assert timeout == 900.0
     assert isinstance(timeout, float)
+
+
+async def test_the_row_delete_requires_twice_the_document_reap_timeout() -> None:
+    """Review on #118: the document-side check treats "no live job within
+    timeout_seconds" as abandonment, safe because a presumed-dead run that
+    wakes up anyway fails the `index_version` guard. Deleting the row itself
+    has no such guard — if that run is merely slower than timeout_seconds
+    (accepted collateral for the document, per the docstring above), it is
+    still executing when this DELETE fires, and its eventual completion then
+    finds pgqueuer's own row-by-id delete matching nothing, so the completion
+    never reaches `pgqueuer_log`. Doubling the window does not close that
+    race, but narrows it to a run past twice the worst case ADR-006 derives
+    for a legitimate one.
+    """
+    conn = make_reaper_conn()
+
+    await reap_stuck_documents(conn, timeout_seconds=900, max_attempts=3)
+
+    sql = conn.execute.await_args.args[0]
+    assert "$1 * 2" in sql
 
 
 async def test_the_cleanup_delete_runs_exactly_once_per_pass() -> None:

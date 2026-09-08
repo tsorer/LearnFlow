@@ -357,16 +357,29 @@ REQUEUE_DOCUMENT = """
 
 # The row STUCK_DOCUMENTS frees the document from is never removed: pgqueuer
 # only retires finished jobs to `pgqueuer_log`, and `enqueue_document` deletes
-# 'queued' rows, not 'picked' ones (T-52). The same heartbeat age that proves a
-# document's run is dead proves the job row is too, so it reuses $1 rather than
-# a threshold of its own. Restricted to our one entrypoint and to 'picked' so a
-# future second job type, or a job that already failed into 'exception', is
-# someone else's to clean up.
+# 'queued' rows, not 'picked' ones (T-52). This sweep is independent of `rows`
+# above — it removes any stale row of ours, not just the ones for documents
+# reaped in this pass.
+#
+# It cannot reuse $1 unmodified, though the document-side check does (review
+# on #118): "no live job within timeout_seconds" is safe to call abandonment
+# for the *document*, because a presumed-dead run that wakes up anyway fails
+# every guarded write (`index_version`). Deleting the *row* has no such guard.
+# If the run is merely slower than timeout_seconds — a case the docstring
+# above already accepts as collateral — it is still executing when this
+# DELETE fires, and when it later finishes, pgqueuer's own completion query
+# (`build_log_job_query`) deletes by id and joins on that delete to write
+# `pgqueuer_log`; against an already-missing row that join is empty and the
+# insert silently writes nothing. No exception, no corruption — the run's
+# success or exception just never reaches the log. Requiring twice the
+# timeout narrows the race to a run more than twice as long as ADR-006 derives
+# as the worst legitimate case, without closing it outright; closing it needs
+# a real liveness signal, which is T-51.
 DELETE_ORPHANED_PICKED_ROWS = """
     DELETE FROM pgqueuer
      WHERE entrypoint = 'process_document'
        AND status = 'picked'
-       AND heartbeat < now() - make_interval(secs => $1)
+       AND heartbeat < now() - make_interval(secs => $1 * 2)
 """
 
 
@@ -388,8 +401,12 @@ async def reap_stuck_documents(
 
     Below the attempt budget the document goes back to 'pending' and is queued
     again; at the budget it is marked failed with a message its owner can act on.
-    The abandoned run's own 'picked' row in `pgqueuer` is deleted in the same
-    pass (T-52) — nothing else ever does.
+
+    The same pass also sweeps this entrypoint's 'picked' rows once they are
+    stale well past the point of being merely slow (T-52) — nothing else in
+    the system ever removes them. That sweep is not tied to which documents
+    got reaped just above: a leftover row from an earlier pass, or one for a
+    document no longer in 'processing', is cleaned up here just the same.
     Returns how many rows were touched, for the caller's log.
     """
     # The message names no cause on purpose. The condition below is "claimed
