@@ -174,7 +174,7 @@ describe("Kurze Runde (Hinweis bei weniger als 5 Fragen)", () => {
 });
 
 describe("Fokus (a11y)", () => {
-  it("setzt den Fokus auf die neue Frage, statt ihn auf <body> fallen zu lassen", async () => {
+  it("setzt den Fokus auf die neue Frage, statt ihn auf <body> fallen zu lassen — inklusive Fragetext im Label", async () => {
     api.route("get", "/api/quiz/questions/sample", 200, {
       items: [question({ id: "q-1", question: "Frage eins" }), question({ id: "q-2", question: "Frage zwei" })],
       total: 2,
@@ -185,7 +185,23 @@ describe("Fokus (a11y)", () => {
     await answer("A");
 
     await screen.findByText("Frage zwei");
-    expect(screen.getByText(/frage 2 von 2/i)).toHaveFocus();
+    // Ein fokussiertes <div> liest nur seinen eigenen Text vor, nicht das
+    // <legend> mit der Frage eine Ebene darunter -- das aria-label muss die
+    // Frage deshalb selbst tragen, sonst kündigt der Fokuswechsel nur
+    // "Frage 2 von 2" an und verschluckt, worum es geht.
+    expect(screen.getByRole("group", { name: /frage 2 von 2: frage zwei/i })).toHaveFocus();
+  });
+
+  it("setzt den Fokus auf die Auswertung, wenn die letzte Frage aus dem DOM verschwindet", async () => {
+    api.route("get", "/api/quiz/questions/sample", 200, { items: [question({ id: "q-1" })], total: 1 });
+    await openQuiz();
+
+    await answer("A", /auswertung anzeigen/i);
+
+    // "Auswertung anzeigen" gehört zur QuestionCard, die beim Wechsel auf
+    // ResultView komplett aus dem DOM fällt -- ohne eigenen Fokus-Effekt
+    // bliebe hier nichts übrig, das ihn übernimmt, und er fiele auf <body>.
+    expect(await screen.findByText(/1 von 1 richtig/i)).toHaveFocus();
   });
 
   it("gibt den Fokus nach dem Schliessen des Dokument-Viewers an den auslösenden Button zurück", async () => {

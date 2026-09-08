@@ -28,11 +28,16 @@ interface ViewerTarget { documentId: string; chunkId: string }
 export default function QuizRun({ token }: Props) {
   const navigate = useNavigate();
   const [questions, setQuestions] = useState<QuizQuestion[] | null>(null);
-  // `total` ist die Poolgröße laut Endpoint (openapi.yaml), nicht die Anzahl
-  // gezogener Fragen -- der Endpoint zieht ohnehin höchstens fünf, `total` und
-  // `items.length` sagen hier also dasselbe. Trotzdem `total` und nicht
-  // `items.length` für den Kurz-Hinweis, damit die Absicht ("Pool ist knapp",
-  // nicht "irgendeine Liste ist kurz") im Code steht statt nur im Kopf.
+  // `total` ist die Poolgröße laut Endpoint (openapi.yaml, app/routers/quiz.py
+  // sample_questions): ein `count(*)` über den ganzen freigegebenen Pool,
+  // *ohne* das Limit von `items`. Bei 20 freigegebenen Fragen liefert der
+  // Endpoint `total: 20, items: 5` -- `total` ist also nicht "wie viele Fragen
+  // diese Runde hat". `items.length` bleibt `min(total, TARGET_LENGTH)`, also
+  // ist `total < TARGET_LENGTH` gleichbedeutend mit `items.length <
+  // TARGET_LENGTH` und beide ergäben denselben `shortRound` -- `total` steht
+  // hier trotzdem, weil es die Absicht ("Pool ist knapp") im Code ausdrückt
+  // statt nur im Kopf. Für alles andere (z. B. "Frage X von …") ist `total`
+  // die falsche Zahl; dafür ist `items.length`/`totalQuestions` gemeint.
   const [total, setTotal] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [index, setIndex] = useState(0);
@@ -158,6 +163,11 @@ function QuestionCard({ question: q, questionNumber, totalQuestions, shortRound,
   // auf einem disabled-Element bleiben kann. Ohne diesen Fix müsste ein
   // Tastaturnutzer nach jeder Frage von vorn tabben, und ein Screenreader
   // sagt die neue Frage nie an (vgl. Fokus-Handling in DocumentViewer.tsx).
+  // Fokussiert wird ein Container mit explizitem `aria-label` statt nur des
+  // sichtbaren Zähler-Texts: ein fokussierter <div> liest zuverlässig nur
+  // seinen eigenen Text vor, nicht das <legend> mit der eigentlichen Frage
+  // eine Ebene darunter -- ohne das Label würde "Weiter" nur "Frage 2 von 2"
+  // ankündigen und die Frage selbst verschlucken.
   useEffect(() => {
     headingRef.current?.focus();
   }, [questionNumber]);
@@ -179,9 +189,13 @@ function QuestionCard({ question: q, questionNumber, totalQuestions, shortRound,
       <div
         ref={headingRef}
         tabIndex={-1}
-        style={{ fontSize: 12, color: "var(--muted)", outline: "none" }}
+        role="group"
+        aria-label={`Frage ${questionNumber} von ${totalQuestions}: ${q.question}`}
+        style={{ outline: "none" }}
       >
-        Frage {questionNumber} von {totalQuestions}
+        <div style={{ fontSize: 12, color: "var(--muted)" }}>
+          Frage {questionNumber} von {totalQuestions}
+        </div>
       </div>
 
       <fieldset style={{ border: "none", padding: 0, margin: 0 }}>
@@ -228,6 +242,17 @@ interface ResultViewProps {
 
 function ResultView({ questions, answers, shortRound, onOpenSource, onRestart }: ResultViewProps) {
   const score = scoreOf(questions, answers);
+  const headingRef = useRef<HTMLDivElement>(null);
+
+  // "Auswertung anzeigen" (die letzte Frage) verschwindet mit der ganzen
+  // QuestionCard aus dem DOM, derselbe Fokusverlust wie bei "Weiter" -- hier
+  // gibt es aber kein disabled-Element, das ihn auslöst, sondern schlicht kein
+  // Nachfolger, der ihn übernimmt. Reiner Mount-Effekt: ResultView wird pro
+  // Auswertung genau einmal gemountet.
+  useEffect(() => {
+    headingRef.current?.focus();
+  }, []);
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       {shortRound && (
@@ -239,7 +264,7 @@ function ResultView({ questions, answers, shortRound, onOpenSource, onRestart }:
         </div>
       )}
 
-      <div style={{ fontWeight: 800, fontSize: 18, color: "var(--navy)" }}>
+      <div ref={headingRef} tabIndex={-1} style={{ fontWeight: 800, fontSize: 18, color: "var(--navy)", outline: "none" }}>
         {score} von {questions.length} richtig
       </div>
       {questions.map((q, i) => {

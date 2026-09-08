@@ -140,18 +140,24 @@ interface Props {
   user: AuthUser;
   onLogout: () => void;
   // Liegen in App (T-36): /quiz und /quiz-review unmounten ChatView, ein
-  // hier lokaler State wäre beim Zurücknavigieren leer — US-09 verlangt die
-  // Historie für die ganze Browser-Session.
+  // hier lokaler State wäre beim Zurücknavigieren leer bzw. zurückgesetzt —
+  // US-09 verlangt die Historie für die ganze Browser-Session. `busy` gehört
+  // dazu: bliebe es lokal, würde ein Remount es auf `false` zurücksetzen,
+  // während eine vor der Navigation gestartete `query` noch läuft und beim
+  // Landen still in `messages`/`sessionId` schreibt (siehe Kommentar bei
+  // `send`) — die Sperre gegen "Neuer Chat"/eine zweite Frage während des
+  // Wartens griffe dann nicht mehr.
   messages: Message[];
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
   sessionId: string | null;
   setSessionId: React.Dispatch<React.SetStateAction<string | null>>;
+  busy: boolean;
+  setBusy: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-export default function ChatView({ user, onLogout, messages, setMessages, sessionId, setSessionId }: Props) {
+export default function ChatView({ user, onLogout, messages, setMessages, sessionId, setSessionId, busy, setBusy }: Props) {
   const navigate = useNavigate();
   const [input, setInput] = useState("");
-  const [busy, setBusy] = useState(false);
   const [inputError, setInputError] = useState("");
   const [showUpload, setShowUpload] = useState(false);
   const [showParams, setShowParams] = useState(false);

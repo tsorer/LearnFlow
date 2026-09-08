@@ -13,12 +13,18 @@ export default function App() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [sessionExpired, setSessionExpired] = useState(false);
 
-  // Chat-Transkript und Session-ID liegen hier statt in ChatView (T-36):
-  // /quiz und /quiz-review unmounten ChatView, ein dort lokaler State wäre
-  // beim Zurücknavigieren leer. US-09 verlangt die Historie für die ganze
-  // Browser-Session, nicht nur während ChatView gemountet ist.
+  // Chat-Transkript, Session-ID und `busy` liegen hier statt in ChatView
+  // (T-36): /quiz und /quiz-review unmounten ChatView, ein dort lokaler State
+  // wäre beim Zurücknavigieren leer bzw. zurückgesetzt. US-09 verlangt die
+  // Historie für die ganze Browser-Session, nicht nur während ChatView
+  // gemountet ist. `busy` gehört dazu, nicht nur die Daten: bliebe es lokal,
+  // würde ein Remount es auf `false` zurücksetzen, während die alte `query`
+  // noch läuft und am Ende in dieselben (jetzt gehobenen) `messages`/
+  // `sessionId` schreibt — die Sperre gegen "Neuer Chat"/eine zweite Frage
+  // während des Wartens (Kommentar bei `send` unten) griffe dann nicht mehr.
   const [messages, setMessages] = useState<Message[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   // Ein 401 auf einer authentifizierten Anfrage beendet die Sitzung. Der leere
   // User-State laesst ProtectedRoute auf /login umleiten (T-40).
@@ -28,6 +34,7 @@ export default function App() {
       setSessionExpired(true);
       setMessages([]);
       setSessionId(null);
+      setBusy(false);
     });
     return () => setUnauthorizedHandler(null);
   }, []);
@@ -44,6 +51,7 @@ export default function App() {
     setUser(null);
     setMessages([]);
     setSessionId(null);
+    setBusy(false);
   };
 
   return (
@@ -69,6 +77,8 @@ export default function App() {
                   setMessages={setMessages}
                   sessionId={sessionId}
                   setSessionId={setSessionId}
+                  busy={busy}
+                  setBusy={setBusy}
                 />
               )}
             </ProtectedRoute>
