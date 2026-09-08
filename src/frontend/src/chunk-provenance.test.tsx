@@ -61,7 +61,7 @@ const SPARSE_ONLY = chunk({
   rrf_score: 0.016393,
 });
 
-function debugInfo(chunks: ChunkDebugInfo[]): DebugInfo {
+function debugInfo(chunks: ChunkDebugInfo[], rrfK = 60): DebugInfo {
   return {
     chunks,
     stages: [],
@@ -71,7 +71,7 @@ function debugInfo(chunks: ChunkDebugInfo[]): DebugInfo {
     min_citation_coverage: 0.5,
     self_check_ran: false,
     retrieval_detail: { top_score: 0.62, mean_score: 0.43, evidence_density: 0.4, result: 0.55, count: 2 },
-    params_used: { rrf_k: 60, context_top_n: 5 },
+    params_used: { rrf_k: rrfK, context_top_n: 5 },
     dense_above_threshold: 1,
     total_dense_retrieved: 5,
     sparse_count: 4,
@@ -80,7 +80,7 @@ function debugInfo(chunks: ChunkDebugInfo[]): DebugInfo {
   };
 }
 
-function answer(chunks: ChunkDebugInfo[]): QueryResponse {
+function answer(chunks: ChunkDebugInfo[], rrfK = 60): QueryResponse {
   return {
     session_id: "sess-1",
     answer_id: "ans-1",
@@ -90,7 +90,7 @@ function answer(chunks: ChunkDebugInfo[]): QueryResponse {
     refinement_hint: null,
     citations: [],
     confidence: { score: 0.72, retrieval_score: 0.55, citation_coverage: 0.9, band: "mittel" },
-    debug: debugInfo(chunks),
+    debug: debugInfo(chunks, rrfK),
   };
 }
 
@@ -157,11 +157,41 @@ describe("Herkunft je Chunk (T-54)", () => {
     await ask(answer([chunk(), SPARSE_ONLY]));
 
     // Visible in the row …
-    expect(screen.getByText(".0325")).toBeInTheDocument();
+    expect(screen.getByText(".032522")).toBeInTheDocument();
     // … and the arithmetic that produced it, with the k of this request. Both
     // ranks contribute for a chunk found twice, one for a chunk found once.
     expect(screen.getByTitle("RRF 1/(60+1) + 1/(60+2) = 0.032522")).toBeInTheDocument();
     expect(screen.getByTitle("RRF 1/(60+1) = 0.016393")).toBeInTheDocument();
+  });
+
+  it("hält die Ränge am Ende einer langen Kandidatenliste auseinander", async () => {
+    // Der Grund für sechs statt vier Nachkommastellen. Bei `rrf_k = 60` liegen
+    // die Ränge 98/99/100 in der vierten Stelle gleichauf — alle drei standen
+    // vorher als „.0063“ auf dem Schirm. `retrieval_top_k` ist im Admin-Panel
+    // bis 100 einstellbar, das ist also kein hypothetischer Randfall.
+    const tail = [98, 99, 100].map(rank => chunk({
+      chunk_id: `tail-${rank}`,
+      filename: `tail-${rank}.pdf`,
+      dense_rank: rank,
+      sparse_rank: ABSENT,
+      rrf_score: Number((1 / (60 + rank)).toFixed(6)),
+    }));
+    await ask(answer(tail));
+
+    expect(screen.getByText(".006329")).toBeInTheDocument();
+    expect(screen.getByText(".006289")).toBeInTheDocument();
+    expect(screen.getByText(".00625")).toBeInTheDocument();
+  });
+
+  it("zeigt auch einen RRF-Score ab 1 vollständig an", async () => {
+    // `rrf_k` geht im Admin-Panel bis auf 1 herunter (params.ts). Ein Chunk,
+    // den beide Suchen auf Rang 1 haben, kommt dann auf 1/(1+1) + 1/(1+1) = 1
+    // exakt — die führende Null blind zu streichen ergibt dort Unsinn.
+    await ask(answer([chunk({ dense_rank: 1, sparse_rank: 1, rrf_score: 1 })], 1));
+
+    const cell = screen.getByTitle("RRF 1/(1+1) + 1/(1+1) = 1");
+    expect(within(cell).getByText("1")).toBeInTheDocument();
+    expect(cell).not.toHaveTextContent("1.0000");
   });
 
   it("erklärt einen roten Chunk im Kontext aus der Zeile heraus", async () => {
@@ -180,7 +210,7 @@ describe("Herkunft je Chunk (T-54)", () => {
   });
 
   it("erklärt umgekehrt auch einen Chunk über Schwelle, der weggeschnitten wurde", async () => {
-    const cut = chunk({ chunk_id: "chunk-3", in_top_n: false, sparse_rank: ABSENT, rrf_score: 0.015625 });
+    const cut = chunk({ chunk_id: "chunk-3", in_top_n: false, sparse_rank: ABSENT, rrf_score: 0.016393 });
     await ask(answer([cut]));
 
     await userEvent.click(screen.getByText(/skos-richtlinien\.pdf/));

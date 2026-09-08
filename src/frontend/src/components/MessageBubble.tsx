@@ -94,15 +94,50 @@ function pct(v: number) { return `${Math.round(v * 100)}%`; }
 const RANK_ABSENT = 0;
 const rankLabel = (rank: number) => (rank === RANK_ABSENT ? "—" : String(rank));
 
+// Digits the backend rounds `rrf_score` to — see the constant it mirrors in
+// app/services/retrieval.py. Rendering fewer than it sends would undo that
+// rounding's whole purpose, so the two are one decision kept in two files.
+const RRF_DIGITS = 6;
+
+/**
+ * The RRF score as the narrow column shows it.
+ *
+ * Six digits, not four. From about rank 40 the gap between consecutive RRF
+ * scores falls below the fourth digit, and `retrieval_top_k` goes to 100: at
+ * `rrf_k = 60` ranks 98/99/100 score 0.0063291 / 0.0062893 / 0.00625, and a
+ * second rounding to four digits put all three on screen as ".0063" — hiding
+ * exactly the distinction this panel exists to make (T-54).
+ *
+ * The leading zero goes because the column is narrow, but only where there is
+ * one to spare. `rrf_k` is settable down to 1, where a chunk at rank 1 in both
+ * searches scores 1/(1+1) + 1/(1+1) = 1 exactly; a blind `replace(/^0/, "")`
+ * left that as "1.0000" and would eat a leading digit of anything past 10.
+ *
+ * `undefined` is not in the generated type, but it is on the wire: `webapp` and
+ * `api` are separate containers and a deploy can serve the older response shape
+ * for a few seconds. A dash costs one cell, `undefined.toFixed` the whole panel.
+ */
+function formatRrf(score: number | undefined): string {
+  if (typeof score !== "number" || !Number.isFinite(score)) return "—";
+  const text = score.toFixed(RRF_DIGITS).replace(/0+$/, "").replace(/\.$/, "");
+  return text.startsWith("0.") ? text.slice(1) : text;
+}
+
 // One source of truth for the column widths, because the header row below and
 // every chunk row have to line up. Two elastic columns share what the fixed
 // ones leave: the bar grows from 90px, the source twice as fast from 160px, and
 // the source wraps instead of truncating — the filename is what an admin reads
 // to find the chunk again, so it is the one thing that must not be cut off.
+//
+// The two fixed columns are sized for their worst case, not their common one:
+// `retrieval_top_k` goes to 100 in the admin panel, so a rank runs to three
+// digits, and `formatRrf` emits up to seven characters (".032522"). Both were
+// cut to the width of the default configuration before. `tabular-nums` stops
+// the digits jittering from row to row.
 const COL_SCORE: CSSProperties = { width: 30, textAlign: "right", fontSize: 10, fontWeight: 700, flexShrink: 0 };
 const COL_BAR: CSSProperties   = { flex: "1 1 90px" };
-const COL_RANK: CSSProperties  = { width: 20, textAlign: "center", fontSize: 9, flexShrink: 0 };
-const COL_RRF: CSSProperties   = { width: 40, textAlign: "right", fontSize: 9, flexShrink: 0 };
+const COL_RANK: CSSProperties  = { width: 24, textAlign: "center", fontSize: 9, flexShrink: 0, fontVariantNumeric: "tabular-nums" };
+const COL_RRF: CSSProperties   = { width: 52, textAlign: "right", fontSize: 9, flexShrink: 0, fontVariantNumeric: "tabular-nums" };
 const COL_SRC: CSSProperties   = { flex: "2 1 160px", minWidth: 0, fontSize: 10, lineHeight: 1.35, overflowWrap: "anywhere" };
 const COL_BADGE: CSSProperties = { width: 28, textAlign: "center", flexShrink: 0 };
 const COL_CARET: CSSProperties = { width: 8, fontSize: 9, flexShrink: 0, color: "var(--muted)" };
@@ -210,7 +245,11 @@ function ChunkBar({ chunk, threshold, rrfK }: { chunk: ChunkDebugInfo; threshold
   const placement = chunk.in_top_n && !chunk.above_threshold
     ? "Trotzdem im Kontext: die Auswahl folgt dem RRF-Rang, nicht der Similarity."
     : !chunk.in_top_n && chunk.above_threshold
-      ? "Über der Schwelle, aber nicht im Kontext: andere Chunks haben einen höheren RRF-Score."
+      // Not "haben einen höheren RRF-Score": `fuse()` sorts by
+      // `(rrf_score, score)`, so a chunk can lose on the similarity tiebreak
+      // while its RRF score ties the ones that stayed. "Stehen vor ihm" holds
+      // either way, and the expanded row shows both numbers to tell them apart.
+      ? "Über der Schwelle, aber nicht im Kontext: andere Chunks stehen im RRF-Ranking vor ihm."
       : null;
 
   const term: CSSProperties = { width: 62, flexShrink: 0, color: "var(--muted)", fontWeight: 700 };
@@ -231,7 +270,7 @@ function ChunkBar({ chunk, threshold, rrfK }: { chunk: ChunkDebugInfo; threshold
         <RankCell rank={chunk.dense_rank} search="Vektorsuche" />
         <RankCell rank={chunk.sparse_rank} search="Volltextsuche" />
         <span style={{ ...COL_RRF, color: "var(--navy)" }} title={`RRF ${rrfFormula}`}>
-          <span aria-hidden="true">{chunk.rrf_score.toFixed(4).replace(/^0/, "")}</span>
+          <span aria-hidden="true">{formatRrf(chunk.rrf_score)}</span>
           <span className="sr-only">RRF-Score {chunk.rrf_score}</span>
         </span>
         <span style={{ ...COL_SRC, color: "var(--muted)" }}>{parts}</span>
