@@ -105,6 +105,31 @@ async def test_model_change_with_same_dimension_skips_the_schema_change() -> Non
     assert bound(insert_jobs[0])["payload"] == expected_payload
 
 
+async def test_approved_quiz_questions_are_demoted_back_to_pending() -> None:
+    """DELETE FROM chunks sets every quiz_questions.chunk_id it touches to NULL
+    (migration 0016, ON DELETE SET NULL) -- the same signal
+    app/routers/documents.py's _replace uses to demote an approved question.
+    Without the matching UPDATE here, an approved question would keep
+    shipping to learners with chunk_id NULL after a reconciliation (review on
+    PR #120, high-confidence finding #1)."""
+    db = make_db(MATCHING_ROWS, document_ids=[])
+    configured = EmbeddingConfig(model="text-embedding-3-large", dimensions=1536)
+
+    await _reconcile(db, configured)
+
+    statements = [sql(call) for call in db.execute.await_args_list]
+    assert any(
+        "UPDATE quiz_questions SET status = 'pending', approved_at = NULL" in s
+        and "WHERE status = 'approved'" in s
+        for s in statements
+    )
+    chunks_delete_index = next(i for i, s in enumerate(statements) if "DELETE FROM chunks" in s)
+    quiz_update_index = next(
+        i for i, s in enumerate(statements) if "UPDATE quiz_questions" in s
+    )
+    assert chunks_delete_index < quiz_update_index
+
+
 async def test_pending_job_dedupe_delete_runs_before_the_new_jobs_are_queued() -> None:
     """A document already `pending` with an unconsumed `queued` job keeps that
     job across the UPDATE above -- `documents.status` and `pgqueuer` have no
@@ -172,8 +197,10 @@ async def test_main_rejects_an_invalid_configured_dimension_before_touching_the_
 ) -> None:
     """A typo'd EMBED_DIMENSIONS must fail cleanly through the same parser
     `persisted` gets, not crash mid-ALTER on a raw Postgres error once
-    _reconcile discovers it while building the HNSW index."""
-    monkeypatch.setenv("DATABASE_URL", "postgresql://user:pass@localhost/db")
+    _reconcile discovers it while building the HNSW index. No DATABASE_URL
+    stubbing needed: the validation now runs before main() ever builds the
+    engine (review on PR #120), so this must never reach create_async_engine
+    at all."""
     monkeypatch.setattr(settings, "embed_dimensions", 99999)
 
     with pytest.raises(EmbeddingConfigError):

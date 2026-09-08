@@ -56,7 +56,6 @@ startup can make sense of:
 
 import asyncio
 import json
-import os
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -155,6 +154,21 @@ async def _reconcile(db: AsyncSession, configured: EmbeddingConfig) -> None:
     # would serve a query mixing two models' vectors in one retrieval.
     await db.execute(text("DELETE FROM chunks"))
 
+    # The DELETE above sets every quiz_questions.chunk_id it referenced to
+    # NULL (migration 0016, ON DELETE SET NULL) -- the same signal
+    # `app/routers/documents.py`'s _replace uses for "the version this was
+    # generated from is gone", which demotes an approved question back to
+    # pending so Stefan judges it again against the surviving source_excerpt.
+    # Without the same UPDATE here, an approved question keeps shipping to
+    # learners with chunk_id NULL: approved, but pointing at nothing in a
+    # corpus that was just re-chunked and re-embedded under a different model.
+    await db.execute(
+        text(
+            "UPDATE quiz_questions SET status = 'pending', approved_at = NULL "
+            "WHERE status = 'approved'"
+        )
+    )
+
     # A document already `pending` with a `queued` job the worker hasn't
     # picked up yet keeps that job regardless of the UPDATE above -- marking
     # `documents.status` does nothing to `pgqueuer`, the two tables have no FK
@@ -176,18 +190,24 @@ async def _reconcile(db: AsyncSession, configured: EmbeddingConfig) -> None:
 
 
 async def main() -> None:
-    database_url = os.environ["DATABASE_URL"].replace("postgresql://", "postgresql+asyncpg://", 1)
-    engine = create_async_engine(database_url)
-    session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-
     # Through the same parser `persisted` gets, not built by hand: a bad
     # `.env` value (a typo'd EMBED_DIMENSIONS above 2000, an empty
     # EMBED_MODEL) would otherwise sail past this line and crash mid-DDL on a
     # raw Postgres error once the reconcile below tries to build an HNSW
     # index over it, instead of a clean, actionable rejection right here.
+    # Before the engine, not after: nothing worth disposing exists yet if
+    # this raises.
     configured = embedding_config_from(
         {"embed_model": settings.embed_model, "embed_dimensions": str(settings.embed_dimensions)}
     )
+
+    # settings.sqlalchemy_url, not os.environ["DATABASE_URL"]: Settings loads
+    # from `.env` (`SettingsConfigDict(env_file=".env")`), the same mechanism
+    # every other value here goes through. A DATABASE_URL set only in `.env`
+    # and not exported into the process environment would KeyError on the
+    # raw lookup while settings.database_url resolves it without issue.
+    engine = create_async_engine(settings.sqlalchemy_url)
+    session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     async with session_factory() as db:
         await _reconcile(db, configured)

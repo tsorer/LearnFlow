@@ -17,7 +17,6 @@ from app.models.tables import Config
 from app.routers import admin, auth, documents, feedback, query, quiz
 from app.services.embedding_config import (
     EMBEDDING_CONFIG_KEYS,
-    EmbeddingConfig,
     embedding_config_from,
     verify_embedding_config,
 )
@@ -44,8 +43,19 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         values: dict[str, str] = {key: value for key, value in result.all()}
     try:
         persisted = embedding_config_from(values)
-        configured = EmbeddingConfig(
-            model=settings.embed_model, dimensions=settings.embed_dimensions
+        # Through the same parser as `persisted`, not built by hand from
+        # Settings directly: apply_embedding_config.py does this too (review
+        # on PR #120) -- raw construction here would compare an unstripped
+        # Settings.embed_model against the stripped persisted value (a
+        # whitespace false-positive abort) and let an out-of-range
+        # EMBED_DIMENSIONS reach verify_embedding_config as a plain mismatch
+        # instead of the clearer "config: embed_dimensions ausserhalb von
+        # [1, 2000]".
+        configured = embedding_config_from(
+            {
+                "embed_model": settings.embed_model,
+                "embed_dimensions": str(settings.embed_dimensions),
+            }
         )
         verify_embedding_config(persisted, configured)
     except EmbeddingConfigError:

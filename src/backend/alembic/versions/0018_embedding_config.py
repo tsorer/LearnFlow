@@ -13,12 +13,22 @@ otherwise covers.
 These two rows are the baseline a startup check (worker and API, added
 alongside this migration) compares the running `Settings` against -- a
 mismatch aborts the process rather than embedding new documents against an
-index built for a different model. Seeded with the same MVP defaults as
-`Settings` itself (`text-embedding-3-small`, 1536), matching every prior
-seed in this table (0004, 0007, 0008): an installation configured for a
-different provider from day one (Azure OpenAI EU, Ollama) reconciles once
-via `apply_embedding_config.py`, the same script an intentional model change
-uses later to accept the new value and requeue the corpus.
+index built for a different model. Seeded from `settings.embed_model`/
+`embed_dimensions` at the moment this migration runs, not from a hardcoded
+MVP literal: an installation already configured for a different provider on
+its very first boot (Azure OpenAI EU, Ollama) gets a seed that already
+matches, so the startup check passes the first time uvicorn starts. A
+hardcoded MVP default here would instead crash-loop that installation on
+`alembic upgrade head`'s own doing -- self-inflicted, since `api`'s command is
+`alembic upgrade head && uvicorn ...` in the same container, and
+`apply_embedding_config.py` would be the only documented way out despite
+`docker-compose.yml` now gating the worker behind `api: service_healthy`,
+which the crash-loop itself prevents. Reading `alembic/env.py` already
+imports `app.config.settings` to build the migration engine's own connection,
+so this adds no new coupling category, only a second read of the same
+already-loaded object. `apply_embedding_config.py` remains the path for a
+*later*, deliberate model change on an already-running installation -- it is
+no longer needed just to match what `.env` already said on day one.
 
 The CHECK constraint gets two more branches, same drop-and-recreate dance as
 0009/0012/0014/0017:
@@ -45,6 +55,7 @@ Create Date: 2026-09-05
 import sqlalchemy as sa
 
 from alembic import op
+from app.config import settings
 
 revision = "0018"
 down_revision = "0017"
@@ -74,18 +85,22 @@ COUNT_KEYS = ("retrieval_top_k", "context_top_n", "rrf_k", "processing_timeout_s
 EMBED_DIMENSIONS_RANGE = r"^([1-9][0-9]{0,2}|1[0-9]{3}|2000)$"
 NON_EMPTY = r"\S"
 
-ROWS = [
-    (
-        "embed_model",
-        "text-embedding-3-small",
-        "Active embedding model; a mismatch against Settings aborts startup (ADR-005, T-42)",
-    ),
-    (
-        "embed_dimensions",
-        "1536",
-        "Active embedding dimension, <= 2000 (pgvector HNSW limit, ADR-003/ADR-005, T-42)",
-    ),
-]
+def _rows() -> list[tuple[str, str, str]]:
+    """Read at upgrade time, not module-import time, even though `settings` is
+    already resolved by then (`alembic/env.py` imports it before any revision
+    loads) -- keeps the side effect visibly inside the function that has one."""
+    return [
+        (
+            "embed_model",
+            settings.embed_model,
+            "Active embedding model; a mismatch against Settings aborts startup (ADR-005, T-42)",
+        ),
+        (
+            "embed_dimensions",
+            str(settings.embed_dimensions),
+            "Active embedding dimension, <= 2000 (pgvector HNSW limit, ADR-003/ADR-005, T-42)",
+        ),
+    ]
 
 
 def _quoted(keys: tuple[str, ...]) -> str:
@@ -140,7 +155,7 @@ def upgrade() -> None:
     op.execute(sa.text(_check()))
 
     bind = op.get_bind()
-    for key, value, description in ROWS:
+    for key, value, description in _rows():
         bind.execute(
             sa.text(
                 "INSERT INTO config (key, value, description) VALUES (:key, :value, :description)"
