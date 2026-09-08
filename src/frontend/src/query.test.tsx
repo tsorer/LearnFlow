@@ -588,6 +588,33 @@ describe("Frage-UI", () => {
     );
   });
 
+  it("keeps the same race closed across a Quiz-Start/Zurück round trip (T-36)", async () => {
+    // `busy` moved to App together with `messages`/`sessionId` (T-36): /quiz
+    // unmounts ChatView, so a `busy` still local to it would reset to `false`
+    // on remount while the query from before the navigation is still in
+    // flight — reopening exactly the race the test above closes.
+    api.route("get", "/api/quiz/questions/sample", 200, { items: [], total: 0 });
+    const field = await openChat();
+    api.hold("post", "/api/query");
+
+    await userEvent.type(field, "Was regelt der EU AI Act?");
+    await send();
+    expect(await screen.findByRole("status")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: /quiz starten/i }));
+    await screen.findByText(/es sind noch keine quizfragen/i);
+    await userEvent.click(screen.getByRole("button", { name: /zurück zum chat/i }));
+
+    expect(await screen.findByRole("button", { name: /neuer chat/i })).toBeDisabled();
+
+    api.release("post", "/api/query");
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /neuer chat/i })).toBeEnabled(),
+    );
+    expect(await screen.findByText(/SKOS verlangt je Sprache genau ein prefLabel/)).toBeInTheDocument();
+  });
+
   it("hides the chat-only controls while the document view is open", async () => {
     // Both used to sit in the header regardless: "Neuer Chat" cleared a
     // transcript nobody could see, and "⚙ Parameter" flipped its arrow over a

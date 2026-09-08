@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import type { AuthUser } from "./types";
+import type { AuthUser, Message } from "./types";
 import Login from "./components/Login";
 import ChatView from "./components/ChatView";
 import QuizReview from "./components/QuizReview";
+import QuizRun from "./components/QuizRun";
 import { ProtectedRoute, GuestRoute } from "./components/RouteGuards";
 import { setUnauthorizedHandler } from "./api/client";
 
@@ -12,12 +13,28 @@ export default function App() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [sessionExpired, setSessionExpired] = useState(false);
 
+  // Chat-Transkript, Session-ID und `busy` liegen hier statt in ChatView
+  // (T-36): /quiz und /quiz-review unmounten ChatView, ein dort lokaler State
+  // wäre beim Zurücknavigieren leer bzw. zurückgesetzt. US-09 verlangt die
+  // Historie für die ganze Browser-Session, nicht nur während ChatView
+  // gemountet ist. `busy` gehört dazu, nicht nur die Daten: bliebe es lokal,
+  // würde ein Remount es auf `false` zurücksetzen, während die alte `query`
+  // noch läuft und am Ende in dieselben (jetzt gehobenen) `messages`/
+  // `sessionId` schreibt — die Sperre gegen "Neuer Chat"/eine zweite Frage
+  // während des Wartens (Kommentar bei `send` unten) griffe dann nicht mehr.
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
   // Ein 401 auf einer authentifizierten Anfrage beendet die Sitzung. Der leere
   // User-State laesst ProtectedRoute auf /login umleiten (T-40).
   useEffect(() => {
     setUnauthorizedHandler(() => {
       setUser(null);
       setSessionExpired(true);
+      setMessages([]);
+      setSessionId(null);
+      setBusy(false);
     });
     return () => setUnauthorizedHandler(null);
   }, []);
@@ -25,6 +42,16 @@ export default function App() {
   const login = (u: AuthUser) => {
     setSessionExpired(false);
     setUser(u);
+  };
+
+  // Abmelden beendet die Browser-Session im Sinn von US-09 (AC 5) — die
+  // Historie gehört zur angemeldeten Sitzung und darf nicht an die nächste
+  // Anmeldung (ggf. ein anderes Konto) weitergereicht werden.
+  const logout = () => {
+    setUser(null);
+    setMessages([]);
+    setSessionId(null);
+    setBusy(false);
   };
 
   return (
@@ -42,7 +69,18 @@ export default function App() {
           path="/"
           element={
             <ProtectedRoute user={user}>
-              {u => <ChatView user={u} onLogout={() => setUser(null)} />}
+              {u => (
+                <ChatView
+                  user={u}
+                  onLogout={logout}
+                  messages={messages}
+                  setMessages={setMessages}
+                  sessionId={sessionId}
+                  setSessionId={setSessionId}
+                  busy={busy}
+                  setBusy={setBusy}
+                />
+              )}
             </ProtectedRoute>
           }
         />
@@ -51,6 +89,14 @@ export default function App() {
           element={
             <ProtectedRoute user={user} roles={["knowledge_owner", "admin"]}>
               {u => <QuizReview user={u} />}
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/quiz"
+          element={
+            <ProtectedRoute user={user}>
+              {u => <QuizRun token={u.token} />}
             </ProtectedRoute>
           }
         />

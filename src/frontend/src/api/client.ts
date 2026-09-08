@@ -229,6 +229,11 @@ export const api = {
   generateQuiz: async (token: string): Promise<QuizGenerationResponse> =>
     unwrap(await client.POST("/api/quiz/generate", { headers: auth(token) })),
 
+  // Zufallsstichprobe freigegebener Fragen fuer einen Quiz-Durchlauf (US-08,
+  // T-36) -- kein Status-/Paging-Parameter, das entscheidet der Endpoint.
+  getQuizSample: async (token: string): Promise<QuizQuestionPage> =>
+    unwrap(await client.GET("/api/quiz/questions/sample", { headers: auth(token) })),
+
   updateQuizQuestion: async (
     questionId: string,
     patch: QuizQuestionUpdate,

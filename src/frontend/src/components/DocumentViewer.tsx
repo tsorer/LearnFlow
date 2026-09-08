@@ -1,8 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import { api, ApiError, type Citation, type DocumentContent } from "../api/client";
+import { api, ApiError, type DocumentContent } from "../api/client";
 
 interface Props {
-  citation: Citation;
+  // Nur das Nötige statt eines vollen `Citation` (T-36): QuizQuestion trägt
+  // weder `excerpt` noch `index` noch `page`/`heading`, die der Viewer selbst
+  // nicht braucht -- er lädt den Chunk-Kontext ohnehin frisch nach.
+  documentId: string;
+  chunkId: string;
+  // Fehlt bis die eigene Antwort vorliegt (Quiz ruft ohne Dateiname auf) --
+  // der Titel im Header springt dann von "Dokument" auf den echten Namen,
+  // sobald `content` gesetzt ist.
+  filename?: string;
   token: string;
   onClose: () => void;
 }
@@ -16,7 +24,7 @@ const FOCUSABLE_SELECTOR = 'button, [href], input, select, textarea, [tabindex]:
  * authenticated role may open this — a query answer already cited the chunk,
  * so a viewer showing it discloses nothing the citation didn't already.
  */
-export default function DocumentViewer({ citation, token, onClose }: Props) {
+export default function DocumentViewer({ documentId, chunkId, filename, token, onClose }: Props) {
   const [content, setContent] = useState<DocumentContent | null>(null);
   const [error, setError] = useState<string | null>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -27,7 +35,7 @@ export default function DocumentViewer({ citation, token, onClose }: Props) {
     let cancelled = false;
     setContent(null);
     setError(null);
-    api.getDocumentContent(citation.document_id, citation.chunk_id, token)
+    api.getDocumentContent(documentId, chunkId, token)
       .then(result => { if (!cancelled) setContent(result); })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -40,7 +48,7 @@ export default function DocumentViewer({ citation, token, onClose }: Props) {
         }
       });
     return () => { cancelled = true; };
-  }, [citation.document_id, citation.chunk_id, token]);
+  }, [documentId, chunkId, token]);
 
   // Eigener Effekt mit leerem Dependency-Array: läuft nur beim Mount. An
   // [onClose] gehängt lief er bei jedem Rerender der Elternkomponente neu
@@ -86,6 +94,8 @@ export default function DocumentViewer({ citation, token, onClose }: Props) {
     highlightRef.current?.scrollIntoView({ block: "center" });
   }, [content]);
 
+  const displayName = content?.filename ?? filename ?? "Dokument";
+
   return (
     <div
       role="presentation"
@@ -99,7 +109,7 @@ export default function DocumentViewer({ citation, token, onClose }: Props) {
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
-        aria-label={`Originaldokument ${citation.filename}`}
+        aria-label={`Originaldokument ${displayName}`}
         onClick={e => e.stopPropagation()}
         style={{
           background: "var(--card)", borderRadius: 12, width: "min(720px, 90vw)",
@@ -110,7 +120,7 @@ export default function DocumentViewer({ citation, token, onClose }: Props) {
           display: "flex", alignItems: "center", justifyContent: "space-between",
           padding: "12px 16px", borderBottom: "1px solid var(--border)",
         }}>
-          <strong style={{ fontSize: 14, color: "var(--navy)" }}>{citation.filename}</strong>
+          <strong style={{ fontSize: 14, color: "var(--navy)" }}>{displayName}</strong>
           <button
             ref={closeRef}
             onClick={onClose}
@@ -127,7 +137,7 @@ export default function DocumentViewer({ citation, token, onClose }: Props) {
           {error && <p role="alert" style={{ color: "var(--red)" }}>{error}</p>}
           {!error && !content && <p role="status">Lädt…</p>}
           {content?.chunks.map(chunk => {
-            const isHighlighted = chunk.chunk_id === citation.chunk_id;
+            const isHighlighted = chunk.chunk_id === chunkId;
             return (
               <div
                 key={chunk.chunk_id}
