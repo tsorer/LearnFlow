@@ -60,12 +60,23 @@ def _validated_by_0014() -> tuple[set[str], set[str]]:
 
 
 def test_the_latest_revision_keeps_every_validated_key() -> None:
-    unit_interval, _ = _validated_by_0014()
-    current = _literals("0017_documents_index_version")
+    unit_interval, counts = _validated_by_0014()
+    current = _literals("0018_embedding_config")
 
-    missing = unit_interval - set(current["UNIT_INTERVAL_KEYS"])
-    assert not missing, (
-        f"0017 drops {sorted(missing)} from the CHECK — those keys would take any value"
+    missing_unit_interval = unit_interval - set(current["UNIT_INTERVAL_KEYS"])
+    assert not missing_unit_interval, (
+        f"0018 drops {sorted(missing_unit_interval)} from the CHECK — those keys "
+        "would take any value"
+    )
+
+    # 0018 doesn't touch COUNT_KEYS (unlike UNIT_INTERVAL_KEYS, no revision
+    # between 0014 and 0018 renamed it either, so the plain literal is checked
+    # directly here rather than composed like OLD_COUNT_KEYS/NEW_COUNT_KEYS in
+    # 0017) -- checked anyway, so this test guards the whole constraint the
+    # newest revision creates, not only half of it (review on PR #120).
+    missing_counts = counts - set(current["COUNT_KEYS"])
+    assert not missing_counts, (
+        f"0018 drops {sorted(missing_counts)} from the CHECK — those keys would take any value"
     )
 
 

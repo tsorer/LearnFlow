@@ -113,6 +113,14 @@ docker exec src-api-1 alembic upgrade head
 
 # psql
 docker exec -it src-db-1 psql -U learnflow -d learnflow
+
+# Embedding-Modell/-Dimension geändert (EMBED_MODEL/EMBED_DIMENSIONS in .env)?
+# API und Worker brechen den Start sonst ab (ADR-005, T-42) — dieses Script
+# übernimmt den neuen Wert und stösst die Re-Indexierung des ganzen Korpus an.
+# `docker compose run`, nicht `docker exec src-api-1 ...`: genau diese
+# Abweichung lässt den laufenden `api`-Container crash-loopen, `docker exec`
+# griffe dann ins Leere (Ops/07_Pilotstart-Checkliste.md 2.2a).
+docker compose run --rm api python apply_embedding_config.py
 ```
 
 ## Zurücksetzen & Stolpersteine

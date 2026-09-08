@@ -14,7 +14,9 @@
  * RETRIEVAL und ANSWER wird pro Anfrage aus `config` gelesen und wirkt auf die
  * nächste Frage (US-11). Die Werte in READ_ONLY wirken erst nach vollständiger
  * Re-Indexierung des Korpus und werden von `PUT /api/admin/config` deshalb
- * abgelehnt (T-42).
+ * abgelehnt. T-42 hat das für `embed_model`/`embed_dimensions` bestätigt statt
+ * aufgehoben: ein Modell- oder Dimensionswechsel braucht ein eigenes Script
+ * (`apply_embedding_config.py`, stösst zugleich den Re-Index an), keinen PUT.
  *
  * Aus Migration `0012`s CHECK stammt, was die Datenbank erzwingt: Schwellen in
  * [0, 1], die drei Zähler als positive Ganzzahlen — also `min` und, bei den
@@ -60,11 +62,17 @@ export const ANSWER_PARAM_DEFS: readonly ParamDef[] = [
  * Parameter verschweigt, lädt zu falschen Schlüssen ein — eine neue
  * Chunk-Grösse wirkt aber nur auf danach indexierte Dokumente, und ohne
  * vollständigen Re-Index wird der Korpus halb alt und halb neu, ohne dass es
- * irgendwo steht (ADR-007). Schreibbar zu machen ist Sache von T-42.
+ * irgendwo steht (ADR-007). `embed_model`/`embed_dimensions` (T-42) sitzen aus
+ * demselben Grund hier, nur strenger: ein Modellwechsel braucht nicht nur den
+ * Re-Index, eine geänderte Dimension braucht zuerst eine Schema-Änderung an
+ * `chunks.embedding` (`apply_embedding_config.py`) — ein PUT hier würde die
+ * Zahl akzeptieren, ohne dass die Spalte mitgezogen ist.
  */
 export const READ_ONLY_PARAM_DEFS = [
-  { key: "chunk_size",    label: "Chunk-Grösse (Tokens)" },
-  { key: "chunk_overlap", label: "Chunk-Overlap (Tokens)" },
+  { key: "chunk_size",        label: "Chunk-Grösse (Tokens)" },
+  { key: "chunk_overlap",     label: "Chunk-Overlap (Tokens)" },
+  { key: "embed_model",       label: "Embedding-Modell" },
+  { key: "embed_dimensions",  label: "Embedding-Dimension" },
 ] as const;
 
 /**

@@ -29,6 +29,8 @@ TABLE = {
     "context_top_n": "5",
     "processing_timeout_seconds": "900",
     "processing_max_attempts": "3",
+    "embed_model": "text-embedding-3-small",
+    "embed_dimensions": "1536",
 }
 
 
@@ -122,6 +124,8 @@ async def test_get_returns_every_row_including_non_writable_ones() -> None:
     assert body["config"]["chunk_size"] == "512"  # not writable, still readable
     assert body["config"]["stale_days"] == "90"  # no reader yet, still readable
     assert body["config"]["confidence_threshold_high"] == "0.75"
+    assert body["config"]["embed_model"] == "text-embedding-3-small"  # not writable (T-42)
+    assert body["config"]["embed_dimensions"] == "1536"
 
 
 async def test_get_without_auth_returns_401() -> None:
@@ -242,6 +246,45 @@ async def test_put_passes_through_an_unchanged_stale_days() -> None:
 
     r = await _put_config(
         {"config": {"confidence_threshold_high": "0.80", "stale_days": "90"}}, db
+    )
+
+    assert r.status_code == 200
+    assert len(db.updates) == 1
+
+
+async def test_put_rejects_a_real_change_to_embed_model() -> None:
+    """Only apply_embedding_config.py may change this (T-42) -- a live PUT
+    would leave chunks.embedding on the old dimension/model and crash-loop
+    both processes' startup check on the very value this endpoint accepted."""
+    db = make_db()
+
+    r = await _put_config({"config": {"embed_model": "bge-m3"}}, db)
+
+    assert r.status_code == 422
+    assert db.updates == []
+
+
+async def test_put_rejects_a_real_change_to_embed_dimensions() -> None:
+    db = make_db()
+
+    r = await _put_config({"config": {"embed_dimensions": "1024"}}, db)
+
+    assert r.status_code == 422
+    assert db.updates == []
+
+
+async def test_put_passes_through_unchanged_embedding_config() -> None:
+    db = make_db()
+
+    r = await _put_config(
+        {
+            "config": {
+                "confidence_threshold_high": "0.80",
+                "embed_model": "text-embedding-3-small",
+                "embed_dimensions": "1536",
+            }
+        },
+        db,
     )
 
     assert r.status_code == 200

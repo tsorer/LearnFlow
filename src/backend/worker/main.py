@@ -12,7 +12,7 @@ from pgqueuer.db import AsyncpgDriver
 from pgqueuer.models import Job
 
 from app.config import settings
-from app.exceptions import UserFacingError
+from app.exceptions import EmbeddingConfigError, UserFacingError
 from app.models.tables import DocumentStatus
 from app.services.chunking import (
     DEFAULT_CHUNK_OVERLAP,
@@ -22,6 +22,11 @@ from app.services.chunking import (
     count_tokens,
 )
 from app.services.embedding import embed_texts
+from app.services.embedding_config import (
+    EMBEDDING_CONFIG_KEYS,
+    embedding_config_from,
+    verify_embedding_config,
+)
 from app.services.parsing import parse_document
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -480,6 +485,40 @@ async def reaper_loop(pool: asyncpg.Pool) -> None:
             log.exception("Reaper pass failed — next attempt in %s s", interval)
 
 
+async def verify_embedding_config_at_startup(conn: asyncpg.Connection) -> None:
+    """Compare `Settings.embed_model`/`embed_dimensions` against what migration
+    0018 persisted, and abort the worker on a mismatch (ADR-005, T-42).
+
+    Raw asyncpg, not `app/services/config.py`'s SQLAlchemy session — same
+    split as `read_chunk_config` below, for the same reason: the worker has
+    no SQLAlchemy session, only its own asyncpg connections. Runs once
+    before the queue manager starts accepting jobs, so a mismatch is caught
+    before a single document is embedded with the wrong model.
+
+    Raises:
+        EmbeddingConfigError: propagates out of `main()` and crashes the
+            worker — the fail-closed default this ticket chose over a
+            silent auto-reindex (see the plan for Issue #68 / T-42).
+    """
+    rows = await conn.fetch(
+        "SELECT key, value FROM config WHERE key = ANY($1::text[])", list(EMBEDDING_CONFIG_KEYS)
+    )
+    values: dict[str, str] = {row["key"]: row["value"] for row in rows}
+    persisted = embedding_config_from(values)
+    # Through the same parser as `persisted`, not built by hand from Settings
+    # directly: apply_embedding_config.py and app/main.py's lifespan do this
+    # too (review on PR #120) -- raw construction here would compare an
+    # unstripped Settings.embed_model against the stripped persisted value (a
+    # whitespace false-positive abort) and let an out-of-range
+    # EMBED_DIMENSIONS reach verify_embedding_config as a plain mismatch
+    # instead of the clearer "config: embed_dimensions ausserhalb von
+    # [1, 2000]".
+    configured = embedding_config_from(
+        {"embed_model": settings.embed_model, "embed_dimensions": str(settings.embed_dimensions)}
+    )
+    verify_embedding_config(persisted, configured)
+
+
 def make_job_handler(pool: asyncpg.Pool) -> Callable[[Job], Awaitable[None]]:
     """Build the pgqueuer entrypoint. Lives outside main() so a test can assert
     the one property that silently broke T-11: it must be a coroutine function.
@@ -502,6 +541,13 @@ def make_job_handler(pool: asyncpg.Pool) -> Callable[[Job], Awaitable[None]]:
 async def main() -> None:
     log.info("Worker starting — connecting to database")
     conn = await asyncpg.connect(settings.asyncpg_dsn)
+
+    try:
+        await verify_embedding_config_at_startup(conn)
+    except EmbeddingConfigError:
+        log.exception("Embedding-Konfiguration inkonsistent — Worker wird nicht gestartet")
+        raise
+
     pool = await asyncpg.create_pool(settings.asyncpg_dsn, min_size=1, max_size=5)
     driver = AsyncpgDriver(conn)
     qm = QueueManager(driver)
