@@ -637,7 +637,7 @@ async def test_the_reaper_deletes_the_orphaned_job_row_it_leaves_behind() -> Non
     assert "DELETE FROM pgqueuer" in sql
     assert "entrypoint = 'process_document'" in sql
     assert "status = 'picked'" in sql
-    assert "heartbeat < now() - make_interval(secs => $1 * 2)" in sql
+    assert "heartbeat < now() - make_interval(secs => $1) * 2" in sql
     assert timeout == 900.0
     assert isinstance(timeout, float)
 
@@ -653,13 +653,20 @@ async def test_the_row_delete_requires_twice_the_document_reap_timeout() -> None
     never reaches `pgqueuer_log`. Doubling the window does not close that
     race, but narrows it to a run past twice the worst case ADR-006 derives
     for a legitimate one.
+
+    The multiplication sits outside `make_interval` rather than on `$1`
+    itself (round 2 of the same review): Postgres resolves `$1 * 2` before
+    coercing the result to the float8 `secs` parameter, so `$1` picks up the
+    literal's int4 type instead — truncating a fractional timeout and, for
+    the unbounded `processing_timeout_seconds` config value, overflowing
+    where the untouched document-side check on the same value would not.
     """
     conn = make_reaper_conn()
 
     await reap_stuck_documents(conn, timeout_seconds=900, max_attempts=3)
 
     sql = conn.execute.await_args.args[0]
-    assert "$1 * 2" in sql
+    assert "make_interval(secs => $1) * 2" in sql
 
 
 async def test_the_cleanup_delete_runs_exactly_once_per_pass() -> None:
@@ -671,6 +678,28 @@ async def test_the_cleanup_delete_runs_exactly_once_per_pass() -> None:
     await reap_stuck_documents(conn, timeout_seconds=900, max_attempts=3)
 
     conn.execute.assert_awaited_once()
+
+
+async def test_the_cleanup_delete_runs_after_the_reap_transaction_commits() -> None:
+    """Review on #118, round 2: a failure in the sweep — the overflow the
+    previous test guards against, lock contention with pgqueuer's own
+    `log_jobs` — must not roll back a document reap that already succeeded.
+    Keeping the delete out of the `async with` block is what makes that true;
+    this pins the ordering so it cannot drift back inside.
+    """
+    conn = make_reaper_conn([{"id": uuid.uuid4(), "index_attempts": 1}])
+    committed_before_delete = False
+
+    async def record_whether_the_transaction_already_exited(*_args: object) -> str:
+        nonlocal committed_before_delete
+        committed_before_delete = conn.transaction.return_value.__aexit__.await_count > 0
+        return "DELETE 0"
+
+    conn.execute.side_effect = record_whether_the_transaction_already_exited
+
+    await reap_stuck_documents(conn, timeout_seconds=900, max_attempts=3)
+
+    assert committed_before_delete
 
 
 async def test_reaper_config_falls_back_when_the_keys_are_missing() -> None:

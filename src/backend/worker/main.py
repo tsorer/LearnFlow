@@ -375,11 +375,19 @@ REQUEUE_DOCUMENT = """
 # timeout narrows the race to a run more than twice as long as ADR-006 derives
 # as the worst legitimate case, without closing it outright; closing it needs
 # a real liveness signal, which is T-51.
+#
+# The multiplication sits outside make_interval on purpose (review on #118,
+# round 2): `$1` alone resolves to float8 from make_interval's own signature,
+# but `$1 * 2` resolves the multiplication first, and `unknown * int4` picks
+# int4 — silently truncating a fractional `timeout_seconds` and, since
+# `processing_timeout_seconds` has no configured upper bound, overflowing
+# into `NumericValueOutOfRangeError` for a value still valid for the
+# document-side check a few lines up.
 DELETE_ORPHANED_PICKED_ROWS = """
     DELETE FROM pgqueuer
      WHERE entrypoint = 'process_document'
        AND status = 'picked'
-       AND heartbeat < now() - make_interval(secs => $1 * 2)
+       AND heartbeat < now() - make_interval(secs => $1) * 2
 """
 
 
@@ -402,12 +410,15 @@ async def reap_stuck_documents(
     Below the attempt budget the document goes back to 'pending' and is queued
     again; at the budget it is marked failed with a message its owner can act on.
 
-    The same pass also sweeps this entrypoint's 'picked' rows once they are
-    stale well past the point of being merely slow (T-52) — nothing else in
-    the system ever removes them. That sweep is not tied to which documents
-    got reaped just above: a leftover row from an earlier pass, or one for a
-    document no longer in 'processing', is cleaned up here just the same.
-    Returns how many rows were touched, for the caller's log.
+    Once that transaction lands, this same call also sweeps this entrypoint's
+    'picked' rows that are stale well past the point of being merely slow
+    (T-52) — nothing else in the system ever removes them. That sweep is its
+    own statement, not tied to which documents got reaped just above: a
+    leftover row from an earlier pass, or one for a document no longer in
+    'processing', is cleaned up here just the same, and a failure in it does
+    not undo the reap.
+    Returns how many documents were reaped, for the caller's log — the
+    cleanup's own count only reaches the log, since callers act on documents.
     """
     # The message names no cause on purpose. The condition below is "claimed
     # longer ago than the timeout", which a worker that died satisfies — and so
@@ -440,7 +451,6 @@ async def reap_stuck_documents(
                 REQUEUE_DOCUMENT,
                 [(json.dumps({"document_id": str(row["id"])}).encode(),) for row in requeued],
             )
-        await conn.execute(DELETE_ORPHANED_PICKED_ROWS, float(timeout_seconds))
     for row in rows:
         log.warning(
             "Reaped document_id=%s: indexing run abandoned, attempt %s of %s — %s",
@@ -449,6 +459,13 @@ async def reap_stuck_documents(
             max_attempts,
             "re-queued" if row["index_attempts"] < max_attempts else "giving up",
         )
+    # Outside the reap transaction on purpose (review on #118): this sweep
+    # depends on no row or state the transaction produced, and a failure in
+    # it — the overflow above, lock contention with `log_jobs` — must not roll
+    # back a document reap that already succeeded.
+    deleted = await conn.execute(DELETE_ORPHANED_PICKED_ROWS, float(timeout_seconds))
+    if deleted != "DELETE 0":
+        log.info("Reaper cleanup: %s", deleted)
     return len(rows)
 
 
