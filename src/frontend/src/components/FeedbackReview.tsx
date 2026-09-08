@@ -36,6 +36,13 @@ export default function FeedbackReview({ user }: Props) {
     const id = ++requestId.current;
     setLoading(true);
     setError("");
+    // Cleared up front, not only on success: a filter change must drop the
+    // previous filter's rows immediately, so a failed fetch leaves an empty
+    // list under the error banner instead of the old filter's data sitting
+    // there unlabelled. Without this, "Weitere laden" stayed clickable on
+    // that stale total and appended the new filter's page 2 onto it.
+    setItems([]);
+    setTotal(0);
     try {
       const page = await api.listFeedback(helpfulParam, categoryParam, PAGE_SIZE, 0, user.token);
       if (id !== requestId.current) return;
@@ -44,9 +51,11 @@ export default function FeedbackReview({ user }: Props) {
     } catch {
       if (id === requestId.current) setError("Feedback konnte nicht geladen werden. Bitte Seite neu laden.");
     } finally {
-      // Always cleared, staleness notwithstanding: this specific call is done
-      // either way, and nothing else resets loading's spinner for it.
-      setLoading(false);
+      // Guarded like the success branch above: an in-flight newer call owns
+      // clearing the spinner once *it* settles. Without the guard, a stale
+      // call finishing after a newer one started could flip loading off
+      // while that newer request is still running.
+      if (id === requestId.current) setLoading(false);
     }
   }, [helpfulFilter, categoryFilter, user.token]);
 
@@ -66,9 +75,9 @@ export default function FeedbackReview({ user }: Props) {
     } catch {
       if (id === requestId.current) setError("Weiteres Feedback konnte nicht geladen werden. Bitte erneut versuchen.");
     } finally {
-      // Always cleared, staleness notwithstanding: this specific call is done
-      // either way, and nothing else resets loadingMore's spinner for it.
-      setLoadingMore(false);
+      // Same guard as loadFirstPage's finally: only the still-current call
+      // may clear the spinner.
+      if (id === requestId.current) setLoadingMore(false);
     }
   };
 

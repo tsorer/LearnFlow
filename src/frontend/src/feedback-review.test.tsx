@@ -181,6 +181,28 @@ describe("Fehlerfälle beim Laden", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent(/feedback konnte nicht geladen werden/i);
   });
+
+  it("verwirft die alte Liste, wenn der Load nach einem Filterwechsel fehlschlägt", async () => {
+    api.route("get", "/api/feedback", 200, {
+      items: [item({ id: "f-1", comment: "Seite eins" })],
+      total: 2,
+    });
+    await openDashboard();
+    expect(screen.getByText("Seite eins")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /weitere laden/i })).toBeInTheDocument();
+
+    // Der Folge-Load nach dem Filterwechsel scheitert (403 statt 200) — nur
+    // für genau diese Query, die ungefilterte Route bleibt unberührt.
+    api.routeQuery("get", "/api/feedback", { helpful: "false" }, 403, { detail: "Keine Berechtigung" });
+    await userEvent.selectOptions(screen.getByLabelText(/bewertung filtern/i), "false");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/feedback konnte nicht geladen werden/i);
+    // Die Liste des alten Filters darf nicht unter dem Fehler stehen bleiben —
+    // sonst bliebe "Weitere laden" auf ihrem jetzt veralteten total klickbar
+    // und würde die neue Filter-Seite 2 auf die alte Liste anhängen.
+    expect(screen.queryByText("Seite eins")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /weitere laden/i })).not.toBeInTheDocument();
+  });
 });
 
 describe("Zugriffsschutz (AK: nur für knowledge_owner/admin)", () => {
