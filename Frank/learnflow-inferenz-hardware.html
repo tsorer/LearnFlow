@@ -1,0 +1,749 @@
+<title>LearnFlow OnPrem-Inferenz</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&display=swap">
+<style>
+  :root {
+    --ground: #F4F5F7;
+    --surface: #FFFFFF;
+    --sunken: #EAEDF1;
+    --ink: #14171C;
+    --ink-2: #4A525C;
+    --ink-3: #79828D;
+    --rule: #D6DAE0;
+    --rule-strong: #B4BBC4;
+    --accent: #A9620B;
+    --accent-soft: #FAF1E2;
+    --bar-fit: #5C6B7B;
+    --bar-need: #A9620B;
+    --ok: #23684C;
+    --warn: #8E5F07;
+    --crit: #9E2B21;
+
+    --font-display: 'Archivo', 'Helvetica Neue', Arial, sans-serif;
+    --font-body: 'Source Sans 3', 'Segoe UI', system-ui, sans-serif;
+    --font-mono: 'IBM Plex Mono', 'Consolas', ui-monospace, monospace;
+
+    --labelw: 9.5rem;
+    color-scheme: light;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0F1216;
+      --surface: #171B21;
+      --sunken: #1E232B;
+      --ink: #E7EAEF;
+      --ink-2: #A7AFB9;
+      --ink-3: #7A838E;
+      --rule: #2A313A;
+      --rule-strong: #3D4650;
+      --accent: #DFA04A;
+      --accent-soft: #241E15;
+      --bar-fit: #71828F;
+      --bar-need: #DFA04A;
+      --ok: #55A57F;
+      --warn: #D5A542;
+      --crit: #DF6B5F;
+      color-scheme: dark;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #0F1216;
+    --surface: #171B21;
+    --sunken: #1E232B;
+    --ink: #E7EAEF;
+    --ink-2: #A7AFB9;
+    --ink-3: #7A838E;
+    --rule: #2A313A;
+    --rule-strong: #3D4650;
+    --accent: #DFA04A;
+    --accent-soft: #241E15;
+    --bar-fit: #71828F;
+    --bar-need: #DFA04A;
+    --ok: #55A57F;
+    --warn: #D5A542;
+    --crit: #DF6B5F;
+    color-scheme: dark;
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 16.5px;
+    line-height: 1.70;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .doc {
+    max-width: 62rem;
+    margin: 0 auto;
+    padding: 3.5rem 1.5rem 6rem;
+    display: flex;
+    flex-direction: column;
+    gap: 3.25rem;
+  }
+
+  p { margin: 0; }
+  .doc > * { min-width: 0; }
+
+  /* ---------- masthead ---------- */
+
+  .masthead {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding-bottom: 2rem;
+    border-bottom: 2px solid var(--ink);
+  }
+
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  h1 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: clamp(2.1rem, 5.4vw, 3.1rem);
+    line-height: 1.06;
+    letter-spacing: -0.022em;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  .standfirst {
+    font-size: 1.16rem;
+    line-height: 1.5;
+    color: var(--ink-2);
+  }
+
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 2.25rem;
+    margin: 0.5rem 0 0;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+  }
+  .meta div { display: flex; flex-direction: column; gap: 0.1rem; }
+  .meta dt { color: var(--ink-3); letter-spacing: 0.06em; text-transform: uppercase; font-size: 0.68rem; }
+  .meta dd { margin: 0; color: var(--ink); }
+
+  /* ---------- the ask ---------- */
+
+  .ask {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-left: 4px solid var(--accent);
+    padding: 1.75rem 1.9rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+  }
+  .ask h2 { margin: 0; font-family: var(--font-display); font-size: 1.05rem; letter-spacing: 0.02em; }
+  .ask ol { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 0.9rem; counter-reset: ask; }
+  .ask li {
+    position: relative;
+    padding-left: 2.35rem;
+    counter-increment: ask;
+  }
+  .ask li::before {
+    content: counter(ask);
+    position: absolute;
+    left: 0;
+    top: 0.18rem;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--accent);
+  }
+  .ask li strong { font-weight: 600; }
+  .ask li span { color: var(--ink-2); display: block; }
+  .ask-foot {
+    border-top: 1px solid var(--rule);
+    padding-top: 1rem;
+    font-size: 0.94rem;
+    color: var(--ink-2);
+  }
+
+  /* ---------- sections ---------- */
+
+  .sec { display: flex; flex-direction: column; gap: 1.1rem; }
+
+  .sec > h2 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 1.42rem;
+    letter-spacing: -0.012em;
+    margin: 0;
+    display: flex;
+    align-items: baseline;
+    gap: 0.85rem;
+    text-wrap: balance;
+  }
+  .sec > h2 .n {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--ink-3);
+    letter-spacing: 0.06em;
+    flex: none;
+  }
+
+  h3 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 0.94rem;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+    margin: 0.5rem 0 0;
+  }
+
+  /* ---------- callout ---------- */
+
+  .callout {
+    background: var(--accent-soft);
+    border: 1px solid var(--accent);
+    padding: 1.35rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  .callout .lede {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 1.02rem;
+    color: var(--ink);
+  }
+  .callout p { font-size: 0.95rem; color: var(--ink-2); }
+
+  /* ---------- tables ---------- */
+
+  .scroll { overflow-x: auto; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.92rem;
+    min-width: 34rem;
+  }
+  caption {
+    text-align: left;
+    font-size: 0.85rem;
+    color: var(--ink-3);
+    padding-bottom: 0.6rem;
+  }
+  th, td {
+    text-align: left;
+    padding: 0.62rem 0.9rem 0.62rem 0;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+  }
+  th {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    border-bottom: 1px solid var(--rule-strong);
+    white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.spec, td.num {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 0.85rem;
+  }
+  td.rec { color: var(--ink); font-weight: 500; }
+  td.min { color: var(--ink-2); }
+  td.why { color: var(--ink-2); font-size: 0.88rem; }
+  th:first-child, td:first-child { padding-left: 0; }
+  td.key { font-weight: 600; white-space: nowrap; }
+
+  /* ---------- chart ---------- */
+
+  .chart { margin: 0; display: flex; flex-direction: column; gap: 1.1rem; }
+  .chart figcaption { font-size: 0.88rem; color: var(--ink-2); order: 2; }
+
+  .plot { position: relative; padding-left: var(--labelw); }
+  .gridlines { position: absolute; inset: 0 0 1.6rem var(--labelw); pointer-events: none; }
+  .gridlines i {
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 1px;
+    background: var(--rule);
+  }
+  .gridlines i.marker { background: var(--rule-strong); width: 0; border-left: 1px dashed var(--rule-strong); }
+
+  .row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: 2.4rem;
+  }
+  .row .rowlabel {
+    position: absolute;
+    left: calc(-1 * var(--labelw));
+    width: calc(var(--labelw) - 0.9rem);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--ink);
+    line-height: 1.25;
+  }
+  .row .rowlabel em { display: block; font-style: normal; font-size: 0.68rem; color: var(--ink-3); }
+  .row .bar { height: 0.85rem; background: var(--bar-fit); }
+  .row .bar.need { background: var(--bar-need); }
+  .row .val {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 0.76rem;
+    color: var(--ink-2);
+    padding-left: 0.55rem;
+    white-space: nowrap;
+  }
+
+  .axis { position: relative; height: 1.6rem; border-top: 1px solid var(--rule-strong); }
+  .axis span {
+    position: absolute;
+    top: 0.35rem;
+    transform: translateX(-50%);
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 0.7rem;
+    color: var(--ink-3);
+  }
+  .axis span.first { transform: translateX(0); }
+  .marklabels { position: relative; height: 1.15rem; margin-left: var(--labelw); }
+  .marklabels span {
+    position: absolute;
+    transform: translateX(-50%);
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.04em;
+    color: var(--ink-2);
+    white-space: nowrap;
+  }
+  .legend { display: flex; flex-wrap: wrap; gap: 1.25rem; font-size: 0.78rem; color: var(--ink-2); }
+  .legend b { display: inline-flex; align-items: center; gap: 0.45rem; font-weight: 400; }
+  .legend b::before { content: ""; width: 0.85rem; height: 0.85rem; background: var(--bar-fit); flex: none; }
+  .legend b.need::before { background: var(--bar-need); }
+
+  /* ---------- lists ---------- */
+
+  ul.plain { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 0.7rem; }
+  ul.plain li { position: relative; padding-left: 1.65rem; color: var(--ink-2); }
+  ul.plain li::before { content: "—"; position: absolute; left: 0; top: 0; color: var(--ink-3); font-family: var(--font-mono); font-size: 0.8rem; }
+  ul.plain li strong { color: var(--ink); font-weight: 600; }
+
+  ul.no { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 0.55rem; }
+  ul.no li {
+    position: relative;
+    padding-left: 1.9rem;
+    color: var(--ink-2);
+    font-size: 0.95rem;
+  }
+  ul.no li::before { content: "×"; position: absolute; left: 0; top: 0; color: var(--crit); font-family: var(--font-mono); font-weight: 600; }
+  ul.no li strong { color: var(--ink); font-weight: 600; }
+
+  ol.questions { margin: 0; padding: 0; list-style: none; counter-reset: q; display: flex; flex-direction: column; gap: 1.15rem; }
+  ol.questions li {
+    counter-increment: q;
+    position: relative;
+    border-top: 1px solid var(--rule);
+    padding: 0.9rem 0 0 2.7rem;
+  }
+  ol.questions li::before {
+    content: "F" counter(q);
+    position: absolute;
+    left: 0;
+    top: 1.15rem;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--accent);
+  }
+  ol.questions strong { display: block; font-weight: 600; color: var(--ink); }
+  ol.questions span { color: var(--ink-2); font-size: 0.94rem; }
+
+  code {
+    font-family: var(--font-mono);
+    font-size: 0.86em;
+    background: var(--sunken);
+    padding: 0.1em 0.36em;
+    color: var(--ink);
+  }
+
+  .foot {
+    border-top: 1px solid var(--rule);
+    padding-top: 1.4rem;
+    font-size: 0.85rem;
+    color: var(--ink-3);
+  }
+
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  @media (max-width: 33rem) {
+    :root { --labelw: 0rem; }
+    .plot { padding-left: 0; padding-top: 0; }
+    .gridlines { inset: 0 0 1.6rem 0; }
+    .row { height: auto; flex-direction: column; align-items: flex-start; gap: 0.2rem; padding: 0.55rem 0; }
+    .row .rowlabel { position: static; left: auto; width: auto; }
+    .marklabels { margin-left: 0; }
+  }
+</style>
+
+<div class="doc">
+
+  <header class="masthead">
+    <p class="eyebrow">Entscheidungsvorlage · IT-Beschaffung</p>
+    <h1>Eigene Inferenz-Hardware für LearnFlow</h1>
+    <p class="standfirst">Was ein Server leisten muss, damit der LearnFlow-Prototyp ohne OpenAI
+    läuft — und unter welcher Bedingung sich die Anschaffung überhaupt rechtfertigen lässt.</p>
+    <dl class="meta">
+      <div><dt>Datum</dt><dd>7. September 2026</dd></div>
+      <div><dt>Verfasser</dt><dd>Frank Moritz</dd></div>
+      <div><dt>Bezug</dt><dd>ADR-004, ADR-005</dd></div>
+      <div><dt>Status</dt><dd>Entwurf zur Diskussion</dd></div>
+    </dl>
+  </header>
+
+  <section class="ask">
+    <h2>Der Antrag</h2>
+    <ol>
+      <li><strong>Ein GPU-Server für die Inferenz.</strong><span>NVIDIA L40S mit 48 GB VRAM, 16
+      Kerne, 128 GB RAM, 2 HE. Betreibt das Sprachmodell und das Embedding-Modell.</span></li>
+      <li><strong>Eine VM auf bestehender Virtualisierung für Applikation und
+      Datenbank.</strong><span>8 vCPU, 32 GB RAM, 1 TB, tägliches Backup. Kein zusätzliches Blech nötig.</span></li>
+      <li><strong>Kein zweiter GPU-Server.</strong><span>Ausfallsicherheit ist für einen Piloten mit
+      unter 30 Nutzern nicht zu rechtfertigen. Fällt der Knoten aus, pausiert der Pilot.</span></li>
+    </ol>
+    <p class="ask-foot"><strong>Vorgeschlagener erster Schritt:</strong> ein bis zwei Monate eine
+    GPU-Instanz in einer EU-Region mieten, statt sofort zu kaufen. Damit ist beantwortet, ob ein
+    lokales Modell die Antwortqualität überhaupt trägt — bevor Investitionsbudget gebunden wird. Siehe Abschnitt 8.</p>
+  </section>
+
+  <section class="sec">
+    <h2><span class="n">01</span>Die Bedingung, die vor der Hardware kommt</h2>
+    <p>Der Architekturentscheid ADR-004 legt für den Produktivbetrieb <strong>Azure OpenAI
+    EU</strong> fest — EU-Datenresidenz, abrechenbar über das bestehende Azure-Enterprise-Agreement,
+    kein Server nötig. Eigener Betrieb ist dort ausdrücklich nur für Deployments vorgesehen, „in
+    denen Daten die eigene Infrastruktur gar nicht verlassen dürfen".</p>
+    <div class="callout">
+      <p class="lede">Dieser Antrag trägt nur, wenn genau diese Anforderung bestätigt ist. Als
+      Kostenargument trägt er nicht.</p>
+      <p>Der Pilotbetrieb über Azure OpenAI EU kostet nach überschlägiger Rechnung 15–40 CHF pro
+      Monat. Ein L40S-Server kostet 20 000–28 000 CHF plus Strom und Betriebsaufwand. Eine
+      Amortisation gibt es in diesem Nutzungsprofil nicht — auch nicht über die Laufzeit des Piloten
+      hinaus. Der einzige belastbare Grund für eigene Hardware ist Datenhoheit.</p>
+    </div>
+    <p>Vor dem Beschaffungsgespräch sollte deshalb geklärt sein, wer diese Anforderung stellt und ob
+    sie für den Pilotkorpus tatsächlich gilt. Fällt die Antwort negativ aus, ist Azure OpenAI EU der
+    schnellere und günstigere Weg und dieses Dokument gegenstandslos.</p>
+  </section>
+
+  <section class="sec">
+    <h2><span class="n">02</span>Lastprofil: was die Pipeline pro Anfrage verlangt</h2>
+    <p>Die Zahlen stammen aus der laufenden Implementierung, nicht aus einer Schätzung. Sie
+    bestimmen die Hardware-Anforderung vollständig.</p>
+    <div class="scroll">
+      <table>
+        <caption>Ermittelt aus der Retrieval- und Generierungskonfiguration des Prototyps.</caption>
+        <thead>
+          <tr><th scope="col">Grösse</th><th scope="col">Wert</th><th scope="col">Herkunft</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="key">Kontext je Antwort</td><td class="spec">5 Abschnitte × 512
+          Token</td><td class="why">Retrieval-Konfiguration, ADR-007</td></tr>
+          <tr><td class="key">Prompt Generierung</td><td class="spec">~3 000
+          Token</td><td class="why">Kontext plus System-Prompt</td></tr>
+          <tr><td class="key">Prompt Selbstprüfung</td><td class="spec">~3 300
+          Token</td><td class="why">derselbe Kontext plus erzeugte Antwort</td></tr>
+          <tr><td class="key">Antwortlänge</td><td class="spec">200–400 Token, max.
+          800</td><td class="why">Obergrenze in der Generierung gesetzt</td></tr>
+          <tr><td class="key">Modellaufrufe je
+          Frage</td><td class="spec">1–2</td><td class="why">zweiter Aufruf nur im Grenzband, ADR-008</td></tr>
+          <tr><td class="key">Zeitbudget</td><td class="spec">p95 ≤ 10
+          s</td><td class="why">Performance-Anforderung; heute 4,53 s gemessen</td></tr>
+          <tr><td class="key">Nutzer</td><td class="spec">&lt; 30, davon ~5
+          gleichzeitig</td><td class="why">Pilotumfang, Lastannahme im Perf-Test</td></tr>
+          <tr><td class="key">Indexierung</td><td class="spec">Dokument ≤ 5 min nach Upload
+          verfügbar</td><td class="why">Performance-Anforderung, Embedding im Hintergrund</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Daraus folgen zwei Kennzahlen. Erstens rund <strong>50 Token pro Sekunde
+    Generierungstempo</strong>, damit eine Antwort in etwa sechs Sekunden steht. Zweitens — und das
+    wird meist übersehen — rund <strong>1 500 Token pro Sekunde beim Einlesen des Kontexts</strong>.
+    Bei einem Chatbot ohne Kontext ist dieser zweite Wert belanglos, bei einem RAG-System mit 3 000
+    Token Kontext bestimmt er die Wartezeit bis zum ersten Wort. Das Einlesen ist rechenlimitiert,
+    das Generieren speicherbandbreitenlimitiert; beides zusammen schliesst reine CPU-Server aus.</p>
+  </section>
+
+  <section class="sec">
+    <h2><span class="n">03</span>Server A — Inferenz</h2>
+    <div class="scroll">
+      <table>
+        <caption>Die Minimalspalte läuft, die empfohlene Spalte lässt Spielraum bei der Modellwahl.</caption>
+        <thead>
+          <tr><th scope="col">Komponente</th><th scope="col">Minimal</th><th scope="col">Empfohlen</th><th scope="col">Begründung</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="key">GPU</td><td class="spec min">1 × NVIDIA L4<br>24 GB, 72
+          W</td><td class="spec rec">1 × NVIDIA L40S<br>48 GB, 350 W</td><td class="why">VRAM
+          begrenzt die Modellgrösse und damit die Antwortqualität — siehe Abschnitt 5</td></tr>
+          <tr><td class="key">Speicherbandbreite GPU</td><td class="spec min">~300
+          GB/s</td><td class="spec rec">~864 GB/s</td><td class="why">bestimmt das Generierungstempo
+          nahezu allein</td></tr>
+          <tr><td class="key">CPU</td><td class="spec min">8 Kerne</td><td class="spec rec">16
+          Kerne</td><td class="why">Inferenz läuft auf der GPU; Kerne für die Anfrage-Vorverarbeitung — und für
+          Datenbank und PDF-Verarbeitung, falls Server B entfällt</td></tr>
+          <tr><td class="key">RAM</td><td class="spec min">64 GB</td><td class="spec rec">128
+          GB</td><td class="why">Host-seitige Puffer beim Laden des Modells, Faustregel 1,5–2 × VRAM. 64 GB
+          genügen; 128 GB sind Reserve, keine Voraussetzung</td></tr>
+          <tr><td class="key">Storage</td><td class="spec min">1 TB NVMe</td><td class="spec rec">2
+          × 1,92 TB NVMe, RAID 1</td><td class="why">Modelldateien 50–100 GB, Datenbank, lokale Sicherung</td></tr>
+          <tr><td class="key">Netzwerk</td><td class="spec min">1 GbE</td><td class="spec rec">2 ×
+          10 GbE</td><td class="why">1 GbE genügt fachlich; keine verteilte Inferenz</td></tr>
+          <tr><td class="key">Betriebssystem</td><td class="spec min" colspan="2">Ubuntu Server
+          24.04 LTS</td><td class="why">NVIDIA-Datacenter-Treiber und Container-Toolkit vorausgesetzt</td></tr>
+          <tr><td class="key">Bauform</td><td class="spec min" colspan="2">2 HE,
+          GPU-tauglich</td><td class="why">Einbaulänge, Stromanschlüsse und Luftführung für eine 350-W-Karte</td></tr>
+          <tr><td class="key">Leistungsaufnahme</td><td class="spec min">~500 W
+          Spitze</td><td class="spec rec">~1 000 W Spitze</td><td class="why">für Rack-Strombudget
+          und Kühlung einzuplanen</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout">
+      <p class="lede">Zu erwartender Einwand: eine GeForce RTX 4090 kostet ein Drittel und ist schneller.</p>
+      <p>Stimmt technisch, ist aber im Rechenzentrum keine Option: NVIDIAs Treiberlizenz schränkt
+      den Rechenzentrumseinsatz von GeForce-Karten ein, und die Serverhersteller verbauen und
+      supporten sie nicht. Deshalb L4 oder L40S — das sind die Karten, die in einem gewarteten
+      Rackserver überhaupt bestellbar sind.</p>
+    </div>
+  </section>
+
+  <section class="sec">
+    <h2><span class="n">04</span>Server B — Applikation und Datenbank</h2>
+    <p>Das ist der kleinere Teil des Antrags und braucht kein eigenes Gerät: eine VM auf bestehender
+    Virtualisierung genügt. Sie trägt die vier Anwendungscontainer (Weboberfläche, API,
+    Hintergrund-Worker, PostgreSQL) und spricht den Inferenz-Server über das Netz an — exakt die
+    Rolle, die heute der externe Anbieter ausfüllt.</p>
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr><th scope="col">Komponente</th><th scope="col">Anforderung</th><th scope="col">Begründung</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="key">vCPU</td><td class="spec">8</td><td class="why">PDF-Verarbeitung beim
+          Upload, sonst wenig Last</td></tr>
+          <tr><td class="key">RAM</td><td class="spec">32 GB</td><td class="why">PostgreSQL mit
+          Vektorindex im Arbeitsspeicher</td></tr>
+          <tr><td class="key">Storage</td><td class="spec">1 TB SSD</td><td class="why">Dokumente
+          liegen in der Datenbank, nicht im Dateisystem</td></tr>
+          <tr><td class="key">Backup</td><td class="spec">täglich,
+          Datenbank-Volume</td><td class="why">weil die Dokumente in der Datenbank liegen, ist das
+          Datenbank-Backup zugleich das Dokumenten-Backup</td></tr>
+          <tr><td class="key">Software</td><td class="spec">Docker Engine +
+          Compose</td><td class="why">der Stack läuft heute unverändert so</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Alternativ läuft alles auf Server A allein. Die Trennung ist trotzdem sinnvoll: der
+    GPU-Knoten ist die teure, knappe Ressource und liesse sich so später von weiteren Projekten
+    mitnutzen, ohne dass Datenbank-Wartung und Inferenz sich gegenseitig blockieren.</p>
+  </section>
+
+  <section class="sec">
+    <h2><span class="n">05</span>Warum 48 GB VRAM und nicht 24</h2>
+    <p>Der Grafikspeicher entscheidet, welches Modell überhaupt läuft — und die Modellgrösse
+    entscheidet über die Antwortqualität. Das ist der eine Punkt, an dem eine sparsamere Beschaffung
+    später nicht mehr korrigierbar ist, ohne die Karte zu tauschen.</p>
+
+    <figure class="chart">
+      <div class="plot">
+        <div class="gridlines" aria-hidden="true">
+          <i style="left: 23.1%"></i>
+          <i style="left: 69.2%"></i>
+          <i class="marker" style="left: 46.2%"></i>
+          <i class="marker" style="left: 92.3%"></i>
+        </div>
+
+        <div class="row">
+          <span class="rowlabel">8B<em>Llama 3.1</em></span>
+          <span class="bar" style="width: 17.3%"></span>
+          <span class="val">9 GB</span>
+        </div>
+        <div class="row">
+          <span class="rowlabel">14B<em>Qwen 2.5</em></span>
+          <span class="bar" style="width: 25.0%"></span>
+          <span class="val">13 GB</span>
+        </div>
+        <div class="row">
+          <span class="rowlabel">24B<em>Mistral Small</em></span>
+          <span class="bar" style="width: 38.5%"></span>
+          <span class="val">20 GB</span>
+        </div>
+        <div class="row">
+          <span class="rowlabel">32B<em>Qwen 3</em></span>
+          <span class="bar need" style="width: 50.0%"></span>
+          <span class="val">26 GB</span>
+        </div>
+
+        <div class="axis">
+          <span class="first" style="left: 0%">0</span>
+          <span style="left: 23.1%">12</span>
+          <span style="left: 46.2%">24</span>
+          <span style="left: 69.2%">36</span>
+          <span style="left: 92.3%">48 GB</span>
+        </div>
+      </div>
+      <div class="marklabels">
+        <span style="left: 46.2%">L4 · 24 GB</span>
+        <span style="left: 92.3%">L40S · 48 GB</span>
+      </div>
+      <div class="legend">
+        <b>passt auf eine L4 (24 GB)</b>
+        <b class="need">braucht eine L40S (48 GB)</b>
+      </div>
+      <figcaption>Speicherbedarf je Modellklasse: Gewichte in 4-Bit-Quantisierung, zuzüglich
+      Zwischenspeicher für fünf gleichzeitige Anfragen und das dauerhaft mitgeladene
+      Embedding-Modell. Richtwerte, keine Herstellerangaben.</figcaption>
+    </figure>
+
+    <p>Zwei Konsequenzen aus dem Bild. Erstens: mit 24 GB endet die Auswahl praktisch bei
+    24B-Modellen, und zwar knapp — jede spätere Verbesserung ginge nur noch über neue Hardware. Mit
+    48 GB ist die 32B-Klasse abgedeckt, die qualitativ am nächsten an das heute genutzte
+    <code>gpt-4o-mini</code> herankommt, und es bleibt Reserve für mehr Parallelität.</p>
+    <p>Zweitens, und praktisch unmittelbar spürbar: das Embedding-Modell muss <em>gleichzeitig</em>
+    geladen bleiben. Jede Frage braucht erst ein Embedding und dann eine Generierung. Reicht der
+    Speicher nicht für beide, tauscht der Inferenz-Server bei jeder einzelnen Anfrage die Modelle
+    aus — mehrere Sekunden, jedes Mal. Ein Server, der auf dem Papier passt, wird dadurch im Betrieb unbrauchbar.</p>
+  </section>
+
+  <section class="sec">
+    <h2><span class="n">06</span>Software und Betrieb</h2>
+    <h3>Was auf den Servern läuft</h3>
+    <ul class="plain">
+      <li><strong>Inferenz-Server:</strong> vLLM als Container, mit OpenAI-kompatibler
+      Schnittstelle. Für mehrere gleichzeitige Nutzer deutlich effizienter als Ollama, weil Anfragen
+      gebündelt verarbeitet werden. Ollama bleibt für die Entwicklung auf dem Notebook.</li>
+      <li><strong>Anwendung:</strong> die vier bestehenden Container, unverändert.</li>
+      <li><strong>Anbindung:</strong> eine Konfigurationszeile — die Anwendung spricht bereits heute
+      über eine Provider-Abstraktion (ADR-004). Kein Code-Change, keine neue Schnittstelle.</li>
+    </ul>
+    <h3>Was die IT dauerhaft übernimmt</h3>
+    <ul class="plain">
+      <li>Betriebssystem, GPU-Treiber und Container-Toolkit patchen — der Treiber ist die einzige
+      Komponente, die hier mehr Pflege verlangt als ein normaler Linux-Server.</li>
+      <li>Tägliche Sicherung des Datenbank-Volumes und ein geprüfter Rückspielweg.</li>
+      <li>Überwachung: GPU-Auslastung und -Temperatur; die Container melden ihren Zustand bereits selbst.</li>
+      <li>Modell-Updates — fachlich, nicht sicherheitskritisch: ein neues Modell wird erst nach
+      einem Qualitätslauf übernommen.</li>
+    </ul>
+    <h3>Was ausdrücklich nicht gebraucht wird</h3>
+    <ul class="no">
+      <li><strong>Kein Kubernetes.</strong> Der Stack ist bewusst ein modularer Monolith auf Docker
+      Compose (ADR-001).</li>
+      <li><strong>Keine Mehr-GPU-Konfiguration</strong>, kein NVLink, kein InfiniBand. Das Modell
+      passt auf eine Karte.</li>
+      <li><strong>Keine Trainings-Infrastruktur.</strong> Es wird ausschliesslich Inferenz
+      betrieben, nichts trainiert oder feinjustiert.</li>
+      <li><strong>Kein DGX- oder HGX-System.</strong> Solche Angebote lösen ein Problem, das dieser
+      Pilot nicht hat.</li>
+      <li><strong>Kein Redis oder Message-Broker.</strong> Die Warteschlange liegt in PostgreSQL (ADR-006).</li>
+      <li><strong>Keine Hochverfügbarkeit</strong> für die Pilotphase.</li>
+    </ul>
+  </section>
+
+  <section class="sec">
+    <h2><span class="n">07</span>Kosten — Grössenordnungen</h2>
+    <div class="scroll">
+      <table>
+        <caption>Richtwerte zur Einordnung. Verbindliche Zahlen liefern Offerten; Preise für
+        GPU-Karten schwanken erheblich.</caption>
+        <thead>
+          <tr><th scope="col">Position</th><th scope="col">Grössenordnung</th><th scope="col">Art</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="key">Server mit 1 × L40S (48 GB)</td><td class="num">20 000 – 28 000
+          CHF</td><td class="why">einmalig</td></tr>
+          <tr><td class="key">Server mit 1 × L4 (24 GB)</td><td class="num">10 000 – 14 000
+          CHF</td><td class="why">einmalig, Minimalvariante</td></tr>
+          <tr><td class="key">Applikations-VM</td><td class="num">bestehende
+          Kapazität</td><td class="why">keine Zusatzbeschaffung</td></tr>
+          <tr><td class="key">Strom und Kühlung</td><td class="num">1 000 – 1 500 CHF /
+          Jahr</td><td class="why">laufend, bei ~600 W Dauerlast</td></tr>
+          <tr><td class="key">Gemietete GPU-Instanz (EU)</td><td class="num">700 – 1 200 CHF /
+          Monat</td><td class="why">laufend, als Vorabklärung</td></tr>
+          <tr><td class="key">Vergleich: Azure OpenAI EU</td><td class="num">15 – 40 CHF /
+          Monat</td><td class="why">laufend, im Pilotumfang</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Die letzte Zeile ist der Grund, warum Abschnitt 1 vor allen technischen Abschnitten steht.
+    Die Beschaffung ist nur mit Datenhoheit begründbar, nicht mit Betriebskosten — und sie so zu
+    begründen, hält im Gespräch keine fünf Minuten.</p>
+  </section>
+
+  <section class="sec">
+    <h2><span class="n">08</span>Was ich nicht zusichern kann</h2>
+    <p>Vier Punkte, die im Beschaffungsgespräch offen bleiben und die ich lieber selbst nenne, als
+    sie später zu erklären.</p>
+    <ul class="plain">
+      <li><strong>Antwortqualität.</strong> Kein lokales Modell wurde bisher gegen den Prüfdatensatz
+      gemessen. Das System ist bewusst fehlerabweisend gebaut: hält ein Modell die geforderten
+      Antwortformate nicht ein, liefert es keine schlechteren Antworten, sondern unterdrückt sie.
+      Eine Zusage ist erst nach einem Qualitätslauf möglich.</li>
+      <li><strong>Antwortzeit.</strong> Die Anforderung von 10 Sekunden im 95. Perzentil ist mit
+      einem 32B-Modell bei fünf gleichzeitigen Nutzern knapp. Ob sie hält, ist eine Messung — mit
+      kleineren Modellen klar erreichbar, mit den grössten nicht garantiert.</li>
+      <li><strong>Einmalige Datenmigration.</strong> Lokale Embedding-Modelle erzeugen 1 024 statt 1
+      536 Dimensionen. Der Umstieg erfordert eine Schema-Änderung und eine vollständige
+      Neuindexierung des Korpus — ein geplanter Betriebsvorgang, in ADR-005 bereits so vorgesehen,
+      aber kein Nebenbei-Schritt.</li>
+      <li><strong>Betriebsverantwortung.</strong> Beim externen Anbieter kümmert sich niemand von
+      uns um Verfügbarkeit. Beim eigenen Server muss geklärt sein, wer Treiber patcht, Backups prüft
+      und im Störungsfall zuständig ist. Ein Herstellersupport für die Antwortqualität eines Modells
+      existiert nicht.</li>
+    </ul>
+    <div class="callout">
+      <p class="lede">Deshalb der Vorschlag, vor dem Kauf zu mieten.</p>
+      <p>Ein bis zwei Monate auf einer gemieteten GPU-Instanz in einer EU-Region beantworten die
+      ersten beiden Punkte mit Messwerten statt mit Annahmen — zu Kosten im niedrigen vierstelligen
+      Bereich und ohne gebundenes Investitionsbudget. Fällt die Qualität durch, ist das ein
+      verwertbares Ergebnis und kein abgeschriebener Server.</p>
+    </div>
+  </section>
+
+  <section class="sec">
+    <h2><span class="n">09</span>Entscheidungsfragen an die IT</h2>
+    <ol class="questions">
+      <li><strong>Ist die Anforderung bestätigt, dass die Dokumente die eigene Infrastruktur nicht
+      verlassen dürfen?</strong><span>Wenn nein: Azure OpenAI EU, keine Beschaffung. Diese Frage
+      entscheidet alle folgenden.</span></li>
+      <li><strong>L4 mit 24 GB oder L40S mit 48 GB?</strong><span>Empfehlung L40S. Die Differenz von
+      rund 12 000 CHF kauft die Modellklasse, die qualitativ an den heutigen Stand heranreicht — und
+      die Möglichkeit, später ohne neue Hardware nachzubessern.</span></li>
+      <li><strong>Wird vor der Beschaffung eine gemietete GPU-Instanz genehmigt?</strong><span>Ein
+      bis zwei Monate, um die Qualitäts- und Zeitfrage zu klären, bevor Investitionsbudget gebunden wird.</span></li>
+      <li><strong>Wer betreibt den Knoten?</strong><span>Betriebssystem, GPU-Treiber, Backup und
+      Zuständigkeit im Störungsfall — zu klären, bevor bestellt wird, nicht danach.</span></li>
+      <li><strong>Soll der GPU-Knoten für weitere Projekte offenstehen?</strong><span>Falls ja,
+      ändert das die Auslegung: mehr VRAM und eine Regelung, wer bei knapper Kapazität Vorrang hat.</span></li>
+    </ol>
+  </section>
+
+  <p class="foot">Zahlen zum Lastprofil stammen aus der Implementierung des Prototyps;
+  Hardware-Kennwerte und Preise sind Richtwerte zur Einordnung und ersetzen keine Offerte. Modell-
+  und Speicherangaben beziehen sich auf 4-Bit-quantisierte Gewichte und können sich mit neuen
+  Modellständen verschieben.</p>
+
+</div>
