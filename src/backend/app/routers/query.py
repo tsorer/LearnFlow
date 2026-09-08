@@ -30,6 +30,7 @@ from app.models.tables import Answer, QuerySession, User
 from app.routers.documents import PILOT_AREA
 from app.services.confidence import (
     BAND_LOW,
+    SCORE_DIGITS,
     WEIGHT_CITATION_COVERAGE,
     WEIGHT_EVIDENCE_DENSITY,
     WEIGHT_MEAN_SCORE,
@@ -53,7 +54,13 @@ from app.services.config import (
     read_query_config,
 )
 from app.services.generation import GenerationResult, generate_answer
-from app.services.retrieval import RANK_ABSENT, RetrievalHit, RetrievalOutcome, retrieve
+from app.services.retrieval import (
+    RANK_ABSENT,
+    RRF_SCORE_DIGITS,
+    RetrievalHit,
+    RetrievalOutcome,
+    retrieve,
+)
 from app.services.self_check import (
     VERDICT_COVERED,
     VERDICT_UNCOVERED,
@@ -226,6 +233,20 @@ class ConfidenceInfo(BaseModel):
 
 
 class ChunkDebugInfo(BaseModel):
+    """One fused candidate, exactly as `fuse()` left it.
+
+    Every field is copied from the `RetrievalHit`; nothing here is recomputed.
+    `dense_rank`/`sparse_rank`/`rrf_score` travel together because they are the
+    three values that produce the order of this list — showing the order without
+    them made a correctly ranked sparse hit look like a bug (T-54).
+
+    `chunk_id` and `document_id` cost nothing to carry and are what a view needs
+    to link a row to something else: `chunk_id` is the same value as
+    `Citation.chunk_id`, `document_id` is what the document viewer (T-21) opens.
+    """
+
+    chunk_id: uuid.UUID
+    document_id: uuid.UUID
     filename: str
     page: int | None
     heading: str | None
@@ -233,6 +254,8 @@ class ChunkDebugInfo(BaseModel):
     above_threshold: bool
     in_top_n: bool
     dense_rank: int
+    sparse_rank: int
+    rrf_score: float
     content: str
 
 
@@ -766,13 +789,19 @@ def _to_debug(
     return DebugInfo(
         chunks=[
             ChunkDebugInfo(
+                chunk_id=hit.chunk_id,
+                document_id=hit.document_id,
                 filename=hit.filename,
                 page=hit.page,
                 heading=hit.heading,
-                score=round(hit.score, 4),
+                score=round(hit.score, SCORE_DIGITS),
                 above_threshold=hit.score >= config.similarity_threshold,
                 in_top_n=hit.chunk_id in context_ids,
                 dense_rank=hit.dense_rank,
+                sparse_rank=hit.sparse_rank,
+                # Six digits, not the four a similarity gets — the reasoning
+                # sits with the constant, in app/services/retrieval.py.
+                rrf_score=round(hit.rrf_score, RRF_SCORE_DIGITS),
                 content=hit.content,
             )
             for hit in outcome.candidates
