@@ -19,6 +19,8 @@ export type ChunkDebugInfo = Schemas["ChunkDebugInfo"];
 export type StageInfo = Schemas["StageInfo"];
 export type LLMCallInfo = Schemas["LLMCallInfo"];
 export type DocumentResponse = Schemas["DocumentResponse"];
+export type DocumentContent = Schemas["DocumentContent"];
+export type DocumentContentChunk = Schemas["DocumentContentChunk"];
 export type QuizQuestion = Schemas["QuizQuestion"];
 export type QuizQuestionStatus = Schemas["QuizQuestionStatus"];
 export type QuizQuestionPage = Schemas["QuizQuestionPage"];
@@ -170,6 +172,21 @@ export const api = {
     });
     return { document: unwrap(result), replaced: result.response.status === 200 };
   },
+
+  // `around` (Pflicht): das Kontextfenster ist auf den zitierten Chunk begrenzt,
+  // nicht das ganze Dokument (T-21) — der Rest hat dem Retrieval-Gate für diese
+  // Frage nie genügt.
+  getDocumentContent: async (
+    documentId: string,
+    around: string,
+    token: string,
+  ): Promise<DocumentContent> =>
+    unwrap(
+      await client.GET("/api/documents/{document_id}/content", {
+        headers: auth(token),
+        params: { path: { document_id: documentId }, query: { around } },
+      }),
+    ),
 
   deleteDocument: async (id: string, token: string): Promise<void> => {
     unwrap(
