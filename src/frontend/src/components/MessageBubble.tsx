@@ -91,10 +91,10 @@ function pct(v: number) { return `${Math.round(v * 100)}%`; }
 // chunk" — RANK_ABSENT in app/services/retrieval.py, a sentinel that cannot
 // collide because real ranks start at 1. It must not render as "#0", which
 // reads like a rank rather than like an absence (T-54).
-const RANK_ABSENT = 0;
+export const RANK_ABSENT = 0;
 const rankLabel = (rank: number) => (rank === RANK_ABSENT ? "—" : String(rank));
 
-// Digits the backend rounds `rrf_score` to — see the constant it mirrors in
+// Digits the backend rounds `rrf_score` to — RRF_SCORE_DIGITS in
 // app/services/retrieval.py. Rendering fewer than it sends would undo that
 // rounding's whole purpose, so the two are one decision kept in two files.
 const RRF_DIGITS = 6;
@@ -143,6 +143,11 @@ const COL_BADGE: CSSProperties = { width: 28, textAlign: "center", flexShrink: 0
 const COL_CARET: CSSProperties = { width: 8, fontSize: 9, flexShrink: 0, color: "var(--muted)" };
 
 const CHUNK_ROW: CSSProperties = { display: "flex", alignItems: "center", gap: 6 };
+
+// The definition list inside an expanded row. Module level for the same reason
+// as the column widths above: one object, not one per render per chunk.
+const CHUNK_TERM: CSSProperties    = { width: 62, flexShrink: 0, color: "var(--muted)", fontWeight: 700 };
+const CHUNK_DEF_ROW: CSSProperties = { display: "flex", gap: 8, fontSize: 10 };
 
 const COLUMN_LABEL: CSSProperties = {
   fontSize: 8, fontWeight: 700, letterSpacing: "0.05em",
@@ -229,7 +234,11 @@ function ChunkBar({ chunk, threshold, rrfK }: { chunk: ChunkDebugInfo; threshold
   // ordering is something an admin can check.
   const ranks = [foundDense ? chunk.dense_rank : null, foundSparse ? chunk.sparse_rank : null]
     .filter((rank): rank is number => rank !== null);
-  const rrfFormula = rrfK !== null && ranks.length > 0
+  //
+  // No empty-`ranks` case to handle: `fuse()` builds its candidates from the
+  // union of the two result sets, so every chunk that reaches this component
+  // was found by at least one search and contributes at least one term.
+  const rrfFormula = rrfK !== null
     ? `${ranks.map(rank => `1/(${rrfK}+${rank})`).join(" + ")} = ${chunk.rrf_score}`
     : String(chunk.rrf_score);
 
@@ -251,9 +260,6 @@ function ChunkBar({ chunk, threshold, rrfK }: { chunk: ChunkDebugInfo; threshold
       // either way, and the expanded row shows both numbers to tell them apart.
       ? "Über der Schwelle, aber nicht im Kontext: andere Chunks stehen im RRF-Ranking vor ihm."
       : null;
-
-  const term: CSSProperties = { width: 62, flexShrink: 0, color: "var(--muted)", fontWeight: 700 };
-  const defRow: CSSProperties = { display: "flex", gap: 8, fontSize: 10 };
 
   return (
     <div style={{ marginBottom: 5 }}>
@@ -289,18 +295,18 @@ function ChunkBar({ chunk, threshold, rrfK }: { chunk: ChunkDebugInfo; threshold
             background: "var(--amber-lt)", border: "1px solid var(--amber)", borderRadius: 6,
             padding: "8px 10px", display: "flex", flexDirection: "column", gap: 3,
           }}>
-            <div style={defRow}>
-              <span style={term}>Herkunft</span>
+            <div style={CHUNK_DEF_ROW}>
+              <span style={CHUNK_TERM}>Herkunft</span>
               <span style={{ color: "var(--navy)" }}>
                 Dense {foundDense ? chunk.dense_rank : "— nicht gefunden"} · Sparse {foundSparse ? chunk.sparse_rank : "— nicht gefunden"}
               </span>
             </div>
-            <div style={defRow}>
-              <span style={term}>RRF</span>
+            <div style={CHUNK_DEF_ROW}>
+              <span style={CHUNK_TERM}>RRF</span>
               <span style={{ color: "var(--navy)", fontFamily: "monospace" }}>{rrfFormula}</span>
             </div>
-            <div style={defRow}>
-              <span style={term}>Cosine</span>
+            <div style={CHUNK_DEF_ROW}>
+              <span style={CHUNK_TERM}>Cosine</span>
               <span style={{ color }}>
                 {chunk.score} — {chunk.above_threshold ? "über" : "unter"} Schwelle {threshold}
               </span>

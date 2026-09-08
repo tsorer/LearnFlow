@@ -34,6 +34,16 @@ logger = logging.getLogger(__name__)
 # DebugInfo.dense_rank is a required non-nullable integer in the spec.
 RANK_ABSENT = 0
 
+# Digits `rrf_score` is rounded to before it leaves the backend. Six, not the
+# four `SCORE_DIGITS` gives a similarity: the gap between consecutive RRF values
+# is ~1/(rrf_k + rank)^2, which at the default top_k of 20 is still visible at
+# four digits but falls below it around rank 40. `retrieval_top_k` goes to 100
+# in the admin panel, so four digits would silently collapse the tail of a
+# widened candidate list onto one value -- and telling the ranks apart is the
+# whole point of showing the score (T-54). RRF_DIGITS in MessageBubble.tsx
+# renders what this produces; the two have to stay in step.
+RRF_SCORE_DIGITS = 6
+
 # A tsquery of ten content terms already covers the searchable part of a
 # question; beyond that the remaining words are filler that only costs index
 # time. Counted *after* the stop words are removed — see STOP_WORDS.

@@ -30,6 +30,7 @@ from app.models.tables import Answer, QuerySession, User
 from app.routers.documents import PILOT_AREA
 from app.services.confidence import (
     BAND_LOW,
+    SCORE_DIGITS,
     WEIGHT_CITATION_COVERAGE,
     WEIGHT_EVIDENCE_DENSITY,
     WEIGHT_MEAN_SCORE,
@@ -53,7 +54,13 @@ from app.services.config import (
     read_query_config,
 )
 from app.services.generation import GenerationResult, generate_answer
-from app.services.retrieval import RANK_ABSENT, RetrievalHit, RetrievalOutcome, retrieve
+from app.services.retrieval import (
+    RANK_ABSENT,
+    RRF_SCORE_DIGITS,
+    RetrievalHit,
+    RetrievalOutcome,
+    retrieve,
+)
 from app.services.self_check import (
     VERDICT_COVERED,
     VERDICT_UNCOVERED,
@@ -785,19 +792,14 @@ def _to_debug(
                 filename=hit.filename,
                 page=hit.page,
                 heading=hit.heading,
-                score=round(hit.score, 4),
+                score=round(hit.score, SCORE_DIGITS),
                 above_threshold=hit.score >= config.similarity_threshold,
                 in_top_n=hit.chunk_id in context_ids,
                 dense_rank=hit.dense_rank,
                 sparse_rank=hit.sparse_rank,
-                # Six digits, not the four `score` gets: the gap between
-                # consecutive RRF values is ~1/(rrf_k + rank)², which at the
-                # default top_k of 20 is still visible at four digits but falls
-                # below it around rank 40. `retrieval_top_k` goes to 100 in the
-                # admin panel, so four digits would silently collapse the tail
-                # of a widened candidate list onto one value — and telling the
-                # ranks apart is the whole point of showing the score (T-54).
-                rrf_score=round(hit.rrf_score, 6),
+                # Six digits, not the four a similarity gets — the reasoning
+                # sits with the constant, in app/services/retrieval.py.
+                rrf_score=round(hit.rrf_score, RRF_SCORE_DIGITS),
                 content=hit.content,
             )
             for hit in outcome.candidates

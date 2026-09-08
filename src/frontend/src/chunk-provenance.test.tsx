@@ -18,13 +18,13 @@ import { render, screen, cleanup, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom/vitest";
 import App from "./App";
+// Not a second `= 0`: the sentinel is one value, and a copy here would keep CI
+// green while the ranks rendered wrong if the backend ever moved it.
+import { RANK_ABSENT as ABSENT } from "./components/MessageBubble";
 import { installApiStub, installAppEnvironment, type ApiStub } from "../test/api";
 import type { ChunkDebugInfo, DebugInfo, QueryResponse } from "./api/client";
 
 let api: ApiStub;
-
-/** `RANK_ABSENT` in app/services/retrieval.py: this search did not find it. */
-const ABSENT = 0;
 
 function chunk(overrides: Partial<ChunkDebugInfo> = {}): ChunkDebugInfo {
   return {
