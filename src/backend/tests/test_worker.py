@@ -14,14 +14,19 @@ from app.exceptions import EmbeddingConfigError, UserFacingError
 from app.models.tables import Document, DocumentStatus
 from app.services.parsing import MARKDOWN_CONTENT_TYPE
 from worker.main import (
+    DEFAULT_ANSWER_RETENTION_DAYS,
     DEFAULT_PROCESSING_MAX_ATTEMPTS,
     DEFAULT_PROCESSING_TIMEOUT_SECONDS,
+    DEFAULT_SESSION_PSEUDONYMISE_DAYS,
     MAX_REAPER_INTERVAL_SECONDS,
     Superseded,
+    _row_count,
     make_job_handler,
     process_document,
+    purge_expired,
     read_chunk_config,
     read_reaper_config,
+    read_retention_config,
     reap_stuck_documents,
     reaper_interval,
     verify_embedding_config_at_startup,
@@ -731,3 +736,118 @@ def test_the_pass_interval_follows_short_timeouts_and_is_capped_for_long_ones() 
     assert reaper_interval(60) == 15
     assert reaper_interval(DEFAULT_PROCESSING_TIMEOUT_SECONDS) == MAX_REAPER_INTERVAL_SECONDS
     assert reaper_interval(4 * MAX_REAPER_INTERVAL_SECONDS) == MAX_REAPER_INTERVAL_SECONDS
+
+
+# --- Retention: the question log's lifetime and its link to the account -------
+
+
+def make_retention_conn(
+    tags: Sequence[str] = ("UPDATE 0", "DELETE 0", "DELETE 0"),
+    config: Sequence[tuple[str, str]] = (),
+) -> AsyncMock:
+    """A connection whose three retention statements return `tags` in order."""
+    conn = AsyncMock()
+    conn.transaction = MagicMock(return_value=AsyncMock())
+    conn.execute.side_effect = list(tags)
+    conn.fetch.return_value = [{"key": key, "value": value} for key, value in config]
+    return conn
+
+
+async def test_the_personal_reference_is_cut_before_anything_is_deleted() -> None:
+    """Unlink first, delete second — so nothing can leave the pass still
+    carrying a user reference, however short the retention is set."""
+    conn = make_retention_conn()
+
+    await purge_expired(conn, pseudonymise_days=30, retention_days=90)
+
+    statements = [call.args[0] for call in conn.execute.await_args_list]
+    assert len(statements) == 3
+    assert "UPDATE query_sessions" in statements[0]
+    assert "SET user_id = NULL" in statements[0]
+    assert statements[1].strip().startswith("DELETE FROM answers")
+
+
+async def test_each_deadline_reaches_the_statement_it_belongs_to() -> None:
+    """Two keys, two meanings: the unlink runs on the pseudonymisation deadline,
+    both deletions on the retention deadline."""
+    conn = make_retention_conn()
+
+    await purge_expired(conn, pseudonymise_days=7, retention_days=400)
+
+    days = [call.args[1] for call in conn.execute.await_args_list]
+    assert days == [7, 400, 400]
+
+
+async def test_answers_expire_on_their_own_timestamp_not_their_sessions() -> None:
+    """A session open for weeks must not take questions asked minutes ago with
+    it. The DELETE therefore filters `answers.created_at` and never joins
+    query_sessions."""
+    conn = make_retention_conn()
+
+    await purge_expired(conn, pseudonymise_days=30, retention_days=90)
+
+    delete_answers = conn.execute.await_args_list[1].args[0]
+    assert "created_at <" in delete_answers
+    assert "query_sessions" not in delete_answers
+
+
+async def test_a_session_is_only_removed_once_it_is_empty_and_past_the_deadline() -> None:
+    """Both halves matter: without NOT EXISTS the delete would cascade into
+    answers the policy says to keep, and without the age filter it would remove
+    a session that is still being used."""
+    conn = make_retention_conn()
+
+    await purge_expired(conn, pseudonymise_days=30, retention_days=90)
+
+    delete_sessions = conn.execute.await_args_list[2].args[0]
+    assert "NOT EXISTS" in delete_sessions
+    assert "FROM answers a" in delete_sessions
+    assert "qs.created_at <" in delete_sessions
+
+
+async def test_the_whole_pass_is_one_transaction() -> None:
+    """A pass that unlinked but failed before deleting would be repeated an hour
+    later, and the repeat must not find a half-applied state."""
+    conn = make_retention_conn()
+
+    await purge_expired(conn, pseudonymise_days=30, retention_days=90)
+
+    conn.transaction.assert_called_once()
+
+
+async def test_purge_reports_what_it_touched() -> None:
+    """The counts are what the loop logs — the rows themselves must not be named
+    there, so the numbers are all the caller gets."""
+    conn = make_retention_conn(tags=("UPDATE 3", "DELETE 7", "DELETE 2"))
+
+    assert await purge_expired(conn, pseudonymise_days=30, retention_days=90) == (3, 7, 2)
+
+
+@pytest.mark.parametrize(
+    ("tag", "expected"),
+    [("DELETE 12", 12), ("UPDATE 0", 0), ("DELETE", 0), ("", 0)],
+)
+def test_row_count_reads_the_command_tag(tag: str, expected: int) -> None:
+    assert _row_count(tag) == expected
+
+
+@pytest.mark.parametrize(
+    ("config", "expected"),
+    [
+        ((("session_pseudonymise_days", "7"), ("answer_retention_days", "14")), (7, 14)),
+        # Missing rows fall back to the defaults of migration 0019 — both of
+        # which delete. A purge that a missing row switches off is not a control.
+        ((), (DEFAULT_SESSION_PSEUDONYMISE_DAYS, DEFAULT_ANSWER_RETENTION_DAYS)),
+        # Same for a value the CHECK of 0019 should never have let in.
+        (
+            (("session_pseudonymise_days", "spaeter"), ("answer_retention_days", "0")),
+            (DEFAULT_SESSION_PSEUDONYMISE_DAYS, DEFAULT_ANSWER_RETENTION_DAYS),
+        ),
+    ],
+)
+async def test_read_retention_config(
+    config: Sequence[tuple[str, str]], expected: tuple[int, int]
+) -> None:
+    conn = make_retention_conn(config=config)
+
+    assert await read_retention_config(conn) == expected
