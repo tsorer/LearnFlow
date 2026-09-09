@@ -12,7 +12,7 @@ That covers exactly the seams `tests/` cannot see by construction:
     redirect from AK 2 ends in a 404),
   * the real bcrypt hash from the `users` table instead of a fixture.
 
-Precondition: a running stack with seeded users (`make up && make seed`).
+Precondition: `make e2e` — das Target fährt den e2e-Stack selbst hoch und seedet ihn (T-55).
 """
 
 import os

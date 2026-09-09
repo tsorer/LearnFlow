@@ -6,7 +6,7 @@ itself can. This connects to Postgres directly, the same way the worker does
 (`app.config.settings.asyncpg_dsn`), instead of mocking it away like
 `tests/test_documents.py` does.
 
-Precondition: a running stack with seeded users (`make up && make seed`).
+Precondition: `make e2e` — das Target fährt den e2e-Stack selbst hoch und seedet ihn (T-55).
 """
 
 import os

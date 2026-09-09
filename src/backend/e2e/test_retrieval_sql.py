@@ -13,7 +13,7 @@ similarities are known in advance and the assertions can be exact.
 Isolation is by `area`: retrieval filters on it, so a fixture area of its own
 keeps the pilot corpus in the same database out of the results.
 
-Precondition: a running stack (`make up`).
+Precondition: `make e2e` — das Target fährt den e2e-Stack selbst hoch (T-55).
 """
 
 import uuid

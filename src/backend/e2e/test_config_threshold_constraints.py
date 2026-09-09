@@ -12,7 +12,7 @@ values survive the run unchanged. The band order is deferred to commit time,
 which is exactly what makes it checkable without committing: `SET CONSTRAINTS
 ALL IMMEDIATE` forces the check inside the transaction.
 
-Precondition: a running stack (`make up`) — no seeded users needed, this file
+Precondition: `make e2e` (T-55) — no seeded users needed, this file
 never talks to the API.
 """
 

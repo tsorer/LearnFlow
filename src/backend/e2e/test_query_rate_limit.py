@@ -12,7 +12,7 @@ retrieval gate for a question this far outside the corpus, so nothing reaches
 the LLM); in CI the key is a dummy and they come back 503. Both count towards
 the limit, which is the property under test.
 
-Precondition: a running stack with seeded users (`make up && make seed`).
+Precondition: `make e2e` — das Target fährt den e2e-Stack selbst hoch und seedet ihn (T-55).
 """
 
 import os
