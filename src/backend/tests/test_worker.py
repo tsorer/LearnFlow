@@ -671,6 +671,85 @@ async def test_reaping_and_requeueing_share_one_transaction() -> None:
     conn.transaction.return_value.__aexit__.assert_awaited()
 
 
+async def test_the_reaper_deletes_the_orphaned_job_row_it_leaves_behind() -> None:
+    """T-52 — nothing else in the system ever removes a 'picked' row: pgqueuer
+    only retires finished jobs to `pgqueuer_log`, and `enqueue_document`
+    (`app/queue.py`) only deletes 'queued' ones. Left alone, every reaped run
+    leaves one behind forever.
+    """
+    conn = make_reaper_conn()
+
+    await reap_stuck_documents(conn, timeout_seconds=900, max_attempts=3)
+
+    sql, timeout = conn.execute.await_args.args
+    assert "DELETE FROM pgqueuer" in sql
+    assert "entrypoint = 'process_document'" in sql
+    assert "status = 'picked'" in sql
+    assert "heartbeat < now() - make_interval(secs => $1) * 2" in sql
+    assert timeout == 900.0
+    assert isinstance(timeout, float)
+
+
+async def test_the_row_delete_requires_twice_the_document_reap_timeout() -> None:
+    """Review on #118: the document-side check treats "no live job within
+    timeout_seconds" as abandonment, safe because a presumed-dead run that
+    wakes up anyway fails the `index_version` guard. Deleting the row itself
+    has no such guard — if that run is merely slower than timeout_seconds
+    (accepted collateral for the document, per the docstring above), it is
+    still executing when this DELETE fires, and its eventual completion then
+    finds pgqueuer's own row-by-id delete matching nothing, so the completion
+    never reaches `pgqueuer_log`. Doubling the window does not close that
+    race, but narrows it to a run past twice the worst case ADR-006 derives
+    for a legitimate one.
+
+    The multiplication sits outside `make_interval` rather than on `$1`
+    itself (round 2 of the same review): Postgres resolves `$1 * 2` before
+    coercing the result to the float8 `secs` parameter, so `$1` picks up the
+    literal's int4 type instead — truncating a fractional timeout and, for
+    the unbounded `processing_timeout_seconds` config value, overflowing
+    where the untouched document-side check on the same value would not.
+    """
+    conn = make_reaper_conn()
+
+    await reap_stuck_documents(conn, timeout_seconds=900, max_attempts=3)
+
+    sql = conn.execute.await_args.args[0]
+    assert "make_interval(secs => $1) * 2" in sql
+
+
+async def test_the_cleanup_delete_runs_exactly_once_per_pass() -> None:
+    """Unconditional, unlike the requeue insert: cleanup does not depend on this
+    pass having reaped a document — a row from an earlier pass is still there
+    to remove."""
+    conn = make_reaper_conn()
+
+    await reap_stuck_documents(conn, timeout_seconds=900, max_attempts=3)
+
+    conn.execute.assert_awaited_once()
+
+
+async def test_the_cleanup_delete_runs_after_the_reap_transaction_commits() -> None:
+    """Review on #118, round 2: a failure in the sweep — the overflow the
+    previous test guards against, lock contention with pgqueuer's own
+    `log_jobs` — must not roll back a document reap that already succeeded.
+    Keeping the delete out of the `async with` block is what makes that true;
+    this pins the ordering so it cannot drift back inside.
+    """
+    conn = make_reaper_conn([{"id": uuid.uuid4(), "index_attempts": 1}])
+    committed_before_delete = False
+
+    async def record_whether_the_transaction_already_exited(*_args: object) -> str:
+        nonlocal committed_before_delete
+        committed_before_delete = conn.transaction.return_value.__aexit__.await_count > 0
+        return "DELETE 0"
+
+    conn.execute.side_effect = record_whether_the_transaction_already_exited
+
+    await reap_stuck_documents(conn, timeout_seconds=900, max_attempts=3)
+
+    assert committed_before_delete
+
+
 async def test_reaper_config_falls_back_when_the_keys_are_missing() -> None:
     conn = AsyncMock()
     conn.fetch.return_value = []
