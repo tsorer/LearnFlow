@@ -39,6 +39,35 @@ T-47/T-48) ist deshalb vorerst ein **manuell auszuführendes Release-Gate**:
 make up && make seed && make seed-corpus && make eval
 ```
 
+**Was der Lauf anfasst (T-55, #123).** Seit T-55 läuft der Eval in-process gegen
+die ASGI-App, in einer Transaktion, die am Ende zurückgerollt wird. Er
+hinterlässt deshalb **keine Zeile** in der Datenbank — vorher sammelte jeder Lauf
+22 `answers`-Zeilen in der Entwicklungsdatenbank an. Gemessen wird immer gegen
+die Seed-Defaults der Schwellen, gesetzt innerhalb derselben Transaktion: eine
+lokale Kalibrierung bleibt unberührt, und zwei Läufe sind vergleichbar. Vorher
+hing der Messwert am Zustand der Datenbank — derselbe Korpus ergab 90,9 % oder
+95,5 %, je nach kalibrierten Schwellen.
+
+Der Lauf braucht dadurch keinen laufenden Webserver mehr, nur eine erreichbare
+Datenbank mit indexiertem Korpus, und dauert rund 30 s statt 2:45 min (das
+Rate-Limit taktete ihn vorher auf 6,5 s pro Frage).
+
+**Messvarianten.** `EVAL_PROFILE` wählt die Konfiguration (`eval/profiles.py`):
+
+```bash
+make eval                              # ausgeliefertes Profil — das Gate
+make eval EVAL_PROFILE=qwen3-local     # Vergleichslauf, meldet ohne zu gaten
+```
+
+Ein Profil darf nur Modell und Zeitbudgets setzen; `TEMPERATURE` und die
+Schwellen bleiben ausgeschlossen (`tests/test_eval_profiles.py` hält das fest).
+**Das Gate greift nur beim ausgelieferten Profil** — ein Vergleichslauf gegen ein
+lokales Modell ist ein Messergebnis, kein gerissenes Release-Gate.
+
+Jeder Lauf schreibt nach `src/backend/eval/out/<profil>/<zeitstempel>/`, dort
+neben der CSV ein `run.json` mit Modell, wirksamen Schwellen, Überschreibungen
+und Git-SHA. Ein Pfad überlebt Kopieren nicht, ein `run.json` schon.
+
 Automatisierung in CI folgt mit **T-53 (#110)**, gekoppelt an den ohnehin
 anstehenden Wechsel auf Azure OpenAI EU (ADR-004) — dort auch die Fragen nach
 Trigger (`pull_request` vs. `push`/`workflow_dispatch`) und Secret-Scope geklärt.
@@ -99,7 +128,9 @@ make up && make seed && make seed-corpus && make perf    # dito, p95-Latenz (T-2
 ```
 
 `make e2e`, `make eval` und `make perf` sind bewusst nicht Teil von `make qa`: sie setzen
-gestartete Container voraus, während `make qa` ohne sie auskommen soll.
+gestartete Container voraus, während `make qa` ohne sie auskommen soll. `make eval`
+braucht davon seit T-55 nur noch die Datenbank samt indexiertem Korpus — er spricht
+kein HTTP mehr nach aussen.
 
 Eine separate Toolchain-Installation braucht es nicht — `make qa-be` läuft im
 api-Container, `make qa-fe` in einem `node:22-alpine`-Wegwerfcontainer. Für das
