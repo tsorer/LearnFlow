@@ -11,9 +11,13 @@ Precondition: a running stack (`make up && make seed`).
 
 import os
 from collections.abc import Iterator
+from pathlib import Path
 
 import httpx
 import pytest
+from openapi_spec_validator.readers import read_from_filename
+
+SPEC_PATH = Path(__file__).parent.parent / "openapi.yaml"
 
 # Same rationale as e2e/test_login_flow.py: the test runs inside the api
 # container and reaches nginx at http://webapp, identical locally and in CI.
@@ -128,3 +132,31 @@ def test_put_unchanged_non_writable_key_passes_through(
 
     assert r.status_code == 200, r.text
     assert r.json()["config"][HIGH] == "0.80"
+
+
+def test_the_response_carries_no_key_the_spec_does_not_declare(
+    client: httpx.Client, headers: dict[str, str]
+) -> None:
+    """T-46: `ConfigMap` is `additionalProperties: false`, and this endpoint
+    returns every row of the table unfiltered (`_read_all`).
+
+    The unit test in tests/test_openapi_spec.py can only check the other
+    direction — it collects the keys the API *writes* (`WRITABLE_KEYS`,
+    `EMBEDDING_CONFIG_KEYS`), and `chunk_size`, `chunk_overlap` and
+    `stale_days` are read by literal, so no Python constant holds them. Only
+    the real table knows the full set, which is why this lives in e2e.
+
+    Without it a migration that seeds a new read-only row would leave the
+    response failing its own schema, `ConfigKey` would silently omit the key,
+    and the admin view would render it as a raw identifier -- the exact drift
+    T-46 exists to close, and nothing in `make qa` would say a word.
+    """
+    spec, _ = read_from_filename(str(SPEC_PATH))
+    declared = set(spec["components"]["schemas"]["ConfigMap"]["properties"])
+
+    returned = set(client.get("/api/admin/config", headers=headers).json()["config"])
+
+    assert returned <= declared, (
+        f"Zeilen ohne Eintrag in ConfigMap: {sorted(returned - declared)} — "
+        "openapi.yaml nachziehen (ADR-010, Nachtrag T-46)"
+    )

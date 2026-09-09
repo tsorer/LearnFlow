@@ -1130,8 +1130,19 @@ components:
           type: string
           description: >
             Stabiler Schlüssel der Stufe, den die Admin-Ansicht zum Einordnen
-            der LLM-Aufrufe benutzt: `retrieval_gate`, `retrieval_confidence`,
-            `citation_coverage`, `confidence_band`, `self_check`.
+            der LLM-Aufrufe benutzt. Geschlossene Menge trotz des Vorbehalts
+            auf `DebugInfo`: dieselben fünf Zeichenketten stehen bereits als
+            Teilmenge in der `suppression_reason`-Enum, sind also längst Teil
+            des fachlichen Vertrags — hier lose zu bleiben hiesse, denselben
+            Wert an einer Stelle einzufrieren und an der anderen nicht
+            (ADR-010, Nachtrag T-46). `tests/test_openapi_spec.py` hält die
+            `STAGE_*`-Konstanten in beide Richtungen dagegen.
+          enum:
+            - retrieval_gate
+            - retrieval_confidence
+            - citation_coverage
+            - confidence_band
+            - self_check
         name:
           type: string
         ran:
@@ -1139,9 +1150,26 @@ components:
         passed:
           type: boolean
         value:
+          description: >
+            Woran die Stufe gemessen hat. Eine Zahl bei jeder Stufe ausser
+            `self_check`: dort ist es das geparste Urteil, weil ADR-008 die
+            Selbsteinschätzung des Modells ausdrücklich nicht als Mass
+            zulässt. Die Zeichenkettenvariante ist deshalb eine geschlossene
+            Menge (ADR-010, Nachtrag T-46) — `GEDECKT` und `NICHT_GEDECKT`
+            sind die Protokoll-Tokens, die der Self-Check-Prompt vom Modell
+            verlangt, `unlesbar` steht für eine Antwort, aus der keines von
+            beiden zu lesen war. Die Admin-Ansicht zeigt den Wert nur an
+            (`String(stage.value)`), sie vergleicht ihn nicht; deklariert ist
+            er trotzdem, weil eine geschlossene Wertemenge in die Spec gehört
+            und nicht in einen Kommentar. `null`, solange die Stufe nicht
+            gelaufen ist.
           oneOf:
             - type: number
             - type: string
+              enum:
+                - GEDECKT
+                - NICHT_GEDECKT
+                - unlesbar
           nullable: true
         threshold:
           type: number
@@ -1156,6 +1184,18 @@ components:
       properties:
         step:
           type: string
+          description: >
+            Welcher Aufruf der Pipeline (ADR-008). Die Admin-Ansicht ordnet
+            den Aufruf über diesen Schlüssel seiner Stufe zu
+            (`MessageBubble.tsx`), deshalb geschlossen: ein Tippfehler auf
+            einer der beiden Seiten liesse die Zuordnung still ins Leere
+            laufen. Ein dritter Aufruf ist möglich — er kostet dann einen
+            Spec-Eintrag, was ADR-010 so vorsieht (Nachtrag T-46).
+            `tests/test_openapi_spec.py` hält die `STEP_*`-Konstanten in
+            beide Richtungen dagegen.
+          enum:
+            - grounding
+            - self_check
         label:
           type: string
         prompt:
@@ -1186,7 +1226,15 @@ components:
       type: object
       description: >
         Nachvollziehbarkeit der Pipeline für die Admin-Ansicht. Nicht Teil des
-        fachlichen Vertrags — Felder können sich mit der Pipeline ändern.
+        fachlichen Vertrags — welche Felder es gibt, kann sich mit der Pipeline
+        ändern.
+
+        Der Vorbehalt gilt dem Bestand der Felder, nicht ihren Werten: hat ein
+        Feld hier eine geschlossene Wertemenge, steht sie in der Spec wie
+        überall sonst (`StageInfo.id`, `LLMCallInfo.step`, die Schlüssel von
+        `params_used`). Massgeblich ist ADR-010, Nachtrag T-46 — bis dahin trug
+        diese Beschreibung die Festlegung allein und wurde bei jeder Berührung
+        neu aufgemacht.
       required:
         [chunks, stages, llm_calls, similarity_threshold, min_retrieval_confidence,
          min_citation_coverage, self_check_ran, retrieval_detail, params_used,
@@ -1237,12 +1285,55 @@ components:
             Die für diese Anfrage gelesenen `config`-Werte, inklusive der
             Schwellen von Stufen, die nicht gelaufen sind — wer kalibriert,
             braucht alle, nicht nur die ausgelösten. Enthält neben den
-            Retrieval-Parametern die Bandgrenzen `confidence_threshold_high`,
-            `confidence_threshold_medium` (T-23) sowie `self_check_band_low`
+            Retrieval-Parametern die Bandgrenzen `confidence_threshold_high`
+            und `confidence_threshold_medium` (T-23) sowie `self_check_band_low`
             und `self_check_band_high` (T-25).
-          additionalProperties:
-            type: number
-            nullable: true
+
+            Genau deshalb sind alle
+            zehn `required` und die Menge ist geschlossen: die Admin-Ansicht
+            beschriftet jeden Schlüssel einzeln (`PARAM_LABELS`), und einer
+            ohne Beschriftung stünde als roher Bezeichner in der UI — so
+            geschehen mit `retrieval_top_k`, `context_top_n` und `rrf_k`
+            (T-38). OAS 3.0 kennt kein `propertyNames`, die Schlüsselmenge
+            wird deshalb als `properties` geschrieben statt als Enum
+            (ADR-010, Nachtrag T-46).
+          required:
+            [similarity_threshold, min_retrieval_confidence, min_citation_coverage,
+             confidence_threshold_medium, confidence_threshold_high,
+             self_check_band_low, self_check_band_high,
+             retrieval_top_k, context_top_n, rrf_k]
+          properties:
+            similarity_threshold:
+              type: number
+              nullable: true
+            min_retrieval_confidence:
+              type: number
+              nullable: true
+            min_citation_coverage:
+              type: number
+              nullable: true
+            confidence_threshold_medium:
+              type: number
+              nullable: true
+            confidence_threshold_high:
+              type: number
+              nullable: true
+            self_check_band_low:
+              type: number
+              nullable: true
+            self_check_band_high:
+              type: number
+              nullable: true
+            retrieval_top_k:
+              type: number
+              nullable: true
+            context_top_n:
+              type: number
+              nullable: true
+            rrf_k:
+              type: number
+              nullable: true
+          additionalProperties: false
         dense_above_threshold:
           type: integer
         total_dense_retrieved:
@@ -1328,24 +1419,65 @@ components:
             `limit` und `offset` (analog QuizQuestionPage.total).
           type: integer
 
+    ConfigMap:
+      type: object
+      description: >
+        Schlüssel-Wert-Paare aus der config-Tabelle; Werte immer als String,
+        auch Zahlen — die Tabelle hat eine `text`-Spalte und einen CHECK je
+        Schlüssel (0009/0012/0017/0018), der die Form erzwingt.
+
+        Geschlossene Menge, weil `PUT /api/admin/config` einen Schlüssel, den
+        die Tabelle nicht kennt, ohnehin mit 422 ablehnt — bis T-46 stand das
+        nur im Code. Kein Schlüssel ist `required`: `GET` liefert die Zeilen,
+        die existieren, und `PUT` ersetzt gezielt einzelne. OAS 3.0 kennt kein
+        `propertyNames`, die Schlüsselmenge wird deshalb als `properties`
+        geschrieben statt als Enum (ADR-010, Nachtrag T-46). Eine neue
+        config-Zeile kostet damit einen Eintrag hier — sonst fällt sie aus
+        `ConfigKey` heraus und die Admin-Ansicht kann sie nicht beschriften.
+
+        Ob sie dann auch beschriftet *wird*, erzwingt diese Menge nicht:
+        `stale_days` und die beiden Reaper-Schlüssel stehen bewusst ohne Label,
+        weil das Panel sie nicht anzeigt (`PARAM_LABELS` ist deshalb
+        `Partial`). Erzwungen ist die Beschriftung nur für die zehn Schlüssel
+        von `DebugInfo.params_used` — die zeigt die Debug-Ansicht alle.
+
+        Ein gemeinsames Schema für Antwort und Anfrage, weil das Admin-Panel
+        die ganze GET-Antwort unverändert durch PUT zurückschickt
+        (`ChatView.tsx`, `saveParams`) — zwei getrennte Listen würden genau
+        hier auseinanderlaufen.
+      properties:
+        similarity_threshold:       {type: string}
+        min_retrieval_confidence:   {type: string}
+        min_citation_coverage:      {type: string}
+        confidence_threshold_medium: {type: string}
+        confidence_threshold_high:  {type: string}
+        self_check_band_low:        {type: string}
+        self_check_band_high:       {type: string}
+        retrieval_top_k:            {type: string}
+        context_top_n:              {type: string}
+        rrf_k:                      {type: string}
+        chunk_size:                 {type: string}
+        chunk_overlap:              {type: string}
+        embed_model:                {type: string}
+        embed_dimensions:           {type: string}
+        processing_timeout_seconds: {type: string}
+        processing_max_attempts:    {type: string}
+        stale_days:                 {type: string}
+      additionalProperties: false
+
     ConfigResponse:
       type: object
       required: [config]
       properties:
         config:
-          type: object
-          description: Schlüssel-Wert-Paare aus der config-Tabelle; Werte immer als String
-          additionalProperties:
-            type: string
+          $ref: '#/components/schemas/ConfigMap'
 
     ConfigUpdateRequest:
       type: object
       required: [config]
       properties:
         config:
-          type: object
-          additionalProperties:
-            type: string
+          $ref: '#/components/schemas/ConfigMap'
 
     HealthResponse:
       type: object

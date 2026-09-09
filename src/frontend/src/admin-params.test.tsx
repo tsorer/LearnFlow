@@ -23,6 +23,7 @@ import "@testing-library/jest-dom/vitest";
 import App from "./App";
 import { installApiStub, installAppEnvironment, type ApiStub } from "../test/api";
 import { PARAM_LABELS } from "./params";
+import type { components } from "./api/schema";
 
 let api: ApiStub;
 
@@ -48,7 +49,16 @@ const PARAMS_USED_KEYS = [
   "retrieval_top_k",
   "context_top_n",
   "rrf_k",
-] as const;
+] as const satisfies readonly ParamsUsedKey[];
+
+type ParamsUsedKey = keyof components["schemas"]["DebugInfo"]["params_used"];
+/**
+ * Was die Spec kennt und die Liste oben nicht (T-46). `satisfies` dort fängt
+ * die eine Richtung — einen Schlüssel, den die Spec nicht kennt —, dieser Typ
+ * die andere. In Klammern, weil bedingte Typen sonst über `never`
+ * distribuieren und die Prüfung leerlaufen würde.
+ */
+type Missing = Exclude<ParamsUsedKey, (typeof PARAMS_USED_KEYS)[number]>;
 
 /** Every row `GET /admin/config` returns — the writable ones and the rest. */
 const CONFIG: Record<string, string> = {
@@ -216,15 +226,35 @@ describe("PARAM_LABELS", () => {
     }
   });
 
+  it("führt jeden Schlüssel, den die Spec für params_used deklariert", () => {
+    // Die eigentliche Prüfung passiert beim Kompilieren: fehlt oben ein
+    // Schlüssel, den `DebugInfo.params_used` deklariert, ist `Missing` nicht
+    // mehr `never` und diese Zuweisung schlägt fehl (T-46). Die Assertion
+    // darunter hält den Test ehrlich — ohne sie wäre es ein leerer Fall.
+    // Der Fehlertyp ist ein Tupel statt `false`, damit tsc den fehlenden
+    // Schlüssel beim Namen nennt — «not assignable to type 'false'» allein
+    // schickt den Nächsten auf die Suche.
+    const everyKeyListed: [Missing] extends [never]
+      ? true
+      : ["PARAMS_USED_KEYS fehlt:", Missing] = true;
+    expect(everyKeyListed).toBe(true);
+    expect(PARAMS_USED_KEYS).toHaveLength(10);
+  });
+
   it("kennt keinen Schlüssel, den es in der config-Tabelle nicht gibt", () => {
     // Die vier llm_* standen hier, ohne dass es je eine Zeile für sie gab —
     // tote Einträge, die nichts beschrifteten und die Liste plausibel aussehen
     // liessen. Ihr Feature ist in ein eigenes Issue vertagt.
+    //
+    // Bis T-46 war das eine Blacklist: sie kannte genau die drei Namen, die
+    // damals aufgefallen waren, und ein *neuer* toter Eintrag wäre
+    // durchgerutscht. Seit `ParamDef.key` als `ConfigKey` aus der Spec
+    // typisiert ist, kann er gar nicht mehr entstehen — die Zeile unten prüft
+    // deshalb nicht mehr drei Namen, sondern die ganze Menge.
+    const declared = new Set(Object.keys(CONFIG));
     for (const key of Object.keys(PARAM_LABELS)) {
-      expect(key.startsWith("llm_")).toBe(false);
+      expect(declared).toContain(key);
     }
-    expect(PARAM_LABELS).not.toHaveProperty("top_k");
-    expect(PARAM_LABELS).not.toHaveProperty("top_n");
   });
 });
 

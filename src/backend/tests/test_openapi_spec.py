@@ -4,7 +4,10 @@ from openapi_spec_validator import validate
 from openapi_spec_validator.readers import read_from_filename
 
 from app.models.tables import DocumentStatus, QuizQuestionStatus
-from app.routers import query
+from app.routers import admin, query
+from app.services.config import ConfidenceThresholds, PipelineConfig
+from app.services.embedding_config import EMBEDDING_CONFIG_KEYS
+from app.services.self_check import SelfCheckResult
 
 SPEC_PATH = Path(__file__).parent.parent / "openapi.yaml"
 
@@ -103,3 +106,159 @@ def test_suppression_reasons_match_the_spec_enum():
     assert emitted == declared, (
         f"Nur im Code: {sorted(emitted - declared)} · nur in der Spec: {sorted(declared - emitted)}"
     )
+
+
+def _emitted_by_prefix(prefix: str) -> set[str]:
+    """The wire values behind a family of constants in `app.routers.query`.
+
+    Collected by prefix rather than listed, for the same reason as
+    `test_suppression_reasons_match_the_spec_enum` above: a value added for a
+    later ticket is covered without anyone remembering these tests.
+    """
+    return {
+        value
+        for name, value in vars(query).items()
+        if name.startswith(prefix) and isinstance(value, str)
+    }
+
+
+def test_stage_ids_match_the_spec_enum():
+    """`StageInfo.id`, checked in both directions (T-46).
+
+    The admin view groups the LLM calls under their stage by comparing this
+    string (`MessageBubble.tsx`). Before T-46 the field was `type: string` and
+    the five values lived in a prose description, so a typo on either side
+    produced a condition that is simply never true — no error, just a stage
+    that silently stops showing its call.
+    """
+    spec, _ = read_from_filename(str(SPEC_PATH))
+    declared = set(spec["components"]["schemas"]["StageInfo"]["properties"]["id"]["enum"])
+    emitted = _emitted_by_prefix("STAGE_")
+
+    assert emitted == declared, (
+        f"Nur im Code: {sorted(emitted - declared)} · nur in der Spec: {sorted(declared - emitted)}"
+    )
+
+
+def test_stage_ids_are_a_subset_of_the_suppression_reasons():
+    """Why an enum is right here despite `DebugInfo`'s "not part of the
+    contract" caveat (T-46, review on #86): every stage id is already frozen as
+    a `suppression_reason` value. Leaving `id` loose would mean the same string
+    is binding under one name and free under another. If this ever fails, that
+    argument no longer holds and the ADR-010 addendum needs revisiting.
+    """
+    spec, _ = read_from_filename(str(SPEC_PATH))
+    reasons = set(
+        spec["components"]["schemas"]["QueryResponse"]["properties"]["suppression_reason"]["enum"]
+    )
+
+    assert _emitted_by_prefix("STAGE_") <= reasons
+
+
+def test_llm_call_steps_match_the_spec_enum():
+    """`LLMCallInfo.step`, checked in both directions (T-46). Same failure mode
+    as the stage ids: the admin view finds a stage's call by this string.
+    """
+    spec, _ = read_from_filename(str(SPEC_PATH))
+    declared = set(spec["components"]["schemas"]["LLMCallInfo"]["properties"]["step"]["enum"])
+    emitted = _emitted_by_prefix("STEP_")
+
+    assert emitted == declared, (
+        f"Nur im Code: {sorted(emitted - declared)} · nur in der Spec: {sorted(declared - emitted)}"
+    )
+
+
+def test_params_used_keys_match_the_spec():
+    """`DebugInfo.params_used`, checked in both directions (T-46).
+
+    OAS 3.0 has no `propertyNames`, so the key set is written as `properties`
+    with `additionalProperties: false` rather than as an enum. Both the shape
+    and the completeness promise of the description are asserted here: every
+    key the router emits is declared, and every declared key is `required` —
+    "wer kalibriert, braucht alle, nicht nur die ausgelösten".
+    """
+    spec, _ = read_from_filename(str(SPEC_PATH))
+    schema = spec["components"]["schemas"]["DebugInfo"]["properties"]["params_used"]
+    declared = set(schema["properties"])
+    emitted = set(
+        query.params_used(
+            PipelineConfig(
+                similarity_threshold=0.35,
+                min_retrieval_confidence=0.40,
+                min_citation_coverage=0.50,
+                self_check_band_low=0.45,
+                self_check_band_high=0.75,
+                retrieval_top_k=20,
+                context_top_n=5,
+                rrf_k=60,
+            ),
+            ConfidenceThresholds(high=0.75, medium=0.45),
+        )
+    )
+
+    assert emitted == declared, (
+        f"Nur im Code: {sorted(emitted - declared)} · nur in der Spec: {sorted(declared - emitted)}"
+    )
+    assert set(schema["required"]) == declared
+    assert schema["additionalProperties"] is False
+
+
+def test_config_keys_the_api_writes_are_declared_in_the_spec():
+    """`ConfigMap`, code -> spec (T-46).
+
+    Only one direction is checkable here: `chunk_size`, `chunk_overlap` and
+    `stale_days` are read by literal, not through a `*_KEYS` constant, so there
+    is no Python name to collect them under. The other direction — a declared
+    key that no config row backs — is caught at runtime instead: `update_config`
+    422s any key absent from the table, and the frontend types its parameter
+    lists as `ConfigKey` from this very schema.
+    """
+    spec, _ = read_from_filename(str(SPEC_PATH))
+    declared = set(spec["components"]["schemas"]["ConfigMap"]["properties"])
+
+    assert admin.WRITABLE_KEYS <= declared, sorted(admin.WRITABLE_KEYS - declared)
+    assert set(EMBEDDING_CONFIG_KEYS) <= declared
+    assert spec["components"]["schemas"]["ConfigMap"]["additionalProperties"] is False
+
+
+def test_self_check_verdicts_match_the_spec_enum():
+    """The string form of `StageInfo.value`, both directions (T-46).
+
+    Collected by prefix like the two families above: `VERDICT_COVERED` and
+    `VERDICT_UNCOVERED` are imported into `query`, `VERDICT_UNREADABLE` is
+    defined there, so `vars(query)` sees all three.
+
+    Weaker consequences than the stage ids — the admin view renders this value
+    (`String(stage.value)`) instead of comparing it, so a drift here shows a
+    wrong word rather than a condition that is never true. Declared anyway: a
+    closed set belongs in the spec, and `VERDICT_COVERED`/`_UNCOVERED` are the
+    tokens the self-check prompt asks the model for, so changing one is a
+    change to that prompt's protocol and should not pass unnoticed.
+    """
+    spec, _ = read_from_filename(str(SPEC_PATH))
+    string_variant = next(
+        branch
+        for branch in spec["components"]["schemas"]["StageInfo"]["properties"]["value"]["oneOf"]
+        if branch["type"] == "string"
+    )
+    declared = set(string_variant["enum"])
+    emitted = _emitted_by_prefix("VERDICT_")
+
+    assert emitted == declared, (
+        f"Nur im Code: {sorted(emitted - declared)} · nur in der Spec: {sorted(declared - emitted)}"
+    )
+
+
+def test_the_unreadable_verdict_is_what_an_unparsed_self_check_reports():
+    """`VERDICT_UNREADABLE` is the only one of the three the spec enum lists
+    that this module produces itself — the other two are the self-check
+    prompt's protocol tokens, passed through unchanged. Pinned here because a
+    rename would otherwise only surface in the enum test above, which cannot
+    say which of the three moved.
+    """
+    unparsed = SelfCheckResult(
+        passed=False, verdict_parsed=False, uncovered="", prompt="", raw_response="???"
+    )
+
+    assert query._self_check_value(unparsed) == query.VERDICT_UNREADABLE
+    assert query._self_check_value(None) is None

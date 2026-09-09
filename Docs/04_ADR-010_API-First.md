@@ -35,6 +35,34 @@ Daraus folgen zwei Regeln:
 
 Der frühere Weg — Frontend gegen einen Mock-Server aus der Spec — entfällt damit: der Platzhalter im Backend *ist* der Mock, und er kann nicht von der Spec abweichen.
 
+**Geschlossene Wertemengen gehören in die Spec, auch in `DebugInfo` (ergänzt 2026-09-09, T-46).** Die drei Checks oben prüfen Endpunkte und Feld*namen*. Über Feld*werte* sagten sie nichts: mehrere Felder waren `type: string` oder `additionalProperties`, obwohl beide Seiten sich über eine geschlossene Menge von Werten verständigten — festgehalten nur in Prosa und in Kommentaren wie «MessageBubble.tsx matches this exact string». Ein Tippfehler auf einer Seite kompilierte durch, blieb testfrei und ergab eine Bedingung, die einfach nie wahr wird. So standen `retrieval_top_k`, `context_top_n` und `rrf_k` unbeschriftet als rohe Bezeichner in der Admin-Ansicht (behoben in T-38), und so verschickte das Panel `top_k` an einen Endpunkt, der nur `retrieval_top_k` kennt.
+
+Die Regel lautet daher: **hat ein Feld eine geschlossene Wertemenge, steht sie in der Spec** — als `enum`, oder, wo es um die *Schlüssel* eines Objekts geht, als `properties` mit `additionalProperties: false` (OAS 3.0 kennt kein `propertyNames`). Der Vorbehalt auf `DebugInfo` («Nicht Teil des fachlichen Vertrags — Felder können sich mit der Pipeline ändern») bleibt bestehen, gilt aber für den *Bestand* der Felder, nicht für die Werte der Felder, die es gibt. Er ist kein Freibrief für lose Typisierung: `StageInfo.id` trägt dieselben fünf Zeichenketten, die `suppression_reason` längst als Enum führt — sie dort einzufrieren und hier freizulassen, hiesse denselben Wert zweimal verschieden zu behandeln.
+
+| Feld | Entscheid | Begründung |
+|---|---|---|
+| `StageInfo.id` | Enum | Werte bereits Teilmenge der `suppression_reason`-Enum |
+| `LLMCallInfo.step` | Enum | Admin-Ansicht ordnet Aufrufe darüber Stufen zu; ein dritter Aufruf kostet einen Spec-Eintrag |
+| `StageInfo.value` (String-Variante) | Enum | Drei Werte, nur von der Self-Check-Stufe erzeugt. Die Admin-Ansicht rendert sie bloss, sie vergleicht nicht — deklariert trotzdem, weil `GEDECKT`/`NICHT_GEDECKT` die Protokoll-Tokens des Self-Check-Prompts sind und eine Änderung daran nicht unbemerkt bleiben darf |
+| `DebugInfo.params_used` | `properties`, alle `required`, geschlossen | Die Beschreibung verspricht Vollständigkeit; jeder Schlüssel wird einzeln beschriftet |
+| `ConfigResponse`/`ConfigUpdateRequest` | gemeinsames `ConfigMap`, geschlossen | Panel schickt die GET-Antwort unverändert durch PUT; zwei Listen würden driften |
+| `DocumentResponse.area` | bewusst lose | Im MVP hartcodiert, konzeptionell offen (Bereiche pro User) |
+| `TokenResponse.token_type` | bewusst lose | Fremdes Vokabular (OAuth2), vom Frontend nicht gelesen |
+| `ValidationError.detail[].type` | bewusst lose | Vertrag von Pydantic, nicht von uns |
+| Anzeigetexte (`StageInfo.name`, `detail`, `formula_breakdown`, Dateinamen …) | bewusst lose | Keine geschlossene Menge |
+
+Durchgesetzt wird das wie die drei Checks oben, in beide Richtungen:
+
+| Richtung | Prüfung | Wo |
+|---|---|---|
+| Code → Spec | `STAGE_*`, `STEP_*` und die `params_used`-Schlüssel stimmen mit Enum bzw. `properties` überein | `tests/test_openapi_spec.py` |
+| Spec → Code | jede `config`-Zeile der laufenden DB ist in `ConfigMap` deklariert | `e2e/test_admin_config_endpoint.py` |
+| Spec → Frontend | Parameterlisten, Zustand und API-Aufrufe sind über `ConfigKey`/`ConfigMap` aus der Spec typisiert, nicht `Record<string, string>` | `npm run check` |
+
+Die dritte Zeile umfasst den ganzen Schreibpfad, nicht nur die Listen: `ParamDef.key`, der `params`-Zustand in `ChatView`, `updateParam` und `api.getConfig`/`updateConfig`. Ein falscher Schlüssel ist damit ein `tsc`-Fehler, kein Regler, den der Endpunkt später mit 422 abweist. Nicht erzwungen ist, dass jeder Schlüssel eine Beschriftung bekommt — `stale_days` und die beiden Reaper-Schlüssel haben bewusst keine, weil das Panel sie nicht anzeigt. Für die zehn Schlüssel von `params_used` ist sie erzwungen, dort zeigt die Debug-Ansicht alle.
+
+Der Preis ist bewusst: eine neue `config`-Zeile oder eine sechste Pipeline-Stufe kostet ab jetzt einen Spec-Eintrag und `make generate-api`. Das ist genau die Abstimmung, die dieser ADR unter «Negative Konsequenzen» schon einmal in Kauf nimmt.
+
 ---
 
 ## Konsequenzen
