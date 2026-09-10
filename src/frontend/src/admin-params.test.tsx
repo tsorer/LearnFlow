@@ -24,6 +24,7 @@ import App from "./App";
 import { installApiStub, installAppEnvironment, type ApiStub } from "../test/api";
 import { PARAM_LABELS } from "./params";
 import type { components } from "./api/schema";
+import type { ConfigMap } from "./api/client";
 
 let api: ApiStub;
 
@@ -60,8 +61,13 @@ type ParamsUsedKey = keyof components["schemas"]["DebugInfo"]["params_used"];
  */
 type Missing = Exclude<ParamsUsedKey, (typeof PARAMS_USED_KEYS)[number]>;
 
-/** Every row `GET /admin/config` returns — the writable ones and the rest. */
-const CONFIG: Record<string, string> = {
+/** Every row `GET /admin/config` returns — the writable ones and the rest.
+ *
+ *  Als `ConfigMap` typisiert, nicht als `Record<string, string>` (Review #122):
+ *  so kann das Stub keinen Schlüssel enthalten, den die Spec nicht kennt —
+ *  `tsc --noEmit` fängt das, bevor ein Test gegen eine erfundene Zeile grün
+ *  wird. */
+const CONFIG: ConfigMap = {
   similarity_threshold: "0.35",
   min_retrieval_confidence: "0.40",
   min_citation_coverage: "0.50",
@@ -251,6 +257,15 @@ describe("PARAM_LABELS", () => {
     // durchgerutscht. Seit `ParamDef.key` als `ConfigKey` aus der Spec
     // typisiert ist, kann er gar nicht mehr entstehen — die Zeile unten prüft
     // deshalb nicht mehr drei Namen, sondern die ganze Menge.
+    //
+    // Verglichen wird bewusst gegen `CONFIG` und **nicht** gegen
+    // `keyof ConfigMap` (Vorschlag im Review zu #122): `PARAM_LABELS` ist
+    // `Partial<Record<ConfigKey, string>>`, seine Schlüssel *sind* also
+    // bereits `keyof ConfigMap` — die Assertion könnte dann nicht mehr
+    // fehlschlagen. `CONFIG` modelliert die Zeilen, die es wirklich gibt, und
+    // ist damit die stärkere Aussage. Dass es ein Modell bleibt und kein
+    // Abbild, schliesst erst die e2e-Gleichheitsprüfung gegen die echte
+    // Tabelle (`test_admin_config_endpoint.py`).
     const declared = new Set(Object.keys(CONFIG));
     for (const key of Object.keys(PARAM_LABELS)) {
       expect(declared).toContain(key);

@@ -32,7 +32,15 @@ function ParamGroup({
 }: {
   title: string;
   defs: readonly ParamDef[];
-  params: Record<string, string>;
+  // `ConfigMap`, nicht `Record<string, string>` (T-46): der Zustand oben ist es
+  // schon, und nur so sagt der Typ die Nullability richtig. `getConfig` fängt
+  // seinen Fehler ab und lässt `params` als `{}` stehen, und in `ConfigMap`
+  // ist jeder Schlüssel optional — `params[p.key]` ist zur Laufzeit also
+  // wirklich `undefined`. Unter `Record<string, string>` typisierte der
+  // Compiler es als `string`, womit das `?? ""` unten wie toter Defensivcode
+  // aussieht: wer es entfernt, rendert jeden Regler mit `value={undefined}`
+  // und macht die Inputs uncontrolled.
+  params: ConfigMap;
   onChange: (key: ConfigKey, value: string) => void;
 }) {
   return (

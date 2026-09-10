@@ -1377,6 +1377,8 @@ export interface components {
             processing_timeout_seconds?: string;
             processing_max_attempts?: string;
             stale_days?: string;
+            answer_retention_days?: string;
+            session_pseudonymise_days?: string;
         };
         ConfigResponse: {
             config: components["schemas"]["ConfigMap"];

@@ -1463,6 +1463,14 @@ components:
         processing_timeout_seconds: {type: string}
         processing_max_attempts:    {type: string}
         stale_days:                 {type: string}
+        # Aus Migration 0019 (#126, Datenminimierung). Hier deklariert, bevor
+        # die Zeilen existieren: die e2e-Assertion ist eine Teilmengenprüfung
+        # (`returned <= declared`), ein deklarierter Schlüssel ohne Zeile kostet
+        # also nichts — umgekehrt wäre `main` rot, sobald der zweite der beiden
+        # PRs merged und `GET /api/admin/config` zwei Schlüssel liefert, die das
+        # eigene Response-Schema verbietet. Reihenfolgeunabhängig nur so herum.
+        answer_retention_days:      {type: string}
+        session_pseudonymise_days:  {type: string}
       additionalProperties: false
 
     ConfigResponse:
