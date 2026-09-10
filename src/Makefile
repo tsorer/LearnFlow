@@ -94,13 +94,18 @@ e2e:
 #
 # EVAL_PROFILE wählt die Messkonfiguration (eval/profiles.py); ohne Angabe misst
 # der Lauf das ausgelieferte Profil, und nur dieses ist ein Gate.
+#
+# Kein zweites `-q`: `pyproject.toml` setzt es bereits in `addopts`, und pytest
+# zählt die Angaben. Auf Stufe 2 fällt die abschliessende Verdikt-Zeile weg
+# (`1 failed in 0.23s`) — bei einem Release-Gate ausgerechnet die Zeile, die
+# das Ergebnis benennt, und gegen das `-s` zwei Zeilen weiter oben gerichtet.
 #   make eval
 #   make eval EVAL_PROFILE=qwen3-local
 eval:
 	docker exec \
 		-e EVAL_PROFILE="$(EVAL_PROFILE)" \
 		-e EVAL_GIT_SHA="$$(git rev-parse --short HEAD 2>/dev/null)" \
-		src-api-1 pytest eval -q -s
+		src-api-1 pytest eval -s
 
 # --- query latency (T-22, #29, requires: make up && make seed && make seed-corpus) ---
 # Same execution path as eval: inside the api container, through nginx. Needs a real

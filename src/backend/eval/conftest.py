@@ -34,7 +34,9 @@ passen, sonst hätte die Indexierung nichts geschrieben.
 
 from __future__ import annotations
 
+import datetime
 import os
+import pathlib
 import time
 from collections.abc import AsyncIterator, Iterator
 from typing import Any
@@ -46,11 +48,17 @@ import pytest_asyncio
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncSession
 
+from app.config import settings
 from app.database import engine, get_db
 from app.limiter import limiter
 from app.main import app
 from app.services import config as config_service
 from app.services import generation, self_check
+from app.services.embedding_config import (
+    EMBEDDING_CONFIG_KEYS,
+    embedding_config_from,
+    verify_embedding_config,
+)
 from eval.profiles import Profile, resolve
 
 #: Die Werte, gegen die gemessen wird — dieselben, die Migration 0004/0008
@@ -118,9 +126,48 @@ def llm_trace() -> list[dict[str, Any]]:
 
 
 @pytest_asyncio.fixture
+async def embedding_config_matches(db_connection: AsyncConnection) -> None:
+    """Der Wächter, den `ASGITransport` mitnimmt — hier von Hand nachgezogen.
+
+    `httpx.ASGITransport` startet den Lifespan nicht, und damit entfällt die
+    Prüfung aus `app/main.py`, die `Settings` gegen die von Migration 0018
+    persistierte Konfiguration hält (T-42). Das Fehlen ist nicht neutral, es
+    kippt das Gate in die **falsche** Richtung: laufen die beiden bei gleicher
+    Dimension auseinander — Korpus unter einem 1536-dim-Modell indexiert,
+    `EMBED_MODEL` danach gewechselt —, passen die Query-Embeddings nicht mehr
+    zum Index. Das Retrieval liefert Rauschen, jede Frage fällt ins
+    Retrieval-Gate, und die Refusal-Rate liest sich als 100 %: **grün**.
+
+    `assert_corpus_is_indexed_async` fängt das nicht, die Dokumente sind ja da.
+    Dass es in der Praxis bisher auffiel, lag an der Ausführungsart — `make
+    eval` läuft per `docker exec src-api-1`, und der Container hat beim Start
+    selbst geprüft. Das ist Zufall der Umgebung, nicht Konstruktion, und
+    ADR-008 ist fail-closed (Review zu #128).
+    """
+    result = await db_connection.execute(
+        text("SELECT key, value FROM config WHERE key = ANY(:keys)"),
+        {"keys": list(EMBEDDING_CONFIG_KEYS)},
+    )
+    values = {key: value for key, value in result.all()}
+    # Beide Seiten durch denselben Parser, wie im Lifespan: sonst vergleicht
+    # ein ungestripptes `Settings.embed_model` gegen den gestrippten
+    # persistierten Wert.
+    verify_embedding_config(
+        embedding_config_from(values),
+        embedding_config_from(
+            {
+                "embed_model": settings.embed_model,
+                "embed_dimensions": str(settings.embed_dimensions),
+            }
+        ),
+    )
+
+
+@pytest_asyncio.fixture
 async def client(
     db_connection: AsyncConnection,
     measured_config: dict[str, object],
+    embedding_config_matches: None,
     profile: Profile,
     llm_trace: list[dict[str, Any]],
     monkeypatch: pytest.MonkeyPatch,
@@ -148,16 +195,24 @@ async def client(
         finally:
             await session.close()
 
+    # Ab hier im `try`, damit ein Fehler im Setup den Override nicht am
+    # modulglobalen `app` zurücklässt: der Code nach `yield` liefe dann nie,
+    # und jeder folgende Test im selben Prozess spräche gegen eine
+    # geschlossene Verbindung. `tests/conftest.py` fängt genau das mit einer
+    # autouse-Fixture ab, `eval/` hat keine (Review zu #128).
+    #
+    # `pop` statt `clear`: die Map gehört der App, nicht dieser Fixture.
     app.dependency_overrides[get_db] = _get_db
-    # Sonst taktet `POST /api/query` (10/Minute) den Lauf auf 6,5 s je Frage.
-    monkeypatch.setattr(limiter, "enabled", False)
-    _apply(profile, monkeypatch, llm_trace)
+    try:
+        # Sonst taktet `POST /api/query` (10/Minute) den Lauf auf 6,5 s je Frage.
+        monkeypatch.setattr(limiter, "enabled", False)
+        _apply(profile, monkeypatch, llm_trace)
 
-    transport = httpx.ASGITransport(app=app)
-    async with httpx.AsyncClient(transport=transport, base_url="http://eval") as c:
-        yield c
-
-    app.dependency_overrides.clear()
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://eval") as c:
+            yield c
+    finally:
+        app.dependency_overrides.pop(get_db, None)
 
 
 def _apply(
@@ -248,11 +303,8 @@ def _record(
 
 
 @pytest.fixture
-def eval_out_dir(profile: Profile) -> Iterator[Any]:
+def eval_out_dir(profile: Profile) -> Iterator[pathlib.Path]:
     """`eval/out/<profil>/<zeitstempel>/` — ein Lauf überschreibt keinen anderen."""
-    import datetime
-    import pathlib
-
     stamp = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H-%M-%SZ")
     path = pathlib.Path(__file__).parent / "out" / profile.name / stamp
     path.mkdir(parents=True, exist_ok=True)

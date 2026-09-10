@@ -48,9 +48,12 @@ lokale Kalibrierung bleibt unberührt, und zwei Läufe sind vergleichbar. Vorher
 hing der Messwert am Zustand der Datenbank — derselbe Korpus ergab 90,9 % oder
 95,5 %, je nach kalibrierten Schwellen.
 
-Der Lauf braucht dadurch keinen laufenden Webserver mehr, nur eine erreichbare
-Datenbank mit indexiertem Korpus, und dauert rund 30 s statt 2:45 min (das
-Rate-Limit taktete ihn vorher auf 6,5 s pro Frage).
+Der Lauf spricht dadurch kein HTTP mehr nach aussen und dauert rund 30 s statt
+2:45 min (das Rate-Limit taktete ihn vorher auf 6,5 s pro Frage). Fachlich
+braucht er nur noch eine erreichbare Datenbank mit indexiertem Korpus —
+technisch weiterhin den stehenden api-Container, weil `make eval` per `docker
+exec src-api-1` startet. Der ist seither aber blosser Ausführungsort, nicht
+mehr das gemessene System.
 
 **Messvarianten.** `EVAL_PROFILE` wählt die Konfiguration (`eval/profiles.py`):
 
@@ -134,8 +137,8 @@ make up && make seed && make seed-corpus && make perf    # dito, p95-Latenz (T-2
 
 `make e2e`, `make eval` und `make perf` sind bewusst nicht Teil von `make qa`: sie setzen
 gestartete Container voraus, während `make qa` ohne sie auskommen soll. `make eval`
-braucht davon seit T-55 nur noch die Datenbank samt indexiertem Korpus — er spricht
-kein HTTP mehr nach aussen.
+misst seit T-55 in-process und spricht kein HTTP mehr nach aussen; den
+api-Container braucht er weiterhin, als Ausführungsort des `docker exec`.
 
 Eine separate Toolchain-Installation braucht es nicht — `make qa-be` läuft im
 api-Container, `make qa-fe` in einem `node:22-alpine`-Wegwerfcontainer. Für das
