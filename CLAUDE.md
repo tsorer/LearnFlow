@@ -51,8 +51,9 @@ Details: `Docs/04_ADR-00X_*.md`, `Docs/05_C4-*`, `Docs/06_Architecture-Draft.md`
 - **Tests/Checks:** `make qa` (aus `src/`) deckt die CI-Jobs `backend` und `frontend`
   ab — Backend `ruff check .` + `mypy app worker` + `pytest`, Frontend `npm run lint` +
   `npm run check` (tsc) + `npm run test`. Der dritte CI-Job `e2e` läuft **nicht** in
-  `make qa`, weil er den vollständigen Stack braucht: separat `make up && make seed &&
-  make e2e`. Details: `Ops/09_CI-Runbook.md`.
+  `make qa`, weil er den vollständigen Stack braucht: separat `make e2e`, das seit
+  T-55 sein eigenes Compose-Projekt hochfährt (der Dev-Stack muss nicht laufen).
+  Details: `Ops/09_CI-Runbook.md`.
 - **Einzelne Tests:** Backend `docker exec src-api-1 pytest <pfad>::<test>` ·
   Frontend (in `frontend/`) `npm run test -- <datei>`
 - **Migrationen (Alembic):** `docker exec src-api-1 alembic upgrade head`

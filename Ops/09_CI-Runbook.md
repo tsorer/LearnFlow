@@ -19,11 +19,42 @@ vollständigen Stack.
 | Typen | `mypy` | `tsc --noEmit` |
 | Tests | `pytest` | `vitest run` |
 
-Der dritte Job **`e2e`** (T-09) startet den Stack per Docker Compose, seedet die
-Testuser und ruft `pytest e2e`: geprüft wird der Login-Flow über nginx gegen die
-echte Datenbank. Er deckt die Nahtstellen ab, welche die beiden Sprach-Jobs
-prinzipbedingt nicht sehen — das `/api`-Rewrite von nginx, den SPA-Fallback und
-den echten bcrypt-Hash aus der `users`-Tabelle.
+Der dritte Job **`e2e`** (T-09) ruft `make e2e`: das Target startet einen Stack per
+Docker Compose, seedet die Testuser und lässt `pytest e2e` laufen. Geprüft wird der
+Login-Flow über nginx gegen die echte Datenbank. Er deckt die Nahtstellen ab, welche
+die beiden Sprach-Jobs prinzipbedingt nicht sehen — das `/api`-Rewrite von nginx, den
+SPA-Fallback und den echten bcrypt-Hash aus der `users`-Tabelle.
+
+**Eigenes Compose-Projekt, flüchtige Datenbank (T-55, #123).** `make e2e` fährt
+nicht den Entwicklungs-Stack, sondern ein zweites Projekt (`learnflow-e2e`, siehe
+`docker-compose.e2e.yml`) mit eigenen Containern und eigenem Netz. Die Datenbank
+liegt dort auf **tmpfs** — im Arbeitsspeicher, mit dem Lauf verschwunden. Der
+Entwicklungs-Stack läuft unberührt daneben; er muss dafür nicht einmal gestartet
+sein.
+
+Das schliesst zwei Dinge, die vorher nur durch Sorgfalt zusammengehalten wurden:
+
+- Ein e2e-Lauf hinterliess Dokumente, Antworten und verstellte `config`-Zeilen in
+  der Entwicklungsdatenbank. Der Round-Trip-Test in `test_admin_config_endpoint.py`
+  überschrieb ausserdem `changed_at`/`changed_by` **jeder** schreibbaren Zeile — die
+  Frage «wer hat diesen Schwellenwert wann gesetzt» war nach jedem Lauf
+  unbeantwortbar. Nachgemessen: nach einem vollen Lauf im eigenen Projekt sind
+  Dokumentzahl und `changed_at` der Entwicklungsdatenbank unverändert.
+- `pgdata` trägt in `docker-compose.yml` einen **globalen** Namen
+  (`learnflow_pgdata`), ist also nicht projektgebunden. Das e2e-Projekt überschreibt
+  den Mount, sodass es dieses Volume gar nicht erst sieht.
+
+Bei einem roten Lauf bleibt der Stack absichtlich stehen: `make e2e-logs` für die
+Container-Logs, `make e2e-down` zum Aufräumen. Bei einem grünen räumt das Target
+selbst ab.
+
+Der nächste `make e2e` räumt in jedem Fall zuerst auf, bevor er hochfährt. Ohne
+das liefe ein Retry nach einem roten Lauf gegen dessen Datenbank — `up -d --wait`
+recreated laufende, unveränderte Container nicht — und gegen denselben
+api-Prozess mit warmem Rate-Limiter: `/auth/login` erlaubt 5/min/IP, und die
+Suite macht genau fünf Logins aus derselben Container-IP. Die Zusage «pro Lauf
+neu migriert und geseedet» gilt damit auch für den Wiederholungslauf. Nachschau
+ist trotzdem möglich: der Stack steht, bis man den nächsten Lauf startet.
 
 **Kein vierter CI-Job für den Eval:** Es gibt (noch) kein `OPENAI_API_KEY`-Secret
 im Repo — nicht auf Repo-, Environment- oder Org-Ebene. Ein Job, der sich deshalb
@@ -123,8 +154,13 @@ make qa      # Jobs `backend` + `frontend`
 make qa-be   # nur Python
 make qa-fe   # nur TypeScript
 
-make up && make seed && make e2e   # Job `e2e` — braucht den laufenden Stack
+make e2e     # Job `e2e` — fährt seit T-55 seinen eigenen Stack hoch und wieder ab;
+             # der Entwicklungs-Stack muss dafür nicht laufen
 ```
+
+Die CI führt für `e2e` wörtlich denselben Befehl aus. Vorher waren es dort drei
+Schritte (`up`, `seed`, `e2e`) und lokal ein anderer Ablauf — nur einer von beiden
+war je getestet.
 
 Zusätzlich, aber **kein CI-Job** (siehe oben — manuelles Release-Gate bis T-53 #110):
 
@@ -135,10 +171,24 @@ make up && make seed && make seed-corpus && make eval   # braucht ausserdem
 make up && make seed && make seed-corpus && make perf    # dito, p95-Latenz (T-22)
 ```
 
-`make e2e`, `make eval` und `make perf` sind bewusst nicht Teil von `make qa`: sie setzen
-gestartete Container voraus, während `make qa` ohne sie auskommen soll. `make eval`
-misst seit T-55 in-process und spricht kein HTTP mehr nach aussen; den
-api-Container braucht er weiterhin, als Ausführungsort des `docker exec`.
+`make e2e`, `make eval` und `make perf` sind bewusst nicht Teil von `make qa`: sie
+brauchen Container, während `make qa` ohne sie auskommen soll. `make e2e` bringt
+seine seit T-55 selbst mit; `eval` und `perf` setzen den laufenden Entwicklungs-Stack
+samt indexiertem Korpus voraus. `make eval` misst darin in-process und spricht kein
+HTTP mehr nach aussen — den api-Container braucht er weiterhin, aber als
+Ausführungsort des `docker exec`, nicht mehr als gemessenes System.
+
+**Seriell, und das ist zugesichert.** Innerhalb einer Suite schreiben mehrere Module
+dieselben `config`-Zeilen; parallel ausgeführt zögen sie einander die Schwellen weg,
+nichtdeterministisch. Bisher passierte das nur deshalb nicht, weil `pytest-xdist`
+nicht installiert ist — ein `-n auto` in `addopts` hätte gereicht. Seit T-55 sagt
+`e2e/conftest.py` in dem Fall beim Start ab und nennt den Grund, statt hinterher
+unerklärlich rot zu werden.
+
+Zwischen den Suiten ist die Frage seit T-55 entschärft: `e2e` fährt eine eigene
+Datenbank (tmpfs, eigenes Compose-Projekt), und `eval` rollt seine Transaktion am
+Ende zurück. Geteilt wird nur noch die Entwicklungsdatenbank zwischen `eval` und
+`perf`.
 
 Eine separate Toolchain-Installation braucht es nicht — `make qa-be` läuft im
 api-Container, `make qa-fe` in einem `node:22-alpine`-Wegwerfcontainer. Für das

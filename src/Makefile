@@ -1,4 +1,4 @@
-.PHONY: up down seed seed-corpus logs check qa qa-be qa-fe generate-api lint-be typecheck-be test-be e2e eval perf
+.PHONY: up down seed seed-corpus logs check qa qa-be qa-fe generate-api lint-be typecheck-be test-be e2e e2e-logs e2e-down eval perf
 
 # --- infra ---
 up:
@@ -20,8 +20,16 @@ logs:
 	docker compose logs -f
 
 # --- health check (all 4 services healthy) ---
+#
+# Beide Compose-Dateien validieren, nicht nur die erste: ein Syntaxfehler in
+# `docker-compose.e2e.yml` fällt sonst erst beim nächsten `make e2e` auf, also
+# in dem Lauf, dessen Ergebnis man gerade braucht. Der Merge braucht dieselbe
+# `-p`-Angabe wie `E2E_COMPOSE`, weil das Projekt sonst aus dem
+# Verzeichnisnamen abgeleitet wird und die Prüfung eine andere Konfiguration
+# sähe als der Lauf.
 check:
 	@docker compose config --quiet
+	@$(E2E_COMPOSE) config --quiet
 	@docker compose ps --format json | python -c "\
 import sys, json; \
 raw = sys.stdin.read().strip(); \
@@ -75,12 +83,65 @@ generate-api:
 		-w //app node:22-alpine \
 		sh -c "[ -x node_modules/.bin/openapi-typescript ] || npm ci --silent; npm run generate:api"
 
-# --- end-to-end (T-09, requires: make up && make seed) ---
-# Runs inside the api container: it already ships pytest/httpx and sits on the
-# edge network, so the test talks to the API through nginx (webapp) — the same
-# path the browser takes. Not part of `make qa`; it needs the running stack.
+# --- end-to-end (T-09) — eigenes Compose-Projekt, flüchtige DB (T-55, #123) ---
+#
+# Läuft im api-Container: der bringt pytest/httpx schon mit und sitzt im
+# edge-Netz, der Test spricht die API also durch nginx (webapp) an — derselbe
+# Weg, den der Browser nimmt. Nicht Teil von `make qa`.
+#
+# Braucht **keinen** laufenden Dev-Stack mehr: das Target fährt seinen eigenen
+# hoch und wieder herunter.
+#
+# Lief bis T-55 gegen den Entwicklungs-Stack und damit gegen die persistente
+# `learnflow`-Datenbank. Jetzt fährt `make e2e` einen zweiten, vollständig
+# getrennten Stack hoch (siehe docker-compose.e2e.yml) — der Dev-Stack bleibt
+# unberührt und lauffähig, und ein abgebrochener Lauf kann ihn nicht verbiegen.
+#
+# `webapp` allein anfordern, nicht den worker: `depends_on` zieht
+# webapp -> api -> db hoch, während der worker sonst neben der api startet, also
+# vor deren `alembic upgrade head`, die pgqueuer-Tabellen nicht findet und in
+# einen Restart-Loop läuft, auf den `--wait` vergeblich wartet. Der Login-Flow
+# braucht ihn nicht.
+#
+# `down` **vor** dem `up`, obwohl ein grüner Lauf selbst aufräumt: nach einem
+# roten bleibt der Stack absichtlich stehen, und `up -d --wait` recreated
+# laufende, unveränderte Container nicht. Der nächste Lauf träfe sonst die
+# Datenbank des gescheiterten — genau der Zustand, den dieses Target abschafft
+# — und denselben api-Prozess mit warmem Login-Rate-Limiter: `/auth/login`
+# erlaubt 5/min/IP, die Suite macht genau fünf Logins aus derselben
+# Container-IP, ein sofortiger Retry liefe also in `Rate limit exhausted`
+# statt in das Ergebnis, das man gerade braucht. Kostet nichts, wenn nichts
+# läuft.
+E2E_PROJECT := learnflow-e2e
+E2E_COMPOSE := docker compose -p $(E2E_PROJECT) -f docker-compose.yml -f docker-compose.e2e.yml
+
 e2e:
-	docker exec -e E2E_BASE_URL=http://webapp src-api-1 pytest e2e
+	@set -e; \
+	$(E2E_COMPOSE) down --remove-orphans; \
+	$(E2E_COMPOSE) up -d --build --wait --wait-timeout 300 webapp; \
+	$(E2E_COMPOSE) exec -T api python seed_users.py; \
+	set +e; \
+	$(E2E_COMPOSE) exec -T -e E2E_BASE_URL=http://webapp api pytest e2e -q; \
+	status=$$?; \
+	if [ $$status -eq 0 ]; then \
+		$(E2E_COMPOSE) down --remove-orphans; \
+	else \
+		echo ""; \
+		echo "e2e rot — der Stack bleibt für die Nachschau stehen:"; \
+		echo "  make e2e-logs    Container-Logs"; \
+		echo "  make e2e-down    aufräumen"; \
+	fi; \
+	exit $$status
+
+e2e-logs:
+	$(E2E_COMPOSE) logs --no-color --tail=200
+
+# Ohne -v, obwohl dieses Projekt gar kein benanntes Volume hat (die Datenbank
+# liegt auf tmpfs): `pgdata` trägt in docker-compose.yml einen globalen Namen,
+# und ein `-v`, das hier einmal steht, wird irgendwann in ein Projekt kopiert,
+# das ihn nicht überschrieben hat — und löscht dort die Entwicklungsdatenbank.
+e2e-down:
+	$(E2E_COMPOSE) down --remove-orphans
 
 # --- out-of-corpus refusal rate (T-28, requires: make up && make seed && make seed-corpus) ---
 # Same execution path as `e2e`: inside the api container, through nginx. Needs a

@@ -6,7 +6,7 @@ against the real table, and that the deferred band-order trigger (migration
 0009, issue #73) is reachable through this HTTP endpoint -- not just through
 direct SQL, which is all e2e/test_config_threshold_constraints.py exercises.
 
-Precondition: a running stack (`make up && make seed`).
+Precondition: `make e2e` — das Target fährt den e2e-Stack selbst hoch (T-55).
 """
 
 import os
@@ -26,8 +26,16 @@ PASSWORD = "changeme2"
 HIGH = "confidence_threshold_high"
 MEDIUM = "confidence_threshold_medium"
 # The seeded start values (migration 0008) -- restored after every test that
-# changes them, so this module leaves the stack the way it found it for
-# whichever e2e module runs next.
+# changes them, so the tests below stay independent of each other's outcome.
+#
+# Bis T-55 (#123) trug diese Wiederherstellung eine zweite Last: der Lauf ging
+# gegen die Entwicklungsdatenbank, und ohne sie hinterliess er dort verstellte
+# Schwellen. Das war eine Krücke -- nach einem Abbruch griff sie nicht, und der
+# Round-Trip-Test unten überschrieb ohnehin `changed_at`/`changed_by` jeder
+# schreibbaren Zeile. Seit `make e2e` in einem eigenen Compose-Projekt mit
+# tmpfs-Datenbank läuft, ist die Datenbank pro Lauf neu und danach weg; was
+# bleibt, ist der Grund, der von Anfang an der bessere war: Testunabhängigkeit
+# innerhalb des Laufs.
 SEEDED_HIGH = "0.75"
 SEEDED_MEDIUM = "0.45"
 
@@ -57,7 +65,10 @@ def headers(client: httpx.Client) -> dict[str, str]:
 def restore_thresholds(client: httpx.Client, headers: dict[str, str]) -> Iterator[None]:
     """Every test below may leave the two confidence thresholds changed.
     Restoring them here, once per test, keeps the tests independent of each
-    other's outcome and leaves the seeded defaults intact afterwards."""
+    other's outcome — no test may depend on having run first.
+
+    Was danach in der Datenbank steht, spielt seit T-55 keine Rolle mehr: sie
+    liegt auf tmpfs im e2e-Projekt und ist mit dem Lauf verschwunden."""
     yield
     r = client.put(
         "/api/admin/config",

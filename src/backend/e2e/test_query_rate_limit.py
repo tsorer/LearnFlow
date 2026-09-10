@@ -12,7 +12,7 @@ retrieval gate for a question this far outside the corpus, so nothing reaches
 the LLM); in CI the key is a dummy and they come back 503. Both count towards
 the limit, which is the property under test.
 
-Precondition: a running stack with seeded users (`make up && make seed`).
+Precondition: `make e2e` — das Target fährt den e2e-Stack selbst hoch und seedet ihn (T-55).
 """
 
 import os
@@ -49,8 +49,9 @@ def token(client: httpx.Client) -> str:
     r = client.post("/api/auth/login", json={"email": EMAIL, "password": PASSWORD})
     if r.status_code == 429:
         pytest.fail(
-            "Rate limit exhausted (5 logins/minute/IP). The window outlives the "
-            "test run: wait a minute or run `docker compose restart api`."
+            "Rate limit exhausted (5 logins/minute/IP). The counter lives in the "
+            "api process, so it outlives the run: rerun `make e2e` (it tears the "
+            "e2e stack down first, giving a fresh api), or `make e2e-down`."
         )
     assert r.status_code == 200, r.text
     return str(r.json()["access_token"])

@@ -6,7 +6,7 @@ invisible to every mocked test: the two CHECK constraints, and the
 from. `tests/test_quiz_endpoint.py` can show what the endpoint hands the
 session; only a query can show what the database does with it.
 
-Precondition: a running stack with migrations applied (`alembic upgrade head`).
+Precondition: `make e2e` — das Target migriert den frischen e2e-Stack (T-55).
 """
 
 import json
