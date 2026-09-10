@@ -68,6 +68,11 @@ Jeder Lauf schreibt nach `src/backend/eval/out/<profil>/<zeitstempel>/`, dort
 neben der CSV ein `run.json` mit Modell, wirksamen Schwellen, Überschreibungen
 und Git-SHA. Ein Pfad überlebt Kopieren nicht, ein `run.json` schon.
 
+`eval/out/` ist gitignored und rein lokal. Was aufbewahrt werden soll, gehört
+nach `EvalAnalysis/` — dort erzeugt `python -m eval.compare` aus den Läufen
+mehrerer Profile einen Vergleichsbericht, daneben steht die Einordnung von
+Hand. Siehe `EvalAnalysis/README.md`.
+
 Automatisierung in CI folgt mit **T-53 (#110)**, gekoppelt an den ohnehin
 anstehenden Wechsel auf Azure OpenAI EU (ADR-004) — dort auch die Fragen nach
 Trigger (`pull_request` vs. `push`/`workflow_dispatch`) und Secret-Scope geklärt.
