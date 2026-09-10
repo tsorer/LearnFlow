@@ -48,6 +48,14 @@ Bei einem roten Lauf bleibt der Stack absichtlich stehen: `make e2e-logs` für d
 Container-Logs, `make e2e-down` zum Aufräumen. Bei einem grünen räumt das Target
 selbst ab.
 
+Der nächste `make e2e` räumt in jedem Fall zuerst auf, bevor er hochfährt. Ohne
+das liefe ein Retry nach einem roten Lauf gegen dessen Datenbank — `up -d --wait`
+recreated laufende, unveränderte Container nicht — und gegen denselben
+api-Prozess mit warmem Rate-Limiter: `/auth/login` erlaubt 5/min/IP, und die
+Suite macht genau fünf Logins aus derselben Container-IP. Die Zusage «pro Lauf
+neu migriert und geseedet» gilt damit auch für den Wiederholungslauf. Nachschau
+ist trotzdem möglich: der Stack steht, bis man den nächsten Lauf startet.
+
 **Kein vierter CI-Job für den Eval:** Es gibt (noch) kein `OPENAI_API_KEY`-Secret
 im Repo — nicht auf Repo-, Environment- oder Org-Ebene. Ein Job, der sich deshalb
 bei jedem Lauf bedingungslos selbst überspringt, wurde bewusst **nicht** gemergt:

@@ -20,8 +20,16 @@ logs:
 	docker compose logs -f
 
 # --- health check (all 4 services healthy) ---
+#
+# Beide Compose-Dateien validieren, nicht nur die erste: ein Syntaxfehler in
+# `docker-compose.e2e.yml` fällt sonst erst beim nächsten `make e2e` auf, also
+# in dem Lauf, dessen Ergebnis man gerade braucht. Der Merge braucht dieselbe
+# `-p`-Angabe wie `E2E_COMPOSE`, weil das Projekt sonst aus dem
+# Verzeichnisnamen abgeleitet wird und die Prüfung eine andere Konfiguration
+# sähe als der Lauf.
 check:
 	@docker compose config --quiet
+	@$(E2E_COMPOSE) config --quiet
 	@docker compose ps --format json | python -c "\
 import sys, json; \
 raw = sys.stdin.read().strip(); \
@@ -94,11 +102,22 @@ generate-api:
 # vor deren `alembic upgrade head`, die pgqueuer-Tabellen nicht findet und in
 # einen Restart-Loop läuft, auf den `--wait` vergeblich wartet. Der Login-Flow
 # braucht ihn nicht.
+#
+# `down` **vor** dem `up`, obwohl ein grüner Lauf selbst aufräumt: nach einem
+# roten bleibt der Stack absichtlich stehen, und `up -d --wait` recreated
+# laufende, unveränderte Container nicht. Der nächste Lauf träfe sonst die
+# Datenbank des gescheiterten — genau der Zustand, den dieses Target abschafft
+# — und denselben api-Prozess mit warmem Login-Rate-Limiter: `/auth/login`
+# erlaubt 5/min/IP, die Suite macht genau fünf Logins aus derselben
+# Container-IP, ein sofortiger Retry liefe also in `Rate limit exhausted`
+# statt in das Ergebnis, das man gerade braucht. Kostet nichts, wenn nichts
+# läuft.
 E2E_PROJECT := learnflow-e2e
 E2E_COMPOSE := docker compose -p $(E2E_PROJECT) -f docker-compose.yml -f docker-compose.e2e.yml
 
 e2e:
 	@set -e; \
+	$(E2E_COMPOSE) down --remove-orphans; \
 	$(E2E_COMPOSE) up -d --build --wait --wait-timeout 300 webapp; \
 	$(E2E_COMPOSE) exec -T api python seed_users.py; \
 	set +e; \
