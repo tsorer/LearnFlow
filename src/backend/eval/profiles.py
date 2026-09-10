@@ -37,6 +37,20 @@ from typing import Any
 #: `litellm.acompletion`, nie `aembedding`.
 OLLAMA_API_BASE = os.environ.get("OLLAMA_API_BASE", "http://host.docker.internal:11434")
 
+#: Muss jedes lokale Profil mitsetzen, sonst geht der **produktive OpenAI-Key**
+#: an den lokalen Endpunkt: `generation.py` reicht
+#: `settings.litellm_api_key or settings.openai_api_key` an `litellm.acompletion`
+#: weiter, und `OllamaChatConfig.validate_environment` baut daraus einen Header
+#: (`llms/ollama/chat/transformation.py`, litellm 1.99):
+#:
+#:     if api_key is not None and "Authorization" not in headers:
+#:         headers["Authorization"] = f"Bearer {api_key}"
+#:
+#: `api_base` zu überschreiben reicht also nicht — der Key überlebt die
+#: Überschreibung und landet in allem, was der lokale Endpunkt mitschreibt.
+#: `test_eval_profiles.py` hält fest, dass beides zusammen gesetzt wird.
+NO_API_KEY: None = None
+
 
 @dataclass(frozen=True)
 class Profile:
@@ -115,7 +129,12 @@ PROFILES: dict[str, Profile] = {
         # `think: False`, weil Qwen3 sonst pro Aufruf rund 53 s nachdenkt und
         # dieselbe Antwort liefert — 57,5 s gegen 4,3 s bei identischem
         # Ergebnis (gemessen am 2026-09-09).
-        extra_completion_kwargs={"think": False, "api_base": OLLAMA_API_BASE, "num_ctx": 16384},
+        extra_completion_kwargs={
+            "think": False,
+            "api_base": OLLAMA_API_BASE,
+            "api_key": NO_API_KEY,
+            "num_ctx": 16384,
+        },
     ),
     "gemma4-local": Profile(
         name="gemma4-local",
@@ -124,7 +143,11 @@ PROFILES: dict[str, Profile] = {
         max_answer_tokens=8000,
         self_check_timeout_seconds=600.0,
         max_verdict_tokens=1000,
-        extra_completion_kwargs={"api_base": OLLAMA_API_BASE, "num_ctx": 16384},
+        extra_completion_kwargs={
+            "api_base": OLLAMA_API_BASE,
+            "api_key": NO_API_KEY,
+            "num_ctx": 16384,
+        },
     ),
 }
 

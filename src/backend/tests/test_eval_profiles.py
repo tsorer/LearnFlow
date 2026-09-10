@@ -101,3 +101,29 @@ def test_resolve_falls_back_to_production_and_rejects_typos():
         assert "Unbekanntes EVAL_PROFILE" in str(exc)
     else:
         raise AssertionError("ein unbekanntes Profil muss abbrechen")
+
+
+def test_a_profile_that_redirects_the_endpoint_also_drops_the_api_key():
+    """Sonst geht der produktive OpenAI-Key an den lokalen Endpunkt.
+
+    `generation.py` reicht `settings.litellm_api_key or settings.openai_api_key`
+    an `litellm.acompletion` weiter, und die Ollama-Transformation von LiteLLM
+    macht daraus einen `Authorization: Bearer`-Header, sobald der Key nicht
+    `None` ist. Ein Profil, das nur `api_base` umbiegt, schickt ihn also mit —
+    nachgewiesen an `qwen3-local` und `gemma4-local` (Review zu #128).
+
+    Als Test und nicht als Kommentar, weil der Fehler unsichtbar ist: der Lauf
+    funktioniert, die Messung stimmt, und nichts in der Ausgabe deutet darauf
+    hin, dass ein Geheimnis den Prozess verlassen hat.
+    """
+    for name, profile in PROFILES.items():
+        extra = profile.extra_completion_kwargs
+        if "api_base" not in extra:
+            continue
+        assert "api_key" in extra, (
+            f"Profil {name!r} biegt api_base um, setzt aber api_key nicht — "
+            "der produktive Key ginge an diesen Endpunkt"
+        )
+        assert extra["api_key"] is None, (
+            f"Profil {name!r} schickt einen api_key an einen umgebogenen Endpunkt"
+        )
