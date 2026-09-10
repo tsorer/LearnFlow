@@ -6,7 +6,7 @@ ticket. That the chunks and embeddings of the replaced version are gone is a
 property of the rows themselves, so this connects to Postgres directly, the same
 way `test_documents_cascade.py` does.
 
-Precondition: a running stack with seeded users (`make up && make seed`).
+Precondition: `make e2e` — das Target fährt den e2e-Stack selbst hoch und seedet ihn (T-55).
 """
 
 import os

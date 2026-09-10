@@ -12,7 +12,7 @@ That covers exactly the seams `tests/` cannot see by construction:
     redirect from AK 2 ends in a 404),
   * the real bcrypt hash from the `users` table instead of a fixture.
 
-Precondition: a running stack with seeded users (`make up && make seed`).
+Precondition: `make e2e` — das Target fährt den e2e-Stack selbst hoch und seedet ihn (T-55).
 """
 
 import os
@@ -63,8 +63,9 @@ def login(client: httpx.Client) -> httpx.Response:
     r = client.post("/api/auth/login", json={"email": EMAIL, "password": PASSWORD})
     if r.status_code == 429:
         pytest.fail(
-            "Rate limit exhausted (5 logins/minute/IP). The window outlives the "
-            "test run: wait a minute or run `docker compose restart api`."
+            "Rate limit exhausted (5 logins/minute/IP). The counter lives in the "
+            "api process, so it outlives the run: rerun `make e2e` (it tears the "
+            "e2e stack down first, giving a fresh api), or `make e2e-down`."
         )
     return r
 

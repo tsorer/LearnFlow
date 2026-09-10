@@ -12,7 +12,7 @@ defer.
 Every case runs in a transaction that is rolled back afterwards, so the row
 values survive the run unchanged.
 
-Precondition: a running stack (`make up`) — no seeded users needed, this file
+Precondition: `make e2e` (T-55) — no seeded users needed, this file
 never talks to the API.
 """
 

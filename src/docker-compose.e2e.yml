@@ -1,0 +1,43 @@
+# T-55 (#123): der e2e-Stack — eigenes Compose-Projekt, flüchtige Datenbank.
+#
+# `make e2e` fuhr bis dahin gegen den Entwicklungs-Stack, also gegen die
+# persistente `learnflow`-Datenbank. Ein Nachmittag Testläufe hinterliess dort
+# Dokumente, Antworten und überschriebene `config`-Zeilen; die Module halfen
+# sich mit von Hand zurückgestellten Schwellen («leaves the stack the way it
+# found it»), was nach einem Abbruch nicht greift.
+#
+# `e2e` bleibt bewusst echtes HTTP: sein Zweck *ist* die ausgelieferte
+# Verteilung — nginx' /api-Rewrite, der SPA-Fallback, `--forwarded-allow-ips`,
+# der echte bcrypt-Hash aus `users`. Isoliert wird deshalb nicht der Testpfad,
+# sondern der ganze Stack:
+#
+#   docker compose -p learnflow-e2e -f docker-compose.yml -f docker-compose.e2e.yml up
+#
+# Eigene Container, eigene Netze, eigener Name — der Dev-Stack läuft unberührt
+# daneben, und ein abgebrochener Lauf kann ihn nicht verbiegen. Genau das tut
+# die CI ohnehin schon (frischer Runner pro Lauf); lokal passiert damit
+# dasselbe statt etwas anderem.
+#
+# Beide Overrides unten sind `!reset`, nicht Ergänzungen: Compose führt Listen
+# aus Override-Dateien sonst *zusammen*, und dann käme genau das zurück, was
+# hier weg soll.
+
+services:
+  db:
+    # `pgdata` trägt in docker-compose.yml einen expliziten `name:` und wäre
+    # damit projektübergreifend dasselbe Volume — die Isolation wäre sofort
+    # dahin, der e2e-Lauf liefe wieder auf den Entwicklungsdaten.
+    volumes: !reset []
+    # Im Arbeitsspeicher statt im Schreib-Layer des Containers: ohne Volume
+    # allein überlebten die Daten einen `restart`, nur `down` löschte sie. So
+    # sind sie garantiert weg — und schneller, was zählt, wenn die Datenbank
+    # pro Lauf neu migriert und geseedet wird.
+    tmpfs:
+      - /var/lib/postgresql/data
+
+  webapp:
+    # Kein Host-Port: die Tests laufen *im* api-Container und erreichen nginx
+    # über den internen DNS-Namen (`E2E_BASE_URL=http://webapp`, Port 80 im
+    # Projektnetz). Vom Host aus muss nichts erreichbar sein — und ohne diese
+    # Zeile stritte der e2e-Stack mit dem Dev-Stack um Port 80.
+    ports: !reset []

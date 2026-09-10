@@ -100,7 +100,9 @@ make check      # Health-Checks prüfen
 make qa         # Lint + Types + Tests (Backend + Frontend) — CI-Jobs backend/frontend
 make qa-be      # nur Backend: ruff + mypy + pytest — läuft im api-Container, braucht `make up`
 make qa-fe      # nur Frontend: eslint + tsc + vitest — ephemerer node:22-alpine, ohne laufenden Stack
-make e2e        # E2E-Tests gegen den laufenden Stack (nach up + seed) — CI-Job e2e
+make e2e        # E2E-Tests — CI-Job e2e; fährt seit T-55 seinen eigenen Stack
+                # (learnflow-e2e, DB auf tmpfs) hoch und wieder ab, der
+                # Dev-Stack muss dafür nicht laufen
 ```
 
 ```bash
