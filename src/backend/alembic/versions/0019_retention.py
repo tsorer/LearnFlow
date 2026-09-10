@@ -28,16 +28,37 @@ questions and must be tunable apart:
   would block the one direction an operator may legitimately want to move in a
   hurry.
 
-Both are counts, so they join `COUNT_KEYS` of the CHECK established in `0009`
-and carried forward by `0012`, `0014`, `0017` and `0018` -- same reasoning as
-there: the admin API and the `psql` path of the pilot checklist both write this
-table, and only the database sits below both.
+Both join the CHECK established in `0009` and carried forward by `0012`,
+`0014`, `0017` and `0018` -- same reasoning as there: the admin API and the
+`psql` path of the pilot checklist both write this table, and only the database
+sits below both.
 
-`POSITIVE_INTEGER` means a value of 0 cannot be stored, so the purge cannot be
-switched off through configuration -- only shortened or lengthened. That is
+Both keys are bounded on *both* sides by `RETENTION_DAYS_RANGE`, and the upper
+bound is the load-bearing half (review on #126). A lower bound alone leaves the
+very possibility it is meant to exclude: `POSITIVE_INTEGER` accepts `999999`,
+whose cutoff lands in 713 BC -- valid, and the purge never deletes anything
+again -- and `2147483647`, which makes `make_interval` raise `timestamp out of
+range` on every pass, straight into the `except Exception` of `retention_loop`,
+where it is logged and swallowed. Both are exactly the silent disabling the
+paragraph below rules out.
+
+This is not a hypothetical: the comment above `DELETE_ORPHANED_PICKED_ROWS` in
+`worker/main.py` records the same failure class already hitting the reaper,
+"since `processing_timeout_seconds` has no configured upper bound". `0018`
+carries the remedy in `EMBED_DIMENSIONS_RANGE`, and this is the same shape.
+
+36500 days is a hundred years: past any real retention policy, and far enough
+below the overflow that "lengthen" can never mean "switch off". A value of 0
+cannot be stored either, so the purge cannot be disabled through configuration
+-- only shortened or lengthened, within a range that still deletes. That is
 deliberate for a deletion mechanism: a privacy control that a typo in the
 config table can silently disable is not a control. Removing the row entirely
 falls back to the default in `worker/main.py`, which is also active, not off.
+
+The keys therefore get a branch of their own rather than joining `COUNT_KEYS`:
+the counts there (`retrieval_top_k`, `processing_max_attempts`) are unbounded
+above on purpose, and widening them here would change constraints this ticket
+has no business touching.
 
 Deleting an answer takes its feedback with it (`feedback.answer_id` is
 ON DELETE CASCADE), which is the intended reach: a rating is meaningless once
@@ -75,14 +96,20 @@ UNIT_INTERVAL_KEYS = (
     "self_check_band_low",
     "self_check_band_high",
 )
-OLD_COUNT_KEYS = (
+COUNT_KEYS = (
     "retrieval_top_k",
     "context_top_n",
     "rrf_k",
     "processing_timeout_seconds",
     "processing_max_attempts",
 )
-NEW_COUNT_KEYS = (*OLD_COUNT_KEYS, "answer_retention_days", "session_pseudonymise_days")
+
+# 1-9999, 10000-29999, 30000-35999, 36000-36499, 36500 -- an inclusive 1..36500.
+# Written as alternatives rather than a cast-and-compare for the same reason
+# `EMBED_DIMENSIONS_RANGE` is in 0018: the column is `text`, and a CHECK that
+# casts would raise instead of rejecting on the very values it exists to catch.
+RETENTION_DAYS_RANGE = r"^([1-9][0-9]{0,3}|[1-2][0-9]{4}|3[0-5][0-9]{3}|36[0-4][0-9]{2}|36500)$"
+RETENTION_DAYS_KEYS = ("answer_retention_days", "session_pseudonymise_days")
 
 ROWS = [
     (
@@ -102,13 +129,27 @@ def _quoted(keys: tuple[str, ...]) -> str:
     return ", ".join(f"'{key}'" for key in keys)
 
 
-def _check(count_keys: tuple[str, ...]) -> str:
+def _check(*, with_retention: bool) -> str:
+    """The constraint, with or without this revision's two keys.
+
+    The retention branch is placed before the count branch. `CASE` takes the
+    first matching arm, so the order is what keeps a later revision from
+    quietly widening these two back to `POSITIVE_INTEGER` by adding them to
+    `COUNT_KEYS` -- the tighter arm still wins.
+    """
+    retention = (
+        f"    WHEN key IN ({_quoted(RETENTION_DAYS_KEYS)})"
+        f"    THEN value ~ '{RETENTION_DAYS_RANGE}'"
+        if with_retention
+        else ""
+    )
     return (
         f"ALTER TABLE config ADD CONSTRAINT {CHECK_NAME} CHECK ("
         "  CASE"
         f"    WHEN key IN ({_quoted(UNIT_INTERVAL_KEYS)})"
         f"    THEN value ~ '{NUMERIC_UNIT_INTERVAL}'"
-        f"    WHEN key IN ({_quoted(count_keys)})"
+        f"{retention}"
+        f"    WHEN key IN ({_quoted(COUNT_KEYS)})"
         f"    THEN value ~ '{POSITIVE_INTEGER}'"
         "    WHEN key = 'embed_dimensions'"
         f"    THEN value ~ '{EMBED_DIMENSIONS_RANGE}'"
@@ -133,7 +174,7 @@ def upgrade() -> None:
     # ALTER. The order also means the seed below is validated by the constraint
     # it belongs to.
     op.execute(sa.text(f"ALTER TABLE config DROP CONSTRAINT IF EXISTS {CHECK_NAME}"))
-    op.execute(sa.text(_check(NEW_COUNT_KEYS)))
+    op.execute(sa.text(_check(with_retention=True)))
 
     bind = op.get_bind()
     for key, value, description in ROWS:
@@ -147,7 +188,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.execute(sa.text(f"ALTER TABLE config DROP CONSTRAINT IF EXISTS {CHECK_NAME}"))
-    op.execute(sa.text(_check(OLD_COUNT_KEYS)))
+    op.execute(sa.text(_check(with_retention=False)))
     op.execute(
         sa.text(
             "DELETE FROM config WHERE key IN "

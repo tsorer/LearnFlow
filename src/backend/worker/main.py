@@ -497,6 +497,19 @@ async def reaper_loop(pool: asyncpg.Pool) -> None:
 DEFAULT_SESSION_PSEUDONYMISE_DAYS = 30
 DEFAULT_ANSWER_RETENTION_DAYS = 90
 
+# The same 1..36500 the CHECK of migration 0019 enforces, repeated here because
+# the constraint is not the only thing between a value and this function: a
+# database restored from before 0019, or one whose constraint a later revision
+# widens by accident, would hand a bad value straight to `make_interval`. Both
+# ends matter and neither is cosmetic -- 999999 days puts the cutoff in 713 BC,
+# so the purge silently stops deleting, and 2147483647 makes `make_interval`
+# raise `timestamp out of range` on every pass, into an `except` that logs and
+# swallows. Out-of-range therefore falls back to the default, exactly as a
+# non-numeric value does: a deletion mechanism must not be switchable off by a
+# number nobody checked.
+MIN_RETENTION_DAYS = 1
+MAX_RETENTION_DAYS = 36500
+
 # Hourly. The unit being enforced is a day, so a pass every hour is already an
 # order of magnitude finer than the deadline it applies — anything shorter would
 # only add empty queries. Unlike the reaper's, this interval is not derived from
@@ -572,6 +585,11 @@ async def read_retention_config(conn: asyncpg.Connection) -> tuple[int, int]:
     which is the failure this exists to prevent. Migration 0019's CHECK keeps
     such a value out of the table to begin with, so the warning below should
     stay theoretical.
+
+    Both ends of the range are enforced, not just the lower one. A value above
+    `MAX_RETENTION_DAYS` is not a stricter setting, it is the purge switched
+    off — silently, either because the cutoff predates every row or because
+    `make_interval` raises and `retention_loop` swallows it (review on #126).
     """
     rows = await conn.fetch(
         "SELECT key, value FROM config "
@@ -591,8 +609,15 @@ async def read_retention_config(conn: asyncpg.Connection) -> tuple[int, int]:
             value = int(raw)
         except ValueError:
             value = 0
-        if value < 1:
-            log.warning("config %s=%r is not a positive integer — using %s", key, raw, default)
+        if not MIN_RETENTION_DAYS <= value <= MAX_RETENTION_DAYS:
+            log.warning(
+                "config %s=%r is not a whole number of days in [%s, %s] — using %s",
+                key,
+                raw,
+                MIN_RETENTION_DAYS,
+                MAX_RETENTION_DAYS,
+                default,
+            )
             value = default
         parsed.append(value)
     return parsed[0], parsed[1]

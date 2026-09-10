@@ -843,6 +843,23 @@ def test_row_count_reads_the_command_tag(tag: str, expected: int) -> None:
             (("session_pseudonymise_days", "spaeter"), ("answer_retention_days", "0")),
             (DEFAULT_SESSION_PSEUDONYMISE_DAYS, DEFAULT_ANSWER_RETENTION_DAYS),
         ),
+        # Above the range is not a stricter setting, it is the purge switched
+        # off: 999999 days puts the cutoff in 713 BC so nothing ever matches,
+        # and 2147483647 makes make_interval raise into a swallowed except.
+        # Both fall back rather than being passed on (review on #126).
+        (
+            (("session_pseudonymise_days", "999999"), ("answer_retention_days", "2147483647")),
+            (DEFAULT_SESSION_PSEUDONYMISE_DAYS, DEFAULT_ANSWER_RETENTION_DAYS),
+        ),
+        # The bounds themselves are inclusive on both ends.
+        (
+            (("session_pseudonymise_days", "1"), ("answer_retention_days", "36500")),
+            (1, 36500),
+        ),
+        (
+            (("session_pseudonymise_days", "36501"), ("answer_retention_days", "36501")),
+            (DEFAULT_SESSION_PSEUDONYMISE_DAYS, DEFAULT_ANSWER_RETENTION_DAYS),
+        ),
     ],
 )
 async def test_read_retention_config(
