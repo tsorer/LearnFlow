@@ -148,8 +148,25 @@ e2e-down:
 # real OPENAI_API_KEY (real embedding calls against the indexed corpus), so this is
 # a manually run release gate, not a CI job (T-53, #110) -- not part of `make qa`
 # or `make e2e` either way.
+# Seit T-55 in-process gegen die ASGI-App, in einer zurückgerollten Transaktion
+# (eval/conftest.py) — kein E2E_BASE_URL mehr, der Lauf spricht kein HTTP nach
+# aussen. `-s`, weil pytest die ausgegebene Refusal-Rate sonst bei einem
+# bestandenen Lauf verschluckt und man sie aus der CSV rekonstruieren müsste.
+#
+# EVAL_PROFILE wählt die Messkonfiguration (eval/profiles.py); ohne Angabe misst
+# der Lauf das ausgelieferte Profil, und nur dieses ist ein Gate.
+#
+# Kein zweites `-q`: `pyproject.toml` setzt es bereits in `addopts`, und pytest
+# zählt die Angaben. Auf Stufe 2 fällt die abschliessende Verdikt-Zeile weg
+# (`1 failed in 0.23s`) — bei einem Release-Gate ausgerechnet die Zeile, die
+# das Ergebnis benennt, und gegen das `-s` zwei Zeilen weiter oben gerichtet.
+#   make eval
+#   make eval EVAL_PROFILE=qwen3-local
 eval:
-	docker exec -e E2E_BASE_URL=http://webapp src-api-1 pytest eval
+	docker exec \
+		-e EVAL_PROFILE="$(EVAL_PROFILE)" \
+		-e EVAL_GIT_SHA="$$(git rev-parse --short HEAD 2>/dev/null)" \
+		src-api-1 pytest eval -s
 
 # --- query latency (T-22, #29, requires: make up && make seed && make seed-corpus) ---
 # Same execution path as eval: inside the api container, through nginx. Needs a real

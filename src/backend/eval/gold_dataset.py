@@ -113,19 +113,15 @@ def load_corpora() -> list[Corpus]:
     return [Corpus(path=c["path"], filename=c["filename"]) for c in _load()["corpora"].values()]
 
 
-def assert_corpus_is_indexed(client: httpx.Client, headers: dict[str, str]) -> None:
-    """A measurement against the corpus is only meaningful if it was indexed.
+def assert_documents_cover_the_corpus(documents: list[dict[str, Any]]) -> None:
+    """The check itself, over an already-fetched `GET /api/documents` body.
 
-    Without this, a dead worker or a `seed-corpus` that silently uploaded
-    nothing looks identical to a working stack: every question would hit the
-    retrieval gate instead of exercising retrieval/generation (review on
-    #100, originally guarding the refusal-rate gate; T-22 reuses it because an
-    unindexed corpus would make a latency measurement equally meaningless --
-    every request would return in milliseconds via the gate, not seconds).
+    Split out from the two wrappers below so the rule lives once (T-55): the
+    latency measurement still drives a synchronous client, while the refusal
+    gate now runs in-process against the ASGI app and therefore awaits. Only
+    the fetching differs; what counts as "indexed" must not.
     """
-    r = client.get("/api/documents", headers=headers)
-    assert r.status_code == 200, r.text
-    by_filename = {d["filename"]: d for d in r.json()}
+    by_filename = {d["filename"]: d for d in documents}
 
     missing = []
     for corpus in load_corpora():
@@ -139,3 +135,27 @@ def assert_corpus_is_indexed(client: httpx.Client, headers: dict[str, str]) -> N
             "Corpus not fully indexed: " + "; ".join(missing) + ". Run `make seed-corpus` "
             "against the running stack first."
         )
+
+
+def assert_corpus_is_indexed(client: httpx.Client, headers: dict[str, str]) -> None:
+    """A measurement against the corpus is only meaningful if it was indexed.
+
+    Without this, a dead worker or a `seed-corpus` that silently uploaded
+    nothing looks identical to a working stack: every question would hit the
+    retrieval gate instead of exercising retrieval/generation (review on
+    #100, originally guarding the refusal-rate gate; T-22 reuses it because an
+    unindexed corpus would make a latency measurement equally meaningless --
+    every request would return in milliseconds via the gate, not seconds).
+    """
+    r = client.get("/api/documents", headers=headers)
+    assert r.status_code == 200, r.text
+    assert_documents_cover_the_corpus(r.json())
+
+
+async def assert_corpus_is_indexed_async(
+    client: httpx.AsyncClient, headers: dict[str, str]
+) -> None:
+    """Same precondition for the in-process eval client (T-55)."""
+    r = await client.get("/api/documents", headers=headers)
+    assert r.status_code == 200, r.text
+    assert_documents_cover_the_corpus(r.json())

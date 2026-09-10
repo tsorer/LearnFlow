@@ -14,6 +14,7 @@ src/              Anwendungscode + Docker-Compose, Makefile, README
   frontend/       React 18 / TypeScript / Vite
 Ops/              Betrieb: CI-Runbook, Pilotstart-Checkliste
 LearningCorpus/   Fachkorpus (SKOS-Richtlinien, EU AI Act) + Gold-Eval-Datasets (Grundlage ADR-009)
+EvalAnalysis/     Ergebnisse der Eval-Messreihen + Einordnung (Evidenz zu ADR-008/009)
 .github/          CI-Workflow (Actions) + Issue-Templates
 .claudeignore     Verzeichnisse, die ignoriert werden sollen
 Artefakten/       Historische Kursartefakte nach Modul/Tag — können veraltet sein

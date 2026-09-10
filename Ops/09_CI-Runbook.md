@@ -70,6 +70,43 @@ T-47/T-48) ist deshalb vorerst ein **manuell auszuführendes Release-Gate**:
 make up && make seed && make seed-corpus && make eval
 ```
 
+**Was der Lauf anfasst (T-55, #123).** Seit T-55 läuft der Eval in-process gegen
+die ASGI-App, in einer Transaktion, die am Ende zurückgerollt wird. Er
+hinterlässt deshalb **keine Zeile** in der Datenbank — vorher sammelte jeder Lauf
+22 `answers`-Zeilen in der Entwicklungsdatenbank an. Gemessen wird immer gegen
+die Seed-Defaults der Schwellen, gesetzt innerhalb derselben Transaktion: eine
+lokale Kalibrierung bleibt unberührt, und zwei Läufe sind vergleichbar. Vorher
+hing der Messwert am Zustand der Datenbank — derselbe Korpus ergab 90,9 % oder
+95,5 %, je nach kalibrierten Schwellen.
+
+Der Lauf spricht dadurch kein HTTP mehr nach aussen und dauert rund 30 s statt
+2:45 min (das Rate-Limit taktete ihn vorher auf 6,5 s pro Frage). Fachlich
+braucht er nur noch eine erreichbare Datenbank mit indexiertem Korpus —
+technisch weiterhin den stehenden api-Container, weil `make eval` per `docker
+exec src-api-1` startet. Der ist seither aber blosser Ausführungsort, nicht
+mehr das gemessene System.
+
+**Messvarianten.** `EVAL_PROFILE` wählt die Konfiguration (`eval/profiles.py`):
+
+```bash
+make eval                              # ausgeliefertes Profil — das Gate
+make eval EVAL_PROFILE=qwen3-local     # Vergleichslauf, meldet ohne zu gaten
+```
+
+Ein Profil darf nur Modell und Zeitbudgets setzen; `TEMPERATURE` und die
+Schwellen bleiben ausgeschlossen (`tests/test_eval_profiles.py` hält das fest).
+**Das Gate greift nur beim ausgelieferten Profil** — ein Vergleichslauf gegen ein
+lokales Modell ist ein Messergebnis, kein gerissenes Release-Gate.
+
+Jeder Lauf schreibt nach `src/backend/eval/out/<profil>/<zeitstempel>/`, dort
+neben der CSV ein `run.json` mit Modell, wirksamen Schwellen, Überschreibungen
+und Git-SHA. Ein Pfad überlebt Kopieren nicht, ein `run.json` schon.
+
+`eval/out/` ist gitignored und rein lokal. Was aufbewahrt werden soll, gehört
+nach `EvalAnalysis/` — dort erzeugt `python -m eval.compare` aus den Läufen
+mehrerer Profile einen Vergleichsbericht, daneben steht die Einordnung von
+Hand. Siehe `EvalAnalysis/README.md`.
+
 Automatisierung in CI folgt mit **T-53 (#110)**, gekoppelt an den ohnehin
 anstehenden Wechsel auf Azure OpenAI EU (ADR-004) — dort auch die Fragen nach
 Trigger (`pull_request` vs. `push`/`workflow_dispatch`) und Secret-Scope geklärt.
@@ -137,14 +174,21 @@ make up && make seed && make seed-corpus && make perf    # dito, p95-Latenz (T-2
 `make e2e`, `make eval` und `make perf` sind bewusst nicht Teil von `make qa`: sie
 brauchen Container, während `make qa` ohne sie auskommen soll. `make e2e` bringt
 seine seit T-55 selbst mit; `eval` und `perf` setzen den laufenden Entwicklungs-Stack
-samt indexiertem Korpus voraus.
+samt indexiertem Korpus voraus. `make eval` misst darin in-process und spricht kein
+HTTP mehr nach aussen — den api-Container braucht er weiterhin, aber als
+Ausführungsort des `docker exec`, nicht mehr als gemessenes System.
 
-**Beide laufen seriell, und das ist zugesichert.** `e2e` und `eval` teilen sich eine
-Datenbank; mehrere Module schreiben dieselben `config`-Zeilen. Parallel ausgeführt
-zögen sie einander die Schwellen weg, nichtdeterministisch. Bisher passierte das nur
-deshalb nicht, weil `pytest-xdist` nicht installiert ist — ein `-n auto` in `addopts`
-hätte gereicht. Seit T-55 sagt `e2e/conftest.py` in dem Fall beim Start ab und nennt
-den Grund, statt hinterher unerklärlich rot zu werden.
+**Seriell, und das ist zugesichert.** Innerhalb einer Suite schreiben mehrere Module
+dieselben `config`-Zeilen; parallel ausgeführt zögen sie einander die Schwellen weg,
+nichtdeterministisch. Bisher passierte das nur deshalb nicht, weil `pytest-xdist`
+nicht installiert ist — ein `-n auto` in `addopts` hätte gereicht. Seit T-55 sagt
+`e2e/conftest.py` in dem Fall beim Start ab und nennt den Grund, statt hinterher
+unerklärlich rot zu werden.
+
+Zwischen den Suiten ist die Frage seit T-55 entschärft: `e2e` fährt eine eigene
+Datenbank (tmpfs, eigenes Compose-Projekt), und `eval` rollt seine Transaktion am
+Ende zurück. Geteilt wird nur noch die Entwicklungsdatenbank zwischen `eval` und
+`perf`.
 
 Eine separate Toolchain-Installation braucht es nicht — `make qa-be` läuft im
 api-Container, `make qa-fe` in einem `node:22-alpine`-Wegwerfcontainer. Für das
