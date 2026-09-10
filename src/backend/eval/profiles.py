@@ -54,6 +54,15 @@ class Profile:
     max_answer_tokens: int | None = None
     #: Sekunden für den Self-Check-Aufruf (Stufe 3).
     self_check_timeout_seconds: float | None = None
+    #: Token-Obergrenze für das Self-Check-Urteil. Gehört in dieselbe Kategorie
+    #: wie `max_answer_tokens`: ein Budget, kein Schwellenwert. Nötig, weil die
+    #: 300 aus `self_check.py` für `gemma4:26b` nicht reichen — es liefert dann
+    #: `finish_reason='length'` bei **null** Zeichen, was fail-closed als
+    #: unlesbares Urteil zählt. Mit 1000 antwortet dasselbe Modell auf denselben
+    #: Prompt mit `GEDECKT` (gemessen 2026-09-09). Der Unterschied ist nicht die
+    #: Länge des Urteils — sieben Zeichen —, sondern unsichtbarer Vorlauf, den
+    #: das Modell gegen das Budget rechnet.
+    max_verdict_tokens: int | None = None
     #: Zusätzliche LiteLLM-Argumente, z.B. `{"think": False}` für Qwen3, das
     #: sonst pro Aufruf knapp eine Minute nachdenkt, ohne dass sich die
     #: Antwort ändert (gemessen am 2026-09-09).
@@ -72,29 +81,50 @@ PRODUCTION = Profile(name="openai", model="gpt-4o-mini", gated=True)
 
 PROFILES: dict[str, Profile] = {
     PRODUCTION.name: PRODUCTION,
-    # Lokale Vergleichsprofile. Die Budgets stammen aus einer Messung am
-    # 2026-09-09: qwen3:8b schafft mit abgeschaltetem Denken 1,6-6 s pro
-    # Anfrage, gemma4:26b braucht ~104 s und lief ohne die erhöhte
-    # Antwortlänge durchgängig in `generation_truncated` — was der Eval als
-    # Verweigerung zählen würde und die Messung wertlos machte.
+    # Lokale Vergleichsprofile, alle Werte aus Messungen am 2026-09-09.
+    #
+    # Zu den Budgets: lokal kostet ein Token nichts, aber Zeit. Die Grenzen sind
+    # so gesetzt, dass `generation_truncated` als *Messartefakt* ausgeschlossen
+    # ist — ein abgeschnittener Lauf zählt im Eval als Verweigerung und sagt
+    # nichts über Urteilsfähigkeit. Das Timeout zieht mit: bei den gemessenen
+    # 12,8 tok/s bräuchten 8000 Tokens rund 10 Minuten, und ein zu knappes
+    # Zeitbudget tauschte nur einen Abbruch gegen den anderen.
+    #
+    # `num_ctx` ist der wichtigste Eintrag hier und der am leichtesten zu
+    # übersehende. **Ollama nimmt 4096, wenn nichts gesetzt ist**, unabhängig
+    # davon, was das Modell könnte (gemma4:26b: 262144, qwen3:8b: 40960). Unsere
+    # Grounding-Prompts tragen fünf Kontext-Chunks und liegen bei 7000-9000
+    # Zeichen, also grob 2200-2900 Token — zusammen mit `num_predict` sprengt
+    # das 4096 um ein Vielfaches, und Ollama kürzt den Prompt **von vorn**:
+    # genau dort steht die Systemanweisung mit dem WEISS_NICHT-Protokoll.
+    #
+    # Der erste Messlauf am 2026-09-09 lief in diese Falle. `gemma4:26b` gab bei
+    # den beiden längsten Prompts eine komplett leere Antwort zurück
+    # (`finish_reason='length'` bei null Zeichen), was der Eval als Verweigerung
+    # zählte und eine Refusal-Rate von 100 % ergab. Derselbe Prompt mit
+    # `num_ctx=16384`: `finish_reason='stop'`, 311 Zeichen — und inhaltlich eine
+    # *Antwort* auf eine Out-of-Corpus-Frage. Die Messung hatte also das
+    # Gegenteil dessen ausgewiesen, was das Modell tat.
     "qwen3-local": Profile(
         name="qwen3-local",
         model="ollama_chat/qwen3:8b",
-        timeout_seconds=540.0,
-        max_answer_tokens=2500,
-        self_check_timeout_seconds=120.0,
+        timeout_seconds=1800.0,
+        max_answer_tokens=8000,
+        self_check_timeout_seconds=600.0,
+        max_verdict_tokens=1000,
         # `think: False`, weil Qwen3 sonst pro Aufruf rund 53 s nachdenkt und
         # dieselbe Antwort liefert — 57,5 s gegen 4,3 s bei identischem
         # Ergebnis (gemessen am 2026-09-09).
-        extra_completion_kwargs={"think": False, "api_base": OLLAMA_API_BASE},
+        extra_completion_kwargs={"think": False, "api_base": OLLAMA_API_BASE, "num_ctx": 16384},
     ),
     "gemma4-local": Profile(
         name="gemma4-local",
         model="ollama_chat/gemma4:26b",
-        timeout_seconds=540.0,
-        max_answer_tokens=2500,
-        self_check_timeout_seconds=120.0,
-        extra_completion_kwargs={"api_base": OLLAMA_API_BASE},
+        timeout_seconds=1800.0,
+        max_answer_tokens=8000,
+        self_check_timeout_seconds=600.0,
+        max_verdict_tokens=1000,
+        extra_completion_kwargs={"api_base": OLLAMA_API_BASE, "num_ctx": 16384},
     ),
 }
 

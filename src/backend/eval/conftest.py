@@ -35,6 +35,7 @@ passen, sonst hätte die Indexierung nichts geschrieben.
 from __future__ import annotations
 
 import os
+import time
 from collections.abc import AsyncIterator, Iterator
 from typing import Any
 
@@ -106,11 +107,22 @@ async def measured_config(db_connection: AsyncConnection) -> AsyncIterator[dict[
     yield SEED_DEFAULTS
 
 
+@pytest.fixture
+def llm_trace() -> list[dict[str, Any]]:
+    """Ein Eintrag je `litellm.acompletion`, in Aufrufreihenfolge.
+
+    Der Test schneidet die Liste je Frage auf und legt sie in `details.json` —
+    siehe `_record` für das, was drinsteht, und warum es nicht in der Spec steht.
+    """
+    return []
+
+
 @pytest_asyncio.fixture
 async def client(
     db_connection: AsyncConnection,
     measured_config: dict[str, object],
     profile: Profile,
+    llm_trace: list[dict[str, Any]],
     monkeypatch: pytest.MonkeyPatch,
 ) -> AsyncIterator[httpx.AsyncClient]:
     """Die echte ASGI-App, ohne uvicorn und ohne nginx."""
@@ -139,7 +151,7 @@ async def client(
     app.dependency_overrides[get_db] = _get_db
     # Sonst taktet `POST /api/query` (10/Minute) den Lauf auf 6,5 s je Frage.
     monkeypatch.setattr(limiter, "enabled", False)
-    _apply(profile, monkeypatch)
+    _apply(profile, monkeypatch, llm_trace)
 
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://eval") as c:
@@ -148,7 +160,9 @@ async def client(
     app.dependency_overrides.clear()
 
 
-def _apply(profile: Profile, monkeypatch: pytest.MonkeyPatch) -> None:
+def _apply(
+    profile: Profile, monkeypatch: pytest.MonkeyPatch, trace: list[dict[str, Any]]
+) -> None:
     """Das Profil auf die Pipeline legen — ohne eine Zeile in `app/` zu ändern.
 
     `settings.llm_model` wird zur Laufzeit gelesen, die Budgets sind
@@ -165,15 +179,72 @@ def _apply(profile: Profile, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(generation, "MAX_ANSWER_TOKENS", profile.max_answer_tokens)
     if profile.self_check_timeout_seconds is not None:
         monkeypatch.setattr(self_check, "TIMEOUT_SECONDS", profile.self_check_timeout_seconds)
+    if profile.max_verdict_tokens is not None:
+        monkeypatch.setattr(self_check, "MAX_VERDICT_TOKENS", profile.max_verdict_tokens)
 
-    if profile.extra_completion_kwargs:
-        original = litellm.acompletion
-        extra = dict(profile.extra_completion_kwargs)
+    original = litellm.acompletion
+    extra = dict(profile.extra_completion_kwargs)
 
-        async def _with_extra(**kwargs: Any) -> Any:
-            return await original(**{**kwargs, **extra})
+    async def _wrapped(**kwargs: Any) -> Any:
+        sent = {**kwargs, **extra}
+        started = time.monotonic()
+        try:
+            r = await original(**sent)
+        except Exception as exc:  # noqa: BLE001 — im Protokoll festhalten, dann weiterreichen
+            trace.append(_record(sent, started, error=exc))
+            raise
+        trace.append(_record(sent, started, response=r))
+        return r
 
-        monkeypatch.setattr(litellm, "acompletion", _with_extra)
+    monkeypatch.setattr(litellm, "acompletion", _wrapped)
+
+
+def _record(
+    sent: dict[str, Any],
+    started: float,
+    response: Any = None,
+    error: BaseException | None = None,
+) -> dict[str, Any]:
+    """Was ein einzelner LLM-Aufruf über sich preisgibt.
+
+    Bewusst mehr, als `LLMCallInfo` in `openapi.yaml` führt: dort stehen nur
+    `step`, `label`, `prompt` und `response`, und genau das reichte zweimal
+    nicht. Eine leere Antwort sieht in der API identisch aus, egal ob das
+    Modell nichts sagen wollte, der Kontext den Prompt beschnitten hat oder das
+    Token-Budget vor dem ersten sichtbaren Zeichen aufgebraucht war — der
+    Unterschied steht allein in `finish_reason` und den `usage`-Zahlen. Beide
+    Male (Kontextfenster 4096, Verdict-Budget 300) wurde deshalb erst ein
+    manuell nachgestellter Aufruf zur Diagnose.
+
+    Hier statt in der Spec, weil der Eval ohnehin einen Wrapper um
+    `litellm.acompletion` legt und damit an Daten kommt, die die API nie
+    ausliefert — ohne eine Zeile Produktivcode und ohne den Vertrag zu ändern.
+    """
+    usage = getattr(response, "usage", None)
+    choice = (getattr(response, "choices", None) or [None])[0]
+    content = getattr(getattr(choice, "message", None), "content", None) or ""
+    return {
+        "model": sent.get("model"),
+        "duration_s": round(time.monotonic() - started, 2),
+        "finish_reason": getattr(choice, "finish_reason", None),
+        "response_chars": len(content),
+        # Die tatsächlich abgeschickten Stellschrauben. Hätte das hier gestanden,
+        # wären `max_tokens=300` und das fehlende `num_ctx` sofort sichtbar
+        # gewesen, statt aus dem Verhalten erschlossen werden zu müssen.
+        "sent": {
+            k: sent.get(k)
+            for k in ("max_tokens", "num_ctx", "temperature", "timeout", "think")
+            if sent.get(k) is not None
+        },
+        "prompt_chars": sum(len(m.get("content") or "") for m in sent.get("messages") or []),
+        "usage": {
+            k: getattr(usage, k, None)
+            for k in ("prompt_tokens", "completion_tokens", "total_tokens")
+        }
+        if usage is not None
+        else None,
+        "error": f"{type(error).__name__}: {error}" if error is not None else None,
+    }
 
 
 @pytest.fixture

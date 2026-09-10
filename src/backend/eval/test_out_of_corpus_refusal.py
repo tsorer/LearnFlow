@@ -95,6 +95,7 @@ def _write_run_json(
                     "timeout_seconds": profile.timeout_seconds,
                     "max_answer_tokens": profile.max_answer_tokens,
                     "self_check_timeout_seconds": profile.self_check_timeout_seconds,
+                    "max_verdict_tokens": profile.max_verdict_tokens,
                     "extra_completion_kwargs": profile.extra_completion_kwargs,
                 },
                 "measured_config": {k: str(v) for k, v in measured_config.items()},
@@ -123,6 +124,7 @@ async def test_out_of_corpus_refusal_rate(
     profile: Profile,
     measured_config: dict[str, object],
     eval_out_dir: Any,
+    llm_trace: list[dict[str, Any]],
 ) -> None:
     headers = {"Authorization": f"Bearer {token}"}
     await assert_corpus_is_indexed_async(client, headers)
@@ -136,6 +138,13 @@ async def test_out_of_corpus_refusal_rate(
     )
 
     mismatches: list[tuple[str, str, bool, str | None]] = []
+    # Die vollständige Antwort je Frage, inklusive `debug.llm_calls` mit Prompt
+    # und Rohtext jedes LLM-Aufrufs — dasselbe, was die Admin-Ansicht zeigt.
+    # Die CSV daneben trägt nur Kennzahlen, und an ihr endet die Auswertung
+    # genau dort, wo sie interessant wird: warum eine Antwort abgeschnitten
+    # wurde, oder was ein Self-Check geantwortet hat, der als «unlesbar» galt,
+    # steht in keiner Spalte. Lokal kostet das Mitschreiben nichts.
+    details: list[dict[str, Any]] = []
     results_csv = eval_out_dir / "refusal-results.csv"
 
     with results_csv.open("w", newline="", encoding="utf-8") as f:
@@ -143,11 +152,23 @@ async def test_out_of_corpus_refusal_rate(
         writer.writerow(CSV_COLUMNS)
 
         for q in questions:
+            trace_from = len(llm_trace)
             r = await client.post(
                 "/api/query", json={"question": q.question}, headers=headers
             )
             assert r.status_code == 200, r.text
             body = r.json()
+            details.append({
+                "id": q.id,
+                "question": q.question,
+                "expected_refusal": q.expected_refusal,
+                "response": body,
+                # Die Provider-Sicht auf dieselben Aufrufe, die `debug.llm_calls`
+                # oben aus Anwendungssicht zeigt: `finish_reason`, Token-Zahlen,
+                # Dauer und die tatsächlich gesendeten Stellschrauben. Die
+                # Reihenfolge stimmt mit `debug.llm_calls` überein.
+                "llm_trace": llm_trace[trace_from:],
+            })
 
             reason = body.get("suppression_reason")
             # A configuration_error is a test/infra failure wearing a refusal's
@@ -178,6 +199,9 @@ async def test_out_of_corpus_refusal_rate(
     refusal_rate = (len(questions) - len(mismatches)) / len(questions)
     _write_run_json(
         eval_out_dir, profile, measured_config, refusal_rate, len(questions), mismatches
+    )
+    (eval_out_dir / "details.json").write_text(
+        json.dumps(details, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
     )
 
     print(f"\nProfil {profile.name} ({profile.model})")

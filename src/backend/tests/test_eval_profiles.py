@@ -22,6 +22,11 @@ ALLOWED_OVERRIDES = {
     "timeout_seconds",
     "max_answer_tokens",
     "self_check_timeout_seconds",
+    # Budget, kein Schwellenwert — verschiebt nicht, *wann* eine Antwort als
+    # gedeckt gilt, sondern nur, wie viel Raum das Modell für sein Urteil hat.
+    # Aufgenommen, weil `gemma4:26b` mit den 300 aus `self_check.py` null
+    # Zeichen liefert und der Eval das fail-closed als «unlesbar» wertete.
+    "max_verdict_tokens",
     "extra_completion_kwargs",
 }
 
