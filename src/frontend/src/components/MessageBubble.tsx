@@ -566,7 +566,14 @@ function DebugPanel({ debug, confidence }: { debug: DebugInfo; confidence: Confi
             Aktive Parameter dieser Anfrage
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-            {Object.entries(debug.params_used).map(([k, v]) => {
+            {/* Die Zusicherung nur, weil `Object.entries` seine Schlüssel immer
+                auf `string` verbreitert — seit T-46 ist `params_used` in der
+                Spec eine geschlossene Menge, und `PARAM_LABELS` ist danach
+                typisiert. Ohne sie indiziert `string` in einen Record mit
+                zehn bekannten Schlüsseln. */}
+            {(Object.entries(debug.params_used) as [
+              keyof typeof debug.params_used, number | null,
+            ][]).map(([k, v]) => {
               if (v === null) return null;
               const display = typeof v === "number" && v > 0 && v < 1 ? pct(v) : String(v);
               return (

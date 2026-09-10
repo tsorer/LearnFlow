@@ -23,6 +23,8 @@ import "@testing-library/jest-dom/vitest";
 import App from "./App";
 import { installApiStub, installAppEnvironment, type ApiStub } from "../test/api";
 import { PARAM_LABELS } from "./params";
+import type { components } from "./api/schema";
+import type { ConfigMap } from "./api/client";
 
 let api: ApiStub;
 
@@ -48,10 +50,24 @@ const PARAMS_USED_KEYS = [
   "retrieval_top_k",
   "context_top_n",
   "rrf_k",
-] as const;
+] as const satisfies readonly ParamsUsedKey[];
 
-/** Every row `GET /admin/config` returns — the writable ones and the rest. */
-const CONFIG: Record<string, string> = {
+type ParamsUsedKey = keyof components["schemas"]["DebugInfo"]["params_used"];
+/**
+ * Was die Spec kennt und die Liste oben nicht (T-46). `satisfies` dort fängt
+ * die eine Richtung — einen Schlüssel, den die Spec nicht kennt —, dieser Typ
+ * die andere. In Klammern, weil bedingte Typen sonst über `never`
+ * distribuieren und die Prüfung leerlaufen würde.
+ */
+type Missing = Exclude<ParamsUsedKey, (typeof PARAMS_USED_KEYS)[number]>;
+
+/** Every row `GET /admin/config` returns — the writable ones and the rest.
+ *
+ *  Als `ConfigMap` typisiert, nicht als `Record<string, string>` (Review #122):
+ *  so kann das Stub keinen Schlüssel enthalten, den die Spec nicht kennt —
+ *  `tsc --noEmit` fängt das, bevor ein Test gegen eine erfundene Zeile grün
+ *  wird. */
+const CONFIG: ConfigMap = {
   similarity_threshold: "0.35",
   min_retrieval_confidence: "0.40",
   min_citation_coverage: "0.50",
@@ -216,15 +232,44 @@ describe("PARAM_LABELS", () => {
     }
   });
 
+  it("führt jeden Schlüssel, den die Spec für params_used deklariert", () => {
+    // Die eigentliche Prüfung passiert beim Kompilieren: fehlt oben ein
+    // Schlüssel, den `DebugInfo.params_used` deklariert, ist `Missing` nicht
+    // mehr `never` und diese Zuweisung schlägt fehl (T-46). Die Assertion
+    // darunter hält den Test ehrlich — ohne sie wäre es ein leerer Fall.
+    // Der Fehlertyp ist ein Tupel statt `false`, damit tsc den fehlenden
+    // Schlüssel beim Namen nennt — «not assignable to type 'false'» allein
+    // schickt den Nächsten auf die Suche.
+    const everyKeyListed: [Missing] extends [never]
+      ? true
+      : ["PARAMS_USED_KEYS fehlt:", Missing] = true;
+    expect(everyKeyListed).toBe(true);
+    expect(PARAMS_USED_KEYS).toHaveLength(10);
+  });
+
   it("kennt keinen Schlüssel, den es in der config-Tabelle nicht gibt", () => {
     // Die vier llm_* standen hier, ohne dass es je eine Zeile für sie gab —
     // tote Einträge, die nichts beschrifteten und die Liste plausibel aussehen
     // liessen. Ihr Feature ist in ein eigenes Issue vertagt.
+    //
+    // Bis T-46 war das eine Blacklist: sie kannte genau die drei Namen, die
+    // damals aufgefallen waren, und ein *neuer* toter Eintrag wäre
+    // durchgerutscht. Seit `ParamDef.key` als `ConfigKey` aus der Spec
+    // typisiert ist, kann er gar nicht mehr entstehen — die Zeile unten prüft
+    // deshalb nicht mehr drei Namen, sondern die ganze Menge.
+    //
+    // Verglichen wird bewusst gegen `CONFIG` und **nicht** gegen
+    // `keyof ConfigMap` (Vorschlag im Review zu #122): `PARAM_LABELS` ist
+    // `Partial<Record<ConfigKey, string>>`, seine Schlüssel *sind* also
+    // bereits `keyof ConfigMap` — die Assertion könnte dann nicht mehr
+    // fehlschlagen. `CONFIG` modelliert die Zeilen, die es wirklich gibt, und
+    // ist damit die stärkere Aussage. Dass es ein Modell bleibt und kein
+    // Abbild, schliesst erst die e2e-Gleichheitsprüfung gegen die echte
+    // Tabelle (`test_admin_config_endpoint.py`).
+    const declared = new Set(Object.keys(CONFIG));
     for (const key of Object.keys(PARAM_LABELS)) {
-      expect(key.startsWith("llm_")).toBe(false);
+      expect(declared).toContain(key);
     }
-    expect(PARAM_LABELS).not.toHaveProperty("top_k");
-    expect(PARAM_LABELS).not.toHaveProperty("top_n");
   });
 });
 

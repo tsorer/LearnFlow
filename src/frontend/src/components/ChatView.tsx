@@ -1,13 +1,14 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import type { AuthUser, Message } from "../types";
-import { api, ApiError } from "../api/client";
+import { api, ApiError, type ConfigMap } from "../api/client";
 import Upload from "./Upload";
 import MessageBubble from "./MessageBubble";
 import {
   ANSWER_PARAM_DEFS,
   READ_ONLY_PARAM_DEFS,
   RETRIEVAL_PARAM_DEFS,
+  type ConfigKey,
   type ParamDef,
 } from "../params";
 
@@ -31,8 +32,16 @@ function ParamGroup({
 }: {
   title: string;
   defs: readonly ParamDef[];
-  params: Record<string, string>;
-  onChange: (key: string, value: string) => void;
+  // `ConfigMap`, nicht `Record<string, string>` (T-46): der Zustand oben ist es
+  // schon, und nur so sagt der Typ die Nullability richtig. `getConfig` fängt
+  // seinen Fehler ab und lässt `params` als `{}` stehen, und in `ConfigMap`
+  // ist jeder Schlüssel optional — `params[p.key]` ist zur Laufzeit also
+  // wirklich `undefined`. Unter `Record<string, string>` typisierte der
+  // Compiler es als `string`, womit das `?? ""` unten wie toter Defensivcode
+  // aussieht: wer es entfernt, rendert jeden Regler mit `value={undefined}`
+  // und macht die Inputs uncontrolled.
+  params: ConfigMap;
+  onChange: (key: ConfigKey, value: string) => void;
 }) {
   return (
     <div style={{ marginBottom: 12 }}>
@@ -161,7 +170,7 @@ export default function ChatView({ user, onLogout, messages, setMessages, sessio
   const [inputError, setInputError] = useState("");
   const [showUpload, setShowUpload] = useState(false);
   const [showParams, setShowParams] = useState(false);
-  const [params, setParams] = useState<Record<string, string>>({});
+  const [params, setParams] = useState<ConfigMap>({});
   const [paramSaved, setParamSaved] = useState(false);
   const [paramError, setParamError] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -172,7 +181,9 @@ export default function ChatView({ user, onLogout, messages, setMessages, sessio
     api.getConfig(user.token).then(setParams).catch(() => {});
   }, []);
 
-  const updateParam = useCallback((key: string, val: string) => {
+  // `ConfigKey`, nicht `string` (T-46): ein Schlüssel, den die config-Tabelle
+  // nicht kennt, ist damit ein tsc-Fehler statt einer 422 beim Speichern.
+  const updateParam = useCallback((key: ConfigKey, val: string) => {
     setParams(prev => ({ ...prev, [key]: val }));
     setParamSaved(false);
     setParamError("");

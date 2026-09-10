@@ -71,7 +71,22 @@ function debugInfo(chunks: ChunkDebugInfo[], rrfK = 60): DebugInfo {
     min_citation_coverage: 0.5,
     self_check_ran: false,
     retrieval_detail: { top_score: 0.62, mean_score: 0.43, evidence_density: 0.4, result: 0.55, count: 2 },
-    params_used: { rrf_k: rrfK, context_top_n: 5 },
+    // Vollständig, weil die Spec seit T-46 alle zehn Schlüssel verlangt: wer
+    // kalibriert, braucht auch die Schwellen der Stufen, die nicht liefen.
+    // Für diesen Test zählen nur `rrf_k` und `context_top_n`, der Rest
+    // spiegelt die Felder oben bzw. die Defaults aus `services/config.py`.
+    params_used: {
+      similarity_threshold: 0.41,
+      min_retrieval_confidence: 0.4,
+      min_citation_coverage: 0.5,
+      confidence_threshold_medium: 0.45,
+      confidence_threshold_high: 0.75,
+      self_check_band_low: 0.45,
+      self_check_band_high: 0.75,
+      retrieval_top_k: 20,
+      context_top_n: 5,
+      rrf_k: rrfK,
+    },
     dense_above_threshold: 1,
     total_dense_retrieved: 5,
     sparse_count: 4,

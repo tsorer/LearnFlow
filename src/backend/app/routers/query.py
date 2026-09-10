@@ -201,6 +201,16 @@ STAGE_SELF_CHECK = "self_check"
 STEP_GROUNDING = "grounding"
 STEP_SELF_CHECK = "self_check"
 
+# The string form of `StageInfo.value`, produced by the self-check stage alone —
+# every other stage puts a number there. A constant rather than a literal in
+# `_self_check_value` so `openapi.yaml` can declare the closed set and
+# `tests/test_openapi_spec.py` can hold both sides together (T-46), the same
+# way it does for the two families above. The other two members of the set are
+# `VERDICT_COVERED` / `VERDICT_UNCOVERED`, imported above: they are the
+# protocol tokens the self-check prompt asks the model for, and they reach the
+# admin view unchanged.
+VERDICT_UNREADABLE = "unlesbar"
+
 # Every question costs an embedding call and, past both gates, one or two LLM
 # calls (ADR-004, ADR-005) — this is the only endpoint that spends provider
 # money. Ten a minute is out of reach for someone typing questions at the p95 of
@@ -748,8 +758,35 @@ def _self_check_value(self_check: SelfCheckResult | None) -> str | None:
     if self_check is None:
         return None
     if not self_check.verdict_parsed:
-        return "unlesbar"
+        return VERDICT_UNREADABLE
     return VERDICT_COVERED if self_check.passed else VERDICT_UNCOVERED
+
+
+def params_used(
+    config: PipelineConfig, thresholds: ConfidenceThresholds
+) -> dict[str, float | None]:
+    """Every threshold this request was decided against, including those of
+    stages that did not run: an operator calibrating the pipeline needs the
+    whole set, and the frontend used to invent the missing ones.
+
+    Its own function, not an inline literal in `_to_debug`, so the key set is
+    reachable without building a whole `DebugInfo` — `openapi.yaml` declares
+    it as a closed `properties` map, and `tests/test_openapi_spec.py` holds
+    both sides together (T-46). Inline, the spec could only be checked against
+    a copy of the keys, which is the drift it is meant to prevent.
+    """
+    return {
+        "similarity_threshold": config.similarity_threshold,
+        "min_retrieval_confidence": config.min_retrieval_confidence,
+        "min_citation_coverage": config.min_citation_coverage,
+        "confidence_threshold_medium": thresholds.medium,
+        "confidence_threshold_high": thresholds.high,
+        "self_check_band_low": config.self_check_band_low,
+        "self_check_band_high": config.self_check_band_high,
+        "retrieval_top_k": config.retrieval_top_k,
+        "context_top_n": config.context_top_n,
+        "rrf_k": config.rrf_k,
+    }
 
 
 def _to_debug(
@@ -892,21 +929,7 @@ def _to_debug(
             result=detail.result,
             count=detail.count,
         ),
-        # Every threshold this request was decided against, including those of
-        # stages that did not run: an operator calibrating the pipeline needs the
-        # whole set, and the frontend used to invent the missing ones.
-        params_used={
-            "similarity_threshold": config.similarity_threshold,
-            "min_retrieval_confidence": config.min_retrieval_confidence,
-            "min_citation_coverage": config.min_citation_coverage,
-            "confidence_threshold_medium": thresholds.medium,
-            "confidence_threshold_high": thresholds.high,
-            "self_check_band_low": config.self_check_band_low,
-            "self_check_band_high": config.self_check_band_high,
-            "retrieval_top_k": config.retrieval_top_k,
-            "context_top_n": config.context_top_n,
-            "rrf_k": config.rrf_k,
-        },
+        params_used=params_used(config, thresholds),
         dense_above_threshold=len(dense_above_threshold),
         total_dense_retrieved=outcome.dense_count,
         sparse_count=outcome.sparse_count,

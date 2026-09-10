@@ -18,6 +18,7 @@ export type DebugInfo = Schemas["DebugInfo"];
 export type ChunkDebugInfo = Schemas["ChunkDebugInfo"];
 export type StageInfo = Schemas["StageInfo"];
 export type LLMCallInfo = Schemas["LLMCallInfo"];
+export type ConfigMap = Schemas["ConfigMap"];
 export type DocumentResponse = Schemas["DocumentResponse"];
 export type DocumentContent = Schemas["DocumentContent"];
 export type DocumentContentChunk = Schemas["DocumentContentChunk"];
@@ -266,13 +267,14 @@ export const api = {
       }),
     ),
 
-  getConfig: async (token: string): Promise<Record<string, string>> =>
+  // `ConfigMap`, nicht `Record<string, string>` (T-46): die Spec deklariert
+  // die Schlüsselmenge geschlossen, und `Record<string, string>` hier hätte
+  // genau an der Schreibgrenze wieder jeden String erlaubt — der Endpunkt
+  // weist einen unbekannten Schlüssel erst zur Laufzeit mit 422 ab.
+  getConfig: async (token: string): Promise<ConfigMap> =>
     unwrap(await client.GET("/api/admin/config", { headers: auth(token) })).config,
 
-  updateConfig: async (
-    config: Record<string, string>,
-    token: string,
-  ): Promise<Record<string, string>> =>
+  updateConfig: async (config: ConfigMap, token: string): Promise<ConfigMap> =>
     unwrap(await client.PUT("/api/admin/config", { headers: auth(token), body: { config } }))
       .config,
 };

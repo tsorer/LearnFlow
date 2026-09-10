@@ -76,7 +76,22 @@ function debugInfo(overrides: Partial<DebugInfo> = {}): DebugInfo {
       result: 0.59,
       count: 5,
     },
-    params_used: { min_retrieval_confidence: 0.4, min_citation_coverage: 0.5 },
+    // Vollständig, weil die Spec seit T-46 alle zehn Schlüssel verlangt. Nur
+    // `min_retrieval_confidence` und `min_citation_coverage` werden hier
+    // gelesen, der Rest spiegelt die Felder oben bzw. die Defaults aus
+    // `services/config.py`.
+    params_used: {
+      similarity_threshold: 0.35,
+      min_retrieval_confidence: 0.4,
+      min_citation_coverage: 0.5,
+      confidence_threshold_medium: 0.45,
+      confidence_threshold_high: 0.75,
+      self_check_band_low: 0.45,
+      self_check_band_high: 0.75,
+      retrieval_top_k: 20,
+      context_top_n: 5,
+      rrf_k: 60,
+    },
     dense_above_threshold: 5,
     total_dense_retrieved: 20,
     sparse_count: 12,

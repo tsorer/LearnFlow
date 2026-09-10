@@ -30,8 +30,20 @@
  * auch die unberührten Werte daneben.
  */
 
+import type { components } from "./api/schema";
+
+/**
+ * Die Schlüssel, die die `config`-Tabelle kennt — aus der Spec, nicht von Hand
+ * (T-46). `ConfigMap` ist dort eine geschlossene `properties`-Menge, also ist
+ * ein Tippfehler in einer der Listen unten ab jetzt ein Compile-Fehler statt
+ * eines Reglers, den `PUT /api/admin/config` mit 422 abweist. Genau so
+ * verschickte das Panel einmal `top_k` an einen Endpunkt, der nur
+ * `retrieval_top_k` kennt.
+ */
+export type ConfigKey = keyof components["schemas"]["ConfigMap"];
+
 export type ParamDef = {
-  key: string;
+  key: ConfigKey;
   label: string;
   type: "float" | "int";
   min: number;
@@ -73,7 +85,7 @@ export const READ_ONLY_PARAM_DEFS = [
   { key: "chunk_overlap",     label: "Chunk-Overlap (Tokens)" },
   { key: "embed_model",       label: "Embedding-Modell" },
   { key: "embed_dimensions",  label: "Embedding-Dimension" },
-] as const;
+] as const satisfies readonly { key: ConfigKey; label: string }[];
 
 /**
  * Beschriftung je Schlüssel, abgeleitet statt gepflegt.
@@ -83,7 +95,7 @@ export const READ_ONLY_PARAM_DEFS = [
  * erscheint dem Admin als roher Bezeichner; genau das passierte mit
  * `retrieval_top_k`, `context_top_n` und `rrf_k`.
  */
-export const PARAM_LABELS: Record<string, string> = Object.fromEntries(
+export const PARAM_LABELS: Partial<Record<ConfigKey, string>> = Object.fromEntries(
   [...RETRIEVAL_PARAM_DEFS, ...ANSWER_PARAM_DEFS, ...READ_ONLY_PARAM_DEFS].map(
     p => [p.key, p.label],
   ),
