@@ -71,7 +71,28 @@ UPDATE config SET value = '0.75' WHERE key = 'self_check_band_high';
 COMMIT;
 -- Stale-Schwelle (US-06)
 UPDATE config SET value = '90'   WHERE key = 'stale_days';
+-- Aufbewahrung des Frage-Logs (Migration 0019). Die Startwerte 30/90 sind
+-- Vorschlagswerte (Docs/02_Requirements.md §3) und vor dem Pilotstart durch die
+-- Werte zu ersetzen, auf die sich das Team festgelegt hat. Erlaubt ist 1-36500
+-- Tage; die Datenbank weist alles ausserhalb ab, damit "verlaengern" nicht
+-- versehentlich "abschalten" heisst. pseudonymise <= retention setzen, sonst
+-- ist die Zeile geloescht, bevor die Trennung greift.
+UPDATE config SET value = '30'   WHERE key = 'session_pseudonymise_days';
+UPDATE config SET value = '90'   WHERE key = 'answer_retention_days';
 ```
+
+> **⚠️ Der erste Worker-Lauf loescht sofort.** Anders als die uebrigen Werte hier
+> wirken diese beiden rueckwirkend: der `retention_loop` raeumt beim ersten
+> Durchlauf (spaetestens eine Stunde nach dem Start) **alles** ab, was bereits
+> jenseits der Frist liegt — in einer Transaktion. Auf einer Installation, die
+> schon laenger laeuft, ist das eine einmalige, potenziell grosse Loeschung.
+> Vorher pruefen, wie viel es trifft, und ggf. 1.2 (Backup) vorziehen:
+>
+> ```sql
+> SELECT count(*) FROM answers
+>  WHERE created_at < now() - make_interval(days => (
+>        SELECT value::int FROM config WHERE key = 'answer_retention_days'));
+> ```
 
 > Änderungen wirken sofort — die Werte werden pro Anfrage gelesen, kein Service-Neustart nötig.
 > Nach dem Pilotstart sind sie über die Admin-Seite (US-11) ohne Deployment anpassbar.

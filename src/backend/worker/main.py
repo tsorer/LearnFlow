@@ -536,6 +536,183 @@ async def reaper_loop(pool: asyncpg.Pool) -> None:
             log.exception("Reaper pass failed — next attempt in %s s", interval)
 
 
+# How long a question stays linked to the account that asked it, and how long
+# it is kept at all (migration 0019).
+#
+# Fallbacks, and the numbers themselves are proposals rather than policy: 30 and
+# 90 days are recorded as Vorschlagswerte in `Docs/02_Requirements.md` §3, chosen
+# so the mechanism has something to enforce until the team settles on real
+# periods. The config table is authoritative and both values are read once per
+# pass, so an adjustment takes effect within the hour, without a deployment or a
+# restart — same arrangement as the reaper's two keys above.
+DEFAULT_SESSION_PSEUDONYMISE_DAYS = 30
+DEFAULT_ANSWER_RETENTION_DAYS = 90
+
+# The same 1..36500 the CHECK of migration 0019 enforces, repeated here because
+# the constraint is not the only thing between a value and this function: a
+# database restored from before 0019, or one whose constraint a later revision
+# widens by accident, would hand a bad value straight to `make_interval`. Both
+# ends matter and neither is cosmetic -- 999999 days puts the cutoff in 713 BC,
+# so the purge silently stops deleting, and 2147483647 makes `make_interval`
+# raise `timestamp out of range` on every pass, into an `except` that logs and
+# swallows. Out-of-range therefore falls back to the default, exactly as a
+# non-numeric value does: a deletion mechanism must not be switchable off by a
+# number nobody checked.
+MIN_RETENTION_DAYS = 1
+MAX_RETENTION_DAYS = 36500
+
+# Hourly. The unit being enforced is a day, so a pass every hour is already an
+# order of magnitude finer than the deadline it applies — anything shorter would
+# only add empty queries. Unlike the reaper's, this interval is not derived from
+# the deadline: a retention of one day and one of a year both want the same
+# modest cadence, because what matters is that the pass happens, not how soon
+# after midnight it lands.
+RETENTION_INTERVAL_SECONDS = 3600
+
+# The personal reference goes first, and it goes by the *session's* age: a
+# session is a thread of questions, and the link being cut is a property of the
+# thread, not of any single answer in it.
+PSEUDONYMISE_SESSIONS = """
+    UPDATE query_sessions
+       SET user_id = NULL
+     WHERE user_id IS NOT NULL
+       AND created_at < now() - make_interval(days => $1::int)
+"""
+
+# Answers age on their own timestamp, deliberately not on their session's. A
+# session that stays open for weeks would otherwise take questions asked
+# minutes ago down with it the moment the session crossed the deadline —
+# deleting data the policy says to keep. Feedback rows follow through
+# `feedback.answer_id` ON DELETE CASCADE.
+DELETE_EXPIRED_ANSWERS = """
+    DELETE FROM answers
+     WHERE created_at < now() - make_interval(days => $1::int)
+"""
+
+# What the two statements above leave behind: a session whose answers are gone.
+# Removed only once it is itself past the retention deadline, so a session that
+# is still being used — its older answers purged, newer ones not yet written —
+# is never deleted out from under a live conversation.
+DELETE_EMPTY_SESSIONS = """
+    DELETE FROM query_sessions qs
+     WHERE qs.created_at < now() - make_interval(days => $1::int)
+       AND NOT EXISTS (SELECT 1 FROM answers a WHERE a.session_id = qs.id)
+"""
+
+
+async def purge_expired(
+    conn: asyncpg.Connection, pseudonymise_days: int, retention_days: int
+) -> tuple[int, int, int]:
+    """Unlink, then delete. Returns the row counts for the caller's log.
+
+    Two mitigations in one pass because they are one policy read from two
+    distances: after `pseudonymise_days` a question can no longer be traced to
+    an account, and after `retention_days` it is gone. Ordering them
+    unlink-before-delete costs nothing and means a shortened retention can never
+    delete rows that were still carrying a user reference — whatever leaves this
+    function has already been through the first step.
+
+    One transaction: a pass that unlinked but failed before deleting would be
+    repeated an hour later, and the repeat must not see a half-applied state.
+    """
+    async with conn.transaction():
+        unlinked = await conn.execute(PSEUDONYMISE_SESSIONS, pseudonymise_days)
+        answers = await conn.execute(DELETE_EXPIRED_ANSWERS, retention_days)
+        sessions = await conn.execute(DELETE_EMPTY_SESSIONS, retention_days)
+    return (_row_count(unlinked), _row_count(answers), _row_count(sessions))
+
+
+def _row_count(tag: str) -> int:
+    """asyncpg returns the command tag ("DELETE 12"); the count is its last word."""
+    parts = tag.split()
+    return int(parts[-1]) if parts and parts[-1].isdigit() else 0
+
+
+async def read_retention_config(conn: asyncpg.Connection) -> tuple[int, int]:
+    """The two deadlines, read per pass — same contract as `read_reaper_config`.
+
+    Falls back to the defaults rather than raising, and for the same reason: a
+    purge that stops on a typo is a privacy control that a typo switched off,
+    which is the failure this exists to prevent. Migration 0019's CHECK keeps
+    such a value out of the table to begin with, so the warning below should
+    stay theoretical.
+
+    Both ends of the range are enforced, not just the lower one. A value above
+    `MAX_RETENTION_DAYS` is not a stricter setting, it is the purge switched
+    off — silently, either because the cutoff predates every row or because
+    `make_interval` raises and `retention_loop` swallows it (review on #126).
+    """
+    rows = await conn.fetch(
+        "SELECT key, value FROM config "
+        "WHERE key IN ('session_pseudonymise_days', 'answer_retention_days')"
+    )
+    values: dict[str, str] = {row["key"]: row["value"] for row in rows}
+    parsed: list[int] = []
+    for key, default in (
+        ("session_pseudonymise_days", DEFAULT_SESSION_PSEUDONYMISE_DAYS),
+        ("answer_retention_days", DEFAULT_ANSWER_RETENTION_DAYS),
+    ):
+        raw = values.get(key)
+        if raw is None:
+            parsed.append(default)
+            continue
+        try:
+            value = int(raw)
+        except ValueError:
+            value = 0
+        if not MIN_RETENTION_DAYS <= value <= MAX_RETENTION_DAYS:
+            log.warning(
+                "config %s=%r is not a whole number of days in [%s, %s] — using %s",
+                key,
+                raw,
+                MIN_RETENTION_DAYS,
+                MAX_RETENTION_DAYS,
+                default,
+            )
+            value = default
+        parsed.append(value)
+    return parsed[0], parsed[1]
+
+
+async def retention_loop(pool: asyncpg.Pool) -> None:
+    """Enforce the two deadlines for as long as the worker lives.
+
+    Sleeps first, like the reaper: at startup the API may still be running the
+    migrations of the same deployment, and 0019's config rows are what this
+    reads.
+
+    Every failure is logged and swallowed. A purge that cannot run is a policy
+    not being enforced, which is bad — but taking the job consumer down with it
+    would stop documents from being indexed as well, which is worse and does not
+    delete anything either.
+    """
+    while True:
+        await asyncio.sleep(RETENTION_INTERVAL_SECONDS)
+        try:
+            async with pool.acquire() as conn:
+                pseudonymise_days, retention_days = await read_retention_config(conn)
+                unlinked, answers, sessions = await purge_expired(
+                    conn, pseudonymise_days, retention_days
+                )
+            if unlinked or answers or sessions:
+                # Counts only. The rows this touches are the ones the pass exists
+                # to make unattributable, so naming any of them here would write
+                # the identifier back out into the container log.
+                log.info(
+                    "Retention pass: unlinked %s session(s) older than %s d, "
+                    "deleted %s answer(s) and %s empty session(s) older than %s d",
+                    unlinked,
+                    pseudonymise_days,
+                    answers,
+                    sessions,
+                    retention_days,
+                )
+        except Exception:
+            log.exception(
+                "Retention pass failed — next attempt in %s s", RETENTION_INTERVAL_SECONDS
+            )
+
+
 async def verify_embedding_config_at_startup(conn: asyncpg.Connection) -> None:
     """Compare `Settings.embed_model`/`embed_dimensions` against what migration
     0018 persisted, and abort the worker on a mismatch (ADR-005, T-42).
@@ -606,14 +783,16 @@ async def main() -> None:
     qm.entrypoint("process_document")(make_job_handler(pool))
 
     log.info("Worker ready — listening for jobs")
-    # The reaper is a side task, not a second consumer: it is cancelled when the
+    # Both are side tasks, not second consumers: they are cancelled when the
     # queue manager returns, so a SIGTERM shuts the container down instead of
-    # leaving an endless loop behind for the runtime to kill.
+    # leaving endless loops behind for the runtime to kill.
     reaper = asyncio.create_task(reaper_loop(pool))
+    retention = asyncio.create_task(retention_loop(pool))
     try:
         await qm.run()
     finally:
         reaper.cancel()
+        retention.cancel()
 
 
 if __name__ == "__main__":

@@ -39,6 +39,8 @@ LearnFlow ist eine interne Lernplattform, die neuen Mitarbeitenden erlaubt, Frag
 | Rollen | Lernende / Bereichsverantwortlicher / Admin |
 | Budget | 480 h gesamt (4 Personen × 15 Wochen × 1 Tag/Woche), davon **360 h Umsetzung** und ~120 h Planung/Analyse/Architektur |
 | Deadline | 30. September 2026 |
+| Aufbewahrung Query-Log | **Vorschlagswert 90 Tage** — danach werden Antworten gelöscht, Feedback folgt per CASCADE. Per DB-Script änderbar, kein Code-Deployment erforderlich (`answer_retention_days`) |
+| Pseudonymisierung Query-Log | **Vorschlagswert 30 Tage** — danach wird die Verknüpfung Frage ↔ Konto gekappt; die Frage bleibt für die Eval (ADR-009) erhalten. Per DB-Script änderbar (`session_pseudonymise_days`) |
 
 ---
 
@@ -275,7 +277,7 @@ Das Kernversprechen — verlässliche, quellenbelegte Antworten — hängt an ei
 | Self-Service-Registrierung | Accounts nur per DB-Script; offene Registrierung ist Sicherheitsrisiko |
 | Audit-Log für Dokument-Operationen | Wer hat was hochgeladen/gelöscht — relevant für Compliance, aber kein MVP-Blocker |
 | Mehrsprachigkeit | Nur Deutsch im MVP; Dokumente in anderen Sprachen (EN, FR) nicht adressiert |
-| DSGVO-Löschantrag-Workflow | Aufbewahrungsfristen für Query-Logs und Feedback-Freitext nicht definiert — Post-MVP |
+| DSGVO-Löschantrag-Workflow | Kein Endpoint, um ein Konto oder die eigene Fragehistorie auf Antrag zu löschen — Post-MVP. Die *automatische* Aufbewahrungsfrist ist dagegen umgesetzt (siehe §3), sie ersetzt den Antrags-Workflow aber nicht |
 | Diff-Ansicht bei Dokumenten-Updates | Stefan sieht geänderte Abschnitte beim Re-Upload — explizit als Post-MVP markiert (US-06) |
 | Mobile / responsive UI | Nicht spezifiziert; Desktop-Browser als einziges Target |
 
