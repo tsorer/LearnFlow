@@ -136,7 +136,7 @@ erzwungene Frist wächst.
 Die eigentliche Auflösung dieses Zielkonflikts wäre ein Fortschritts-Zeitstempel, den der
 Worker zwischen den Batches hochschreibt: dann misst der Reaper „seit X kein Fortschritt"
 statt „seit X beansprucht", und X darf klein sein, unabhängig von der Gesamtdauer. Offen als
-eigener Vorgang.
+eigener Vorgang — umgesetzt im Nachtrag 2026-09-11 unten.
 
 ### Ein eigenes Versions-Token
 
@@ -146,6 +146,84 @@ zu verwerfen, hat der Optimistic-Lock des Workers eine eigene Spalte bekommen:
 sie hoch — der Upload, weil die Bytes neu sind, und der Reaper, weil er einen Lauf für tot
 erklärt. Ein aufwachender Zombie-Job scheitert dadurch **deterministisch** an jeder
 geschützten Schreiboperation, statt sich mit dem neuen Versuch um die Chunks zu streiten.
+
+## Nachtrag 2026-09-11 — Fortschritt statt Übernahme (T-51, #106; T-61, #132)
+
+Der vorherige Nachtrag hat den Zielkonflikt benannt, aber nicht aufgelöst: `heartbeat` trägt
+den Übernahmezeitpunkt, nicht ein Lebenszeichen, also musste die Frist gleichzeitig „länger
+als der längste legitime Lauf" und „kurz genug für eine zügige Reparatur" sein. 2700 s hat
+diesen Konflikt zugunsten der ersten Hälfte entschieden — Wiederherstellung im schlechtesten
+Fall nach ~45 Minuten, AK 4 aus #69 nur wahrscheinlich statt erzwungen.
+
+**Die Auflösung:** `documents.index_progress_at`, eine neue Spalte, die der Worker selbst an
+Phasengrenzen hochschreibt — nach dem Parsen, nach dem Chunking, nach jedem Embedding-Batch
+(`mark_processing`/`note_progress` in `worker/main.py`), jeweils unter derselben
+`index_version`-Bedingung wie jeder andere Schreibzugriff auf die Zeile. Der Reaper misst jetzt
+„seit X kein Fortschritt" statt „seit X beansprucht" — die `NOT EXISTS`-Subquery gegen
+`pgqueuer` samt JSON-Cast-Guard (Review zu #104) entfällt ersatzlos, `STUCK_DOCUMENTS`
+vergleicht nur noch `d.index_progress_at` gegen `now() - make_interval(secs => $1)`.
+
+Eine eigene Spalte statt eines aufgefrischten `pgqueuer.heartbeat`, weil Letzteres nicht an
+`index_version` gebunden werden kann: die Zeile ist dokument-, nicht versionsgebunden, und ein
+Worker, der die Verbindung verliert, gereapt wird und sich danach erholt, würde mit seiner
+alten Zeile das Dokument dauerhaft „lebendig" halten — genau der Zustand, den der Mechanismus
+beseitigen soll.
+
+**Zwei Config-Keys statt einem:** `processing_timeout_seconds` (2700 s) behält seine
+Bedeutung und Herleitung von oben unverändert, treibt aber nur noch
+`DELETE_ORPHANED_PICKED_ROWS` (T-52) — den Sweep verwaister `pgqueuer`-Zeilen, der weiterhin
+`heartbeat` liest. Ein neuer Key, `processing_stall_seconds` (300 s), entscheidet jetzt das
+Reapen selbst. Der alte Key wird nicht umgedeutet: eine stillschweigende Umdeutung hätte jede
+bestehende Installation unter ihrem alten, viel zu grossen Wert in die neue, viel strengere
+Semantik gezwungen — dieselbe Deployment-Falle, die T-43 schon vermied, als es
+`documents.index_version` statt `updated_at` einführte.
+
+**Woher 300 s kommen — gemessen, nicht geschätzt**, gegen die grösste Lücke, die ein
+gesunder Lauf zwischen zwei Fortschritts-Meldungen überbrücken können muss:
+
+| Lücke | Wert | Quelle |
+|---|---|---|
+| Parsing (dichtestes Korpusdokument, auf 10 MiB skaliert, ~2100 Chunks) | ~29 s | gemessen, `parse_document` |
+| Chunking derselben Menge | ~3 s | gemessen, `chunk_blocks` |
+| `store_chunks` + `mark_available` (~1850 Chunks, echte DB) | ~5 s | gemessen |
+| Ein Embedding-Batch, einmal im Zeitlimit, dann erfolgreich | **~120 s** | rechenbar: `TIMEOUT_SECONDS × (1 + MAX_RETRIES)` = 90 s + LiteLLM-Backoff |
+
+Die Embedding-Lücke ist der harte Boden: darunter würde ein kerngesunder Lauf gereapt, dessen
+Provider einmal zickt — genau der Fehlerfall, den die 2700-s-Herleitung oben vermeiden wollte.
+`stall = max(120, 29, 3, 5) × 2 = 240 s`, aufgerundet auf **300 s** mit Reserve gegen
+Backoff-Varianz. Der Takt der Schleife folgt jetzt `stall_seconds` (`min(max(stall/4, 5), 300)`)
+statt `timeout_seconds`; Erkennungslatenz liegt damit bei `stall + Takt` ≈ 300 + 75 = 375 s,
+statt bei bis zu 45 Minuten. Der Takt selbst sinkt damit gegenüber dem alten Default um das
+Vierfache (300 s → 75 s) — ein zusätzlicher, indizierter Query alle 75 statt alle 300 s, laut
+Kommentar über `REAPER_PASSES_PER_STALL` in `worker/main.py` bewusst in Kauf genommen, weil ein
+Pass keine spürbare Last ist.
+
+**Bekannte Restlücke:** die 300 s sind gegen `chunk_size = 512` (ADR-007-Default) gemessen.
+`chunk_size` hat keinen DB-Constraint und ist nur per `psql` änderbar (`app/routers/admin.py`
+nimmt ihn bewusst nicht in die Admin-API auf, siehe dortiger Kommentar) — ein sehr kleiner Wert
+dort vervielfacht die Chunk-Zahl und damit Chunking- und Insert-Dauer, ohne dass ein
+`note_progress`-Checkpoint innerhalb dieser beiden Phasen liegt. Unter dem alten 2700-s-Budget
+folgenlos, unter 300 s könnte eine drastische `chunk_size`-Kalibrierung einen gesunden Lauf
+reapen. Das ist eine Operator-Aktion (kein Admin-API-Pfad), keine Provider- oder Laststörung,
+und ausserhalb des Scopes dieses Tickets — wer `chunk_size` kalibriert, sollte diese Kopplung
+kennen.
+
+**Zu US-04:** die 5 Minuten dort gelten dem Normalpfad Upload → verfügbar, nicht dem
+Reparaturpfad. Vollständige Wiederherstellung eines abgestürzten Laufs ist Erkennung plus ein
+kompletter Neulauf und kann die 5 Minuten grundsätzlich nicht halten. Das AK dieses Tickets
+sagt entsprechend „innerhalb weniger Minuten erkannt", nicht „wiederhergestellt".
+
+**T-61 (#132), in derselben Migration (0020) miterledigt:** `processing_timeout_seconds` stand
+bis dahin nur nach unten begrenzt (`>= 1`) — belegt war, dass `999999` (~11,5 Tage) klaglos
+angenommen wurde, was das Reapen (vor T-51) bzw. den Zeilen-Sweep (seither) faktisch
+abschaltet, ohne dass irgendwo etwas rot wird. Beide Sekunden-Keys teilen sich jetzt einen
+eigenen CHECK-Zweig mit Ober- **und** Untergrenze, `[120, 999999]`, vor dem `COUNT_KEYS`-Zweig
+platziert (`CASE` nimmt den ersten Treffer). Die Grenzen sind gegen dieses Setup gemessen, nicht
+geraten: `now() - make_interval(secs => $1)` überläuft bei ~2,127 × 10¹¹ s (~6739 Jahre vor
+`now()`, Postgres' früheste darstellbare Zeit), die verdoppelte Variante des Sweeps
+(`... * 2`) bei der Hälfte, ~1,063 × 10¹¹ s (~3369 Jahre) — beide vier Grössenordnungen über
+der neuen Obergrenze. `read_reaper_config` klemmt zusätzlich in beide Richtungen, symmetrisch
+zur bisherigen Untergrenze, für eine Datenbank, die älter als Migration 0020 ist.
 
 ---
 

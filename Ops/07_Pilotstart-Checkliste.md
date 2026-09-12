@@ -44,8 +44,8 @@ docker compose exec api python -m alembic upgrade head
 
 ### 3.2 Initialkonfiguration in `config`-Tabelle prüfen
 
-Die Startwerte legen die Migrationen an (`0004`, `0007`, `0008`, `0014`) — kein manuelles
-`INSERT` nötig. Nur kontrollieren:
+Die Startwerte legen die Migrationen an (`0004`, `0007`, `0008`, `0014`, `0017`, `0018`,
+`0019`, `0020`) — kein manuelles `INSERT` nötig. Nur kontrollieren:
 
 ```sql
 SELECT key, value FROM config ORDER BY key;
@@ -79,6 +79,15 @@ UPDATE config SET value = '90'   WHERE key = 'stale_days';
 -- ist die Zeile geloescht, bevor die Trennung greift.
 UPDATE config SET value = '30'   WHERE key = 'session_pseudonymise_days';
 UPDATE config SET value = '90'   WHERE key = 'answer_retention_days';
+-- Reaper (Migration 0020, T-51/T-61). processing_stall_seconds entscheidet,
+-- wann ein Indexierungslauf ohne Fortschrittsmeldung als verwaist gilt;
+-- processing_timeout_seconds nur noch, wann seine verwaiste pgqueuer-Zeile
+-- aufgeraeumt wird (T-52). Erlaubt ist 120-999999 Sekunden fuer beide; die
+-- Datenbank weist alles ausserhalb ab. Unter 120 s reapt ein gesunder Lauf,
+-- dessen Embedding-Batch einmal ins Zeitlimit laeuft und im zweiten Anlauf
+-- gelingt (ADR-006, Nachtrag 2026-09-11).
+UPDATE config SET value = '300'  WHERE key = 'processing_stall_seconds';
+UPDATE config SET value = '2700' WHERE key = 'processing_timeout_seconds';
 ```
 
 > **⚠️ Der erste Worker-Lauf loescht sofort.** Anders als die uebrigen Werte hier

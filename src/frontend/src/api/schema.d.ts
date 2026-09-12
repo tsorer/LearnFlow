@@ -1376,6 +1376,7 @@ export interface components {
             embed_dimensions?: string;
             processing_timeout_seconds?: string;
             processing_max_attempts?: string;
+            processing_stall_seconds?: string;
             stale_days?: string;
             answer_retention_days?: string;
             session_pseudonymise_days?: string;

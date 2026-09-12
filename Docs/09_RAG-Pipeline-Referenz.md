@@ -114,7 +114,7 @@ Wert steht.
 | `TIMEOUT_SECONDS` | 20.0 | Code · `self_check.py` | – | Zeitlimit LLM-Aufruf 2 |
 | `MAX_RETRIES` | 0 | Code · `self_check.py` | – | Wiederholungen LLM-Aufruf 2 |
 | `VERDICT_COVERED` / `_UNCOVERED` | `GEDECKT` / `NICHT_GEDECKT` | Code · `self_check.py` | – | Sentinels des Urteils |
-| `BATCH_SIZE` | 64 | Code · `embedding.py` | – | Texte je Embedding-Aufruf. ADR-006 leitet die Reaper-Frist daraus her — nicht allein ändern |
+| `BATCH_SIZE` | 64 | Code · `embedding.py` | – | Texte je Embedding-Aufruf. ADR-006 leitet den Sweep-Timeout (`processing_timeout_seconds`) daraus her — nicht allein ändern |
 | `TIMEOUT_SECONDS` | 30.0 | Code · `embedding.py` | – | Zeitlimit je Embedding-Aufruf, gleiche Kopplung |
 | `MAX_RETRIES` | 2 | Code · `embedding.py` | – | Wiederholungen je Embedding-Aufruf, gleiche Kopplung |
 | `ENCODING_NAME` | `cl100k_base` | Code · `chunking.py` | **ja** | Tokenizer, gegen den `chunk_size` zählt |

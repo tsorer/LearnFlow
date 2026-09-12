@@ -26,12 +26,13 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 # nothing here to validate it against. Recorded in ADR-008's 2026-08-22
 # Nachtrag, since issue #44 left this open for T-37 to decide.
 #
-# REAPER_KEYS (0017, T-43) are writable, because neither exclusion above
-# applies to them: they have a reader (`worker/main.py`, `read_reaper_config`)
-# and a DB-level constraint, and no re-indexing stands between a change and its
-# effect — the reaper reads them once per pass, so a new value is in force by
-# the next one, at most a quarter of the current timeout later. That is "ohne
-# Neustart" in the sense US-11 asks for, if not to the second.
+# REAPER_KEYS (0017, T-43; processing_stall_seconds added by 0020, T-51) are
+# writable, because neither exclusion above applies to them: they have a
+# reader (`worker/main.py`, `read_reaper_config`) and a DB-level constraint,
+# and no re-indexing stands between a change and its effect — the reaper
+# reads them once per pass, so a new value is in force by the next one, at
+# most a quarter of the current stall later. That is "ohne Neustart" in the
+# sense US-11 asks for, if not to the second.
 #
 # `embed_model`/`embed_dimensions` (0018, T-42) are excluded for the same
 # reason as `chunk_size`/`chunk_overlap`, only more so: a live PUT changing
@@ -42,11 +43,16 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 # both processes over a value this very endpoint claimed to accept. Changing
 # either is `apply_embedding_config.py`'s job, run by hand once an operator
 # has actually changed `Settings` — never a request this API answers.
-REAPER_KEYS = frozenset({"processing_timeout_seconds", "processing_max_attempts"})
-# Both reaper keys are counts, so they belong here as well as in WRITABLE_KEYS:
-# _validate_shape falls through to NUMERIC_UNIT_INTERVAL for everything outside
-# this set, and would turn a perfectly good `900` into "muss eine Zahl zwischen
-# 0 und 1 sein".
+REAPER_KEYS = frozenset(
+    {"processing_stall_seconds", "processing_timeout_seconds", "processing_max_attempts"}
+)
+# processing_max_attempts is a plain count; the other two share the tighter
+# bounded range below (T-61, #132) and are checked before this set is ever
+# consulted — see _validate_shape. All three still belong in COUNT_KEYS too:
+# _validate_shape's PROCESSING_SECONDS branch only intercepts the two it
+# names, and the fallback below it would otherwise turn a perfectly good
+# `900` into "muss eine Zahl zwischen 0 und 1 sein" for whichever key isn't
+# caught first.
 COUNT_KEYS = frozenset({"retrieval_top_k", "context_top_n", "rrf_k"}) | REAPER_KEYS
 WRITABLE_KEYS = frozenset(CONFIDENCE_THRESHOLD_KEYS) | frozenset(PIPELINE_KEYS) | REAPER_KEYS
 
@@ -61,6 +67,14 @@ WRITABLE_KEYS = frozenset(CONFIDENCE_THRESHOLD_KEYS) | frozenset(PIPELINE_KEYS) 
 # raw DB error instead of this endpoint's friendly one.
 NUMERIC_UNIT_INTERVAL = re.compile(r"^(0(\.[0-9]+)?|1(\.0+)?)$")
 POSITIVE_INTEGER = re.compile(r"^[1-9][0-9]*$")
+
+# Mirrors migration 0020's PROCESSING_SECONDS_RANGE (T-61, #132): 120-999999,
+# the same bound the CHECK enforces underneath this fast-fail. Checked ahead
+# of COUNT_KEYS in _validate_shape, same ordering reason as the CASE arm in
+# the migration — the tighter check must win even for a key that also
+# appears in COUNT_KEYS.
+PROCESSING_SECONDS_RANGE = re.compile(r"^(1[2-9][0-9]|[2-9][0-9]{2}|[1-9][0-9]{3,5})$")
+PROCESSING_SECONDS_KEYS = frozenset({"processing_stall_seconds", "processing_timeout_seconds"})
 
 # check_violation — what both the per-row CHECK (0009/0012) and the deferred
 # band-order trigger (0009) raise. Any other IntegrityError out of commit()
@@ -84,7 +98,10 @@ async def _read_all(db: AsyncSession) -> ConfigResponse:
 
 def _validate_shape(key: str, value: str) -> str | None:
     """Value-shape check for a key already known to be writable."""
-    if key in COUNT_KEYS:
+    if key in PROCESSING_SECONDS_KEYS:
+        if not PROCESSING_SECONDS_RANGE.fullmatch(value):
+            return f"{key} muss eine ganze Zahl zwischen 120 und 999999 sein ({value!r})"
+    elif key in COUNT_KEYS:
         if not POSITIVE_INTEGER.fullmatch(value):
             return f"{key} muss eine positive ganze Zahl sein ({value!r})"
     elif not NUMERIC_UNIT_INTERVAL.fullmatch(value):

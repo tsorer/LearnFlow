@@ -81,6 +81,7 @@ const CONFIG: ConfigMap = {
   chunk_size: "512",
   chunk_overlap: "64",
   stale_days: "90",
+  processing_stall_seconds: "300",
   processing_timeout_seconds: "2700",
   processing_max_attempts: "3",
   embed_model: "text-embedding-3-small",

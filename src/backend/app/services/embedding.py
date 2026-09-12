@@ -9,6 +9,7 @@ rather than in the config table: unlike chunk_size/chunk_overlap they do not
 change retrieval quality, which is the criterion for that table (ADR-007).
 """
 
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 import litellm
@@ -32,8 +33,20 @@ TIMEOUT_SECONDS = 30.0
 MAX_RETRIES = 2
 
 
-async def embed_texts(texts: list[str]) -> list[list[float]]:
-    """Embed texts in input order. Raises on any provider or response error."""
+async def embed_texts(
+    texts: list[str], on_batch: Callable[[], Awaitable[None]] | None = None
+) -> list[list[float]]:
+    """Embed texts in input order. Raises on any provider or response error.
+
+    `on_batch`, if given, is awaited after every batch succeeds — not a
+    provider concern, this module stays free of DB and reaper knowledge, it
+    is the worker's own checkpoint (T-51: `note_progress`) threaded through so
+    a long, multi-batch run has somewhere to report that it is still making
+    progress. Whatever `on_batch` raises propagates and ends the run right
+    there — deliberately: if it signals that this run has been superseded,
+    continuing to spend provider calls on a version nobody reads any more is
+    exactly what should stop.
+    """
     vectors: list[list[float]] = []
     for start in range(0, len(texts), BATCH_SIZE):
         batch = texts[start : start + BATCH_SIZE]
@@ -60,6 +73,8 @@ async def embed_texts(texts: list[str]) -> list[list[float]]:
             num_retries=MAX_RETRIES,
         )
         vectors.extend(_vectors_from(response, expected=len(batch)))
+        if on_batch is not None:
+            await on_batch()
     return vectors
 
 
