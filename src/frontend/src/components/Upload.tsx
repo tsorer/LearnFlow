@@ -4,7 +4,7 @@ import { api } from "../api/client";
 
 interface Props { user: AuthUser; onClose: () => void; }
 
-const statusColor = { pending: "var(--muted)", processing: "var(--amber)", available: "var(--green)", failed: "var(--red)" };
+const statusBadgeClass = { pending: "", processing: "badge-warning", available: "badge-success", failed: "badge-danger" };
 const statusLabel = { pending: "Ausstehend", processing: "Verarbeitung…", available: "Verfügbar", failed: "Fehler" };
 
 const POLL_INTERVAL_MS = 3000;
@@ -242,17 +242,17 @@ export default function Upload({ user, onClose }: Props) {
             display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100,
           }}
         >
-          <div style={{ background: "var(--card)", borderRadius: 12, padding: 24, maxWidth: 440, boxShadow: "0 10px 40px rgba(0,0,0,0.25)" }}>
-            <h3 style={{ fontSize: 17, fontWeight: 800, color: "var(--navy)", marginBottom: 12 }}>
+          <div className="card" style={{ borderRadius: "var(--radius-lg)", padding: 24, maxWidth: 440, boxShadow: "var(--shadow-md)" }}>
+            <h3 style={{ fontSize: "var(--text-xl)", fontWeight: "var(--font-black)", color: "var(--text-primary)", marginBottom: 12 }}>
               Dokument ersetzen?
             </h3>
-            <p style={{ fontSize: 14, lineHeight: 1.5, marginBottom: 8 }}>
+            <p style={{ fontSize: "var(--text-base)", lineHeight: 1.5, marginBottom: 8 }}>
               Ein Dokument namens <strong>{confirm.filename}</strong> ist bereits im Korpus
               {confirm.uploader ? <> — zuletzt hochgeladen von <strong>{confirm.uploader}</strong></> : null}.
               Beim Hochladen wird die bestehende Fassung überschrieben.
             </p>
             {confirm.isOther && (
-              <p style={{ fontSize: 13, color: "var(--amber)", fontWeight: 700, marginBottom: 8 }}>
+              <p style={{ fontSize: "var(--text-sm)", color: "var(--gold)", fontWeight: "var(--font-bold)", marginBottom: 8 }}>
                 Dieses Dokument stammt von einer anderen Person.
               </p>
             )}
@@ -265,7 +265,7 @@ export default function Upload({ user, onClose }: Props) {
       )}
       <div style={{ maxWidth: 720, margin: "0 auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-          <h2 style={{ fontSize: 20, fontWeight: 800, color: "var(--navy)" }}>Dokumente</h2>
+          <h2 style={{ fontSize: "var(--text-2xl)", fontWeight: "var(--font-black)", color: "var(--text-primary)" }}>Dokumente</h2>
           <button className="secondary" onClick={onClose}>← Zurück zum Chat</button>
         </div>
 
@@ -280,22 +280,22 @@ export default function Upload({ user, onClose }: Props) {
           }}
           onDrop={handleDrop}
           style={{
-            display: "block", border: `2px dashed ${dragging ? "var(--blue)" : "var(--border)"}`,
-            borderRadius: 10,
+            display: "block", border: `2px dashed ${dragging ? "var(--coral)" : "var(--border)"}`,
+            borderRadius: "var(--radius-md)",
             padding: "24px 32px", textAlign: "center", cursor: "pointer",
-            background: uploading || dragging ? "var(--blue-lt)" : "var(--card)", marginBottom: 24,
+            background: uploading || dragging ? "var(--coral-tint)" : "var(--surface)", marginBottom: 24,
             transition: "background 0.15s, border-color 0.15s",
           }}
         >
           <div style={{ fontSize: 24, marginBottom: 8 }}>📄</div>
-          <div style={{ fontWeight: 700, color: "var(--navy)" }}>
+          <div style={{ fontWeight: "var(--font-bold)", color: "var(--text-primary)" }}>
             {uploading
               ? "Wird hochgeladen…"
               : dragging
                 ? "Zum Hochladen loslassen"
                 : "Dateien hierher ziehen oder klicken"}
           </div>
-          <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
+          <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", marginTop: 4 }}>
             PDF, DOCX oder Markdown · max. 10 MB pro Datei
           </div>
           <input
@@ -309,13 +309,13 @@ export default function Upload({ user, onClose }: Props) {
         </label>
 
         {error && (
-          <div style={{ background: "var(--red-lt)", color: "var(--red)", borderRadius: 8, padding: "8px 14px", marginBottom: 16, fontSize: 13 }}>
+          <div style={{ background: "var(--red-tint)", color: "var(--red)", borderRadius: "var(--radius-sm)", padding: "8px 14px", marginBottom: 16, fontSize: "var(--text-sm)" }}>
             {error}
           </div>
         )}
 
         {notice && (
-          <div style={{ background: "var(--green-lt)", color: "var(--green)", borderRadius: 8, padding: "8px 14px", marginBottom: 16, fontSize: 13 }}>
+          <div style={{ background: "var(--olive-tint)", color: "var(--olive)", borderRadius: "var(--radius-sm)", padding: "8px 14px", marginBottom: 16, fontSize: "var(--text-sm)" }}>
             {notice}
           </div>
         )}
@@ -323,39 +323,38 @@ export default function Upload({ user, onClose }: Props) {
         {/* Document list */}
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {docs.length === 0 && (
-            <div style={{ color: "var(--muted)", fontSize: 13, textAlign: "center", padding: 24 }}>
+            <div style={{ color: "var(--text-muted)", fontSize: "var(--text-sm)", textAlign: "center", padding: 24 }}>
               Noch keine Dokumente im Korpus.
             </div>
           )}
           {docs.map(d => (
-            <div key={d.id} style={{
-              background: "var(--card)", border: `1px solid ${d.status === "failed" ? "var(--red)" : "var(--border)"}`,
-              borderRadius: 8, padding: "10px 14px",
+            <div key={d.id} className="card" style={{
+              borderColor: d.status === "failed" ? "var(--red)" : undefined,
+              padding: "10px 14px",
             }}>
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 600, fontSize: 14 }}>{d.filename}</div>
-                  <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>
+                  <div style={{ fontWeight: "var(--font-semibold)", fontSize: "var(--text-base)" }}>{d.filename}</div>
+                  <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", marginTop: 2 }}>
                     {d.chunk_count} Chunks · Bereich: {d.area}
                   </div>
                 </div>
-                <span style={{
-                  fontSize: 11, fontWeight: 700, color: statusColor[d.status],
-                  background: d.status === "available" ? "var(--green-lt)" : d.status === "failed" ? "var(--red-lt)" : "transparent",
-                  borderRadius: 30, padding: "2px 8px",
-                }}>
+                <span
+                  className={`badge ${statusBadgeClass[d.status]}`}
+                  style={d.status === "pending" ? { color: "var(--text-muted)" } : undefined}
+                >
                   {statusLabel[d.status]}
                 </span>
                 {d.status === "failed" && d.error_message && (
                   <button
                     className="secondary"
-                    style={{ fontSize: 11, padding: "3px 8px" }}
+                    style={{ fontSize: "var(--text-2xs)", padding: "3px 8px" }}
                     onClick={() => setExpanded(prev => ({ ...prev, [d.id]: !prev[d.id] }))}
                   >
                     {expanded[d.id] ? "▲ Details" : "▼ Details"}
                   </button>
                 )}
-                <button className="danger" style={{ fontSize: 12, padding: "4px 10px" }}
+                <button className="danger" style={{ fontSize: "var(--text-xs)", padding: "4px 10px" }}
                   onClick={() => handleDelete(d.id)}>
                   Löschen
                 </button>
@@ -363,8 +362,8 @@ export default function Upload({ user, onClose }: Props) {
               {d.status === "failed" && d.error_message && expanded[d.id] && (
                 <pre style={{
                   marginTop: 10, padding: "10px 12px",
-                  background: "var(--red-lt)", color: "var(--red)",
-                  borderRadius: 6, fontSize: 11, lineHeight: 1.5,
+                  background: "var(--red-tint)", color: "var(--red)",
+                  borderRadius: "var(--radius-sm)", fontSize: "var(--text-2xs)", lineHeight: 1.5,
                   overflowX: "auto", whiteSpace: "pre-wrap", wordBreak: "break-all",
                   maxHeight: 300, overflowY: "auto",
                 }}>

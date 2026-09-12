@@ -111,29 +111,31 @@ export default function DocumentViewer({ documentId, chunkId, filename, token, o
         aria-modal="true"
         aria-label={`Originaldokument ${displayName}`}
         onClick={e => e.stopPropagation()}
+        className="card"
         style={{
-          background: "var(--card)", borderRadius: 12, width: "min(720px, 90vw)",
+          borderRadius: "var(--radius-lg)", width: "min(720px, 90vw)",
           maxHeight: "85vh", display: "flex", flexDirection: "column", overflow: "hidden",
+          boxShadow: "var(--shadow-md)",
         }}
       >
         <div style={{
           display: "flex", alignItems: "center", justifyContent: "space-between",
           padding: "12px 16px", borderBottom: "1px solid var(--border)",
         }}>
-          <strong style={{ fontSize: 14, color: "var(--navy)" }}>{displayName}</strong>
+          <strong style={{ fontSize: "var(--text-base)", color: "var(--text-primary)" }}>{displayName}</strong>
           <button
             ref={closeRef}
             onClick={onClose}
             aria-label="Viewer schliessen"
             style={{
               background: "none", border: "none", fontSize: 18, cursor: "pointer",
-              color: "var(--muted)", lineHeight: 1,
+              color: "var(--text-muted)", lineHeight: 1,
             }}
           >
             ✕
           </button>
         </div>
-        <div style={{ padding: 16, overflowY: "auto", fontSize: 13, lineHeight: 1.6, color: "var(--text)" }}>
+        <div style={{ padding: 16, overflowY: "auto", fontSize: "var(--text-sm)", lineHeight: 1.6, color: "var(--text-primary)" }}>
           {error && <p role="alert" style={{ color: "var(--red)" }}>{error}</p>}
           {!error && !content && <p role="status">Lädt…</p>}
           {content?.chunks.map(chunk => {
@@ -147,14 +149,14 @@ export default function DocumentViewer({ documentId, chunkId, filename, token, o
                 // liefern soll, und Farbe allein kommt bei Screenreadern nicht an.
                 aria-current={isHighlighted ? "true" : undefined}
                 style={{
-                  padding: "8px 10px", marginBottom: 8, borderRadius: 8,
-                  background: isHighlighted ? "var(--blue-lt)" : "transparent",
-                  border: isHighlighted ? "1px solid var(--navy)" : "1px solid transparent",
+                  padding: "8px 10px", marginBottom: 8, borderRadius: "var(--radius-md)",
+                  background: isHighlighted ? "var(--coral-tint)" : "transparent",
+                  border: isHighlighted ? "1px solid var(--coral)" : "1px solid transparent",
                 }}
               >
                 {isHighlighted && <span className="sr-only">Belegender Abschnitt: </span>}
                 {chunk.heading && (
-                  <div style={{ fontWeight: 700, marginBottom: 4, color: "var(--navy)" }}>
+                  <div style={{ fontWeight: "var(--font-bold)", marginBottom: 4, color: "var(--text-primary)" }}>
                     {chunk.heading}
                   </div>
                 )}

@@ -80,17 +80,14 @@ export default function QuizCard({ question: q, busy, onAction, onSave }: Props)
   const wouldDemote = q.status === "approved" && patch !== null;
 
   return (
-    <div style={{
-      background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10,
+    <div className="card" style={{
       padding: 14, display: "flex", flexDirection: "column", gap: 10,
     }}>
       {q.chunk_id === null && (
         <div
           title="Das Dokument wurde durch eine neue Fassung ersetzt; die Frage ist deshalb auf 'pending' zurückgefallen. Die Quellen-Passage unten ist der einzige verbliebene Beleg."
-          style={{
-            alignSelf: "flex-start", background: "var(--amber-lt)", color: "var(--amber)",
-            fontSize: 11, fontWeight: 700, borderRadius: 6, padding: "2px 8px",
-          }}
+          className="badge badge-warning"
+          style={{ alignSelf: "flex-start" }}
         >
           Quelle ersetzt
         </div>
@@ -101,10 +98,10 @@ export default function QuizCard({ question: q, busy, onAction, onSave }: Props)
           value={question}
           onChange={e => setQuestion(e.target.value)}
           rows={2}
-          style={{ width: "100%", fontWeight: 700 }}
+          style={{ width: "100%", fontWeight: "var(--font-bold)" }}
         />
       ) : (
-        <div style={{ fontWeight: 700, color: "var(--navy)" }}>{q.question}</div>
+        <div style={{ fontWeight: "var(--font-bold)", color: "var(--text-primary)" }}>{q.question}</div>
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -122,8 +119,8 @@ export default function QuizCard({ question: q, busy, onAction, onSave }: Props)
                 />
               )}
               <span style={{
-                fontSize: 12, fontWeight: 700, minWidth: 16,
-                color: isCorrect ? "var(--green)" : "var(--muted)",
+                fontSize: "var(--text-xs)", fontWeight: "var(--font-bold)", minWidth: 16,
+                color: isCorrect ? "var(--olive)" : "var(--text-muted)",
               }}>
                 {letter}
               </span>
@@ -131,7 +128,7 @@ export default function QuizCard({ question: q, busy, onAction, onSave }: Props)
                 <input
                   value={options[i]}
                   onChange={e => setOptions(prev => prev.map((o, idx) => (idx === i ? e.target.value : o)))}
-                  style={{ flex: 1, fontSize: 13 }}
+                  style={{ flex: 1, fontSize: "var(--text-sm)" }}
                 />
               ) : (
                 // Colour alone (WCAG 1.4.1) is not enough to mark the correct
@@ -141,9 +138,9 @@ export default function QuizCard({ question: q, busy, onAction, onSave }: Props)
                 // text must be real, non-hidden content instead.
                 <span
                   style={{
-                    fontSize: 13, flex: 1,
-                    color: isCorrect ? "var(--green)" : "var(--text)",
-                    fontWeight: isCorrect ? 700 : 400,
+                    fontSize: "var(--text-sm)", flex: 1,
+                    color: isCorrect ? "var(--olive)" : "var(--text-primary)",
+                    fontWeight: isCorrect ? "var(--font-bold)" : "var(--font-regular)",
                   }}
                 >
                   {isCorrect && "✓ "}
@@ -157,30 +154,30 @@ export default function QuizCard({ question: q, busy, onAction, onSave }: Props)
       </div>
 
       <div>
-        <div style={{ fontSize: 11, fontWeight: 700, color: "var(--muted)", marginBottom: 2 }}>Erklärung</div>
+        <div style={{ fontSize: "var(--text-2xs)", fontWeight: "var(--font-bold)", color: "var(--text-muted)", marginBottom: 2 }}>Erklärung</div>
         {editing ? (
           <textarea
             value={explanation}
             onChange={e => setExplanation(e.target.value)}
             rows={2}
-            style={{ width: "100%", fontSize: 13 }}
+            style={{ width: "100%", fontSize: "var(--text-sm)" }}
           />
         ) : (
-          <div style={{ fontSize: 13, color: "var(--text)" }}>{q.explanation}</div>
+          <div style={{ fontSize: "var(--text-sm)", color: "var(--text-primary)" }}>{q.explanation}</div>
         )}
       </div>
 
       <div>
-        <div style={{ fontSize: 11, fontWeight: 700, color: "var(--muted)", marginBottom: 2 }}>Quellen-Passage</div>
+        <div style={{ fontSize: "var(--text-2xs)", fontWeight: "var(--font-bold)", color: "var(--text-muted)", marginBottom: 2 }}>Quellen-Passage</div>
         <blockquote style={{
-          margin: 0, borderLeft: "3px solid var(--blue)", paddingLeft: 10,
-          fontSize: 12, color: "var(--muted)", fontStyle: "italic",
+          margin: 0, borderLeft: "3px solid var(--coral)", paddingLeft: 10,
+          fontSize: "var(--text-xs)", color: "var(--text-muted)", fontStyle: "italic",
         }}>
           {q.source_excerpt}
         </blockquote>
       </div>
 
-      <div style={{ fontSize: 11, color: "var(--muted)" }}>
+      <div style={{ fontSize: "var(--text-2xs)", color: "var(--text-muted)" }}>
         Erzeugt: {new Date(q.created_at).toLocaleString("de-CH")}
         {q.status === "approved" && q.approved_at && (
           <> · Freigegeben: {new Date(q.approved_at).toLocaleString("de-CH")}</>
@@ -189,8 +186,8 @@ export default function QuizCard({ question: q, busy, onAction, onSave }: Props)
 
       {editing && wouldDemote && (
         <div style={{
-          fontSize: 12, color: "var(--amber)", background: "var(--amber-lt)",
-          borderRadius: 6, padding: "6px 10px",
+          fontSize: "var(--text-xs)", color: "var(--gold)", background: "var(--gold-tint)",
+          borderRadius: "var(--radius-sm)", padding: "6px 10px",
         }}>
           Diese Änderung nimmt die Freigabe zurück — die Frage geht zurück in die Prüfung.
         </div>

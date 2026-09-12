@@ -3,14 +3,15 @@ import { useNavigate } from "react-router-dom";
 import type { AuthUser } from "../types";
 import { api, type FeedbackCategory, type FeedbackItem } from "../api/client";
 import { CATEGORY_META } from "./MessageBubble";
+import Layout from "./Layout";
 
 const PAGE_SIZE = 50;
 
 const CATEGORY_OPTIONS = Object.entries(CATEGORY_META) as [FeedbackCategory, { label: string; helpful: boolean }][];
 
-interface Props { user: AuthUser }
+interface Props { user: AuthUser; onLogout: () => void }
 
-export default function FeedbackReview({ user }: Props) {
+export default function FeedbackReview({ user, onLogout }: Props) {
   const navigate = useNavigate();
   const [items, setItems] = useState<FeedbackItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -82,33 +83,27 @@ export default function FeedbackReview({ user }: Props) {
   };
 
   return (
-    <div style={{ display: "flex", height: "100vh", flexDirection: "column" }}>
-      <div style={{
-        background: "var(--navy)", color: "#fff", padding: "0 24px",
-        height: 52, display: "flex", alignItems: "center", justifyContent: "space-between",
-        flexShrink: 0,
-      }}>
-        <div style={{ fontWeight: 800, fontSize: 16, letterSpacing: "-.02em" }}>📚 LearnFlow · Feedback-Übersicht</div>
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          <button className="secondary" style={{ fontSize: 12 }} onClick={() => navigate("/")}>
-            Zurück zum Chat
-          </button>
-          <span style={{ fontSize: 12, color: "rgba(255,255,255,.5)" }}>{user.email}</span>
+    <Layout
+      user={user}
+      onLogout={onLogout}
+      navItems={<button className="nav-item" onClick={() => navigate("/")}>Zurück zum Chat</button>}
+    >
+      <div style={{ flex: 1, overflowY: "auto", padding: "var(--space-4) var(--space-6)" }}>
+        <div style={{ fontWeight: "var(--font-black)", fontSize: "var(--text-xl)", color: "var(--text-primary)", marginBottom: "var(--space-4)" }}>
+          Feedback-Übersicht
         </div>
-      </div>
 
-      <div style={{ flex: 1, overflowY: "auto", padding: "16px 24px" }}>
         {error && (
           <div role="alert" style={{
-            background: "var(--red-lt)", color: "var(--red)", borderRadius: 8,
-            padding: "8px 12px", fontSize: 13, marginBottom: 12,
+            background: "var(--red-tint)", color: "var(--red)", borderRadius: "var(--radius-sm)",
+            padding: "8px 12px", fontSize: "var(--text-sm)", marginBottom: 12,
           }}>
             {error}
           </div>
         )}
 
-        <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
-          <label style={{ fontSize: 12 }}>
+        <div style={{ display: "flex", gap: 10, marginBottom: "var(--space-4)" }}>
+          <label style={{ fontSize: "var(--text-xs)" }}>
             Bewertung{" "}
             <select
               aria-label="Bewertung filtern"
@@ -120,7 +115,7 @@ export default function FeedbackReview({ user }: Props) {
               <option value="false">👎 Nicht hilfreich</option>
             </select>
           </label>
-          <label style={{ fontSize: 12 }}>
+          <label style={{ fontSize: "var(--text-xs)" }}>
             Kategorie{" "}
             <select
               aria-label="Kategorie filtern"
@@ -136,44 +131,37 @@ export default function FeedbackReview({ user }: Props) {
         </div>
 
         {loading ? (
-          <div style={{ color: "var(--muted)", textAlign: "center", marginTop: 40 }}>Lädt…</div>
+          <div style={{ color: "var(--text-muted)", textAlign: "center", marginTop: 40 }}>Lädt…</div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            <div style={{ fontWeight: 700, color: "var(--navy)", fontSize: 14 }}>
+            <div style={{ fontWeight: "var(--font-bold)", color: "var(--text-primary)", fontSize: "var(--text-sm)" }}>
               {total} Feedback{total === 1 ? "" : "s"}
             </div>
             {items.length === 0 && (
-              <div style={{ color: "var(--muted)", fontSize: 12 }}>Kein Feedback vorhanden.</div>
+              <div style={{ color: "var(--text-muted)", fontSize: "var(--text-xs)" }}>Kein Feedback vorhanden.</div>
             )}
             {items.map(item => (
-              <div
-                key={item.id}
-                style={{
-                  border: "1px solid var(--border)", borderRadius: 8, padding: "10px 14px",
-                  display: "flex", flexDirection: "column", gap: 6,
-                }}
-              >
-                <div style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 13 }}>
+              <div key={item.id} className="card" style={{
+                padding: "10px 14px", display: "flex", flexDirection: "column", gap: 6,
+              }}>
+                <div style={{ display: "flex", gap: 10, alignItems: "center", fontSize: "var(--text-sm)" }}>
                   <span>{item.helpful ? "👍" : "👎"}</span>
                   {item.category && (
-                    <span style={{
-                      fontSize: 11, fontWeight: 600, color: "var(--navy)",
-                      background: "var(--bg-alt, #f0f0f0)", borderRadius: 4, padding: "2px 6px",
-                    }}>
+                    <span className="badge badge-info" style={{ padding: "2px 6px", borderRadius: "var(--radius-sm)" }}>
                       {CATEGORY_META[item.category].label}
                     </span>
                   )}
-                  <span style={{ color: "var(--muted)", fontSize: 11, marginLeft: "auto" }}>
+                  <span style={{ color: "var(--text-muted)", fontSize: "var(--text-2xs)", marginLeft: "auto" }}>
                     {new Date(item.created_at).toLocaleString("de-CH")}
                   </span>
                 </div>
-                {item.comment && <div style={{ fontSize: 13 }}>{item.comment}</div>}
+                {item.comment && <div style={{ fontSize: "var(--text-sm)" }}>{item.comment}</div>}
               </div>
             ))}
             {items.length < total && (
               <button
                 className="secondary"
-                style={{ fontSize: 12, alignSelf: "flex-start" }}
+                style={{ fontSize: "var(--text-xs)", alignSelf: "flex-start" }}
                 disabled={loadingMore}
                 onClick={loadMore}
               >
@@ -183,6 +171,6 @@ export default function FeedbackReview({ user }: Props) {
           </div>
         )}
       </div>
-    </div>
+    </Layout>
   );
 }

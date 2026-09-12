@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import type { AuthUser } from "../types";
 import { api, type QuizQuestion } from "../api/client";
+import Layout from "./Layout";
 import DocumentViewer from "./DocumentViewer";
 
 const OPTION_LETTERS = ["A", "B", "C", "D"] as const;
@@ -11,7 +13,7 @@ type Letter = (typeof OPTION_LETTERS)[number];
 // die Runde ist dann entsprechend kürzer (siehe Hinweis unten).
 const TARGET_LENGTH = 5;
 
-interface Props { token: string }
+interface Props { user: AuthUser; onLogout: () => void }
 
 /** Frage-ID → gewählter Buchstabe. Nur im Browser-State, nie an ein Backend
  * gemeldet (US-08: "nicht personenbezogen gespeichert oder ausgewertet"). */
@@ -25,8 +27,9 @@ export function scoreOf(questions: QuizQuestion[], answers: Answers): number {
  * ganzen Frage, die zufällig auch eine davon trägt. */
 interface ViewerTarget { documentId: string; chunkId: string }
 
-export default function QuizRun({ token }: Props) {
+export default function QuizRun({ user, onLogout }: Props) {
   const navigate = useNavigate();
+  const token = user.token;
   const [questions, setQuestions] = useState<QuizQuestion[] | null>(null);
   // `total` ist die Poolgröße laut Endpoint (openapi.yaml, app/routers/quiz.py
   // sample_questions): ein `count(*)` über den ganzen freigegebenen Pool,
@@ -74,35 +77,27 @@ export default function QuizRun({ token }: Props) {
   };
 
   return (
-    <div style={{ display: "flex", height: "100vh", flexDirection: "column" }}>
-      <div style={{
-        background: "var(--navy)", color: "#fff", padding: "0 24px",
-        height: 52, display: "flex", alignItems: "center", justifyContent: "space-between",
-        flexShrink: 0,
-      }}>
-        <div style={{ fontWeight: 800, fontSize: 16, letterSpacing: "-.02em" }}>📚 LearnFlow · Quiz</div>
-        <button className="secondary" style={{ fontSize: 12 }} onClick={() => navigate("/")}>
-          Zurück zum Chat
-        </button>
-      </div>
-
-      <div style={{ flex: 1, overflowY: "auto", padding: "24px", display: "flex", justifyContent: "center" }}>
-        <div style={{ width: "min(560px, 100%)", display: "flex", flexDirection: "column", gap: 16 }}>
+    <Layout
+      user={user}
+      onLogout={onLogout}
+      navItems={<button className="nav-item" onClick={() => navigate("/")}>Zurück zum Chat</button>}
+    >
+      <div style={{ flex: 1, overflowY: "auto", padding: "var(--space-6)", display: "flex", justifyContent: "center" }}>
+        <div style={{ width: "min(560px, 100%)", display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
           {error && (
             <div role="alert" style={{
-              background: "var(--red-lt)", color: "var(--red)", borderRadius: 8,
-              padding: "8px 12px", fontSize: 13,
+              background: "var(--red-tint)", color: "var(--red)", borderRadius: "var(--radius-sm)",
+              padding: "8px 12px", fontSize: "var(--text-sm)",
             }}>
               {error}
             </div>
           )}
 
-          {!error && !questions && <div role="status" style={{ color: "var(--muted)" }}>Lädt…</div>}
+          {!error && !questions && <div role="status" style={{ color: "var(--text-muted)" }}>Lädt…</div>}
 
           {questions && questions.length === 0 && (
-            <div role="status" style={{
-              background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10,
-              padding: 16, fontSize: 14, color: "var(--text)",
+            <div role="status" className="card" style={{
+              padding: 16, fontSize: "var(--text-base)", color: "var(--text-primary)",
             }}>
               Es sind noch keine Quizfragen für diesen Bereich freigegeben.
             </div>
@@ -140,7 +135,7 @@ export default function QuizRun({ token }: Props) {
           onClose={() => setViewerTarget(null)}
         />
       )}
-    </div>
+    </Layout>
   );
 }
 
@@ -173,14 +168,13 @@ function QuestionCard({ question: q, questionNumber, totalQuestions, shortRound,
   }, [questionNumber]);
 
   return (
-    <div style={{
-      background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10,
+    <div className="card" style={{
       padding: 20, display: "flex", flexDirection: "column", gap: 14,
     }}>
       {shortRound && questionNumber === 1 && (
         <div role="status" style={{
-          background: "var(--amber-lt)", color: "var(--amber)", borderRadius: 8,
-          padding: "6px 10px", fontSize: 12,
+          background: "var(--gold-tint)", color: "var(--gold)", borderRadius: "var(--radius-sm)",
+          padding: "6px 10px", fontSize: "var(--text-xs)",
         }}>
           Nur {totalQuestions} von {TARGET_LENGTH} Fragen freigegeben — diese Runde ist entsprechend kürzer.
         </div>
@@ -193,13 +187,13 @@ function QuestionCard({ question: q, questionNumber, totalQuestions, shortRound,
         aria-label={`Frage ${questionNumber} von ${totalQuestions}: ${q.question}`}
         style={{ outline: "none" }}
       >
-        <div style={{ fontSize: 12, color: "var(--muted)" }}>
+        <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
           Frage {questionNumber} von {totalQuestions}
         </div>
       </div>
 
       <fieldset style={{ border: "none", padding: 0, margin: 0 }}>
-        <legend style={{ fontWeight: 700, color: "var(--navy)", fontSize: 15, marginBottom: 12, padding: 0 }}>
+        <legend style={{ fontWeight: "var(--font-bold)", color: "var(--text-primary)", fontSize: "var(--text-lg)", marginBottom: 12, padding: 0 }}>
           {q.question}
         </legend>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -208,8 +202,8 @@ function QuestionCard({ question: q, questionNumber, totalQuestions, shortRound,
               key={letter}
               style={{
                 display: "flex", alignItems: "center", gap: 8, cursor: "pointer",
-                padding: "6px 8px", borderRadius: 8,
-                background: selected === letter ? "var(--blue-lt)" : "transparent",
+                padding: "6px 8px", borderRadius: "var(--radius-sm)",
+                background: selected === letter ? "var(--violet-tint)" : "transparent",
               }}
             >
               <input
@@ -218,8 +212,8 @@ function QuestionCard({ question: q, questionNumber, totalQuestions, shortRound,
                 checked={selected === letter}
                 onChange={() => onSelect(letter)}
               />
-              <span style={{ fontSize: 12, fontWeight: 700, minWidth: 16, color: "var(--muted)" }}>{letter}</span>
-              <span style={{ fontSize: 13 }}>{q.options[i]}</span>
+              <span style={{ fontSize: "var(--text-xs)", fontWeight: "var(--font-bold)", minWidth: 16, color: "var(--text-muted)" }}>{letter}</span>
+              <span style={{ fontSize: "var(--text-sm)" }}>{q.options[i]}</span>
             </label>
           ))}
         </div>
@@ -254,17 +248,17 @@ function ResultView({ questions, answers, shortRound, onOpenSource, onRestart }:
   }, []);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
       {shortRound && (
         <div role="status" style={{
-          background: "var(--amber-lt)", color: "var(--amber)", borderRadius: 8,
-          padding: "6px 10px", fontSize: 12,
+          background: "var(--gold-tint)", color: "var(--gold)", borderRadius: "var(--radius-sm)",
+          padding: "6px 10px", fontSize: "var(--text-xs)",
         }}>
           Nur {questions.length} von {TARGET_LENGTH} Fragen freigegeben — diese Runde war entsprechend kürzer.
         </div>
       )}
 
-      <div ref={headingRef} tabIndex={-1} style={{ fontWeight: 800, fontSize: 18, color: "var(--navy)", outline: "none" }}>
+      <div ref={headingRef} tabIndex={-1} style={{ fontWeight: "var(--font-black)", fontSize: "var(--text-xl)", color: "var(--text-primary)", outline: "none" }}>
         {score} von {questions.length} richtig
       </div>
       {questions.map((q, i) => {
@@ -273,41 +267,36 @@ function ResultView({ questions, answers, shortRound, onOpenSource, onRestart }:
         const chosenIndex = OPTION_LETTERS.indexOf(chosen);
         const correctIndex = OPTION_LETTERS.indexOf(q.correct_answer);
         return (
-          <div key={q.id} style={{
-            background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10,
+          <div key={q.id} className="card" style={{
             padding: 16, display: "flex", flexDirection: "column", gap: 8,
           }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-              <div style={{ fontWeight: 700, color: "var(--navy)" }}>{i + 1}. {q.question}</div>
-              <span style={{
-                flexShrink: 0, fontSize: 11, fontWeight: 700, borderRadius: 6, padding: "2px 8px",
-                background: isCorrect ? "var(--green-lt)" : "var(--red-lt)",
-                color: isCorrect ? "var(--green)" : "var(--red)",
-              }}>
+              <div style={{ fontWeight: "var(--font-bold)", color: "var(--text-primary)" }}>{i + 1}. {q.question}</div>
+              <span className={`badge ${isCorrect ? "badge-success" : "badge-danger"}`} style={{ flexShrink: 0 }}>
                 {isCorrect ? "Richtig" : "Falsch"}
               </span>
             </div>
 
-            <div style={{ fontSize: 13, color: "var(--text)" }}>
+            <div style={{ fontSize: "var(--text-sm)", color: "var(--text-primary)" }}>
               Deine Antwort: {chosen} — {q.options[chosenIndex]}
             </div>
             {!isCorrect && (
-              <div style={{ fontSize: 13, color: "var(--green)" }}>
+              <div style={{ fontSize: "var(--text-sm)", color: "var(--olive)" }}>
                 Richtige Antwort: {q.correct_answer} — {q.options[correctIndex]}
               </div>
             )}
 
             <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--muted)", marginBottom: 2 }}>Erklärung</div>
-              <div style={{ fontSize: 13, color: "var(--text)" }}>{q.explanation}</div>
+              <div style={{ fontSize: "var(--text-xs)", fontWeight: "var(--font-bold)", color: "var(--text-muted)", marginBottom: 2 }}>Erklärung</div>
+              <div style={{ fontSize: "var(--text-sm)", color: "var(--text-primary)" }}>{q.explanation}</div>
             </div>
 
             {q.chunk_id === null && (
               <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--muted)", marginBottom: 2 }}>Quellen-Passage</div>
+                <div style={{ fontSize: "var(--text-xs)", fontWeight: "var(--font-bold)", color: "var(--text-muted)", marginBottom: 2 }}>Quellen-Passage</div>
                 <blockquote style={{
-                  margin: 0, borderLeft: "3px solid var(--blue)", paddingLeft: 10,
-                  fontSize: 12, color: "var(--muted)", fontStyle: "italic",
+                  margin: 0, borderLeft: "3px solid var(--coral)", paddingLeft: 10,
+                  fontSize: "var(--text-2xs)", color: "var(--text-muted)", fontStyle: "italic",
                 }}>
                   {q.source_excerpt}
                 </blockquote>
@@ -317,7 +306,7 @@ function ResultView({ questions, answers, shortRound, onOpenSource, onRestart }:
             {q.chunk_id ? (
               <button
                 className="secondary"
-                style={{ fontSize: 12, alignSelf: "flex-start" }}
+                style={{ fontSize: "var(--text-xs)", alignSelf: "flex-start" }}
                 onClick={() => onOpenSource(q)}
                 aria-label={`Quelle ansehen für Frage ${i + 1}`}
               >
@@ -328,7 +317,7 @@ function ResultView({ questions, answers, shortRound, onOpenSource, onRestart }:
               // kennt denselben Zustand): kein Chunk mehr, zu dem der Viewer
               // öffnen könnte, aber die Passage oben bleibt sichtbar --
               // openapi.yaml nennt sie "das einzige verbliebene Zeugnis".
-              <span style={{ fontSize: 12, color: "var(--muted)" }}>
+              <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
                 Quelle ersetzt — das Dokument liegt nicht mehr in dieser Fassung vor.
               </span>
             )}

@@ -141,18 +141,18 @@ const COL_RANK: CSSProperties  = { width: 24, textAlign: "center", fontSize: 9, 
 const COL_RRF: CSSProperties   = { width: 52, textAlign: "right", fontSize: 9, flexShrink: 0, fontVariantNumeric: "tabular-nums" };
 const COL_SRC: CSSProperties   = { flex: "2 1 160px", minWidth: 0, fontSize: 10, lineHeight: 1.35, overflowWrap: "anywhere" };
 const COL_BADGE: CSSProperties = { width: 28, textAlign: "center", flexShrink: 0 };
-const COL_CARET: CSSProperties = { width: 8, fontSize: 9, flexShrink: 0, color: "var(--muted)" };
+const COL_CARET: CSSProperties = { width: 8, fontSize: 9, flexShrink: 0, color: "var(--text-muted)" };
 
 const CHUNK_ROW: CSSProperties = { display: "flex", alignItems: "center", gap: 6 };
 
 // The definition list inside an expanded row. Module level for the same reason
 // as the column widths above: one object, not one per render per chunk.
-const CHUNK_TERM: CSSProperties    = { width: 62, flexShrink: 0, color: "var(--muted)", fontWeight: 700 };
+const CHUNK_TERM: CSSProperties    = { width: 62, flexShrink: 0, color: "var(--text-muted)", fontWeight: 700 };
 const CHUNK_DEF_ROW: CSSProperties = { display: "flex", gap: 8, fontSize: 10 };
 
 const COLUMN_LABEL: CSSProperties = {
   fontSize: 8, fontWeight: 700, letterSpacing: "0.05em",
-  textTransform: "uppercase", color: "var(--muted)",
+  textTransform: "uppercase", color: "var(--text-muted)",
 };
 
 /**
@@ -202,7 +202,7 @@ function RankCell({ rank, search }: { rank: number; search: string }) {
   const found = rank !== RANK_ABSENT;
   return (
     <span
-      style={{ ...COL_RANK, color: found ? "var(--navy)" : "var(--muted)", fontWeight: found ? 700 : 400 }}
+      style={{ ...COL_RANK, color: found ? "var(--text-primary)" : "var(--text-muted)", fontWeight: found ? 700 : 400 }}
       title={found ? `${search}: Rang ${rank}` : `${search}: nicht gefunden`}
     >
       <span aria-hidden="true">{rankLabel(rank)}</span>
@@ -224,7 +224,7 @@ function ChunkBar({ chunk, threshold, rrfK }: { chunk: ChunkDebugInfo; threshold
   const [open, setOpen] = useState(false);
   const scorePct = Math.max(0, Math.min(100, Math.round(chunk.score * 100)));
   const thPct    = Math.round(threshold * 100);
-  const color    = chunk.above_threshold ? "var(--green)" : "var(--red)";
+  const color    = chunk.above_threshold ? "var(--olive)" : "var(--red)";
   const parts    = [chunk.filename, chunk.page ? `S.${chunk.page}` : null, chunk.heading ? `— ${chunk.heading}` : null].filter(Boolean).join(" ");
 
   const foundDense  = chunk.dense_rank !== RANK_ABSENT;
@@ -272,18 +272,18 @@ function ChunkBar({ chunk, threshold, rrfK }: { chunk: ChunkDebugInfo; threshold
         <div style={{ ...COL_BAR, position: "relative", height: 5, background: "var(--border)", borderRadius: 3 }}>
           <div style={{ width: `${scorePct}%`, height: "100%", background: color, borderRadius: 3 }} />
           {/* threshold marker */}
-          <div style={{ position: "absolute", top: -2, left: `${thPct}%`, width: 2, height: 9, background: "var(--navy)", borderRadius: 1 }} />
+          <div style={{ position: "absolute", top: -2, left: `${thPct}%`, width: 2, height: 9, background: "var(--indigo-deep)", borderRadius: 1 }} />
         </div>
         <RankCell rank={chunk.dense_rank} search="Vektorsuche" />
         <RankCell rank={chunk.sparse_rank} search="Volltextsuche" />
-        <span style={{ ...COL_RRF, color: "var(--navy)" }} title={`RRF ${rrfFormula}`}>
+        <span style={{ ...COL_RRF, color: "var(--text-primary)" }} title={`RRF ${rrfFormula}`}>
           <span aria-hidden="true">{formatRrf(chunk.rrf_score)}</span>
           <span className="sr-only">RRF-Score {chunk.rrf_score}</span>
         </span>
-        <span style={{ ...COL_SRC, color: "var(--muted)" }}>{parts}</span>
+        <span style={{ ...COL_SRC, color: "var(--text-muted)" }}>{parts}</span>
         <span style={COL_BADGE}>
           {chunk.in_top_n && (
-            <span style={{ fontSize: 9, padding: "1px 5px", borderRadius: 8, background: "var(--blue)", color: "#fff", fontWeight: 700 }}>
+            <span style={{ fontSize: 9, padding: "1px 5px", borderRadius: 8, background: "var(--violet)", color: "#fff", fontWeight: 700 }}>
               LLM
             </span>
           )}
@@ -293,18 +293,18 @@ function ChunkBar({ chunk, threshold, rrfK }: { chunk: ChunkDebugInfo; threshold
       {open && (
         <div style={{ margin: "5px 0 0 36px", display: "flex", flexDirection: "column", gap: 5 }}>
           <div style={{
-            background: "var(--amber-lt)", border: "1px solid var(--amber)", borderRadius: 6,
+            background: "var(--gold-tint)", border: "1px solid var(--gold)", borderRadius: 6,
             padding: "8px 10px", display: "flex", flexDirection: "column", gap: 3,
           }}>
             <div style={CHUNK_DEF_ROW}>
               <span style={CHUNK_TERM}>Herkunft</span>
-              <span style={{ color: "var(--navy)" }}>
+              <span style={{ color: "var(--text-primary)" }}>
                 Dense {foundDense ? chunk.dense_rank : "— nicht gefunden"} · Sparse {foundSparse ? chunk.sparse_rank : "— nicht gefunden"}
               </span>
             </div>
             <div style={CHUNK_DEF_ROW}>
               <span style={CHUNK_TERM}>RRF</span>
-              <span style={{ color: "var(--navy)", fontFamily: "monospace" }}>{rrfFormula}</span>
+              <span style={{ color: "var(--text-primary)", fontFamily: "monospace" }}>{rrfFormula}</span>
             </div>
             <div style={CHUNK_DEF_ROW}>
               <span style={CHUNK_TERM}>Cosine</span>
@@ -313,18 +313,18 @@ function ChunkBar({ chunk, threshold, rrfK }: { chunk: ChunkDebugInfo; threshold
               </span>
             </div>
             <div style={{
-              fontSize: 10, lineHeight: 1.5, color: "var(--text)",
-              marginTop: 3, paddingTop: 5, borderTop: "1px solid var(--amber)",
+              fontSize: 10, lineHeight: 1.5, color: "var(--text-primary)",
+              marginTop: 3, paddingTop: 5, borderTop: "1px solid var(--gold)",
             }}>
               {origin}{placement && ` ${placement}`}
             </div>
           </div>
           <pre style={{
             margin: 0, padding: "7px 10px",
-            background: chunk.above_threshold ? "var(--green-lt)" : "var(--red-lt)",
+            background: chunk.above_threshold ? "var(--olive-tint)" : "var(--red-tint)",
             borderRadius: 6, fontSize: 10, lineHeight: 1.5,
             whiteSpace: "pre-wrap", wordBreak: "break-word",
-            maxHeight: 180, overflowY: "auto", color: "var(--navy)",
+            maxHeight: 180, overflowY: "auto", color: "var(--text-primary)",
           }}>
             {chunk.content}
           </pre>
@@ -342,10 +342,10 @@ function PipelineStep({
   const failed  = stage.ran && !stage.passed;
   const skipped = !stage.ran;
 
-  const dotColor   = skipped ? "var(--muted)" : passed ? "var(--green)" : "var(--red)";
-  const labelColor = skipped ? "var(--muted)" : passed ? "var(--navy)"  : "var(--red)";
+  const dotColor   = skipped ? "var(--text-muted)" : passed ? "var(--olive)" : "var(--red)";
+  const labelColor = skipped ? "var(--text-muted)" : passed ? "var(--text-primary)"  : "var(--red)";
   const resultText = skipped ? "—" : passed ? "✓ OK" : "✗ STOPP";
-  const resultColor = skipped ? "var(--muted)" : passed ? "var(--green)" : "var(--red)";
+  const resultColor = skipped ? "var(--text-muted)" : passed ? "var(--olive)" : "var(--red)";
 
   // Value display: count (threshold≥1) stays integer, fraction → %, string as-is
   const valStr = stage.value === null || stage.value === undefined ? null
@@ -364,7 +364,7 @@ function PipelineStep({
           width: 18, height: 18, borderRadius: "50%", flexShrink: 0,
           background: dotColor, color: "#fff",
           fontSize: 9, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center",
-          boxShadow: `0 0 0 2px ${skipped ? "var(--border)" : passed ? "var(--green-lt)" : "var(--red-lt)"}`,
+          boxShadow: `0 0 0 2px ${skipped ? "var(--border)" : passed ? "var(--olive-tint)" : "var(--red-tint)"}`,
         }}>
           {num}
         </div>
@@ -379,19 +379,19 @@ function PipelineStep({
         <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
           <span style={{ fontSize: 11, fontWeight: 700, color: labelColor }}>{stage.name}</span>
           {valStr && (
-            <span style={{ fontSize: 11, fontWeight: 800, color: failed ? "var(--red)" : "var(--navy)" }}>
+            <span style={{ fontSize: 11, fontWeight: 800, color: failed ? "var(--red)" : "var(--text-primary)" }}>
               {valStr}
             </span>
           )}
           {thStr && (
-            <span style={{ fontSize: 10, color: "var(--muted)" }}>{thStr}</span>
+            <span style={{ fontSize: 10, color: "var(--text-muted)" }}>{thStr}</span>
           )}
           <span style={{ fontSize: 10, fontWeight: 700, color: resultColor, marginLeft: "auto" }}>
             {resultText}
           </span>
         </div>
         {/* Detail line */}
-        <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 2, fontFamily: "monospace", lineHeight: 1.5 }}>
+        <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2, fontFamily: "monospace", lineHeight: 1.5 }}>
           {stage.detail}
         </div>
       </div>
@@ -411,7 +411,7 @@ function LLMCallNode({ call, isLast }: { call: LLMCallInfo; isLast: boolean }) {
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0, width: 22 }}>
         <div style={{
           width: 18, height: 18, borderRadius: 4, flexShrink: 0,
-          background: isSelfCheck ? "var(--amber)" : "var(--blue)",
+          background: isSelfCheck ? "var(--gold)" : "var(--violet)",
           color: "#fff", fontSize: 9, display: "flex", alignItems: "center", justifyContent: "center",
         }}>
           🤖
@@ -421,7 +421,7 @@ function LLMCallNode({ call, isLast }: { call: LLMCallInfo; isLast: boolean }) {
 
       {/* Right: content */}
       <div style={{ flex: 1, paddingLeft: 10, paddingBottom: isLast ? 0 : 10 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: "var(--navy)", marginBottom: 5 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-primary)", marginBottom: 5 }}>
           LLM · {call.label}
         </div>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -443,9 +443,9 @@ function LLMCallNode({ call, isLast }: { call: LLMCallInfo; isLast: boolean }) {
         {showPrompt && (
           <pre style={{
             marginTop: 6, padding: "8px 10px", borderRadius: 6,
-            background: "var(--blue-lt)", fontSize: 10, lineHeight: 1.5,
+            background: "var(--violet-tint)", fontSize: 10, lineHeight: 1.5,
             whiteSpace: "pre-wrap", wordBreak: "break-word",
-            maxHeight: 260, overflowY: "auto", color: "var(--navy)",
+            maxHeight: 260, overflowY: "auto", color: "var(--text-primary)",
           }}>
             {call.prompt}
           </pre>
@@ -453,10 +453,10 @@ function LLMCallNode({ call, isLast }: { call: LLMCallInfo; isLast: boolean }) {
         {showResponse && (
           <pre style={{
             marginTop: 6, padding: "8px 10px", borderRadius: 6,
-            background: isSelfCheck ? "var(--amber-lt)" : "var(--green-lt)",
+            background: isSelfCheck ? "var(--gold-tint)" : "var(--olive-tint)",
             fontSize: 10, lineHeight: 1.5,
             whiteSpace: "pre-wrap", wordBreak: "break-word",
-            maxHeight: 260, overflowY: "auto", color: "var(--navy)",
+            maxHeight: 260, overflowY: "auto", color: "var(--text-primary)",
           }}>
             {call.response}
           </pre>
@@ -472,24 +472,21 @@ function DebugPanel({ debug, confidence }: { debug: DebugInfo; confidence: Confi
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
 
       {/* ── Chunks ── */}
-      <div style={{
-        background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8,
-        padding: "10px 12px",
-      }}>
-        <div style={{ display: "flex", gap: 12, fontSize: 10, color: "var(--muted)", fontWeight: 600, marginBottom: 8, flexWrap: "wrap" }}>
+      <div className="card" style={{ padding: "10px 12px" }}>
+        <div style={{ display: "flex", gap: 12, fontSize: 10, color: "var(--text-muted)", fontWeight: 600, marginBottom: 8, flexWrap: "wrap" }}>
           <span>Chunks</span>
-          <span>Dense: <strong style={{ color: "var(--navy)" }}>{debug.total_dense_retrieved}</strong> abgerufen</span>
-          <span>Schwellwert: <strong style={{ color: "var(--navy)" }}>{pct(debug.similarity_threshold)}</strong></span>
-          <span>Sparse: <strong style={{ color: "var(--navy)" }}>{debug.sparse_count}</strong> Treffer</span>
-          <span>Top-N ans LLM: <strong style={{ color: "var(--blue)" }}>{debug.top_n_used}</strong></span>
+          <span>Dense: <strong style={{ color: "var(--text-primary)" }}>{debug.total_dense_retrieved}</strong> abgerufen</span>
+          <span>Schwellwert: <strong style={{ color: "var(--text-primary)" }}>{pct(debug.similarity_threshold)}</strong></span>
+          <span>Sparse: <strong style={{ color: "var(--text-primary)" }}>{debug.sparse_count}</strong> Treffer</span>
+          <span>Top-N ans LLM: <strong style={{ color: "var(--violet)" }}>{debug.top_n_used}</strong></span>
         </div>
         {/* Legend */}
-        <div style={{ display: "flex", gap: 10, fontSize: 9, color: "var(--muted)", marginBottom: 7 }}>
-          <span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: "var(--green)", marginRight: 3 }} />über Schwellwert</span>
+        <div style={{ display: "flex", gap: 10, fontSize: 9, color: "var(--text-muted)", marginBottom: 7 }}>
+          <span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: "var(--olive)", marginRight: 3 }} />über Schwellwert</span>
           <span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: "var(--red)", marginRight: 3 }} />darunter</span>
-          <span><span style={{ display: "inline-block", padding: "0 4px", borderRadius: 6, background: "var(--blue)", color: "#fff", fontSize: 8, fontWeight: 700, marginRight: 3 }}>LLM</span>ans LLM gesendet</span>
+          <span><span style={{ display: "inline-block", padding: "0 4px", borderRadius: 6, background: "var(--violet)", color: "#fff", fontSize: 8, fontWeight: 700, marginRight: 3 }}>LLM</span>ans LLM gesendet</span>
           <span>▌ = Schwellwert</span>
-          <span><strong style={{ color: "var(--navy)" }}>D</strong>/<strong style={{ color: "var(--navy)" }}>S</strong> = Rang in Vektor-/Volltextsuche, <span style={{ color: "var(--muted)", fontWeight: 700 }}>—</span> = dort nicht gefunden</span>
+          <span><strong style={{ color: "var(--text-primary)" }}>D</strong>/<strong style={{ color: "var(--text-primary)" }}>S</strong> = Rang in Vektor-/Volltextsuche, <span style={{ color: "var(--text-muted)", fontWeight: 700 }}>—</span> = dort nicht gefunden</span>
         </div>
         <ChunkColumns />
         {debug.chunks.map(c => (
@@ -503,11 +500,8 @@ function DebugPanel({ debug, confidence }: { debug: DebugInfo; confidence: Confi
       </div>
 
       {/* ── Pipeline ── */}
-      <div style={{
-        background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8,
-        padding: "10px 12px",
-      }}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: "var(--muted)", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+      <div className="card" style={{ padding: "10px 12px" }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.05em" }}>
           Pipeline
         </div>
 
@@ -533,7 +527,7 @@ function DebugPanel({ debug, confidence }: { debug: DebugInfo; confidence: Confi
                     <div style={{ flex: 1, width: 2, background: "var(--border)", minHeight: 10 }} />
                   </div>
                   <div style={{ flex: 1, paddingLeft: 10, paddingBottom: 10 }}>
-                    <div style={{ fontSize: 10, color: "var(--muted)", fontFamily: "monospace", lineHeight: 1.5 }}>
+                    <div style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "monospace", lineHeight: 1.5 }}>
                       {debug.formula_breakdown}
                     </div>
                     <div style={{ display: "flex", gap: 6, marginTop: 5, flexWrap: "wrap" }}>
@@ -543,12 +537,12 @@ function DebugPanel({ debug, confidence }: { debug: DebugInfo; confidence: Confi
                         { label: "Density",    val: debug.retrieval_detail.evidence_density },
                         { label: "Citation",   val: confidence.citation_coverage },
                       ].map(item => (
-                        <div key={item.label} style={{ padding: "2px 8px", borderRadius: 6, background: "var(--blue-lt)", fontSize: 10, display: "flex", gap: 4, alignItems: "baseline" }}>
-                          <span style={{ fontWeight: 700, color: "var(--navy)" }}>{pct(item.val)}</span>
-                          <span style={{ color: "var(--muted)" }}>{item.label}</span>
+                        <div key={item.label} style={{ padding: "2px 8px", borderRadius: 6, background: "var(--violet-tint)", fontSize: 10, display: "flex", gap: 4, alignItems: "baseline" }}>
+                          <span style={{ fontWeight: 700, color: "var(--text-primary)" }}>{pct(item.val)}</span>
+                          <span style={{ color: "var(--text-muted)" }}>{item.label}</span>
                         </div>
                       ))}
-                      <span style={{ padding: "2px 8px", borderRadius: 6, background: "var(--border)", fontSize: 10, fontWeight: 700, color: "var(--navy)" }}>
+                      <span style={{ padding: "2px 8px", borderRadius: 6, background: "var(--border)", fontSize: 10, fontWeight: 700, color: "var(--text-primary)" }}>
                         Band: {confidence.band}
                       </span>
                     </div>
@@ -562,7 +556,7 @@ function DebugPanel({ debug, confidence }: { debug: DebugInfo; confidence: Confi
 
         {/* Active params for this query */}
         <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid var(--border)" }}>
-          <div style={{ fontSize: 9, fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>
+          <div style={{ fontSize: 9, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>
             Aktive Parameter dieser Anfrage
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
@@ -581,8 +575,8 @@ function DebugPanel({ debug, confidence }: { debug: DebugInfo; confidence: Confi
                   padding: "2px 8px", borderRadius: 6, background: "var(--border)",
                   fontSize: 10, display: "flex", gap: 5,
                 }}>
-                  <span style={{ color: "var(--muted)" }}>{PARAM_LABELS[k] ?? k}</span>
-                  <span style={{ fontWeight: 700, color: "var(--navy)" }}>{display}</span>
+                  <span style={{ color: "var(--text-muted)" }}>{PARAM_LABELS[k] ?? k}</span>
+                  <span style={{ fontWeight: 700, color: "var(--text-primary)" }}>{display}</span>
                 </div>
               );
             })}
@@ -615,25 +609,25 @@ function CitationEntry({ citation, onOpenViewer }: { citation: Citation; onOpenV
   const label = `[${citation.index}] ${citation.filename}${section}${page}`;
 
   return (
-    <div style={{ background: "var(--blue-lt)", borderRadius: 8, padding: "8px 12px" }}>
+    <div style={{ background: "var(--violet-tint)", borderRadius: 8, padding: "8px 12px" }}>
       <button
         onClick={onOpenViewer}
         aria-label={`Originaldokument öffnen: ${label}`}
         style={{
           background: "none", border: "none", padding: 0, fontSize: 12, textAlign: "left",
           width: "100%", cursor: "pointer", fontFamily: "inherit", fontWeight: 700,
-          color: "var(--navy)", marginBottom: 4, display: "flex", justifyContent: "space-between",
+          color: "var(--text-primary)", marginBottom: 4, display: "flex", justifyContent: "space-between",
         }}
       >
         <span>{label}</span>
-        <span aria-hidden="true" style={{ fontWeight: 400, color: "var(--muted)" }}>↗</span>
+        <span aria-hidden="true" style={{ fontWeight: 400, color: "var(--text-muted)" }}>↗</span>
       </button>
       <button
         onClick={() => setExpanded(v => !v)}
         aria-expanded={expanded}
         style={{
           background: "none", border: "none", padding: 0, fontSize: 12, textAlign: "left",
-          width: "100%", cursor: "pointer", fontFamily: "inherit", color: "var(--muted)", lineHeight: 1.45,
+          width: "100%", cursor: "pointer", fontFamily: "inherit", color: "var(--text-muted)", lineHeight: 1.45,
           ...(expanded ? {} : {
             display: "-webkit-box",
             WebkitLineClamp: EXCERPT_CLAMP_LINES,
@@ -715,8 +709,8 @@ export default function MessageBubble({ message: m, token }: Props) {
     return (
       <div style={{ alignSelf: "flex-end", maxWidth: "75%" }}>
         <div style={{
-          background: "var(--navy)", color: "#fff", borderRadius: "12px 12px 2px 12px",
-          padding: "10px 14px", fontSize: 14, lineHeight: 1.5,
+          background: "var(--indigo-deep)", color: "#fff", borderRadius: "12px 12px 2px 12px",
+          padding: "10px 14px", fontSize: "var(--text-base)", lineHeight: 1.5,
         }}>
           {m.content}
         </div>
@@ -737,14 +731,14 @@ export default function MessageBubble({ message: m, token }: Props) {
     ? {
         label: "Hinweis zur Belegung der Antwort",
         body: band.note,
-        background: "var(--amber-lt)",
-        border: "var(--amber)",
+        background: "var(--gold-tint)",
+        border: "var(--gold)",
       }
     : m.suppressed && m.refinement_hint
       ? {
           label: "Tipp zur Präzisierung der Frage",
           body: <><strong>Tipp: </strong>{m.refinement_hint}</>,
-          background: "var(--card)",
+          background: "var(--surface)",
           border: "var(--border)",
         }
       : null;
@@ -754,9 +748,9 @@ export default function MessageBubble({ message: m, token }: Props) {
 
       {/* Answer */}
       <div style={{
-        background: "var(--card)", border: "1px solid var(--border)",
+        background: "var(--surface)", border: "1px solid var(--border)",
         borderRadius: "2px 12px 12px 12px",
-        padding: "10px 14px", fontSize: 14, lineHeight: 1.6, whiteSpace: "pre-wrap",
+        padding: "10px 14px", fontSize: "var(--text-base)", lineHeight: 1.6, whiteSpace: "pre-wrap",
       }}>
         {m.content}
       </div>
@@ -771,14 +765,14 @@ export default function MessageBubble({ message: m, token }: Props) {
           {band && (
             <span style={{
               fontSize: 11, padding: "2px 9px", borderRadius: 20, fontWeight: 700,
-              background: "var(--amber-lt)", color: "var(--amber)",
+              background: "var(--gold-tint)", color: "var(--gold)",
             }}>
               <span aria-hidden="true">{band.icon} </span>{band.label}
             </span>
           )}
           {m.confidence && (<>
           <span style={{
-            background: "var(--blue-lt)", color: "var(--navy)",
+            background: "var(--violet-tint)", color: "var(--text-primary)",
             borderRadius: 20, padding: "2px 10px", fontSize: 11, fontWeight: 700,
           }}>
             Composite: {pct(m.confidence.score)}
@@ -806,15 +800,15 @@ export default function MessageBubble({ message: m, token }: Props) {
               <>
                 <span style={{
                   fontSize: 11, padding: "2px 8px", borderRadius: 20, fontWeight: 600,
-                  background: retFail ? "var(--red-lt)" : "var(--blue-lt)",
-                  color: retFail ? "var(--red)" : "var(--navy)",
+                  background: retFail ? "var(--red-tint)" : "var(--violet-tint)",
+                  color: retFail ? "var(--red)" : "var(--text-primary)",
                 }}>
                   Retrieval: {pct(m.confidence!.retrieval_score)}
                 </span>
                 <span style={{
                   fontSize: 11, padding: "2px 8px", borderRadius: 20, fontWeight: 600,
-                  background: citFail ? "var(--red-lt)" : citRan ? "var(--blue-lt)" : "var(--bg)",
-                  color: citFail ? "var(--red)" : citRan ? "var(--navy)" : "var(--muted)",
+                  background: citFail ? "var(--red-tint)" : citRan ? "var(--violet-tint)" : "var(--bg)",
+                  color: citFail ? "var(--red)" : citRan ? "var(--text-primary)" : "var(--text-muted)",
                 }}>
                   {citRan ? `Citation: ${pct(m.confidence!.citation_coverage)}` : "Citation: nicht gelaufen"}
                 </span>
@@ -825,7 +819,7 @@ export default function MessageBubble({ message: m, token }: Props) {
           {m.suppression_reason && (
             <span style={{
               fontSize: 11, padding: "2px 8px", borderRadius: 20, fontWeight: 600,
-              background: "var(--amber-lt)", color: "var(--amber)",
+              background: "var(--gold-tint)", color: "var(--gold)",
             }}>
               ⚠ {suppressLabels[m.suppression_reason] ?? m.suppression_reason}
             </span>
@@ -846,7 +840,7 @@ export default function MessageBubble({ message: m, token }: Props) {
           screen reader mid-sentence. */}
       {note && (
         <div role="note" aria-label={note.label} style={{
-          fontSize: 12, lineHeight: 1.5, color: "var(--text)",
+          fontSize: 12, lineHeight: 1.5, color: "var(--text-primary)",
           background: note.background, border: `1px solid ${note.border}`,
           borderRadius: 8, padding: "8px 12px",
         }}>
@@ -882,18 +876,18 @@ export default function MessageBubble({ message: m, token }: Props) {
       {m.answer_id && !m.suppressed && (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {feedback !== null ? (
-            <span style={{ fontSize: 11, color: "var(--green)", fontWeight: 600 }}>
+            <span style={{ fontSize: 11, color: "var(--olive)", fontWeight: 600 }}>
               ✓ Danke für dein Feedback!
             </span>
           ) : (
             <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-              <span style={{ fontSize: 11, color: "var(--muted)" }}>Hilfreich?</span>
+              <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Hilfreich?</span>
               {([true, false] as const).map(helpful => (
                 <button key={String(helpful)} onClick={() => selectThumb(helpful)}
                   aria-label={helpful ? "Hilfreich" : "Nicht hilfreich"}
                   style={{
-                    background: pendingThumb === helpful ? "var(--blue)" : "transparent",
-                    color: pendingThumb === helpful ? "#fff" : "var(--muted)",
+                    background: pendingThumb === helpful ? "var(--violet)" : "transparent",
+                    color: pendingThumb === helpful ? "#fff" : "var(--text-muted)",
                     border: "1px solid var(--border)", borderRadius: 4,
                     padding: "1px 6px", fontSize: 11,
                   }}>
@@ -904,8 +898,7 @@ export default function MessageBubble({ message: m, token }: Props) {
           )}
 
           {pendingThumb !== null && (
-            <div style={{
-              background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8,
+            <div className="card" style={{
               padding: "8px 10px", display: "flex", flexDirection: "column", gap: 6,
             }}>
               <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
@@ -934,7 +927,7 @@ export default function MessageBubble({ message: m, token }: Props) {
                   style={{ fontSize: 11, padding: "2px 10px" }}>
                   Abbrechen
                 </button>
-                <span style={{ fontSize: 10, color: "var(--muted)", marginLeft: "auto" }}>
+                <span style={{ fontSize: 10, color: "var(--text-muted)", marginLeft: "auto" }}>
                   {comment.length}/{COMMENT_MAX_LENGTH}
                 </span>
                 {feedbackError && (
