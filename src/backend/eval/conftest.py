@@ -60,6 +60,14 @@ from app.services.embedding_config import (
     verify_embedding_config,
 )
 from eval.profiles import Profile, resolve
+from seed_users import USERS
+
+# Admin, nicht knowledge_owner/learner: `debug` in der Response (self_check_ran,
+# Chunk-Scores) ist nur für die Admin-Rolle gefüllt (Kalibrierungsnotiz zu #35).
+# Von beiden Eval-Tests geteilt (T-56 vorher dupliziert, siehe Review zu #131).
+_ADMIN = next(u for u in USERS if u["role"] == "admin")
+EMAIL = os.environ.get("E2E_ADMIN_EMAIL", _ADMIN["email"])
+PASSWORD = os.environ.get("E2E_ADMIN_PASSWORD", _ADMIN["password"])
 
 #: Die Werte, gegen die gemessen wird — dieselben, die Migration 0004/0008
 #: seedet, hier aus den Code-Defaults gezogen, damit beide Quellen nicht
@@ -90,6 +98,18 @@ async def db_connection() -> AsyncIterator[AsyncConnection]:
 
     Alles, was die Pipeline während des Laufs schreibt, hängt daran und ist
     danach verschwunden — auch das, was sie selbst committet.
+
+    `engine.dispose()` am Ende, nicht nur `trans.rollback()` (T-56): pytest-
+    asyncio gibt jedem Testmodul seinen eigenen Event-Loop (Default-Scope
+    "function"), `engine` ist aber ein Modul-Global aus `app/database.py` mit
+    einem eigenen Connection-Pool. Ohne `dispose()` reicht der Pool die
+    zurückgegebene asyncpg-Verbindung an den nächsten Test weiter — lief der
+    unter einem anderen Loop (bei zwei Testdateien in einem `pytest eval` der
+    Regelfall, seit T-56 der erste Fall mit einer zweiten Async-Testdatei in
+    `eval/`), bricht `engine.connect()` dort mit "Future attached to a
+    different loop" ab, bevor der zweite Test überhaupt zu seiner eigenen
+    Frage kommt. `dispose()` schliesst den Pool und lässt den nächsten Test
+    unter seinem eigenen Loop neu verbinden.
     """
     async with engine.connect() as conn:
         trans = await conn.begin()
@@ -97,6 +117,7 @@ async def db_connection() -> AsyncIterator[AsyncConnection]:
             yield conn
         finally:
             await trans.rollback()
+    await engine.dispose()
 
 
 @pytest_asyncio.fixture
@@ -302,10 +323,36 @@ def _record(
     }
 
 
+@pytest_asyncio.fixture
+async def token(client: httpx.AsyncClient) -> str:
+    """Kein 429: der Limiter ist im In-Process-Lauf aus (siehe `client` oben).
+
+    Geteilt von beiden Eval-Tests (T-56 vorher dupliziert, siehe Review zu
+    #131) -- beide brauchen dieselbe Admin-Rolle, für dieselbe `debug`-Sicht.
+    """
+    r = await client.post("/api/auth/login", json={"email": EMAIL, "password": PASSWORD})
+    assert r.status_code == 200, r.text
+    return str(r.json()["access_token"])
+
+
+def _out_dir(profile: Profile, *parts: str) -> pathlib.Path:
+    """`eval/out/<profil>/<parts...>/<zeitstempel>/` — ein Lauf überschreibt
+    keinen anderen. `parts` trennt einen Test von einem anderen innerhalb
+    desselben Profils, ohne dass beide denselben Zeitstempel-Namensraum
+    teilen (T-56: `eval/test_in_corpus_quality.py` hängt `"in-corpus"` an,
+    damit `eval/compare.py` -- das je Profil den *neuesten* Lauf liest --
+    nach einem `make eval` mit beiden Tests im selben Prozess nicht den
+    falschen der beiden erwischt; siehe `in_corpus_out_dir` dort).
+    """
+    stamp = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H-%M-%SZ")
+    path = pathlib.Path(__file__).parent / "out" / profile.name
+    for part in parts:
+        path = path / part
+    path = path / stamp
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
 @pytest.fixture
 def eval_out_dir(profile: Profile) -> Iterator[pathlib.Path]:
-    """`eval/out/<profil>/<zeitstempel>/` — ein Lauf überschreibt keinen anderen."""
-    stamp = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H-%M-%SZ")
-    path = pathlib.Path(__file__).parent / "out" / profile.name / stamp
-    path.mkdir(parents=True, exist_ok=True)
-    yield path
+    yield _out_dir(profile)
