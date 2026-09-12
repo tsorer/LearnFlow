@@ -161,3 +161,57 @@ async def test_without_texts_makes_no_request(monkeypatch: pytest.MonkeyPatch) -
 
     assert await embed_texts([]) == []
     assert recorder.calls == []
+
+
+async def test_on_batch_is_awaited_once_per_batch_in_order(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """T-51: the worker's checkpoint (`note_progress`) rides along as
+    `on_batch`, one call per successful batch — the reaper's only way of
+    seeing that a multi-batch run is still making progress between them.
+    """
+    patch_provider(monkeypatch, Recorder())
+    texts = [f"text {i}" for i in range(BATCH_SIZE * 2 + 2)]
+    calls: list[int] = []
+
+    async def on_batch() -> None:
+        calls.append(len(calls))
+
+    await embed_texts(texts, on_batch=on_batch)
+
+    assert calls == [0, 1, 2]
+
+
+async def test_on_batch_none_is_the_unchanged_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The default keeps every caller that predates T-51 — and every other
+    test in this file — working exactly as before."""
+    recorder = Recorder()
+    patch_provider(monkeypatch, recorder)
+
+    assert await embed_texts(["erster", "zweiter"]) == [vector(0.0), vector(1.0)]
+
+
+async def test_on_batch_exception_propagates_and_stops_further_batches(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Deliberate, not a bug to guard against: `on_batch` raising Superseded
+    (T-51) is how a run notices mid-embedding that the reaper has already
+    given the document to a fresh attempt, and stopping there is what saves
+    every batch that would otherwise follow.
+    """
+    recorder = Recorder()
+    patch_provider(monkeypatch, recorder)
+    texts = [f"text {i}" for i in range(BATCH_SIZE * 2 + 2)]
+
+    class Stop(Exception):
+        pass
+
+    async def on_batch() -> None:
+        raise Stop
+
+    with pytest.raises(Stop):
+        await embed_texts(texts, on_batch=on_batch)
+
+    # Only the first batch ran — on_batch's exception ended the loop before
+    # the second or third.
+    assert len(recorder.calls) == 1

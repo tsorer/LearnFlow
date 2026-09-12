@@ -91,7 +91,19 @@ async def process_document(conn: asyncpg.Connection, job: Job) -> None:
             # here has nothing to contribute and no reason to spend a provider
             # call finding that out.
             raise Superseded
-        chunks = await prepare_chunks(conn, row)
+
+        # T-51: the reaper measures time since this call last succeeded, not
+        # time since mark_processing claimed the job — so every phase that can
+        # run long enough to matter reports in through it. The version guard
+        # is the same one every other write in this function carries: a run
+        # the reaper has already given away must stop advancing its own clock
+        # and let Superseded end it here, at the next checkpoint, rather than
+        # after however much more work it would otherwise do.
+        async def note_run_progress() -> None:
+            if not await note_progress(conn, document_id, row["index_version"]):
+                raise Superseded
+
+        chunks = await prepare_chunks(conn, row, note_run_progress)
         # Embedding runs before the transaction opens, not inside it: it is
         # tens of seconds of HTTP, and an open transaction across that span
         # would sit idle-in-transaction and hold back VACUUM on chunks.
@@ -99,7 +111,9 @@ async def process_document(conn: asyncpg.Connection, job: Job) -> None:
         # embedded document would stay findable through the tsv index while
         # being invisible to the dense half of the hybrid search (ADR-007),
         # which is silently degraded recall instead of a failed job.
-        embeddings = await embed_texts([chunk.content for chunk in chunks])
+        embeddings = await embed_texts(
+            [chunk.content for chunk in chunks], on_batch=note_run_progress
+        )
         async with conn.transaction():
             await store_chunks(conn, document_id, chunks, embeddings)
             # row["index_version"], not `version`: the publish is about the
@@ -145,23 +159,52 @@ async def process_document(conn: asyncpg.Connection, job: Job) -> None:
         raise
 
 
-async def mark_processing(
-    conn: asyncpg.Connection, document_id: str, version: int
-) -> bool:
+async def mark_processing(conn: asyncpg.Connection, document_id: str, version: int) -> bool:
     """Announce the run to the reader of GET /documents, under the same version
     condition as every other status this worker writes.
+
+    Also starts this run's progress clock (T-51) — in the same statement, not
+    a second write after: a gap between the two would leave a document that
+    sat in the queue a while with a stale clock the moment it is claimed,
+    reapable again before this run has had a chance to make any progress.
 
     False means the document was replaced or reaped between the read a moment
     ago and this write — a newer attempt will do the indexing, and this one
     stops here.
     """
     claimed = await conn.fetchval(
-        "UPDATE documents SET status = $2 WHERE id = $1 AND index_version = $3 RETURNING id",
+        "UPDATE documents SET status = $2, index_progress_at = now() "
+        "WHERE id = $1 AND index_version = $3 RETURNING id",
         document_id,
         DocumentStatus.processing,
         version,
     )
     return claimed is not None
+
+
+async def note_progress(conn: asyncpg.Connection, document_id: str, version: int) -> bool:
+    """Record that this run is still making progress (T-51), under the same
+    version condition as every other write to this row.
+
+    This is what the reaper reads instead of `pgqueuer.heartbeat`: called at
+    each phase boundary in `process_document` — after parsing, after chunking,
+    after every embedding batch — so the timeout it enforces can be minutes
+    regardless of how long the whole run takes.
+
+    False means a newer attempt owns this document now (a replacement upload,
+    or the reaper having already declared this run abandoned). The caller
+    raises Superseded and stops, the same response every other guarded write
+    in this file gives that condition — deliberately not "keep working and
+    just stop updating the clock", which would let an already-abandoned run
+    keep spending provider calls on a version nobody reads any more.
+    """
+    touched = await conn.fetchval(
+        "UPDATE documents SET index_progress_at = now() "
+        "WHERE id = $1 AND index_version = $2 RETURNING id",
+        document_id,
+        version,
+    )
+    return touched is not None
 
 
 async def mark_available(
@@ -211,10 +254,25 @@ async def fetch_document(conn: asyncpg.Connection, document_id: str) -> asyncpg.
     return row
 
 
-async def prepare_chunks(conn: asyncpg.Connection, row: asyncpg.Record) -> list[Chunk]:
-    """Parse and chunk a document's content. Reads config only — writes nothing."""
+async def prepare_chunks(
+    conn: asyncpg.Connection, row: asyncpg.Record, on_progress: Callable[[], Awaitable[None]]
+) -> list[Chunk]:
+    """Parse and chunk a document's content. Reads config, and — through
+    `on_progress` — reports progress; the write itself stays the caller's
+    (`note_progress`), so this function's own knowledge stays "parsing and
+    chunking", not "how the reaper is told about it".
+
+    Both phases are synchronous CPU work with no `await` of their own to give
+    the reaper a natural checkpoint, which is exactly why they need one poked
+    in from outside: on the corpus's densest document scaled to the 10 MiB
+    upload limit, parsing alone measured to ~29s and chunking to ~3s (T-51,
+    ADR-006 Nachtrag) — short next to a stalled embedding batch, but not
+    nothing, and the only way `index_progress_at` would otherwise see them is
+    the write `embed_texts`'s first batch makes afterwards.
+    """
     chunk_size, chunk_overlap = await read_chunk_config(conn)
     blocks = parse_document(bytes(row["content"]), row["content_type"])
+    await on_progress()
     # Tokenizer passed explicitly: the worker owns the choice of encoding, the
     # chunker stays free of it (and tests can substitute a trivial counter).
     chunks = chunk_blocks(
@@ -222,6 +280,7 @@ async def prepare_chunks(conn: asyncpg.Connection, row: asyncpg.Record) -> list[
     )
     if not chunks:
         raise UserFacingError("Kein extrahierbarer Text gefunden")
+    await on_progress()
     return chunks
 
 
@@ -256,7 +315,16 @@ async def store_chunks(
 
 async def read_chunk_config(conn: asyncpg.Connection) -> tuple[int, int]:
     """Chunk parameters live in the config table so they can be calibrated
-    without a deployment (ADR-007). Read per job, not cached at startup."""
+    without a deployment (ADR-007). Read per job, not cached at startup.
+
+    Known coupling (T-51, ADR-006 Nachtrag): `DEFAULT_PROCESSING_STALL_SECONDS`
+    is measured against the ADR-007 default of 512. A `chunk_size` calibrated
+    much smaller multiplies the chunk count and, with it, the time
+    `prepare_chunks`/`store_chunks` spend between progress checkpoints —
+    harmless under the old 2700 s budget, not necessarily under 300 s. Not
+    admin-API-writable on purpose (see `app/routers/admin.py`), so this is an
+    operator decision, not something a request can trigger.
+    """
     rows = await conn.fetch(
         "SELECT key, value FROM config WHERE key IN ('chunk_size', 'chunk_overlap')"
     )
@@ -290,49 +358,60 @@ def _as_int(values: dict[str, str], key: str, default: int) -> int:
         ) from exc
 
 
-# Fallbacks for the two reaper settings, used when `config` has no row for
+# Fallbacks for the three reaper settings, used when `config` has no row for
 # them — the same "read per pass, fall back on absence" contract the chunk
-# parameters follow. Values match the seed of migration 0017.
+# parameters follow. Values match the seed of migration 0020 (stall) and 0017
+# (timeout, max attempts).
 #
+# 300 s is measured, not picked (T-51, ADR-006 Nachtrag): the largest gap a
+# healthy run can go quiet across is a single embedding batch retrying once,
+# TIMEOUT_SECONDS * (1 + MAX_RETRIES) (`app/services/embedding.py`) plus
+# LiteLLM's own backoff — ~120 s with margin — against ~32 s measured for
+# parsing and chunking the corpus's densest document scaled to the 10 MiB
+# upload limit, and ~5 s for writing ~1850 chunks. Doubling the largest of
+# the three and rounding gives 300 s.
+DEFAULT_PROCESSING_STALL_SECONDS = 300
+MIN_PROCESSING_SECONDS = 120
+MAX_PROCESSING_SECONDS = 999999
+
 # 2700 s is derived, not picked (ADR-006, Nachtrag): a 10 MB upload at the
 # density of the densest corpus document runs to ~29 embedding batches, the
 # batches are sequential, and each one may take TIMEOUT_SECONDS *per attempt*
-# with MAX_RETRIES on top (`app/services/embedding.py`). A run in which every
-# batch times out once and succeeds on retry is slow but valid, and reaping it
-# would end in a `failed` that no re-upload can fix.
+# with MAX_RETRIES on top (`app/services/embedding.py`). Since T-51 this value
+# no longer decides whether a document counts as abandoned — that is
+# `processing_stall_seconds` now — it only bounds how long an orphaned
+# `pgqueuer` row is left standing before `DELETE_ORPHANED_PICKED_ROWS` below
+# sweeps it (T-52), so it still has to exceed the worst legitimate run: a run
+# that finishes late must not have its own queue row deleted out from under
+# a completion pgqueuer is still about to write.
 DEFAULT_PROCESSING_TIMEOUT_SECONDS = 2700
 DEFAULT_PROCESSING_MAX_ATTEMPTS = 3
 
-# How often the reaper looks within one timeout, and the ceiling on the pause
-# between two passes. The quarter keeps short timeouts responsive; the cap keeps
-# a long one from also making the *detection* slow, which is a separate thing:
-# the pass is one indexed query, and nothing is gained by waiting 11 minutes
-# between two of them just because the deadline being enforced is 45.
-REAPER_PASSES_PER_TIMEOUT = 4
+# How often the reaper looks within one stall period, and the floor and
+# ceiling on the pause between two passes. The quarter keeps short stalls
+# responsive; the floor keeps an operator-chosen stall near
+# MIN_PROCESSING_SECONDS from turning into a hot loop against the database;
+# the ceiling keeps a long one from also making the *detection* slow, which
+# is a separate thing — the pass is one indexed query, and nothing is gained
+# by waiting minutes between two of them just because the deadline being
+# enforced is large.
+#
+# Net effect of T-51's smaller default (2700s -> 300s): the default pass
+# interval drops with it, 300s -> 75s — one more indexed query per minute,
+# accepted for the same reason as above (ADR-006, Nachtrag 2026-09-11).
+REAPER_PASSES_PER_STALL = 4
+MIN_REAPER_INTERVAL_SECONDS = 5
 MAX_REAPER_INTERVAL_SECONDS = 300
 
-# A document is abandoned when nothing in the queue is working on it any more.
-#
-# `heartbeat` is the timestamp pgqueuer writes when it hands the job out
-# (`SET status = 'picked', updated = NOW(), heartbeat = NOW()`), so with our
-# registration it reads as "claimed this long ago": the periodic heartbeat
-# pgqueuer can send is driven by `retry_timer`, and ours is the default zero,
-# which leaves that sender switched off. The timeout therefore has to exceed the
-# longest legitimate run, embedding included — that is what the 900 s default is
-# for. Should `retry_timer` ever be set, live jobs start refreshing the column
-# and this same condition tightens by itself into "still alive".
-#
-# The payload is matched through `->>` rather than by byte equality, unlike the
-# dedupe in `app/queue.py`: there both sides come from json.dumps, here one side
-# would be JSON rendered by Postgres, which spaces its colons differently.
-#
-# The cast sits inside a CASE, and that is not decoration: Postgres does not
-# promise to evaluate the entrypoint filter first, so a second entrypoint with a
-# non-JSON payload would let the cast see bytes it cannot parse and throw. The
-# loop below catches that, logs it, and sleeps — leaving the reaper silently
-# switched off while the worker otherwise looks healthy, which is the very class
-# of failure this ticket exists to remove. CASE is what Postgres documents for
-# forcing the order, so the guard cannot be optimised away (review on #104).
+# A document is abandoned when its own run has reported no progress in too
+# long (T-51) — index_progress_at, written by mark_processing and by
+# note_progress at every phase boundary in process_document, replaces what
+# used to be a join against pgqueuer's claim timestamp (see the ADR-006
+# Nachtrag this ticket adds, and the one T-43 left in its place below). That
+# join is gone from this statement entirely: the timeout it served — "claimed
+# this long ago" standing in for "still alive" because pgqueuer's own
+# heartbeat sender needs `retry_timer` set, and ours stays at the default
+# zero — is no longer needed once the run reports its own liveness.
 STUCK_DOCUMENTS = """
     UPDATE documents d
        SET index_version  = d.index_version + 1,
@@ -340,17 +419,7 @@ STUCK_DOCUMENTS = """
            status = CASE WHEN d.index_attempts + 1 < $2 THEN $3 ELSE $4 END,
            error_message = CASE WHEN d.index_attempts + 1 < $2 THEN NULL ELSE $5 END
      WHERE d.status = $6
-       AND NOT EXISTS (
-             SELECT 1
-               FROM pgqueuer q
-              WHERE q.status IN ('queued', 'picked')
-                AND q.heartbeat > now() - make_interval(secs => $1)
-                AND CASE WHEN q.entrypoint = 'process_document'
-                         THEN convert_from(q.payload, 'UTF8')::json ->> 'document_id'
-                              = d.id::text
-                         ELSE false
-                    END
-           )
+       AND d.index_progress_at < now() - make_interval(secs => $1)
  RETURNING d.id, d.index_attempts
 """
 
@@ -378,16 +447,21 @@ REQUEUE_DOCUMENT = """
 # insert silently writes nothing. No exception, no corruption — the run's
 # success or exception just never reaches the log. Requiring twice the
 # timeout narrows the race to a run more than twice as long as ADR-006 derives
-# as the worst legitimate case, without closing it outright; closing it needs
-# a real liveness signal, which is T-51.
+# as the worst legitimate case, without closing it outright. T-51 gave the
+# *document* side an actual liveness signal (index_progress_at, above); this
+# sweep still has none of its own to read — it acts on a `pgqueuer` row, not
+# on `documents` — and remains this same accepted-as-collateral narrowing.
 #
 # The multiplication sits outside make_interval on purpose (review on #118,
 # round 2): `$1` alone resolves to float8 from make_interval's own signature,
 # but `$1 * 2` resolves the multiplication first, and `unknown * int4` picks
-# int4 — silently truncating a fractional `timeout_seconds` and, since
-# `processing_timeout_seconds` has no configured upper bound, overflowing
-# into `NumericValueOutOfRangeError` for a value still valid for the
-# document-side check a few lines up.
+# int4 — silently truncating a fractional `timeout_seconds`. Migration 0020
+# (T-61, #132) now bounds `processing_timeout_seconds` at 999999 on both
+# write paths, measured at roughly four orders of magnitude below where this
+# expression actually overflows (~1.06e11 s, ADR-006 Nachtrag) — the read
+# below still clamps defensively, since the database is not the only thing
+# between a stored value and this query (a dump taken before 0020 reaches it
+# unfiltered).
 DELETE_ORPHANED_PICKED_ROWS = """
     DELETE FROM pgqueuer
      WHERE entrypoint = 'process_document'
@@ -397,7 +471,7 @@ DELETE_ORPHANED_PICKED_ROWS = """
 
 
 async def reap_stuck_documents(
-    conn: asyncpg.Connection, timeout_seconds: int, max_attempts: int
+    conn: asyncpg.Connection, stall_seconds: int, timeout_seconds: int, max_attempts: int
 ) -> int:
     """Free documents whose indexing run died with the worker that claimed it.
 
@@ -422,14 +496,23 @@ async def reap_stuck_documents(
     leftover row from an earlier pass, or one for a document no longer in
     'processing', is cleaned up here just the same, and a failure in it does
     not undo the reap.
+
+    Two frists, not one, since T-51: `stall_seconds` decides whether a
+    document is abandoned (`STUCK_DOCUMENTS`, measured against
+    `index_progress_at`), `timeout_seconds` still decides when its orphaned
+    `pgqueuer` row is swept (`DELETE_ORPHANED_PICKED_ROWS`, measured against
+    `heartbeat`) — the two statements read different clocks on purpose, and
+    binding them to the same parameter would be a bug, not a simplification.
+
     Returns how many documents were reaped, for the caller's log — the
     cleanup's own count only reaches the log, since callers act on documents.
     """
-    # The message names no cause on purpose. The condition below is "claimed
-    # longer ago than the timeout", which a worker that died satisfies — and so
-    # does a run that is simply slower than the timeout allows. Naming the
-    # restart would diagnose the second case wrongly, and its usual advice, to
-    # upload the document again, would send the owner into the same timeout.
+    # The message names no cause on purpose. The condition below is "no
+    # progress reported in longer than the stall allows", which a worker that
+    # died satisfies — and so does a run that is simply slower than the stall
+    # allows. Naming the restart would diagnose the second case wrongly, and
+    # its usual advice, to upload the document again, would send the owner
+    # into the same stall.
     exhausted = (
         f"Verarbeitung wurde nach {max_attempts} Versuchen aufgegeben — sie wurde jeweils "
         "abgebrochen oder hat das Zeitlimit überschritten."
@@ -439,7 +522,7 @@ async def reap_stuck_documents(
     async with conn.transaction():
         rows = await conn.fetch(
             STUCK_DOCUMENTS,
-            float(timeout_seconds),
+            float(stall_seconds),
             max_attempts,
             DocumentStatus.pending,
             DocumentStatus.failed,
@@ -474,44 +557,80 @@ async def reap_stuck_documents(
     return len(rows)
 
 
-async def read_reaper_config(conn: asyncpg.Connection) -> tuple[int, int]:
-    """The reaper's timeout and attempt budget — read per pass, so both can be
-    calibrated without a deployment (same reason as the chunk parameters).
+def _clamped_int(
+    key: str, raw: str | None, default: int, *, minimum: int, maximum: int | None
+) -> int:
+    """One reaper setting, read per pass and falling back to the default
+    instead of raising: a bad value arrives here without a document to
+    report it on, and a reaper that stops on a typo — or, for the two
+    "processing seconds" keys (T-61, #132), that silently never reaps
+    anything again because a value is absurdly large — is the very failure
+    class this and #132 exist to repair. Migration 0020's CHECK keeps such a
+    value out of the table on both write paths, so this should stay
+    theoretical — except for a database that predates 0020 (a restored dump,
+    an installation that has not migrated yet), which the database itself
+    cannot guard.
 
-    Falls back to the defaults instead of raising, unlike `_as_int`: a bad value
-    arrives here without a document to report it on, and a reaper that stops on a
-    typo is the very failure this ticket exists to repair. The CHECK constraint
-    of migration 0017 keeps such a value out of the table in the first place, so
-    the warning below should stay theoretical.
+    `maximum=None` is `processing_max_attempts`'s case: 0019's docstring
+    already settles that counts of this kind stay unbounded above, and #132
+    does not ask for this key — only a floor applies.
+    """
+    if raw is None:
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        value = 0
+    out_of_range = value < minimum or (maximum is not None and value > maximum)
+    if out_of_range:
+        bound = f"[{minimum}, {maximum}]" if maximum is not None else f">= {minimum}"
+        log.warning("config %s=%r is outside %s — using %s", key, raw, bound, default)
+        value = default
+    return value
+
+
+async def read_reaper_config(conn: asyncpg.Connection) -> tuple[int, int, int]:
+    """The reaper's stall period, sweep timeout and attempt budget — read per
+    pass, so all three can be calibrated without a deployment (same reason as
+    the chunk parameters).
     """
     rows = await conn.fetch(
-        "SELECT key, value FROM config "
-        "WHERE key IN ('processing_timeout_seconds', 'processing_max_attempts')"
+        "SELECT key, value FROM config WHERE key IN "
+        "('processing_stall_seconds', 'processing_timeout_seconds', 'processing_max_attempts')"
     )
     values: dict[str, str] = {row["key"]: row["value"] for row in rows}
-    parsed: list[int] = []
-    for key, default in (
-        ("processing_timeout_seconds", DEFAULT_PROCESSING_TIMEOUT_SECONDS),
-        ("processing_max_attempts", DEFAULT_PROCESSING_MAX_ATTEMPTS),
-    ):
-        raw = values.get(key)
-        if raw is None:
-            parsed.append(default)
-            continue
-        try:
-            value = int(raw)
-        except ValueError:
-            value = 0
-        if value < 1:
-            log.warning("config %s=%r is not a positive integer — using %s", key, raw, default)
-            value = default
-        parsed.append(value)
-    return parsed[0], parsed[1]
+
+    stall_seconds = _clamped_int(
+        "processing_stall_seconds",
+        values.get("processing_stall_seconds"),
+        DEFAULT_PROCESSING_STALL_SECONDS,
+        minimum=MIN_PROCESSING_SECONDS,
+        maximum=MAX_PROCESSING_SECONDS,
+    )
+    timeout_seconds = _clamped_int(
+        "processing_timeout_seconds",
+        values.get("processing_timeout_seconds"),
+        DEFAULT_PROCESSING_TIMEOUT_SECONDS,
+        minimum=MIN_PROCESSING_SECONDS,
+        maximum=MAX_PROCESSING_SECONDS,
+    )
+    max_attempts = _clamped_int(
+        "processing_max_attempts",
+        values.get("processing_max_attempts"),
+        DEFAULT_PROCESSING_MAX_ATTEMPTS,
+        minimum=1,
+        maximum=None,
+    )
+
+    return stall_seconds, timeout_seconds, max_attempts
 
 
-def reaper_interval(timeout_seconds: float) -> float:
-    """How long to wait between two passes for a given timeout."""
-    return min(timeout_seconds / REAPER_PASSES_PER_TIMEOUT, MAX_REAPER_INTERVAL_SECONDS)
+def reaper_interval(stall_seconds: float) -> float:
+    """How long to wait between two passes for a given stall period."""
+    return min(
+        max(stall_seconds / REAPER_PASSES_PER_STALL, MIN_REAPER_INTERVAL_SECONDS),
+        MAX_REAPER_INTERVAL_SECONDS,
+    )
 
 
 async def reaper_loop(pool: asyncpg.Pool) -> None:
@@ -524,14 +643,14 @@ async def reaper_loop(pool: asyncpg.Pool) -> None:
     Every failure is logged and swallowed. The reaper is a repair mechanism, and
     a broken one must not take the job consumer down with it.
     """
-    interval = reaper_interval(DEFAULT_PROCESSING_TIMEOUT_SECONDS)
+    interval = reaper_interval(DEFAULT_PROCESSING_STALL_SECONDS)
     while True:
         await asyncio.sleep(interval)
         try:
             async with pool.acquire() as conn:
-                timeout_seconds, max_attempts = await read_reaper_config(conn)
-                interval = reaper_interval(timeout_seconds)
-                await reap_stuck_documents(conn, timeout_seconds, max_attempts)
+                stall_seconds, timeout_seconds, max_attempts = await read_reaper_config(conn)
+                interval = reaper_interval(stall_seconds)
+                await reap_stuck_documents(conn, stall_seconds, timeout_seconds, max_attempts)
         except Exception:
             log.exception("Reaper pass failed — next attempt in %s s", interval)
 

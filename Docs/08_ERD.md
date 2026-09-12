@@ -62,6 +62,7 @@ erDiagram
         timestamp   validated_at
         int         index_version
         int         index_attempts
+        timestamp   index_progress_at
     }
 
     chunks {
@@ -148,8 +149,9 @@ erDiagram
 | `content` | `bytea` | Original-Datei ≤ 10 MB (ADR-003) |
 | `status` | `varchar` | `queued` · `processing` · `ready` · `error` |
 | `validated_at` | `timestamp` | Stale-Uhr für US-06 (reset bei Upload + Re-Validierung) |
-| `index_version` | `int` | Optimistic-Lock-Token zwischen API und Worker (T-15 · T-43). Hochgezählt von genau zwei Schreibern, die dasselbe damit meinen — „jeder ältere Indexierungslauf ist ungültig": vom Upload (neue Bytes) und vom Reaper (Lauf für tot erklärt). Der Worker liest es mit dem Inhalt und veröffentlicht nur, wenn es noch passt. |
+| `index_version` | `int` | Optimistic-Lock-Token zwischen API und Worker (T-15 · T-43). Hochgezählt von drei Schreibern, die dasselbe damit meinen — „jeder ältere Indexierungslauf ist ungültig": vom Upload (neue Bytes), vom Reaper (Lauf für tot erklärt) und von `apply_embedding_config.py` (Modellwechsel entwertet den bestehenden Index). Der Worker liest es mit dem Inhalt und veröffentlicht nur, wenn es noch passt. |
 | `index_attempts` | `int` | Budget des Reapers: wie oft ein abgebrochener Lauf für diese Fassung neu eingereiht wurde. Beim Upload zurückgesetzt. |
+| `index_progress_at` | `timestamp` | Fortschritts-Uhr des Reapers (T-51): vom Worker an Phasengrenzen hochgeschrieben (nach Parsen, nach Chunking, je Embedding-Batch), unter derselben `index_version`-Bedingung. Ersetzt die Übernahme-Zeit aus `pgqueuer.heartbeat` als Verwaisungssignal — kein `onupdate`, aus demselben Grund wie bei `index_version`. |
 | `embedding` | `vector(1536)` | `text-embedding-3-small`; OnPrem: 1024 (`bge-m3`) (ADR-005) |
 
 ### `chunks`
@@ -176,7 +178,8 @@ Konfigurierbare Parameter (ADR-007 · ADR-008 · US-02 · US-06 · US-11):
 | `rrf_k` | `60` | RRF-Fusion (ADR-007) |
 | `retrieval_top_k` | `20` | Kandidaten je Suche (ADR-007) |
 | `context_top_n` | `5` | Chunks an LLM (ADR-007) |
-| `processing_timeout_seconds` | `900` | Ab wann ein beanspruchter Indexierungslauf als verwaist gilt (T-43) |
+| `processing_stall_seconds` | `300` | Ab wann ein Lauf ohne Fortschrittsmeldung als verwaist gilt (T-51) |
+| `processing_timeout_seconds` | `2700` | Ab wann eine verwaiste `pgqueuer`-Zeile aufgeräumt wird (T-52); entschied das Reapen selbst bis T-51 |
 | `processing_max_attempts` | `3` | Wie oft der Reaper neu einreiht, bevor er `failed` setzt (T-43) |
 
 `changed_by` + `changed_at` erfüllen das US-11-Audit-Log-Kriterium (kein separates Log nötig).

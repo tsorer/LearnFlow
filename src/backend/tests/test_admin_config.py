@@ -27,7 +27,8 @@ TABLE = {
     "rrf_k": "60",
     "retrieval_top_k": "20",
     "context_top_n": "5",
-    "processing_timeout_seconds": "900",
+    "processing_stall_seconds": "300",
+    "processing_timeout_seconds": "2700",
     "processing_max_attempts": "3",
     "embed_model": "text-embedding-3-small",
     "embed_dimensions": "1536",
@@ -193,6 +194,43 @@ async def test_put_rejects_a_reaper_key_that_is_not_a_positive_integer() -> None
     db = make_db()
 
     r = await _put_config({"config": {"processing_max_attempts": "0"}}, db)
+
+    assert r.status_code == 422
+
+
+async def test_put_accepts_the_processing_seconds_boundary_values() -> None:
+    """T-61 (#132): 120 and 999999 are the inclusive bounds 0020's CHECK
+    accepts for both processing_stall_seconds and processing_timeout_seconds
+    — off-by-one here would reject a value the database happily stores."""
+    db = make_db()
+
+    r = await _put_config(
+        {"config": {"processing_stall_seconds": "120", "processing_timeout_seconds": "999999"}},
+        db,
+    )
+
+    assert r.status_code == 200
+    assert [update["value"] for update in db.updates] == ["120", "999999"]
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "119",  # one below the floor
+        "1000000",  # one above the ceiling
+        "0",
+        "900.5",
+    ],
+)
+@pytest.mark.parametrize("key", ["processing_stall_seconds", "processing_timeout_seconds"])
+async def test_put_rejects_a_processing_seconds_value_outside_the_range(
+    key: str, value: str
+) -> None:
+    """The fast-fail this endpoint gives ahead of the CHECK it backs up
+    (T-61) — every value here is one the database would reject too."""
+    db = make_db()
+
+    r = await _put_config({"config": {key: value}}, db)
 
     assert r.status_code == 422
 
