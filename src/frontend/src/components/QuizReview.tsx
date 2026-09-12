@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { AuthUser } from "../types";
 import { api, ApiError, type QuizQuestion, type QuizQuestionStatus, type QuizQuestionUpdate } from "../api/client";
+import Layout from "./Layout";
 import QuizCard from "./QuizCard";
 
 const PAGE_SIZE = 50;
@@ -34,9 +35,9 @@ export function generationFailureMessage(err: unknown): string {
   return "Fehler bei der Generierung. Bitte erneut versuchen.";
 }
 
-interface Props { user: AuthUser }
+interface Props { user: AuthUser; onLogout: () => void }
 
-export default function QuizReview({ user }: Props) {
+export default function QuizReview({ user, onLogout }: Props) {
   const navigate = useNavigate();
   const [columns, setColumns] = useState<Record<QuizQuestionStatus, Column>>({
     pending: emptyColumn,
@@ -137,54 +138,48 @@ export default function QuizReview({ user }: Props) {
   };
 
   return (
-    <div style={{ display: "flex", height: "100vh", flexDirection: "column" }}>
-      <div style={{
-        background: "var(--navy)", color: "#fff", padding: "0 24px",
-        height: 52, display: "flex", alignItems: "center", justifyContent: "space-between",
-        flexShrink: 0,
-      }}>
-        <div style={{ fontWeight: 800, fontSize: 16, letterSpacing: "-.02em" }}>📚 LearnFlow · Quiz-Review</div>
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          <button className="primary" style={{ fontSize: 12 }} onClick={generate} disabled={generating}>
+    <Layout
+      user={user}
+      onLogout={onLogout}
+      navItems={<button className="nav-item" onClick={() => navigate("/")}>Zurück zum Chat</button>}
+    >
+      <div style={{ flex: 1, overflowY: "auto", padding: "var(--space-4) var(--space-6)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--space-4)" }}>
+          <div style={{ fontWeight: "var(--font-black)", fontSize: "var(--text-xl)", color: "var(--text-primary)" }}>Quiz-Review</div>
+          <button className="primary" onClick={generate} disabled={generating}>
             {generating ? "Generiere…" : "Fragen generieren"}
           </button>
-          <button className="secondary" style={{ fontSize: 12 }} onClick={() => navigate("/")}>
-            Zurück zum Chat
-          </button>
-          <span style={{ fontSize: 12, color: "rgba(255,255,255,.5)" }}>{user.email}</span>
         </div>
-      </div>
 
-      <div style={{ flex: 1, overflowY: "auto", padding: "16px 24px" }}>
         {error && (
           <div role="alert" style={{
-            background: "var(--red-lt)", color: "var(--red)", borderRadius: 8,
-            padding: "8px 12px", fontSize: 13, marginBottom: 12,
+            background: "var(--red-tint)", color: "var(--red)", borderRadius: "var(--radius-sm)",
+            padding: "8px 12px", fontSize: "var(--text-sm)", marginBottom: 12,
           }}>
             {error}
           </div>
         )}
         {notice && (
           <div role="status" style={{
-            background: "var(--green-lt)", color: "var(--green)", borderRadius: 8,
-            padding: "8px 12px", fontSize: 13, marginBottom: 12,
+            background: "var(--olive-tint)", color: "var(--olive)", borderRadius: "var(--radius-sm)",
+            padding: "8px 12px", fontSize: "var(--text-sm)", marginBottom: 12,
           }}>
             {notice}
           </div>
         )}
         {loading ? (
-          <div style={{ color: "var(--muted)", textAlign: "center", marginTop: 40 }}>Lädt…</div>
+          <div style={{ color: "var(--text-muted)", textAlign: "center", marginTop: 40 }}>Lädt…</div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(280px, 1fr))", gap: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(280px, 1fr))", gap: "var(--space-4)" }}>
             {COLUMNS.map(({ status, label }) => {
               const col = columns[status];
               return (
                 <div key={status} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  <div style={{ fontWeight: 700, color: "var(--navy)", fontSize: 14 }}>
+                  <div style={{ fontWeight: "var(--font-bold)", color: "var(--text-primary)", fontSize: "var(--text-sm)" }}>
                     {label} ({col.total})
                   </div>
                   {col.items.length === 0 && (
-                    <div style={{ color: "var(--muted)", fontSize: 12 }}>Keine Fragen.</div>
+                    <div style={{ color: "var(--text-muted)", fontSize: "var(--text-xs)" }}>Keine Fragen.</div>
                   )}
                   {col.items.map(q => (
                     <QuizCard
@@ -198,7 +193,7 @@ export default function QuizReview({ user }: Props) {
                   {col.items.length < col.total && (
                     <button
                       className="secondary"
-                      style={{ fontSize: 12 }}
+                      style={{ fontSize: "var(--text-xs)" }}
                       disabled={loadingMore === status}
                       onClick={() => loadMore(status)}
                     >
@@ -211,6 +206,6 @@ export default function QuizReview({ user }: Props) {
           </div>
         )}
       </div>
-    </div>
+    </Layout>
   );
 }
