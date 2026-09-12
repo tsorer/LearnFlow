@@ -51,34 +51,34 @@ export default function Login({ onLogin, sessionExpired = false }: Props) {
   const notice = error || (sessionExpired ? "Sitzung abgelaufen. Bitte melde dich erneut an." : "");
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <form onSubmit={submit} style={{
-        background: "var(--card)", border: "1px solid var(--border)", borderRadius: 12,
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg)" }}>
+      <form onSubmit={submit} className="card" style={{
         padding: "40px 48px", width: 360, display: "flex", flexDirection: "column", gap: 16,
+        boxShadow: "var(--shadow-md)",
       }}>
-        <div style={{ fontWeight: 800, fontSize: 22, color: "var(--navy)", marginBottom: 4 }}>
+        <div style={{ fontWeight: "var(--font-black)", fontSize: "var(--text-2xl)", color: "var(--text-primary)", marginBottom: 4 }}>
           📚 LearnFlow
         </div>
-        <div style={{ color: "var(--muted)", fontSize: 13, marginBottom: 8 }}>
+        <div style={{ color: "var(--text-secondary)", fontSize: "var(--text-sm)", marginBottom: 8 }}>
           Melde dich mit deinem Account an.
         </div>
         {notice && (
-          <div style={{ background: "var(--red-lt)", color: "var(--red)", borderRadius: 6, padding: "8px 12px", fontSize: 13 }}>
+          <div style={{ background: "var(--red-tint)", color: "var(--red)", borderRadius: "var(--radius-sm)", padding: "8px 12px", fontSize: "var(--text-sm)" }}>
             {notice}
           </div>
         )}
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <label htmlFor="login-email" style={{ fontSize: 12, fontWeight: 600, color: "var(--muted)" }}>E-MAIL</label>
+          <label htmlFor="login-email" style={{ fontSize: "var(--text-xs)", fontWeight: "var(--font-semibold)", color: "var(--text-secondary)" }}>E-MAIL</label>
           <input id="login-email" type="email" value={email} onChange={e => setEmail(e.target.value)} required autoFocus />
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <label htmlFor="login-password" style={{ fontSize: 12, fontWeight: 600, color: "var(--muted)" }}>PASSWORT</label>
+          <label htmlFor="login-password" style={{ fontSize: "var(--text-xs)", fontWeight: "var(--font-semibold)", color: "var(--text-secondary)" }}>PASSWORT</label>
           <input id="login-password" type="password" value={password} onChange={e => setPassword(e.target.value)} required />
         </div>
         <button type="submit" className="primary" disabled={busy} style={{ marginTop: 8, padding: "10px 14px" }}>
           {busy ? "Anmelden…" : "Anmelden"}
         </button>
-        <div style={{ textAlign: "center", fontSize: 11, color: "var(--muted)", marginTop: 4 }}>
+        <div style={{ textAlign: "center", fontSize: "var(--text-2xs)", color: "var(--text-muted)", marginTop: 4 }}>
           Build {new Date(__BUILD_TIME__).toLocaleString("de-CH", {
             day: "2-digit", month: "2-digit", year: "numeric",
             hour: "2-digit", minute: "2-digit",

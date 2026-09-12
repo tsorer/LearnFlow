@@ -2,6 +2,8 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import type { AuthUser, Message } from "../types";
 import { api, ApiError, type ConfigMap } from "../api/client";
+import { getRoleFlags } from "../roles";
+import Layout from "./Layout";
 import Upload from "./Upload";
 import MessageBubble from "./MessageBubble";
 import {
@@ -13,9 +15,9 @@ import {
 } from "../params";
 
 const GROUP_LABEL_STYLE = {
-  fontSize: 10,
-  fontWeight: 700,
-  color: "var(--muted)",
+  fontSize: "var(--text-3xs)",
+  fontWeight: "var(--font-bold)",
+  color: "var(--text-muted)",
   textTransform: "uppercase",
   letterSpacing: ".06em",
   marginBottom: 8,
@@ -51,7 +53,7 @@ function ParamGroup({
           const raw = params[p.key] ?? "";
           return (
             <div key={p.key}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, fontWeight: 700, color: "var(--navy)", marginBottom: 3 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--text-2xs)", fontWeight: "var(--font-bold)", color: "var(--text-primary)", marginBottom: 3 }}>
                 <label htmlFor={`param-${p.key}`}>{p.label}</label>
                 <input
                   id={`param-${p.key}`}
@@ -59,7 +61,7 @@ function ParamGroup({
                   value={raw}
                   min={p.min} max={p.max} step={p.step}
                   onChange={e => onChange(p.key, e.target.value)}
-                  style={{ width: 56, textAlign: "right", fontSize: 11, padding: "1px 4px", fontWeight: 700 }}
+                  style={{ width: 56, textAlign: "right", fontSize: "var(--text-2xs)", padding: "1px 4px", fontWeight: "var(--font-bold)" }}
                 />
               </div>
               {p.type === "float" && (
@@ -69,7 +71,7 @@ function ParamGroup({
                   min={p.min} max={p.max} step={p.step}
                   value={parseFloat(raw) || 0}
                   onChange={e => onChange(p.key, e.target.value)}
-                  style={{ width: "100%", accentColor: "var(--blue)", height: 4 }}
+                  style={{ width: "100%", accentColor: "var(--coral)", height: 4 }}
                 />
               )}
             </div>
@@ -174,7 +176,7 @@ export default function ChatView({ user, onLogout, messages, setMessages, sessio
   const [paramSaved, setParamSaved] = useState(false);
   const [paramError, setParamError] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
-  const isAdmin = user.role === "admin";
+  const { canUpload, canReview, canViewFeedback, isAdmin } = getRoleFlags(user);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -220,16 +222,6 @@ export default function ChatView({ user, onLogout, messages, setMessages, sessio
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
-
-  const canUpload = user.role === "knowledge_owner" || user.role === "admin";
-  // Same role set as canUpload today, but a distinct permission (T-35's
-  // /quiz-review, not document upload) — kept separate so the two do not
-  // silently start meaning "one or the other" if they ever diverge.
-  const canReview = user.role === "knowledge_owner" || user.role === "admin";
-  // Same role set as canReview today, but T-32's own permission (Feedback-
-  // Übersicht, not Quiz-Review) — kept separate for the same reason canUpload
-  // and canReview are: no silent "one or the other" if they ever diverge.
-  const canViewFeedback = user.role === "knowledge_owner" || user.role === "admin";
 
   const send = async () => {
     if (busy) return;
@@ -286,76 +278,59 @@ export default function ChatView({ user, onLogout, messages, setMessages, sessio
   };
 
   return (
-    <div style={{ display: "flex", height: "100vh", flexDirection: "column" }}>
-      {/* Header */}
-      <div style={{
-        background: "var(--navy)", color: "#fff", padding: "0 24px",
-        height: 52, display: "flex", alignItems: "center", justifyContent: "space-between",
-        flexShrink: 0,
-      }}>
-        <div style={{ fontWeight: 800, fontSize: 16, letterSpacing: "-.02em" }}>📚 LearnFlow</div>
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          {canUpload && (
-            <button className="secondary" style={{ fontSize: 12 }} onClick={() => setShowUpload(v => !v)}>
-              {showUpload ? "Chat" : "Dokumente"}
-            </button>
-          )}
-          <button className="secondary" style={{ fontSize: 12 }} onClick={() => navigate("/quiz")}>
-            Quiz starten
+    <Layout
+      user={user}
+      onLogout={onLogout}
+      ctaSlot={!showUpload && (
+        // Disabled while an answer is on its way, like the textarea and the
+        // send button: `send` holds `sessionId` and `messages` across the
+        // await, so a reset in that window is undone when the response
+        // lands — the old session id returns and the answer is appended to
+        // a transcript that no longer holds its question.
+        <button className="sidebar-cta" onClick={newChat} disabled={busy}>Neuer Chat</button>
+      )}
+      navItems={<>
+        {canUpload && (
+          <button className={`nav-item${showUpload ? " active" : ""}`} onClick={() => setShowUpload(v => !v)}>
+            {showUpload ? "Chat" : "Dokumente"}
           </button>
-          {canReview && (
-            <button className="secondary" style={{ fontSize: 12 }} onClick={() => navigate("/quiz-review")}>
-              Quiz-Review
-            </button>
-          )}
-          {canViewFeedback && (
-            <button className="secondary" style={{ fontSize: 12 }} onClick={() => navigate("/feedback")}>
-              Feedback
-            </button>
-          )}
-          {/* Both hidden in the document view, because neither acts on it: the
-              parameter panel and the transcript live in the chat branch, so
-              from here the buttons only flipped an arrow resp. cleared
-              something invisible. */}
-          {isAdmin && !showUpload && (
-            <button className="secondary" style={{ fontSize: 12 }} onClick={() => setShowParams(v => !v)}>
-              {showParams ? "⚙ Parameter ▲" : "⚙ Parameter ▼"}
-            </button>
-          )}
-          {/* Disabled while an answer is on its way, like the textarea and the
-              send button: `send` holds `sessionId` and `messages` across the
-              await, so a reset in that window is undone when the response
-              lands — the old session id returns and the answer is appended to
-              a transcript that no longer holds its question. */}
-          {!showUpload && (
-            <button className="secondary" style={{ fontSize: 12 }} onClick={newChat} disabled={busy}>
-              Neuer Chat
-            </button>
-          )}
-          <span style={{ fontSize: 12, color: "rgba(255,255,255,.5)" }}>{user.email}</span>
-          <button className="secondary" style={{ fontSize: 12 }} onClick={onLogout}>Abmelden</button>
-        </div>
-      </div>
-
+        )}
+        <button className="nav-item" onClick={() => navigate("/quiz")}>Quiz starten</button>
+        {canReview && (
+          <button className="nav-item" onClick={() => navigate("/quiz-review")}>Quiz-Review</button>
+        )}
+        {canViewFeedback && (
+          <button className="nav-item" onClick={() => navigate("/feedback")}>Feedback</button>
+        )}
+        {/* Hidden in the document view, because it acts on nothing there: the
+            parameter panel lives in the chat branch, so from here the button
+            only flipped an arrow. */}
+        {isAdmin && !showUpload && (
+          <button className={`nav-item${showParams ? " active" : ""}`} onClick={() => setShowParams(v => !v)}>
+            {showParams ? "⚙ Parameter ▲" : "⚙ Parameter ▼"}
+          </button>
+        )}
+      </>}
+    >
       {showUpload && canUpload ? (
         <Upload user={user} onClose={() => setShowUpload(false)} />
       ) : (
         <>
           {/* Messages */}
-          <div style={{ flex: 1, overflowY: "auto", padding: "24px 0" }}>
-            <div style={{ maxWidth: 760, margin: "0 auto", padding: "0 24px", display: "flex", flexDirection: "column", gap: 16 }}>
+          <div style={{ flex: 1, overflowY: "auto", padding: "var(--space-6) 0" }}>
+            <div style={{ maxWidth: 760, margin: "0 auto", padding: "0 var(--space-6)", display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
               {messages.length === 0 && (
-                <div style={{ textAlign: "center", color: "var(--muted)", marginTop: 80 }}>
+                <div style={{ textAlign: "center", color: "var(--text-muted)", marginTop: 80 }}>
                   <div style={{ fontSize: 32, marginBottom: 12 }}>📚</div>
-                  <div style={{ fontWeight: 700, fontSize: 18, color: "var(--navy)" }}>Stelle eine Frage</div>
-                  <div style={{ fontSize: 13, marginTop: 6 }}>Ich beantworte sie auf Basis der Dokumente im Korpus.</div>
+                  <div style={{ fontWeight: "var(--font-bold)", fontSize: "var(--text-xl)", color: "var(--text-primary)" }}>Stelle eine Frage</div>
+                  <div style={{ fontSize: "var(--text-sm)", marginTop: 6 }}>Ich beantworte sie auf Basis der Dokumente im Korpus.</div>
                 </div>
               )}
               {messages.map((m, i) => <MessageBubble key={i} message={m} token={user.token} />)}
               {/* role="status" so the wait is announced rather than only
                   drawn — the answer takes seconds (NFA: p95 ≤ 10 s). */}
               {busy && (
-                <div role="status" style={{ color: "var(--muted)", fontSize: 13, padding: "8px 0" }}>
+                <div role="status" style={{ color: "var(--text-muted)", fontSize: "var(--text-sm)", padding: "8px 0" }}>
                   Suche im Korpus…
                 </div>
               )}
@@ -365,7 +340,7 @@ export default function ChatView({ user, onLogout, messages, setMessages, sessio
 
           {/* RAG Parameter Panel */}
           {showParams && isAdmin && (
-            <div style={{ borderTop: "1px solid var(--border)", background: "var(--blue-lt)", padding: "14px 24px", flexShrink: 0 }}>
+            <div style={{ borderTop: "1px solid var(--border)", background: "var(--violet-tint)", padding: "14px var(--space-6)", flexShrink: 0 }}>
               <div style={{ maxWidth: 760, margin: "0 auto" }}>
                 <ParamGroup
                   title="Retrieval · welche Quellen in den Kontext kommen"
@@ -386,7 +361,7 @@ export default function ChatView({ user, onLogout, messages, setMessages, sessio
                   <div style={GROUP_LABEL_STYLE}>Indexierung · erfordert Re-Indexierung, hier nicht änderbar</div>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "10px 20px" }}>
                     {READ_ONLY_PARAM_DEFS.map(p => (
-                      <div key={p.key} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, fontWeight: 700, color: "var(--muted)" }}>
+                      <div key={p.key} style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--text-2xs)", fontWeight: "var(--font-bold)", color: "var(--text-muted)" }}>
                         <span>{p.label}</span>
                         <span>{params[p.key] ?? "—"}</span>
                       </div>
@@ -395,11 +370,11 @@ export default function ChatView({ user, onLogout, messages, setMessages, sessio
                 </div>
 
                 <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                  <button className="primary" style={{ fontSize: 12, padding: "5px 14px" }} onClick={saveParams}>
+                  <button className="primary" style={{ fontSize: "var(--text-2xs)", padding: "5px 14px" }} onClick={saveParams}>
                     Speichern
                   </button>
-                  {paramSaved && <span style={{ fontSize: 12, color: "var(--green)", fontWeight: 600 }}>✓ Gespeichert</span>}
-                  {paramError && <span style={{ fontSize: 12, color: "var(--red)", fontWeight: 600 }}>{paramError}</span>}
+                  {paramSaved && <span style={{ fontSize: "var(--text-2xs)", color: "var(--olive)", fontWeight: "var(--font-semibold)" }}>✓ Gespeichert</span>}
+                  {paramError && <span style={{ fontSize: "var(--text-2xs)", color: "var(--red)", fontWeight: "var(--font-semibold)" }}>{paramError}</span>}
                 </div>
               </div>
             </div>
@@ -407,8 +382,8 @@ export default function ChatView({ user, onLogout, messages, setMessages, sessio
 
           {/* Input */}
           <div style={{
-            borderTop: "1px solid var(--border)", padding: "16px 24px",
-            background: "var(--card)", flexShrink: 0,
+            borderTop: "1px solid var(--border)", padding: "var(--space-4) var(--space-6)",
+            background: "var(--surface)", flexShrink: 0,
           }}>
             <div style={{ maxWidth: 760, margin: "0 auto" }}>
               <div style={{ display: "flex", gap: 10 }}>
@@ -439,15 +414,15 @@ export default function ChatView({ user, onLogout, messages, setMessages, sessio
                 </button>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginTop: 6, minHeight: 16 }}>
-                <span id={INPUT_ERROR_ID} role="alert" style={{ fontSize: 12, color: "var(--red)", fontWeight: 600 }}>
+                <span id={INPUT_ERROR_ID} role="alert" style={{ fontSize: "var(--text-xs)", color: "var(--red)", fontWeight: "var(--font-semibold)" }}>
                   {inputError}
                 </span>
                 {/* Counted the same way as the check that rejects it, or the
                     counter would say 998 while the send is refused at 1001. */}
                 {questionLength(input.trim()) > COUNTER_VISIBLE_FROM && (
                   <span style={{
-                    fontSize: 12, whiteSpace: "nowrap",
-                    color: questionLength(input.trim()) > MAX_QUESTION_CHARS ? "var(--red)" : "var(--muted)",
+                    fontSize: "var(--text-xs)", whiteSpace: "nowrap",
+                    color: questionLength(input.trim()) > MAX_QUESTION_CHARS ? "var(--red)" : "var(--text-muted)",
                   }}>
                     {questionLength(input.trim())} / {MAX_QUESTION_CHARS}
                   </span>
@@ -457,6 +432,6 @@ export default function ChatView({ user, onLogout, messages, setMessages, sessio
           </div>
         </>
       )}
-    </div>
+    </Layout>
   );
 }

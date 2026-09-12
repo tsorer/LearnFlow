@@ -89,7 +89,7 @@ export default function App() {
           path="/quiz-review"
           element={
             <ProtectedRoute user={user} roles={["knowledge_owner", "admin"]}>
-              {u => <QuizReview user={u} />}
+              {u => <QuizReview user={u} onLogout={logout} />}
             </ProtectedRoute>
           }
         />
@@ -97,7 +97,7 @@ export default function App() {
           path="/quiz"
           element={
             <ProtectedRoute user={user}>
-              {u => <QuizRun token={u.token} />}
+              {u => <QuizRun user={u} onLogout={logout} />}
             </ProtectedRoute>
           }
         />
@@ -105,7 +105,7 @@ export default function App() {
           path="/feedback"
           element={
             <ProtectedRoute user={user} roles={["knowledge_owner", "admin"]}>
-              {u => <FeedbackReview user={u} />}
+              {u => <FeedbackReview user={u} onLogout={logout} />}
             </ProtectedRoute>
           }
         />
