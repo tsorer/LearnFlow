@@ -4,7 +4,15 @@ import { api } from "../api/client";
 
 interface Props { user: AuthUser; onClose: () => void; }
 
-const statusBadgeClass = { pending: "", processing: "badge-warning", available: "badge-success", failed: "badge-danger" };
+// Only `available`/`failed` carry a coloured pill background — `pending`/
+// `processing` stay plain coloured text on transparent, as before the
+// restyle (T-58 review: `.badge`/`badge-warning` on `processing` had given
+// it an unintended solid background).
+const statusBadgeClass = { pending: "", processing: "", available: "badge-success", failed: "badge-danger" };
+const statusTextColor: Partial<Record<Document["status"], string>> = {
+  pending: "var(--text-muted)",
+  processing: "var(--gold)",
+};
 const statusLabel = { pending: "Ausstehend", processing: "Verarbeitung…", available: "Verfügbar", failed: "Fehler" };
 
 const POLL_INTERVAL_MS = 3000;
@@ -242,7 +250,7 @@ export default function Upload({ user, onClose }: Props) {
             display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100,
           }}
         >
-          <div className="card" style={{ borderRadius: "var(--radius-lg)", padding: 24, maxWidth: 440, boxShadow: "var(--shadow-md)" }}>
+          <div className="card" style={{ border: "none", borderRadius: "var(--radius-lg)", padding: 24, maxWidth: 440, boxShadow: "var(--shadow-md)" }}>
             <h3 style={{ fontSize: "var(--text-xl)", fontWeight: "var(--font-black)", color: "var(--text-primary)", marginBottom: 12 }}>
               Dokument ersetzen?
             </h3>
@@ -341,7 +349,7 @@ export default function Upload({ user, onClose }: Props) {
                 </div>
                 <span
                   className={`badge ${statusBadgeClass[d.status]}`}
-                  style={d.status === "pending" ? { color: "var(--text-muted)" } : undefined}
+                  style={statusTextColor[d.status] ? { color: statusTextColor[d.status], background: "transparent" } : undefined}
                 >
                   {statusLabel[d.status]}
                 </span>
