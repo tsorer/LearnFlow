@@ -113,7 +113,7 @@ export default function DocumentViewer({ documentId, chunkId, filename, token, o
         onClick={e => e.stopPropagation()}
         className="card"
         style={{
-          borderRadius: "var(--radius-lg)", width: "min(720px, 90vw)",
+          border: "none", borderRadius: "var(--radius-lg)", width: "min(720px, 90vw)",
           maxHeight: "85vh", display: "flex", flexDirection: "column", overflow: "hidden",
           boxShadow: "var(--shadow-md)",
         }}
