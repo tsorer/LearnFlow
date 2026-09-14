@@ -63,8 +63,11 @@ er erschiene in der Checks-Liste und sähe wie ein Gate aus, ohne je etwas zu
 messen — GitHub wertet einen übersprungenen Required Check als bestanden, was
 genau die stille Aufweichung wäre, die ADR-009 verhindern soll (Review auf #100).
 Die Out-of-Corpus-Refusal-Rate (T-28, ADR-009 DoD-Kriterium 4: ≥ 90 % „Weiss ich
-nicht" auf den 22 Out-of-Corpus-Fragen aus `LearningCorpus/gold-eval-dataset.yaml`,
-T-47/T-48) ist deshalb vorerst ein **manuell auszuführendes Release-Gate**:
+nicht" auf den 22 Out-of-Corpus-Fragen) und, seit T-56, die In-Corpus-Gates
+(Halluzinationsrate = 0 %, False-Suppression ≤ 15 % Startwert, auf den 45
+In-Corpus- und 13 Adversarial-Fragen — siehe ADR-009 Abschnitt 2A) aus
+`LearningCorpus/gold-eval-dataset.yaml` (T-47/T-48) sind deshalb vorerst ein
+**manuell auszuführendes Release-Gate**:
 
 ```bash
 make up && make seed && make seed-corpus && make eval
@@ -79,12 +82,22 @@ lokale Kalibrierung bleibt unberührt, und zwei Läufe sind vergleichbar. Vorher
 hing der Messwert am Zustand der Datenbank — derselbe Korpus ergab 90,9 % oder
 95,5 %, je nach kalibrierten Schwellen.
 
-Der Lauf spricht dadurch kein HTTP mehr nach aussen und dauert rund 30 s statt
-2:45 min (das Rate-Limit taktete ihn vorher auf 6,5 s pro Frage). Fachlich
-braucht er nur noch eine erreichbare Datenbank mit indexiertem Korpus —
-technisch weiterhin den stehenden api-Container, weil `make eval` per `docker
-exec src-api-1` startet. Der ist seither aber blosser Ausführungsort, nicht
-mehr das gemessene System.
+Der Lauf spricht dadurch kein HTTP mehr nach aussen. Fachlich braucht er nur
+noch eine erreichbare Datenbank mit indexiertem Korpus — technisch weiterhin
+den stehenden api-Container, weil `make eval` per `docker exec src-api-1`
+startet. Der ist seither aber blosser Ausführungsort, nicht mehr das gemessene
+System.
+
+**Laufzeit und Kosten (`make eval`, beide Tests, Profil `openai`, gemessen
+2026-09-11 gegen `gpt-4o-mini`):** die Out-of-Corpus-Refusal-Rate (22 Fragen,
+kein echter Generierungsaufruf — das Retrieval-Gate greift vor jedem LLM-Call)
+läuft in ~45 s. Der In-Corpus-Test (T-56, 58 Fragen, **echte** Generierung plus
+im Self-Check-Grenzband ein zweiter Aufruf) braucht ~2:25 min für 77
+LLM-Aufrufe (~166 k Prompt-, ~3,7 k Antwort-Token) — rund drei Rappen bei den
+zum Zeitpunkt der Messung geltenden `gpt-4o-mini`-Preisen. Zusammen liegt
+`make eval` damit bei rund 3 Minuten und deutlich unter zehn Rappen pro Lauf.
+Beide Zahlen schwanken mit der Provider-Latenz und -Preisliste, nicht nur mit
+dem Code — für ein Budget genügt die Grössenordnung.
 
 **Messvarianten.** `EVAL_PROFILE` wählt die Konfiguration (`eval/profiles.py`):
 
@@ -100,7 +113,11 @@ lokales Modell ist ein Messergebnis, kein gerissenes Release-Gate.
 
 Jeder Lauf schreibt nach `src/backend/eval/out/<profil>/<zeitstempel>/`, dort
 neben der CSV ein `run.json` mit Modell, wirksamen Schwellen, Überschreibungen
-und Git-SHA. Ein Pfad überlebt Kopieren nicht, ein `run.json` schon.
+und Git-SHA. Ein Pfad überlebt Kopieren nicht, ein `run.json` schon. Der
+In-Corpus-Test (T-56) schreibt in ein eigenes Unterverzeichnis,
+`.../<profil>/in-corpus/<zeitstempel>/` — sonst würde `eval/compare.py`, das
+je Profil den *neuesten* Lauf liest, nach einem `make eval` (beide Tests im
+selben Prozess) den falschen der beiden Läufe erwischen.
 
 `eval/out/` ist gitignored und rein lokal. Was aufbewahrt werden soll, gehört
 nach `EvalAnalysis/` — dort erzeugt `python -m eval.compare` aus den Läufen
@@ -110,9 +127,19 @@ Hand. Siehe `EvalAnalysis/README.md`.
 Automatisierung in CI folgt mit **T-53 (#110)**, gekoppelt an den ohnehin
 anstehenden Wechsel auf Azure OpenAI EU (ADR-004) — dort auch die Fragen nach
 Trigger (`pull_request` vs. `push`/`workflow_dispatch`) und Secret-Scope geklärt.
-In-Corpus-Metriken (Halluzinationsrate, False-Suppression) sind unabhängig davon
-nicht Teil dieses Gates — sie brauchen die In-Corpus-Fragen des Gold-Datasets und
-folgen als eigener Ausbauschritt von ADR-009.
+Bis dahin bleiben **beide** Eval-Tests manuelle Release-Gates, aus demselben
+Grund (kein `OPENAI_API_KEY`-Secret).
+
+**In-Corpus-Gates (T-56).** Der erste Lauf gegen die Seed-Defaults
+(2026-09-11, `EvalAnalysis/2026-09-11_In-Corpus-Befunde.md`) hält das
+Halluzinations-Gate (0 % über 33 ausgelieferte Antworten), reisst aber das
+False-Suppression-Gate deutlich (33–38 % über mehrere Läufe gegen den
+15-%-Startwert — die Rate schwankt lauf-zu-lauf, siehe die Befunde-Datei).
+Das ist der erwartete erste Befund, kein Fehler im Test — ADR-009 nennt 15 %
+ausdrücklich als zu kalibrierenden Startwert, und das Gate wurde dafür
+**nicht** aufgeweicht. Die Kalibrierung selbst ist **T-57 (#125)**; bis dahin ist
+`make eval` (der In-Corpus-Teil) lokal rot und meldet damit korrekt einen noch
+offenen Zustand — **kein** Required Check und damit ohne Wirkung auf `main`.
 
 Aus demselben Grund kein eigener CI-Job für die p95-Latenzmessung (T-22, #29,
 ADR-008: „Offen bleibt die Latenz" — der optionale zweite LLM-Aufruf im

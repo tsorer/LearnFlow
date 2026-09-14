@@ -8,8 +8,9 @@ LLM's own refusal (`generation_refused`), because an out-of-corpus question neve
 reaches stage 3 (composite confidence / self-check) — confirmed against the live
 stack in the calibration note on #35 (`suppression_reason: retrieval_gate`,
 `llm_calls: []`, stages 2/2b/3 all `ran=false`). In-corpus reliability
-(hallucination rate, false-suppression) needs the gold dataset's in_corpus
-questions and is a separate, later slice of ADR-009.
+(hallucination rate, false-suppression, context-recall) needs the gold
+dataset's in_corpus/adversarial questions and lives in
+`eval/test_in_corpus_quality.py` (T-56).
 
 Since T-55 the run happens in-process against the ASGI app, inside a
 transaction that is rolled back — see `conftest.py` for why. Precondition is
@@ -23,19 +24,9 @@ import os
 from typing import Any
 
 import httpx
-import pytest
 
 from eval.gold_dataset import assert_corpus_is_indexed_async, load_out_of_corpus_questions
 from eval.profiles import Profile
-from seed_users import USERS
-
-# Admin, not a knowledge_owner or learner: `debug` in the response (self_check_ran,
-# per-chunk scores) is only populated for the admin role. The calibration note on
-# #35 asks for this harness to capture it so a later in-corpus extension does not
-# have to re-derive that decision. Also the role GET /documents needs below.
-_ADMIN = next(u for u in USERS if u["role"] == "admin")
-EMAIL = os.environ.get("E2E_ADMIN_EMAIL", _ADMIN["email"])
-PASSWORD = os.environ.get("E2E_ADMIN_PASSWORD", _ADMIN["password"])
 
 REFUSAL_RATE_GATE = 0.90  # ADR-009 / issue #35, DoD Kriterium 4
 
@@ -57,17 +48,6 @@ CSV_COLUMNS = [
     "self_check_ran",
     "self_check_verdict",
 ]
-
-
-@pytest.fixture
-async def token(client: httpx.AsyncClient) -> str:
-    """No 429 handling any more: the limiter is off for the in-process run
-    (`conftest.py`), so the 5-logins-per-minute window that this fixture used to
-    trip over — shared with seed_corpus.py and any e2e run in the same minute —
-    cannot apply."""
-    r = await client.post("/api/auth/login", json={"email": EMAIL, "password": PASSWORD})
-    assert r.status_code == 200, r.text
-    return str(r.json()["access_token"])
 
 
 def _write_run_json(
