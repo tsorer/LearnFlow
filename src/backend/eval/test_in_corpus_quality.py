@@ -276,7 +276,18 @@ async def test_in_corpus_quality(
                 "das Ergebnis zu werten."
             )
             suppressed = bool(body["suppressed"])
-            debug = body.get("debug") or {}
+            # `debug` ist nur für die Admin-Rolle gefüllt (app/routers/query.py).
+            # GET /api/documents (assert_corpus_is_indexed_async oben) verlangt
+            # keine Admin-Rolle, also fängt die Präcondition ein falsch
+            # konfiguriertes E2E_ADMIN_EMAIL/-PASSWORD nicht ab -- ohne diesen
+            # Assert würde jede Recall/Precision/MRR-Messung dieses Laufs
+            # stillschweigend auf 0.0 fallen statt laut abzubrechen, und
+            # run.json reichte die Nullen an T-57 als echte Daten weiter
+            # (Review zu #133).
+            assert body.get("debug") is not None, (
+                f"{q.id}: kein debug-Block -- Eval-Konto hat keine Admin-Rolle?"
+            )
+            debug = body["debug"]
             confidence = body.get("confidence") or {}
 
             hallucinated: bool | None = None
