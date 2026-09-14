@@ -269,14 +269,29 @@ async def prepare_chunks(
     ADR-006 Nachtrag) — short next to a stalled embedding batch, but not
     nothing, and the only way `index_progress_at` would otherwise see them is
     the write `embed_texts`'s first batch makes afterwards.
+
+    Run via `asyncio.to_thread`, not called directly (review on #134/T-51):
+    `pgqueuer` dispatches several jobs onto this one process's event loop
+    (`asyncpg.create_pool(..., max_size=5)` bounds it to 5). A direct,
+    in-loop call blocks that loop for the full ~32s with no yield point at
+    all — not just for its own job, but for every other job's `on_progress`
+    write and for `reaper_loop` itself, which run as ordinary coroutines on
+    the same loop. Under the old 2700s timeout that was harmless; under
+    `processing_stall_seconds` (300s, sized for one isolated run) a few
+    documents parsing back to back can eat enough of another run's budget to
+    reap it while it is still healthy. `to_thread` does not shorten the CPU
+    work itself (both libraries are pure Python, so the GIL still serialises
+    it) — it only stops one job's parse/chunk from being the one thing on
+    the loop, so other coroutines' `await`s keep getting scheduled while it
+    runs.
     """
     chunk_size, chunk_overlap = await read_chunk_config(conn)
-    blocks = parse_document(bytes(row["content"]), row["content_type"])
+    blocks = await asyncio.to_thread(parse_document, bytes(row["content"]), row["content_type"])
     await on_progress()
     # Tokenizer passed explicitly: the worker owns the choice of encoding, the
     # chunker stays free of it (and tests can substitute a trivial counter).
-    chunks = chunk_blocks(
-        blocks, chunk_size=chunk_size, chunk_overlap=chunk_overlap, count=count_tokens
+    chunks = await asyncio.to_thread(
+        chunk_blocks, blocks, chunk_size=chunk_size, chunk_overlap=chunk_overlap, count=count_tokens
     )
     if not chunks:
         raise UserFacingError("Kein extrahierbarer Text gefunden")
