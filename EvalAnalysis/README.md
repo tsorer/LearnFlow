@@ -26,6 +26,8 @@ make up && make seed && make seed-corpus
 make eval                                # ausgeliefertes Profil — das Gate
 make eval EVAL_PROFILE=qwen3-local
 make eval EVAL_PROFILE=gemma4-local
+make eval EVAL_PROFILE=gpt-oss-local
+make eval EVAL_PROFILE=ministral3-local
 
 docker exec src-api-1 python -m eval.compare > EvalAnalysis/$(date +%F)_Modellvergleich.md
 ```

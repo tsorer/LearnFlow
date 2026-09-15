@@ -142,6 +142,47 @@ PROFILES: dict[str, Profile] = {
         timeout_seconds=1800.0,
         max_answer_tokens=8000,
         self_check_timeout_seconds=600.0,
+        # 1000 reicht für die Out-of-Corpus-Prompts, nicht für die längeren
+        # In-Corpus-Kontexte: am 2026-09-14 zwei Self-Check-Aufrufe mit
+        # `finish_reason='length'` bei null Zeichen (`SAMW-SUBSIDIARITAET-01`,
+        # `AIA-ADV-04`), je 1000 Completion-Tokens unsichtbarer Vorlauf.
+        max_verdict_tokens=4000,
+        extra_completion_kwargs={
+            "api_base": OLLAMA_API_BASE,
+            "api_key": NO_API_KEY,
+            "num_ctx": 16384,
+        },
+    ),
+    # Die beiden folgenden Profile sind noch nicht gemessen: Budgets und
+    # `num_ctx` sind von den Profilen oben übernommen, nicht eigens bestimmt.
+    #
+    # Gleicher Anbieter wie das ausgelieferte Profil, aber lokal — trennt
+    # «lokal statt Cloud» von «anderer Hersteller».
+    "gpt-oss-local": Profile(
+        name="gpt-oss-local",
+        model="ollama_chat/gpt-oss:20b",
+        timeout_seconds=1800.0,
+        max_answer_tokens=8000,
+        self_check_timeout_seconds=600.0,
+        max_verdict_tokens=1000,
+        # gpt-oss denkt immer; `think: False` wie bei Qwen3 ignoriert Ollama für
+        # dieses Modell, es nimmt nur eine Stufe. "low" hält den unsichtbaren
+        # Vorlauf klein, der gegen `max_answer_tokens` und `max_verdict_tokens`
+        # zählt — dieselbe Falle wie bei gemma4 und dem Self-Check-Budget.
+        extra_completion_kwargs={
+            "think": "low",
+            "api_base": OLLAMA_API_BASE,
+            "api_key": NO_API_KEY,
+            "num_ctx": 16384,
+        },
+    ),
+    # Europäischer Anbieter, stark auf Deutsch; dicht statt MoE.
+    "ministral3-local": Profile(
+        name="ministral3-local",
+        model="ollama_chat/ministral-3:14b",
+        timeout_seconds=1800.0,
+        max_answer_tokens=8000,
+        self_check_timeout_seconds=600.0,
         max_verdict_tokens=1000,
         extra_completion_kwargs={
             "api_base": OLLAMA_API_BASE,

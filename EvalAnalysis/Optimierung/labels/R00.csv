@@ -1,0 +1,75 @@
+profil,frage,kategorie,unterdrueckung,klasse,nebenklasse,urteil,protokoll,begruendung,deckung,deckung_notiz
+openai,SKOS-GBL-01,in_corpus,citation_coverage,S2a,S2c,richtig,verstoss,"Liste korrekt, ein einziger Beleg [1] am Listenende; Einleitungssatz mit Doppelpunkt zählt als unbelegt",,
+openai,SKOS-EFB-01,in_corpus,citation_coverage,S2a,,richtig,verstoss,"Drei korrekte Sätze, Beleg nur hinter dem letzten",,
+openai,SKOS-SANK-01,in_corpus,citation_coverage,S2a,S2d,richtig,verstoss,Absatz mit einem Beleg am Ende; benannte Lücke zählt als unbelegt,,
+openai,AIA-HOCHRISIKO-01,in_corpus,citation_coverage,S2a,S2c,richtig,verstoss,"Vier korrekte Bedingungen, Beleg nur hinter der letzten",,
+openai,AIA-PROTOKOLL-03,in_corpus,citation_coverage,S2a,S2c,richtig,verstoss,"Drei korrekte Zwecke, Beleg nur am Listenende",,
+openai,SKOS-PRINZ-02,in_corpus,generation_refused,S1,,falsch,eingehalten,"WEISS_NICHT, obwohl die erwartete Seite im Kontext steht",,
+openai,SKOS-IPV-01,in_corpus,generation_refused,S1,,falsch,eingehalten,"WEISS_NICHT, obwohl die erwartete Seite im Kontext steht",,
+openai,SKOS-EL-01,in_corpus,generation_refused,S1,,falsch,eingehalten,"WEISS_NICHT, obwohl die erwartete Seite im Kontext steht",,
+openai,AIA-LEITLINIEN-01,in_corpus,generation_refused,S1,,falsch,eingehalten,"WEISS_NICHT, obwohl das Datum im Kontext steht",,
+openai,SKOS-ADV-01,adversarial,generation_refused,D,,richtig,eingehalten,Referenzantwort erlaubt ausdrücklich «Weiss ich nicht»; Dataset erwartet trotzdem eine Antwort,,
+openai,SAMW-ADV-01,adversarial,generation_refused,S1,,falsch,eingehalten,"Falsche Prämisse (Zitat als Verbot) nicht korrigiert, sondern verweigert",,
+openai,SAMW-ADV-02,adversarial,generation_refused,S1,,falsch,eingehalten,"Falsche Prämisse (fünf statt drei Prinzipien) nicht korrigiert, sondern verweigert",,
+openai,SAMW-OOC-03,out_of_corpus,,D,,richtig,eingehalten,Gold-Fehler: SUSAR-Fristen 7/15 Tage stehen im Leitfaden (PDF-S. 83); Antwort korrekt,gedeckt,Beide Fristen (7/15 Tage) und die Aufteilung lokale/Leit-EK stehen wörtlich in der Meldefristen-Tabelle von [1].
+openai,SKOS-IPV-02,adversarial,,P2,,richtig,eingehalten,"Belegbare qualitative Aussage, quantitativen Teil ausdrücklich als nicht gedeckt benannt",gedeckt,«Höhe und Art von Kanton zu Kanton verschieden» steht in [1]; der Rest benennt ausdrücklich eine Lücke.
+qwen3-local,SAMW-ADV-01,adversarial,generation_refused,S1,,falsch,eingehalten,"Falsche Prämisse nicht korrigiert, sondern verweigert",,
+qwen3-local,SKOS-IPV-01,in_corpus,self_check,S3,,falsch,eingehalten,"Antwort «Nein, muss nicht beanspruchen» ist inhaltlich falsch; Unterdrückung korrekt",,
+qwen3-local,SKOS-ADV-01,adversarial,self_check,S3,P3,falsch,verstoss,"Unbelegte Aussagen, WEISS_NICHT an den Fliesstext angehängt; Unterdrückung korrekt",,
+qwen3-local,SKOS-GBL-02,out_of_corpus,,P1,,richtig,verstoss,«wird nicht explizit genannt» — Verweigerung in Prosa,gedeckt,"Stimmt für den Kontext: [3] kündigt «folgende Beträge» an, die Tabelle fehlt aber im Text (beim PDF-Einlesen verloren). Keine Sachbehauptung, faktisch eine Verweigerung."
+qwen3-local,SKOS-OOC-01,out_of_corpus,,P1,,richtig,verstoss,"«wird nicht im Kontext erläutert» — Verweigerung in Prosa, mit Scheinbelegen [1]–[5]",gedeckt,"Behauptet nichts über die Sache, nur dass der Kontext es nicht erläutert — das trifft zu. Die Belege [1]–[5] sind Scheinbelege."
+qwen3-local,SKOS-IPV-OOC-01,out_of_corpus,,P2,,richtig,eingehalten,Belegter Teil plus ausdrücklich benannte Lücke (Regel 4),gedeckt,"Erster Satz steht in [1], zweiter benennt die Lücke korrekt."
+qwen3-local,SKOS-EL-OOC-01,out_of_corpus,,F1,,falsch,eingehalten,"Sonderfall AHV-Vorbezug als Berechnungsweise dargestellt, Lücke nicht benannt",eher ungedeckt,[2] sagt «im Falle eines AHV-Vorbezugs» — die Antwort lässt die Bedingung weg und macht daraus die allgemeine Berechnungsweise. Der letzte Satz ist ohne Beleg.
+qwen3-local,SAMW-OOC-03,out_of_corpus,,D,,richtig,eingehalten,Gold-Fehler (Fristen stehen im Leitfaden); Antwort unvollständig (nur 7 Tage),eher gedeckt,"«7 Tage» steht in [1], aber nur für einen Teil der Fälle; die 15-Tage-Frist fehlt, als alleinige Antwort verkürzt."
+qwen3-local,SKOS-IPV-02,adversarial,,D,,richtig,eingehalten,"«nicht immer, kantonal verschieden» ist belegbar; Gold-Entscheid für Verweigerung fachlich zu prüfen",eher gedeckt,"«kantonal verschieden» steht in [1]; «nicht immer die gesamte Prämie» ist ein naheliegender, aber nicht wörtlicher Schluss aus der Differenzbetrag-Regel."
+gemma4-local,AIA-BIAS-01,in_corpus,citation_coverage,S2a,S2c,richtig,verstoss,"Korrekte Liste, ein Beleg am Ende",,
+gemma4-local,SAMW-JUGENDLICHE-01,in_corpus,citation_coverage,S2c,,richtig,eingehalten,Satz korrekt belegt; Stufe 2 trennt an «14.» und verliert den Beleg,,
+gemma4-local,SAMW-ANONYM-01,in_corpus,citation_coverage,S2c,,richtig,eingehalten,"Jeder Listenpunkt belegt, aber unter 4 Wörtern übersprungen; nur die Einleitung zählt",,
+gemma4-local,AIA-LEITLINIEN-01,in_corpus,generation_refused,S1,,falsch,eingehalten,"WEISS_NICHT, obwohl das Datum im Kontext steht",,
+gemma4-local,SKOS-ADV-01,adversarial,generation_refused,D,,richtig,eingehalten,Referenzantwort erlaubt «Weiss ich nicht»,,
+gemma4-local,SKOS-IPV-OOC-01,out_of_corpus,,P2,,richtig,eingehalten,Belegter Teil plus benannte Lücke,gedeckt,"Erster Satz steht in [1], zweiter benennt die Lücke korrekt."
+gemma4-local,SKOS-EL-OOC-01,out_of_corpus,,P2,,richtig,eingehalten,Belegte Details plus «vollständige Berechnungsmethode nicht beschrieben»,gedeckt,Beide Sätze geben [2] und [3] mit ihrer Bedingung korrekt wieder; der dritte benennt die Lücke.
+gemma4-local,SAMW-OOC-03,out_of_corpus,,D,,richtig,eingehalten,"Gold-Fehler; Antwort vollständig (7/15 Tage, lokale/Leit-EK)",gedeckt,Fristen und EK-Zuständigkeit stehen in [1].
+gemma4-local,SAMW-OOC-04,out_of_corpus,,P2,,richtig,eingehalten,"Versicherungspflicht belegt, Mindestsumme als nicht genannt benannt",gedeckt,"Erster Satz fast wörtlich aus [2] (Art. 20 HFG), zweiter benennt die Lücke korrekt."
+gemma4-local,SKOS-IPV-02,adversarial,,D,,richtig,eingehalten,Belegbare Aussage; Gold-Entscheid fachlich zu prüfen,gedeckt,"Beide Sätze stehen sinngemäss in [1] (kantonale Unterschiede, Differenzbetrag)."
+gpt-oss-local,SKOS-GBL-01,in_corpus,citation_coverage,S2b,S2a,richtig,verstoss,"Beleg im Format 【1】 (vollbreite Klammern), zudem nur am Listenende",,
+gpt-oss-local,SKOS-PRINZ-01,in_corpus,citation_coverage,S2c,,richtig,eingehalten,Kurze belegte Listenpunkte übersprungen; inhaltlich unvollständig (6 von 8 Prinzipien),,
+gpt-oss-local,SKOS-PRINZ-02,in_corpus,citation_coverage,S2a,,richtig,verstoss,"Drei korrekte Sätze, Beleg nur am Ende",,
+gpt-oss-local,SKOS-WOHN-01,in_corpus,citation_coverage,S2b,,richtig,verstoss,"Belege im Format [5a]/[5c], von Stufe 2 nicht erkannt",,
+gpt-oss-local,SKOS-SANK-01,in_corpus,citation_coverage,S2a,,richtig,verstoss,Absätze mit je einem Beleg am Ende,,
+gpt-oss-local,AIA-HOCHRISIKO-01,in_corpus,citation_coverage,S2a,,richtig,verstoss,"Vier korrekte Bedingungen, [1] allein auf der letzten Zeile",,
+gpt-oss-local,AIA-ANFORDERUNGEN-02,in_corpus,citation_coverage,S5,,falsch,verstoss,Erwartete Seite nicht im Kontext; Antwort nennt anderen Gegenstand (Bevollmächtigter),,
+gpt-oss-local,AIA-RISIKO-01,in_corpus,citation_coverage,S2a,,richtig,verstoss,"Korrekter Absatz, Belege [1][4][5] gesammelt am Ende",,
+gpt-oss-local,AIA-BIAS-01,in_corpus,citation_coverage,S2b,S2a,richtig,verstoss,"Belege im Format [f][g], gesammelt am Ende",,
+gpt-oss-local,SAMW-JUGENDLICHE-01,in_corpus,citation_coverage,S2c,,richtig,eingehalten,Satz korrekt belegt; Stufe 2 trennt an «14.»,,
+gpt-oss-local,SAMW-ANONYM-01,in_corpus,citation_coverage,S2a,,richtig,verstoss,"Korrekte Aufzählung, [1] allein am Ende",,
+gpt-oss-local,SAMW-GENERALKONSENT-01,in_corpus,citation_coverage,S2a,,richtig,verstoss,"Korrekter Absatz, Belege nur am Ende",,
+gpt-oss-local,AIA-ADV-02,adversarial,citation_coverage,S2a,,richtig,verstoss,"Prämisse korrekt verneint, ein Beleg am Absatzende",,
+gpt-oss-local,SKOS-IPV-01,in_corpus,generation_refused,S1,,falsch,eingehalten,"WEISS_NICHT, obwohl die erwartete Seite im Kontext steht",,
+gpt-oss-local,SKOS-EL-01,in_corpus,generation_refused,S1,,falsch,eingehalten,"WEISS_NICHT, obwohl die erwartete Seite im Kontext steht",,
+gpt-oss-local,SAMW-ADV-01,adversarial,generation_refused,S1,,falsch,eingehalten,"Falsche Prämisse nicht korrigiert, sondern verweigert",,
+gpt-oss-local,SAMW-ADV-02,adversarial,generation_refused,S1,,falsch,eingehalten,"Falsche Prämisse nicht korrigiert, sondern verweigert",,
+gpt-oss-local,SAMW-ADV-04,adversarial,generation_refused,S1,,falsch,eingehalten,"«nicht unterzeichnet» im Kontext, Frage nach Ratifikation verweigert statt verneint",,
+gpt-oss-local,AIA-LEITLINIEN-01,in_corpus,self_check,S4,,falsch,eingehalten,Antwort korrekt und belegt (2. Februar 2026); Self-Check urteilt NICHT_GEDECKT,,
+gpt-oss-local,SKOS-ADV-01,adversarial,self_check,S5,,richtig,eingehalten,"Antwort fachlich richtig, erwartete Seite aber nicht im Kontext; Unterdrückung regelkonform",,
+gpt-oss-local,SKOS-EL-OOC-01,out_of_corpus,,F1,,falsch,eingehalten,"Sonderfall AHV-Vorbezug als Berechnungsweise dargestellt, Lücke nicht benannt",eher ungedeckt,"Einzelaussagen stehen in [2], die Rahmung «EL werden berechnet, indem …» macht aber einen Sonderfall zur Berechnungsmethode — das sagt der Kontext nicht."
+gpt-oss-local,SAMW-OOC-03,out_of_corpus,,D,,richtig,eingehalten,Gold-Fehler; Antwort unvollständig (nur 7 Tage),eher gedeckt,"«7 Tage» steht in [1], aber nur für einen Teil der Fälle; die 15-Tage-Frist fehlt."
+ministral3-local,SKOS-SIL-01,in_corpus,citation_coverage,S2c,S2a,richtig,eingehalten,"Überschriften und Einleitungen zählen als unbelegt, «z. B.»-Trennungen verlieren Belege",,
+ministral3-local,SKOS-SANK-01,in_corpus,citation_coverage,S2d,S2c,richtig,eingehalten,Abschnitt «Nicht abgedeckt» (Regel 4) zählt als unbelegt; «(z. B.» trennt einen Satz,,
+ministral3-local,SKOS-KV-01,in_corpus,citation_coverage,S2b,,richtig,verstoss,Belege im Format [1.1]/[1.2a],,
+ministral3-local,AIA-ANBIETER-01,in_corpus,citation_coverage,S5,P3,falsch,verstoss,Erwartete Seite nicht im Kontext; Antwort verfehlt die Definition; WEISS_NICHT im Fliesstext,,
+ministral3-local,AIA-ANFORDERUNGEN-02,in_corpus,citation_coverage,S5,S2b,falsch,verstoss,Erwartete Seite nicht im Kontext; Antwort nennt Pflichten statt der gefragten Möglichkeit; Belege [1f],,
+ministral3-local,AIA-BIAS-01,in_corpus,citation_coverage,S2b,P3,richtig,verstoss,Beleg [1f]; WEISS_NICHT im Fliesstext,,
+ministral3-local,AIA-PROTOKOLL-01,in_corpus,citation_coverage,S2b,,richtig,verstoss,Belege im Format [1(3a)],,
+ministral3-local,AIA-PROTOKOLL-03,in_corpus,citation_coverage,S2b,,richtig,verstoss,Belege im Format [1a]/[1b]/[1c],,
+ministral3-local,SAMW-BELMONT-01,in_corpus,citation_coverage,S2c,,richtig,eingehalten,"Jeder Listenpunkt belegt, aber unter 4 Wörtern übersprungen",,
+ministral3-local,AIA-ADV-01,adversarial,citation_coverage,S2b,S2d,richtig,verstoss,Prämisse korrekt verneint; Belege im Format [2a]/[2c],,
+ministral3-local,AIA-ADV-02,adversarial,citation_coverage,S2b,,richtig,verstoss,Prämisse korrekt verneint; Belege im Format [2a]–[2d],,
+ministral3-local,SAMW-ADV-04,adversarial,citation_coverage,S2c,,richtig,eingehalten,"«NEIN [1].» korrekt und belegt, aber unter 4 Wörtern — kein zählbares Segment",,
+ministral3-local,SKOS-IPV-01,in_corpus,generation_refused,S1,,falsch,eingehalten,"WEISS_NICHT, obwohl die erwartete Seite im Kontext steht",,
+ministral3-local,SKOS-EL-01,in_corpus,generation_refused,S1,,falsch,eingehalten,"WEISS_NICHT, obwohl die erwartete Seite im Kontext steht",,
+ministral3-local,AIA-LEITLINIEN-01,in_corpus,generation_refused,S1,,falsch,eingehalten,"WEISS_NICHT, obwohl das Datum im Kontext steht",,
+ministral3-local,SKOS-ADV-01,adversarial,generation_refused,D,,richtig,eingehalten,Referenzantwort erlaubt «Weiss ich nicht»,,
+ministral3-local,SAMW-ADV-01,adversarial,generation_refused,S1,,falsch,eingehalten,"Falsche Prämisse nicht korrigiert, sondern verweigert",,
+ministral3-local,SAMW-ADV-02,adversarial,generation_refused,S1,,falsch,eingehalten,"Falsche Prämisse nicht korrigiert, sondern verweigert",,
+ministral3-local,SKOS-WOHN-01,in_corpus,self_check,S4,,falsch,eingehalten,Antwort überwiegend belegt; Self-Check wertet Umformulierungen als ungedeckt (überstreng),,
