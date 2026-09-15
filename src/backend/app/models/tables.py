@@ -122,6 +122,21 @@ class Document(Base):
     # down with it each time. Reset by a successful run (`mark_available`) and by
     # the upload path: the budget bounds one incident, not the document.
     index_attempts: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    # The reaper's liveness signal (T-51): the worker writes this at phase
+    # boundaries inside process_document — after parsing, after chunking,
+    # after every embedding batch — each write guarded by index_version like
+    # every other write to this row. The reaper measures "no progress since"
+    # instead of index_version's own "claimed since", which is what lets its
+    # timeout be minutes instead of the 45-minute worst case that measuring
+    # against pgqueuer's claim timestamp forced (ADR-006, Nachtrag).
+    #
+    # Same contract as index_version/index_attempts above and for the same
+    # reason: no `onupdate`, so an unrelated future ORM write on this row
+    # cannot refresh a running job's clock and mask its own death.
+    # `tests/test_worker.py` holds the absence of `onupdate` in place.
+    index_progress_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
 
 class Chunk(Base):
