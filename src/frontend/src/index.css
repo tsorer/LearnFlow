@@ -10,13 +10,20 @@
   /* Accents */
   --coral: #e1583d;
   --coral-dark: #c4432a;
+  --coral-darker: #ad3a24;
   --coral-tint: #fce8e2;
   --violet: #8a6bd6;
   --violet-tint: #f1ecfb;
   --olive: #6e8f4a;
   --olive-tint: #eef3e5;
+  /* Darker than --olive — WCAG AA needs 4.5:1 for text, --olive itself only
+     reaches 3.3–3.7:1 on --olive-tint/white (review on #135). Use --olive
+     for fills/accents, --olive-text wherever the color sits on text. */
+  --olive-text: #4a6b32;
   --gold: #c99a34;
   --gold-tint: #fbf1dc;
+  /* Same reasoning as --olive-text: --gold only reaches 2.3–2.6:1 as text. */
+  --gold-text: #7a5a17;
   --red: #c0392b;
   --red-tint: #fbe7e4;
 
@@ -66,8 +73,10 @@ button {
   padding: 6px 14px; font-family: var(--font-sans); font-size: var(--text-sm); font-weight: var(--font-semibold);
   transition: background 0.12s;
 }
-button.primary { background: var(--coral); color: #fff; }
-button.primary:hover { background: var(--coral-dark); }
+/* --coral-dark as the base, not --coral: white text on --coral only reaches
+   3.71:1 (review on #135) — --coral-dark clears AA at 5.02:1. */
+button.primary { background: var(--coral-dark); color: #fff; }
+button.primary:hover { background: var(--coral-darker); }
 button.secondary { background: var(--surface); color: var(--text-primary); border: 1px solid var(--border); }
 button.secondary:hover { background: var(--coral-tint); }
 button.danger { background: var(--red-tint); color: var(--red); border: 1px solid #eab3ab; }
@@ -109,8 +118,8 @@ input:focus, textarea:focus { border-color: var(--coral); box-shadow: 0 0 0 2px 
   padding: 2px 9px;
   border-radius: var(--radius-pill);
 }
-.badge-success { background: var(--olive-tint); color: var(--olive); }
-.badge-warning { background: var(--gold-tint);  color: var(--gold); }
+.badge-success { background: var(--olive-tint); color: var(--olive-text); }
+.badge-warning { background: var(--gold-tint);  color: var(--gold-text); }
 .badge-danger  { background: var(--red-tint);   color: var(--red); }
 .badge-info    { background: var(--violet-tint); color: var(--indigo-deep); }
 
@@ -126,12 +135,12 @@ input:focus, textarea:focus { border-color: var(--coral); box-shadow: 0 0 0 2px 
 }
 .sidebar-brand { display: flex; align-items: center; gap: 10px; padding: 6px 10px 22px; color: #fff; font-weight: var(--font-bold); font-size: var(--text-lg); letter-spacing: -0.01em; }
 .sidebar-cta {
-  background: var(--coral); color: #fff; border: none; border-radius: 11px;
+  background: var(--coral-dark); color: #fff; border: none; border-radius: 11px;
   padding: 11px 14px; font-weight: var(--font-semibold); font-size: var(--text-sm);
   display: flex; align-items: center; gap: 8px; cursor: pointer;
   margin-bottom: var(--space-4); width: 100%; transition: background 0.15s;
 }
-.sidebar-cta:hover { background: var(--coral-dark); }
+.sidebar-cta:hover { background: var(--coral-darker); }
 .sidebar-group-label {
   font-size: var(--text-3xs); font-weight: var(--font-bold); letter-spacing: 0.08em; text-transform: uppercase;
   color: rgba(255, 255, 255, 0.32); padding: 14px 12px 6px;

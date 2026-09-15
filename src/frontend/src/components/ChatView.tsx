@@ -373,7 +373,7 @@ export default function ChatView({ user, onLogout, messages, setMessages, sessio
                   <button className="primary" style={{ fontSize: "var(--text-2xs)", padding: "5px 14px" }} onClick={saveParams}>
                     Speichern
                   </button>
-                  {paramSaved && <span style={{ fontSize: "var(--text-2xs)", color: "var(--olive)", fontWeight: "var(--font-semibold)" }}>✓ Gespeichert</span>}
+                  {paramSaved && <span style={{ fontSize: "var(--text-2xs)", color: "var(--olive-text)", fontWeight: "var(--font-semibold)" }}>✓ Gespeichert</span>}
                   {paramError && <span style={{ fontSize: "var(--text-2xs)", color: "var(--red)", fontWeight: "var(--font-semibold)" }}>{paramError}</span>}
                 </div>
               </div>
