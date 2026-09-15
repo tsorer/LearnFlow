@@ -130,6 +130,28 @@ eine Prompt-Änderung verändert das Verhalten der gesamten Zuverlässigkeitsket
 durch Review und Eval (ADR-009), nicht durch eine Config-Zeile. `temperature = 0` ist aus
 demselben Grund fixiert — ohne reproduzierbare Generierung misst das Eval-Gate Rauschen.
 
+**Präzisierung (T-62, Runde R02, 2026-09-15) — ein Beleg je Aussage, nur die Nummer.** Die
+Referenzregel des Prompts verlangt jetzt ausdrücklich, dass **jeder Satz und jeder Listenpunkt
+einzeln** belegt wird, Belege nicht am Ende eines Absatzes oder einer Liste gesammelt werden, und
+**nur die Nummer** ohne Buchstaben, Unterpunkte oder andere Klammern steht. Anlass: Stufe 2
+(ADR-008) wertet einen Satz nur als belegt, wenn *hinter ihm* ein gültiges `[n]` steht; Modelle
+sammelten Belege am Absatzende (gpt-4o-mini, gpt-oss) oder schrieben Unterverweise wie `[1a]`
+(ministral). Gemessen über vier Modelle: unbelegte Aussagen sinken bei allen (Referenz 41 % →
+28 %), die False-Suppression der Referenz im Entwicklungs-Set 10 → 8, Out-of-Corpus-Refusal und
+Halluzinationsrate unverändert (`EvalAnalysis/Optimierung/R02_Zitierformat.md`).
+
+Die Alternative — Stufe 2 liest `[1a]` oder `【1】` tolerant als `[1]` — wurde gemessen und
+**verworfen**: nach der Prompt-Änderung gewinnt sie eine einzige Antwort, und diese ist inhaltlich
+falsch. Der Kontrakt bleibt damit streng: das Format wird beim Modell eingefordert, nicht in der
+Prüfung aufgeweicht.
+
+**Bekannte Nebenwirkung.** Wer jede Aussage belegt, belegt auch falsche: Eine Verwechslung (Frage
+nach DSGVO-Bussen, beantwortet mit den Kriterien des AI Act) erreichte Coverage 1,0 und wurde
+ohne Self-Check ausgeliefert. Solange halluzinierte Antworten schlecht belegt waren, filterte
+Stufe 2 nebenbei auch Inhalte; mit besserer Formtreue hängt die inhaltliche Prüfung stärker an
+Stufe 3 (ADR-008). Zudem lesen einzelne Modelle «Nummer» als Nummer *aus* dem Dokument
+(Erwägungsgründe `[13]`, `[65]`) — Stufe 2 unterdrückt das korrekt als erfundene Referenz.
+
 ### 5. Re-Ranking — bewusst out-of-scope für den MVP
 
 Ein Cross-Encoder-Re-Ranker ist der stärkste zusätzliche Präzisionshebel, würde aber entweder PyTorch ins Backend zurückholen (gegen ADR-005) oder einen weiteren Provider erfordern. Für den MVP wird darauf verzichtet; die Retrieval-Schnittstelle wird jedoch so geschnitten, dass ein Re-Ranking-Schritt **zwischen Fusion und Gate** ohne Architekturumbau nachgerüstet werden kann.

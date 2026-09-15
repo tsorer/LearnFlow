@@ -183,14 +183,14 @@ eingeordnet, und das Muster ist über zwei Dev-Fragen belegt.
 
 ## 6. Entscheid
 
-| Frage | Vorschlag | Begründung |
+| Frage | Entscheid (bestätigt 2026-09-15) | Begründung |
 |---|---|---|
-| R02a (Prompt) behalten? | **ja** | Unbelegte Aussagen bei allen Modellen tiefer; False-Suppression der Referenz 10 → 8 und von gpt-oss 14 → 8; Out-of-Corpus-Refusal der Referenz unverändert, Halluzinationsrate 0 %. Die Prompt-Änderung betrifft das ausgelieferte System → Nachtrag in ADR-007/008 nach Bestätigung |
-| R02b (tolerantes Lesen) übernehmen? | **nein** | Nach R02a Wirkung −1, und diese eine Frage ist eine inhaltlich falsche Antwort, die ohne Self-Check ausgeliefert würde. Tolerantes Lesen hätte ohne Prompt-Änderung geholfen — erziehen ist hier die bessere Stellschraube |
+| R02a (Prompt) behalten? | **ja** | Unbelegte Aussagen bei allen Modellen tiefer; False-Suppression der Referenz 10 → 8 und von gpt-oss 14 → 8; Out-of-Corpus-Refusal der Referenz unverändert, Halluzinationsrate 0 %. Die Prompt-Änderung betrifft das ausgelieferte System → Präzisierung in ADR-007, Abschnitt 4 |
+| R02b (tolerantes Lesen) übernehmen? | **nein, verworfen** | Nach R02a Wirkung −1, und diese eine Frage ist eine inhaltlich falsche Antwort, die ohne Self-Check ausgeliefert würde. Tolerantes Lesen hätte ohne Prompt-Änderung geholfen — erziehen ist hier die bessere Stellschraube |
 | Modelle | keine Änderung | qwen3 bleibt unter der 90-%-Grenze; ob es wegfällt, entscheidet eine Runde, die Verweigerungen adressiert (R04) |
 | Offene Risiken | an R03 / Kalibrierung | Formtreue schwächt Stufe 2 als inhaltlichen Filter (5.1); «Nummer des Abschnitts» ist mehrdeutig (5.2); Self-Check-Band nach R01 (T-57) |
 
-**Nächste Runde (Vorschlag):** R03 wie geplant — falsche Prämissen und Ja/Nein-Schlüsse (R00:
+**Nächste Runde (entschieden):** R03 wie geplant — falsche Prämissen und Ja/Nein-Schlüsse (R00:
 18 Fälle S1). Die Befunde 5.1 und 5.2 legen zusätzlich nahe, die Referenzanweisung
 eindeutig zu machen («die Nummer in eckigen Klammern **vor** dem Abschnitt, nicht Nummern aus
 dem Text»); das wäre eine eigene, kleine Runde.
