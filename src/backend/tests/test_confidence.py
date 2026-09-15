@@ -344,6 +344,146 @@ def test_the_abbreviations_shared_with_the_chunker_do_not_split() -> None:
         assert detail.segments == 1, answer
         assert detail.coverage == 1.0, answer
 
+
+# ── Stufe 2, R01: Satzzerlegung (EvalAnalysis/Optimierung/R00_Baseline.md, 5.2) ──
+#
+# Each rule comes with the answer from the baseline that it repairs and with a
+# counter-example that must stay suppressed: the repair may stop a correct answer
+# from being counted as unbacked, never let an unbacked claim count as backed.
+
+
+def test_an_ordinal_before_lebensjahr_does_not_end_the_sentence() -> None:
+    """gemma4 and gpt-oss, SAMW-JUGENDLICHE-01: the [4] fell into a two-word rest."""
+    for answer in (
+        "Der Übergang erfolgt gemäss HFG mit der Vollendung des 14. Lebensjahres [4].",
+        "Kinder gelten im Sinne des HFG ab dem vollendeten 14. Lebensjahr als Jugendliche. [4]",
+    ):
+        detail = check_citations(answer, CONTEXT_SIZE)
+
+        assert (detail.segments, detail.covered) == (1, 1), answer
+
+
+def test_an_ordinal_date_does_not_end_the_sentence() -> None:
+    """gpt-oss, AIA-LEITLINIEN-01 — with the narrow no-break space it wrote."""
+    detail = check_citations(
+        "Bis spätestens zum 2.\u202fFebruar\u202f2026 muss die Kommission Leitlinien "
+        "bereitstellen. [3]",
+        CONTEXT_SIZE,
+    )
+
+    assert (detail.segments, detail.covered) == (1, 1)
+
+
+def test_a_number_ending_a_sentence_still_ends_it() -> None:
+    """The fail-open direction: the second sentence's [1] must not back the first."""
+    for answer in (
+        "Die Pflicht folgt aus Art. 5 Abs. 2. Weitere Pflichten folgen daraus [1].",
+        "Der Grundbedarf beträgt monatlich 12. Diese Zahl steht im Anhang [1].",
+    ):
+        detail = check_citations(answer, CONTEXT_SIZE)
+
+        assert (detail.segments, detail.covered) == (2, 1), answer
+
+
+def test_a_letter_pair_abbreviation_after_a_bracket_holds_the_sentence_together() -> None:
+    """ministral, SKOS-SANK-01: «(z. B.» split the claim from its [4]."""
+    detail = check_citations(
+        "Zu berücksichtigen sind die Auswirkungen auf mitbetroffene Personen "
+        "(z. B. Kinder, Ehepartner) [4].",
+        CONTEXT_SIZE,
+    )
+
+    assert (detail.segments, detail.covered) == (1, 1)
+
+
+def test_a_lead_in_with_a_colon_is_not_an_unbacked_claim() -> None:
+    """openai and gpt-oss, SKOS-GBL-01 and others: the lead-in was always one unbacked segment."""
+    detail = check_citations(
+        "Das Protokoll muss Ereignisse für folgende drei Zwecke aufzeichnen:\n"
+        "- die Ermittlung von Situationen mit einem Risiko [1]\n"
+        "- die Erleichterung der Beobachtung nach dem Inverkehrbringen [1]",
+        CONTEXT_SIZE,
+    )
+
+    assert (detail.segments, detail.covered) == (2, 2)
+    assert detail.coverage == 1.0
+
+
+def test_an_emphasised_lead_in_is_recognised() -> None:
+    detail = check_citations(
+        "### **Grundversorgende Leistungen** (Übernahme zwingend):\n"
+        "- Krankheitsbedingte Auslagen werden übernommen [2]",
+        CONTEXT_SIZE,
+    )
+
+    assert (detail.segments, detail.covered) == (1, 1)
+
+
+def test_a_colon_does_not_excuse_an_uncited_list() -> None:
+    """Skipping the lead-in only removes a segment; the uncited items still count."""
+    detail = check_citations(
+        "Das Protokoll muss Ereignisse für folgende Zwecke aufzeichnen:\n"
+        "- die Ermittlung von Situationen mit einem Risiko\n"
+        "- die Erleichterung der Beobachtung nach dem Inverkehrbringen",
+        CONTEXT_SIZE,
+    )
+
+    assert (detail.segments, detail.covered) == (2, 0)
+    assert detail.coverage == 0.0
+
+
+def test_a_cited_lead_in_still_counts_as_covered() -> None:
+    detail = check_citations(
+        "Der Leitfaden nennt drei Prinzipien [1]:\n- Autonomie [1]", CONTEXT_SIZE
+    )
+
+    assert (detail.segments, detail.covered) == (2, 2)
+
+
+def test_a_short_cited_bullet_is_a_claim() -> None:
+    """gemma4, SAMW-ANONYM-01: three cited one-word bullets came out at coverage 0.0."""
+    detail = check_citations(
+        "Das Humanforschungsrecht unterscheidet die folgenden drei Grade:\n"
+        "* Anonymisiert [1]\n"
+        "* Pseudonymisiert (verschlüsselt) [1]\n"
+        "* Identifizierend (unverschlüsselt) [1]",
+        CONTEXT_SIZE,
+    )
+
+    assert (detail.segments, detail.covered) == (3, 3)
+    assert detail.coverage == 1.0
+
+
+def test_a_short_uncited_bullet_is_still_skipped_not_counted() -> None:
+    """Unchanged: a short bullet without a reference neither helps nor hurts."""
+    detail = check_citations(
+        "- Verbotene Praktiken sind abschliessend geregelt [1]\n- Social Scoring",
+        CONTEXT_SIZE,
+    )
+
+    assert (detail.segments, detail.covered) == (1, 1)
+
+
+def test_a_short_cited_bullet_cannot_hide_an_unbacked_claim() -> None:
+    """The counter-example: cited short bullets add covered segments, but the long
+    unbacked claim still counts against them."""
+    detail = check_citations(
+        "Der Act verbietet ausserdem jede Form der biometrischen Überwachung.\n"
+        "- Anbieter [1]\n"
+        "- Betreiber [1]",
+        CONTEXT_SIZE,
+    )
+
+    assert (detail.segments, detail.covered) == (3, 2)
+
+
+def test_a_short_answer_outside_a_list_still_has_no_coverage() -> None:
+    """Deliberately unchanged in R01: «NEIN [1].» would reach 1.0 and skip the self-check."""
+    detail = check_citations("NEIN [1].", CONTEXT_SIZE)
+
+    assert detail.segments == 0
+    assert detail.coverage == 0.0
+
 # ── Komposit-Konfidenz & Bänder (ADR-008, T-23) ─────────────────────────────
 
 MEDIUM = 0.45

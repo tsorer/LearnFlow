@@ -140,7 +140,25 @@ _LIST_MARKER = re.compile(r"^\s*(?:[-*•–]|\d{1,2}[.)])\s+")
 # "z. B.", "d. h.", "u. a.", "i. S. v." — two single letters, each with a period.
 # The pair is what identifies the uppercase half: matching "B." on its own would
 # make an abbreviation out of every "Anhang A." too.
-_LETTER_PAIR_ABBREVIATION = re.compile(r"(?:^|\s)[^\W\d_]\.\s*[^\W\d_]\.\s*$")
+#
+# The pair may open right after a bracket or quote, not only after whitespace
+# (R01, EvalAnalysis/Optimierung): "(z. B. Kinder, Ehepartner) [4]" was split
+# after "B.", the claim before it counted as unbacked and its [4] fell into a
+# fragment too short to score.
+_LETTER_PAIR_ABBREVIATION = re.compile(r"(?:^|[\s(\[„\"'])[^\W\d_]\.\s*[^\W\d_]\.\s*$")
+
+# A German ordinal is a number with a full stop — "14. Lebensjahr", "2. Februar
+# 2026" — and the sentence split reads that stop as the end of a sentence (R01).
+# Deliberately *not* every number followed by a stop: "gemäss Abs. 2. Weitere
+# Pflichten folgen [1]." really is two sentences, and gluing them together
+# would let the second sentence's citation back the first — the fail-open
+# direction. Only the words that follow an ordinal and never start a sentence
+# of their own are listed; the list grows with evidence, not by guessing.
+_ORDINAL_END = re.compile(r"(?:^|\s)\d{1,2}\.\s*$")
+_ORDINAL_NOUN = re.compile(
+    r"^(?:Lebensjahr|Altersjahr|Jahrhundert|Januar|Februar|März|April|Mai|Juni|Juli"
+    r"|August|September|Oktober|November|Dezember)\w*\b"
+)
 
 # German abbreviations that end in a period without ending a sentence. The
 # single-letter halves of "z. B." and friends are handled by the pair above.
@@ -218,7 +236,7 @@ def check_citations(answer: str, citation_count: int) -> CitationDetail:
     segments = 0
     covered = 0
 
-    for segment in _segments(answer):
+    for segment, is_list_item in _segments(answer):
         indices = _references(segment)
         legal = {index for index in indices if 1 <= index <= citation_count}
         referenced |= legal
@@ -227,7 +245,20 @@ def check_citations(answer: str, citation_count: int) -> CitationDetail:
         # count towards the coverage.
         fabricated |= indices - legal
 
-        if _word_count(_REFERENCE.sub(" ", segment)) < MIN_SEGMENT_WORDS:
+        text = _REFERENCE.sub(" ", segment)
+        if _is_lead_in(text) and not legal:
+            # "… umfasst die folgenden Positionen:" announces the list below it
+            # and claims nothing itself (R01). Counting it made every cited
+            # enumeration start one unbacked segment down. A lead-in that does
+            # carry a reference still counts, as covered.
+            continue
+        words = _word_count(text)
+        # A bullet is a claim in its own right however short it is — "Anonymisiert
+        # [1]" — so a *cited* bullet counts (R01): before, three cited one-word
+        # bullets under an unbacked lead-in came out at coverage 0.0. An uncited
+        # short bullet stays skipped rather than counted as unbacked, exactly as
+        # before, and outside a list the minimum length still applies.
+        if words < MIN_SEGMENT_WORDS and not (is_list_item and legal and words > 0):
             continue
 
         segments += 1
@@ -257,25 +288,41 @@ def _word_count(text: str) -> int:
     return len(text.split())
 
 
-def _segments(answer: str) -> list[str]:
+def _segments(answer: str) -> list[tuple[str, bool]]:
     """Split the answer into the units the coverage is measured over.
 
     A line break separates segments before any punctuation does, so a bullet
-    list is one segment per bullet rather than one run-on sentence.
+    list is one segment per bullet rather than one run-on sentence. Each segment
+    carries whether its line was a list item — a bullet is scored differently
+    from a fragment of prose (see `check_citations`).
     """
-    segments: list[str] = []
+    segments: list[tuple[str, bool]] = []
     for line in answer.splitlines():
+        is_list_item = _LIST_MARKER.match(line) is not None
         stripped = _LIST_MARKER.sub("", line).strip()
         if stripped:
-            segments.extend(_sentences(stripped))
+            segments.extend((sentence, is_list_item) for sentence in _sentences(stripped))
     return segments
 
 
+# Markdown emphasis around a lead-in — "**Nicht abgedeckt:**" — is not part of
+# the text that decides whether the line announces something.
+_EMPHASIS = re.compile(r"[*_#]+")
+
+
+def _is_lead_in(text: str) -> bool:
+    """A segment that ends in a colon introduces what follows (R01)."""
+    return _EMPHASIS.sub("", text).rstrip().endswith(":")
+
+
 def _sentences(line: str) -> list[str]:
-    """Sentence-split one line, re-joining splits that fell in an abbreviation."""
+    """Sentence-split one line, re-joining splits that fell in an abbreviation
+    or behind an ordinal number."""
     sentences: list[str] = []
     for fragment in _SENTENCE_BOUNDARY.split(line):
-        if sentences and _ends_in_abbreviation(sentences[-1]):
+        if sentences and (
+            _ends_in_abbreviation(sentences[-1]) or _continues_ordinal(sentences[-1], fragment)
+        ):
             sentences[-1] = f"{sentences[-1]} {fragment}"
         else:
             sentences.append(fragment)
@@ -283,6 +330,14 @@ def _sentences(line: str) -> list[str]:
     # made; a line break was never such a split, and reaching over one would move
     # a bullet's own reference onto the bullet above it.
     return _attach_trailing_references(sentences)
+
+
+def _continues_ordinal(previous: str, fragment: str) -> bool:
+    """«… des 14.» followed by «Lebensjahres …» is one sentence, not two (R01)."""
+    return (
+        _ORDINAL_END.search(previous) is not None
+        and _ORDINAL_NOUN.match(fragment.lstrip("*_ ")) is not None
+    )
 
 
 def _ends_in_abbreviation(fragment: str) -> bool:
