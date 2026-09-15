@@ -120,7 +120,7 @@ export default function QuizCard({ question: q, busy, onAction, onSave }: Props)
               )}
               <span style={{
                 fontSize: "var(--text-xs)", fontWeight: "var(--font-bold)", minWidth: 16,
-                color: isCorrect ? "var(--olive)" : "var(--text-muted)",
+                color: isCorrect ? "var(--olive-text)" : "var(--text-muted)",
               }}>
                 {letter}
               </span>
@@ -139,7 +139,7 @@ export default function QuizCard({ question: q, busy, onAction, onSave }: Props)
                 <span
                   style={{
                     fontSize: "var(--text-sm)", flex: 1,
-                    color: isCorrect ? "var(--olive)" : "var(--text-primary)",
+                    color: isCorrect ? "var(--olive-text)" : "var(--text-primary)",
                     fontWeight: isCorrect ? "var(--font-bold)" : "var(--font-regular)",
                   }}
                 >
@@ -186,7 +186,7 @@ export default function QuizCard({ question: q, busy, onAction, onSave }: Props)
 
       {editing && wouldDemote && (
         <div style={{
-          fontSize: "var(--text-xs)", color: "var(--gold)", background: "var(--gold-tint)",
+          fontSize: "var(--text-xs)", color: "var(--gold-text)", background: "var(--gold-tint)",
           borderRadius: "var(--radius-sm)", padding: "6px 10px",
         }}>
           Diese Änderung nimmt die Freigabe zurück — die Frage geht zurück in die Prüfung.

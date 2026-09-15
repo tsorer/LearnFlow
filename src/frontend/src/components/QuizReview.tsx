@@ -161,7 +161,7 @@ export default function QuizReview({ user, onLogout }: Props) {
         )}
         {notice && (
           <div role="status" style={{
-            background: "var(--olive-tint)", color: "var(--olive)", borderRadius: "var(--radius-sm)",
+            background: "var(--olive-tint)", color: "var(--olive-text)", borderRadius: "var(--radius-sm)",
             padding: "8px 12px", fontSize: "var(--text-sm)", marginBottom: 12,
           }}>
             {notice}

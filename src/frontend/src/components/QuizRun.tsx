@@ -173,7 +173,7 @@ function QuestionCard({ question: q, questionNumber, totalQuestions, shortRound,
     }}>
       {shortRound && questionNumber === 1 && (
         <div role="status" style={{
-          background: "var(--gold-tint)", color: "var(--gold)", borderRadius: "var(--radius-sm)",
+          background: "var(--gold-tint)", color: "var(--gold-text)", borderRadius: "var(--radius-sm)",
           padding: "6px 10px", fontSize: "var(--text-xs)",
         }}>
           Nur {totalQuestions} von {TARGET_LENGTH} Fragen freigegeben — diese Runde ist entsprechend kürzer.
@@ -251,7 +251,7 @@ function ResultView({ questions, answers, shortRound, onOpenSource, onRestart }:
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
       {shortRound && (
         <div role="status" style={{
-          background: "var(--gold-tint)", color: "var(--gold)", borderRadius: "var(--radius-sm)",
+          background: "var(--gold-tint)", color: "var(--gold-text)", borderRadius: "var(--radius-sm)",
           padding: "6px 10px", fontSize: "var(--text-xs)",
         }}>
           Nur {questions.length} von {TARGET_LENGTH} Fragen freigegeben — diese Runde war entsprechend kürzer.
@@ -281,7 +281,7 @@ function ResultView({ questions, answers, shortRound, onOpenSource, onRestart }:
               Deine Antwort: {chosen} — {q.options[chosenIndex]}
             </div>
             {!isCorrect && (
-              <div style={{ fontSize: "var(--text-sm)", color: "var(--olive)" }}>
+              <div style={{ fontSize: "var(--text-sm)", color: "var(--olive-text)" }}>
                 Richtige Antwort: {q.correct_answer} — {q.options[correctIndex]}
               </div>
             )}

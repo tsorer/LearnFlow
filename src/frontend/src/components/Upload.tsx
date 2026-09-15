@@ -11,7 +11,7 @@ interface Props { user: AuthUser; onClose: () => void; }
 const statusBadgeClass = { pending: "", processing: "", available: "badge-success", failed: "badge-danger" };
 const statusTextColor: Partial<Record<Document["status"], string>> = {
   pending: "var(--text-muted)",
-  processing: "var(--gold)",
+  processing: "var(--gold-text)",
 };
 const statusLabel = { pending: "Ausstehend", processing: "Verarbeitung…", available: "Verfügbar", failed: "Fehler" };
 
@@ -260,7 +260,7 @@ export default function Upload({ user, onClose }: Props) {
               Beim Hochladen wird die bestehende Fassung überschrieben.
             </p>
             {confirm.isOther && (
-              <p style={{ fontSize: "var(--text-sm)", color: "var(--gold)", fontWeight: "var(--font-bold)", marginBottom: 8 }}>
+              <p style={{ fontSize: "var(--text-sm)", color: "var(--gold-text)", fontWeight: "var(--font-bold)", marginBottom: 8 }}>
                 Dieses Dokument stammt von einer anderen Person.
               </p>
             )}
@@ -323,7 +323,7 @@ export default function Upload({ user, onClose }: Props) {
         )}
 
         {notice && (
-          <div style={{ background: "var(--olive-tint)", color: "var(--olive)", borderRadius: "var(--radius-sm)", padding: "8px 14px", marginBottom: 16, fontSize: "var(--text-sm)" }}>
+          <div style={{ background: "var(--olive-tint)", color: "var(--olive-text)", borderRadius: "var(--radius-sm)", padding: "8px 14px", marginBottom: 16, fontSize: "var(--text-sm)" }}>
             {notice}
           </div>
         )}

@@ -224,7 +224,11 @@ function ChunkBar({ chunk, threshold, rrfK }: { chunk: ChunkDebugInfo; threshold
   const [open, setOpen] = useState(false);
   const scorePct = Math.max(0, Math.min(100, Math.round(chunk.score * 100)));
   const thPct    = Math.round(threshold * 100);
-  const color    = chunk.above_threshold ? "var(--olive)" : "var(--red)";
+  // `color` is the bar-fill colour (a graphic, not text) — kept at --olive's
+  // full saturation. `textColor` is for the two text usages below, where
+  // --olive alone falls short of AA (review on #135).
+  const color     = chunk.above_threshold ? "var(--olive)" : "var(--red)";
+  const textColor = chunk.above_threshold ? "var(--olive-text)" : "var(--red)";
   const parts    = [chunk.filename, chunk.page ? `S.${chunk.page}` : null, chunk.heading ? `— ${chunk.heading}` : null].filter(Boolean).join(" ");
 
   const foundDense  = chunk.dense_rank !== RANK_ABSENT;
@@ -268,7 +272,7 @@ function ChunkBar({ chunk, threshold, rrfK }: { chunk: ChunkDebugInfo; threshold
         style={{ ...CHUNK_ROW, cursor: "pointer", userSelect: "none" }}
         onClick={() => setOpen(v => !v)}
       >
-        <span style={{ ...COL_SCORE, color }}>{scorePct}%</span>
+        <span style={{ ...COL_SCORE, color: textColor }}>{scorePct}%</span>
         <div style={{ ...COL_BAR, position: "relative", height: 5, background: "var(--border)", borderRadius: 3 }}>
           <div style={{ width: `${scorePct}%`, height: "100%", background: color, borderRadius: 3 }} />
           {/* threshold marker */}
@@ -308,7 +312,7 @@ function ChunkBar({ chunk, threshold, rrfK }: { chunk: ChunkDebugInfo; threshold
             </div>
             <div style={CHUNK_DEF_ROW}>
               <span style={CHUNK_TERM}>Cosine</span>
-              <span style={{ color }}>
+              <span style={{ color: textColor }}>
                 {chunk.score} — {chunk.above_threshold ? "über" : "unter"} Schwelle {threshold}
               </span>
             </div>
@@ -345,7 +349,9 @@ function PipelineStep({
   const dotColor   = skipped ? "var(--text-muted)" : passed ? "var(--olive)" : "var(--red)";
   const labelColor = skipped ? "var(--text-muted)" : passed ? "var(--text-primary)"  : "var(--red)";
   const resultText = skipped ? "—" : passed ? "✓ OK" : "✗ STOPP";
-  const resultColor = skipped ? "var(--text-muted)" : passed ? "var(--olive)" : "var(--red)";
+  // Text, unlike dotColor's dot fill — --olive itself falls short of AA as
+  // text (review on #135).
+  const resultColor = skipped ? "var(--text-muted)" : passed ? "var(--olive-text)" : "var(--red)";
 
   // Value display: count (threshold≥1) stays integer, fraction → %, string as-is
   const valStr = stage.value === null || stage.value === undefined ? null
@@ -765,7 +771,7 @@ export default function MessageBubble({ message: m, token }: Props) {
           {band && (
             <span style={{
               fontSize: 11, padding: "2px 9px", borderRadius: 20, fontWeight: 700,
-              background: "var(--gold-tint)", color: "var(--gold)",
+              background: "var(--gold-tint)", color: "var(--gold-text)",
             }}>
               <span aria-hidden="true">{band.icon} </span>{band.label}
             </span>
@@ -819,7 +825,7 @@ export default function MessageBubble({ message: m, token }: Props) {
           {m.suppression_reason && (
             <span style={{
               fontSize: 11, padding: "2px 8px", borderRadius: 20, fontWeight: 600,
-              background: "var(--gold-tint)", color: "var(--gold)",
+              background: "var(--gold-tint)", color: "var(--gold-text)",
             }}>
               ⚠ {suppressLabels[m.suppression_reason] ?? m.suppression_reason}
             </span>
@@ -876,7 +882,7 @@ export default function MessageBubble({ message: m, token }: Props) {
       {m.answer_id && !m.suppressed && (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {feedback !== null ? (
-            <span style={{ fontSize: 11, color: "var(--olive)", fontWeight: 600 }}>
+            <span style={{ fontSize: 11, color: "var(--olive-text)", fontWeight: 600 }}>
               ✓ Danke für dein Feedback!
             </span>
           ) : (
