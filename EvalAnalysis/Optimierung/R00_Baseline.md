@@ -107,6 +107,12 @@ unterscheiden sich die zwei Läufe nur in den beiden Fragen, deren Budget geänd
 Referenz ist es nicht: Out-of-Corpus-Refusal 90,9 % in diesem Lauf gegenüber 91–95,5 %
 in früheren, False-Suppression 31,1 % gegenüber 33–38 %.
 
+**Einschränkung (Nachtrag 2026-09-15):** Die Reproduzierbarkeit der lokalen Modelle gilt nur
+*innerhalb einer Sitzung*. Im R01-Lauf einen Tag später — gleicher Prompt, gleicher Kontext,
+gleiche Parameter, gleiche Modell-ID und Ollama-Version — waren nur noch 48 von 80
+gpt-oss-Antworten wortgleich (qwen3 72, ministral 75). Die Ursache ist nicht belegt;
+wahrscheinlich hängt der Rechenweg bei Temperatur 0 vom Zustand der Grafikkarte ab.
+
 ## 2. Holdout
 
 22 von 80 Fragen, festgelegt vor jeder Auswertung und ab jetzt unverändert. Regel: je
@@ -354,3 +360,5 @@ unbelegte Aussage muss unbelegt bleiben.
   (Abschnitt 1, Gültigkeit). Gesamtkennzahlen gemma4: False-Suppression 13,3 % → 11,1 %,
   Halluzinations-Pool 47 → 49, jeweils durch die zwei Holdout-Fragen. Entwicklungs-Set,
   Einordnung und Eignung unverändert.
+- **2026-09-15:** Reproduzierbarkeit der lokalen Modelle eingeschränkt auf eine Sitzung
+  (Abschnitt 1, Reproduzierbarkeit), belegt durch den R01-Lauf.

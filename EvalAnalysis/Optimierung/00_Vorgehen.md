@@ -83,7 +83,9 @@ bewertet.
 **Rauschen und Auflösung.** Eine Frage entspricht 4,5 Prozentpunkten (Out-of-Corpus, n=22)
 bzw. 2,2 Prozentpunkten (In-Corpus, n=45). Die Referenz ist trotz Temperatur 0 nicht
 deterministisch (Refusal 91–95,5 %, False-Suppression 31–38 % über mehrere Läufe); die
-lokalen Modelle waren am 2026-09-14 über zwei Läufe Frage für Frage identisch.
+lokalen Modelle waren am 2026-09-14 über zwei Läufe am selben Abend Frage für Frage identisch,
+einen Tag später bei gleicher Eingabe aber nicht mehr (gpt-oss 48 von 80 wortgleich, R01).
+Auch lokal ist ein Einzellauf also nur innerhalb einer Sitzung reproduzierbar.
 Deshalb:
 
 - Jedes Profil wird pro Runde **einmal** gemessen, auch die Referenz. Das genügt für grobe

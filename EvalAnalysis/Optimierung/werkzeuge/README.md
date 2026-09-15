@@ -32,5 +32,15 @@ docker exec -w /app src-api-1 python -m eval.compare \
 `eval.compare` nimmt je Profil den **neuesten** Lauf — der Bericht ist nur dann der
 R00-Bericht, wenn keine neueren Läufe unter `eval/out/` liegen.
 
+R01 (Aufruf analog, zusätzlich `/tmp/confidence_r00.py` = `git show 0dedbaa~1:src/backend/app/services/confidence.py`):
+
+```bash
+docker exec -w /app -e PYTHONPATH=/app src-api-1 python /tmp/r01_offline.py       # A: R00-Antworten alt vs. neu
+docker exec -w /app -e PYTHONPATH=/app src-api-1 python /tmp/r01_offline.py r01   # C: R01-Antworten alt vs. neu
+docker exec -w /app -e PYTHONPATH=/app src-api-1 python /tmp/r01_segmente.py      # Segmentvergleich geänderter Antworten
+docker exec -w /app src-api-1 python /tmp/r01_vergleich.py                         # B: live gegen R00, mit Ursache
+docker exec -w /app -e PYTHONPATH=/app src-api-1 python /tmp/r01_kennzahlen.py    # R01-Zeilen für kennzahlen.csv
+```
+
 Die Lauf-IDs sind in `r00_extract.py` und `r00_runs.py` fest eingetragen. Die Rohdaten unter
 `src/backend/eval/out/` sind gitignored und liegen nur auf dem Messrechner.

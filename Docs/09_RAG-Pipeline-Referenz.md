@@ -1,6 +1,7 @@
 # RAG-Pipeline — Referenz: was wann wie berechnet wird
 
-**Stand:** `main` (enthält T-38) plus T-54, 2026-09-02.
+**Stand:** `main` (enthält T-38) plus T-54, 2026-09-02; Satzzerlegung in Stufe 2 (5.6) nach
+T-62/R01, 2026-09-15.
 
 **Gegenstand:** wie aus einer Frage eine Antwort wird (Retrieval, Generierung, Konfidenz) und
 wie ein Dokument überhaupt durchsuchbar wird (Indexierung). Alles andere — Rate-Limits, Auth,
@@ -98,7 +99,7 @@ Wert steht.
 | `WEIGHT_EVIDENCE_DENSITY` | 0.2 | Code · `confidence.py` | – | Stufe-1-Score |
 | `WEIGHT_RETRIEVAL_CONFIDENCE` | 0.5 | Code · `confidence.py` | – | Komposit |
 | `WEIGHT_CITATION_COVERAGE` | 0.5 | Code · `confidence.py` | – | Komposit |
-| `MIN_SEGMENT_WORDS` | 4 | Code · `confidence.py` | – | ab wann ein Segment als Aussage zählt — Nenner jeder Coverage |
+| `MIN_SEGMENT_WORDS` | 4 | Code · `confidence.py` | – | ab wann ein Segment als Aussage zählt — Nenner jeder Coverage; ausgenommen belegte Listenpunkte (5.6) |
 | `SCORE_DIGITS` | 4 | Code · `confidence.py` | – | Rundung aller gespeicherten Scores |
 | `MAX_TSQUERY_TERMS` | 10 | Code · `retrieval.py` | – | Terme der Sparse-Query |
 | `MIN_TSQUERY_TERM_LENGTH` | 2 | Code · `retrieval.py` | – | kürzere Terme fallen aus der tsquery |
@@ -386,14 +387,91 @@ Sentinel, dessen Fehlen als «alles in Ordnung» gälte, wäre wertlos.
 
 Deterministisch, ohne LLM, auf dem generierten Text — `confidence.py::check_citations`.
 
-**Segmentierung.** Zeilenumbruch = harte Grenze. Innerhalb einer Zeile Split an `.!?` +
-Leerraum, mit Reparatur an Abkürzungen (`Art.`, `Abs.`, …) und am Buchstabenpaar (`z. B.`,
-`d. h.`). Ein einzelner Grossbuchstabe vor dem Punkt ist **keine** Abkürzung — «Anhang A.»
-beendet einen Satz. Listenmarker (`- `, `1. `) werden vorher entfernt.
+#### Satzzerlegung — was als «Aussage» zählt
 
-**Zählbar** ist ein Segment ab `MIN_SEGMENT_WORDS` Wörtern, gezählt **nach** dem Entfernen der
-Referenzen. Kürzere Fragmente («Fazit:», Überschriften) zählen weder als belegt noch als
-unbelegt.
+Stufe 2 prüft, ob **jede Aussage** der Antwort einen Beleg `[n]` trägt. Vorher muss sie
+festlegen, was eine Aussage ist: Sie zerlegt den Antworttext in **Segmente**. Die Coverage ist
+danach nur noch Zählen — die Zerlegung entscheidet also darüber, ob eine korrekt belegte
+Antwort als belegt oder als unbelegt gilt. Rein mechanisch, ohne LLM, in
+`confidence.py::_segments` / `_sentences` / `check_citations`.
+
+**Die zwei Fehlerrichtungen.** Wird ein Satz *fälschlich getrennt*, landet sein Beleg in einem
+Rest, und die Aussage zählt als unbelegt — eine korrekte Antwort wird unterdrückt. Werden zwei
+Sätze *fälschlich zusammengeklebt*, trägt der Beleg des zweiten den ersten mit — eine unbelegte
+Aussage gilt als belegt. Die erste Richtung kostet eine Antwort, die zweite unterläuft die
+Pipeline (fail-open). Jede Regel unten ist so eng gefasst, dass sie nur die erste Richtung
+repariert, und mit einem Gegenbeispiel getestet (`tests/test_confidence.py`).
+
+**Ablauf je Antwort:**
+
+1. **Zeilen.** Jeder Zeilenumbruch ist eine harte Grenze — kein Reparaturschritt reicht über
+   eine Zeile hinaus, sonst zöge ein Listenpunkt die Referenz des nächsten an sich.
+   Listenmarker am Zeilenanfang (`- `, `* `, `• `, `– `, `1. `, `2) `) werden entfernt; die
+   Zeile wird als **Listenpunkt** gemerkt.
+2. **Sätze.** Innerhalb einer Zeile wird nach `.`, `!` oder `?` mit folgendem Leerraum getrennt.
+3. **Reparaturen** — ein Trennpunkt wird wieder aufgehoben, wenn davor steht:
+   - eine **Abkürzung** aus der Liste (`Art.`, `Abs.`, `bzw.`, `ca.`, `vgl.`, `Ziff.`, …) oder
+     ein **kleiner Einzelbuchstabe** («z.»);
+   - ein **Buchstabenpaar** («z. B.», «d. h.», «i. S. v.») — nach Leerraum, Klammer oder
+     Anführungszeichen («(z. B. …»). Ein *einzelner Grossbuchstabe* ist keine Abkürzung:
+     «Anhang A.» beendet einen Satz;
+   - eine **Ordinalzahl** (1–2 Ziffern mit Punkt), gefolgt von einem Monat oder «Lebensjahr»,
+     «Altersjahr», «Jahrhundert» — «am 7. März 2010», «ab dem 14. Lebensjahr». Bewusst *keine*
+     allgemeine Zahlenregel: «gemäss Abs. 2. Weitere Pflichten folgen [1].» sind zwei Sätze.
+   - Zusätzlich wird eine Referenz, die **hinter** dem Satzpunkt steht («Aussage. [1]»), dem
+     Satz davor zugerechnet.
+4. **Zählen.** Referenzen werden aus dem Segment entfernt, dann entscheidet:
+
+   | Segment | zählt als |
+   |---|---|
+   | endet mit `:` und trägt keine Referenz («… umfasst folgende Positionen:») | Struktur — übersprungen |
+   | Listenpunkt mit gültiger Referenz, **gleich welcher Länge** («* Anonymisiert [1]») | belegt |
+   | unter `MIN_SEGMENT_WORDS` (4) Wörtern, sonst («Fazit», «NEIN [1].», Überschrift) | Struktur — übersprungen |
+   | sonst, mit gültiger Referenz | belegt |
+   | sonst, ohne gültige Referenz | unbelegt |
+
+   ```python
+   coverage = belegt / (belegt + unbelegt)        # 0.0, wenn nichts zählt
+   ```
+
+**Beispiel.** «Das Mindestalter liegt beim 14. Lebensjahr [4]. Details regelt das HFG.»
+
+| Stand | Segmente | Coverage |
+|---|---|---|
+| vor R01 | «Das Mindestalter liegt beim 14.» (unbelegt) · «Lebensjahr [4].» (unter 4 Wörtern, übersprungen) · «Details regelt das HFG.» (unbelegt) | 0 / 2 = **0,0** |
+| ab R01 | «Das Mindestalter liegt beim 14. Lebensjahr [4].» (belegt) · «Details regelt das HFG.» (unbelegt) | 1 / 2 = **0,5** |
+
+**Beispiel Aufzählung.**
+
+```
+Das Humanforschungsrecht unterscheidet die folgenden drei Grade:
+* Anonymisiert [1]
+* Pseudonymisiert (verschlüsselt) [1]
+* Identifizierend (unverschlüsselt) [1]
+```
+
+Vor R01: die Einleitung zählte als unbelegt, die drei Punkte waren zu kurz → **0,0**, die
+Antwort wurde unterdrückt. Ab R01: Einleitung ist Struktur, drei belegte Punkte → **1,0**.
+
+**Bewusst nicht behandelt:**
+
+- **Lückensatz nach Grounding-Regel 4** («Nicht abgedeckt: …», «Der Kontext nennt keine …»):
+  trägt konstruktionsgemäss keine Referenz und zählt als unbelegt. Ihn auszunehmen hiesse,
+  den Satzinhalt zu klassifizieren; Stufe 2 bliebe dann nicht deterministisch (ADR-008,
+  Nachtrag 2026-08-20).
+- **Fremde Referenzformate** — `【1】`, `[1a]`, `[1.2]`, `[1(3a)]` — werden nicht als Referenz
+  erkannt; die Aussage gilt als unbelegt. Ob tolerant gelesen oder per Prompt erzwungen wird,
+  ist offen.
+- **Sehr kurze Antworten ausserhalb einer Liste** («NEIN [1].») erreichen kein zählbares
+  Segment und damit Coverage 0,0. Sie zuzulassen gäbe ihnen 1,0 — und damit meist das Band
+  «hoch», in dem der Self-Check nicht läuft.
+
+**Wechselwirkung mit Stufe 3.** Eine höhere, korrekt gemessene Coverage hebt die
+Komposit-Konfidenz; mehr Antworten erreichen das Band «hoch» und überspringen den Self-Check.
+Die Bandgrenzen wurden gegen die frühere, zu tiefe Messung eingestellt.
+
+Entscheide und Messung: ADR-008, Nachträge 2026-08-20 und 2026-09-15;
+`EvalAnalysis/Optimierung/R00_Baseline.md` (Befund 5.2) und `R01_Satzzerlegung.md`.
 
 **Referenzen.** `[1]`, mehrfach `[1][2]`; `[1, 2]` toleriert; `[1-3]` **nicht** aufgelöst;
 `[sic]` ignoriert. Gültig ist `1 <= n <= len(context)`, also `1..context_top_n`. Die Ziffernzahl

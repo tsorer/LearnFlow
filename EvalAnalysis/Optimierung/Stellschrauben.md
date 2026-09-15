@@ -15,3 +15,6 @@ entsteht erst mit Evidenz — Vermutungen stehen in den Runden-Dokumenten als Hy
 | Prompt Regel 3 vs. 4 (Verweigern vs. Teilantwort) | `generation.py` | Teilantworten mit benannter Lücke zählen bei Out-of-Corpus-Fragen als Fehler; Stufe 2 bestraft den Lückensatz | ja | R00, 5.2 und 7 (gemma4) |
 | Fehlende Regel für falsche Prämissen | `generation.py` | Modelle verweigern, statt die Annahme mit Beleg zu korrigieren | modellübergreifend | R00, 5.4 |
 | `_is_refusal` (`startswith`) | `generation.py` | Sentinel mitten im Text wird nicht als Verweigerung erkannt | ja (P3 bei qwen3, ministral) | R00, 5.6 |
+| Satzzerlegung, 4 Regeln (Ordinalzahl, Klammer-Abkürzung, Einleitung, belegter Listenpunkt) | `confidence.py` | False-Suppression Dev: gemma4 4 → 2, ministral 13 → 10, gpt-oss −2 (rauschfrei); openai, qwen3 unverändert; keine unbelegte Aussage neu als belegt | ja — wirkt bei Modellen mit Aufzählungen und Datumsangaben | R01 |
+| Coverage ↔ Self-Check-Band | `confidence.py`, `config` (Bänder) | Genauere Coverage hebt die Konfidenz über 0,75; Self-Check läuft seltener (live, Dev, alle Modelle 70 → 53) | nein — Folge der Bandgrenzen | R01 |
+| Reproduzierbarkeit bei Temperatur 0 | Modell / Ollama | Gleiche Eingabe einen Tag später: gpt-oss 48/80 wortgleich, gemma4 80/80 | ja | R01 |

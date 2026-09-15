@@ -155,6 +155,19 @@ Fail-closed bleibt es trotzdem, auf drei anderen Beinen:
 **3. Ein Ausfall bleibt ein Ausfall.** Provider nicht erreichbar, Antwort nicht als die vereinbarte Struktur lesbar, oder keine einzige Frage überlebt die Prüfung: alle drei enden als 503, nicht als leeres Erfolgsergebnis. „Null Fragen erzeugt" wäre die getarnte Variante desselben Fehlers.
 
 **Bekannte Grenze.** Ob eine Frage inhaltlich zu ihrer Passage passt, prüft nichts davon — das kann nur Stefan, und das Eval-Gate aus ADR-009 deckt diesen Pfad nicht ab (es misst Halluzination im Antwortpfad). Sollte sich im Pilot zeigen, dass zu viel Unbrauchbares in seiner Warteschlange landet, ist der nächste Hebel ein Self-Check über Frage und Quellen-Passage — die Stufe wäre wiederverwendbar, weil `run_self_check` bereits mit einem Text und einem Kontext arbeitet.
+
+### Nachtrag 2026-09-15 — Satzzerlegung von Stufe 2 korrigiert (T-62, Runde R01)
+
+Die Messreihe über fünf Modelle (`EvalAnalysis/Optimierung/R00_Baseline.md`, Befund 5.2) zeigte korrekte, korrekt belegte Antworten, die Stufe 2 als unbelegt unterdrückte — nicht wegen des Modells, sondern wegen der Segmentierung aus dem Nachtrag 2026-08-20. Vier Regeln sind präzisiert; die Fehlerrichtung des ADR bleibt, jede Regel ist mit dem Gegenbeispiel getestet, das weiterhin unterdrückt werden muss.
+
+1. **Ordinalzahlen.** „des 14. Lebensjahres [4]" wurde nach „14." getrennt, der Beleg landete in einem Rest unter vier Wörtern. Eine Zahl mit Punkt beendet den Satz jetzt **nicht**, wenn ein Monat oder „Lebensjahr", „Altersjahr", „Jahrhundert" folgt. Bewusst *keine* allgemeine Zahlenregel: „gemäss Abs. 2. Weitere Pflichten folgen [1]." sind zwei Sätze, und sie zusammenzukleben liesse die Referenz des zweiten den ersten mittragen — dieselbe fail-open-Falle wie „Anhang A.". Die Wortliste wächst mit Belegen, nicht auf Vorrat.
+2. **Buchstabenpaar nach Klammer.** „(z. B. Kinder) [4]" trennte nach „B.", weil das Paar nur nach Leerraum erkannt wurde. Es gilt jetzt auch nach Klammer oder Anführungszeichen.
+3. **Einleitung mit Doppelpunkt.** „… umfasst die folgenden Positionen:" kündigt eine Aufzählung an und behauptet selbst nichts, zählte aber in jeder belegten Aufzählung als unbelegtes Segment. Ein Segment, das mit „:" endet und keine Referenz trägt, ist jetzt Struktur (weder belegt noch unbelegt); trägt es eine, zählt es wie bisher.
+4. **Belegter Listenpunkt.** Die Regel „Fragmente unter vier Wörtern sind Struktur" traf auch „* Anonymisiert [1]" — drei belegte Punkte unter einer Einleitung ergaben Coverage 0.0. Ein **Listenpunkt mit gültiger Referenz** zählt jetzt als belegtes Segment, gleich welcher Länge. Unverändert bleiben: kurze Punkte ohne Referenz (weiter Struktur) und kurze Sätze ausserhalb einer Liste — „NEIN [1]." kommt weiter auf 0.0, weil eine solche Antwort sonst Coverage 1.0 erreichte und den Self-Check übersprünge.
+
+**Nicht geändert, bewusst:** der Lückensatz nach Regel 4 (siehe „Bewusst in Kauf genommen" im Nachtrag 2026-08-20 — weiterhin nur über Satzinhalt erkennbar) und fremde Referenzformate wie `【1】` oder `[1a]` (ob tolerant lesen oder per Prompt erzwingen, wird in einer eigenen Runde gemessen).
+
+**Folge für Stufe 3 — zu beobachten.** Korrekt gemessene Coverage ist höher als die bisher zu tief gemessene, damit steigt die Komposit-Konfidenz, und mehr Antworten landen im Band „hoch", wo der Self-Check nicht mehr läuft. Offline nachgerechnet auf den gespeicherten Antworten (Entwicklungs-Set, fünf Modelle): Self-Check-Läufe 70 → 56, Antworten im Band „hoch" 92 → 116. Die Grenzbänder (Nachtrag 2026-08-22) waren implizit gegen die fehlerhafte Messung eingestellt. Ob das die Fehlerquote erhöht, zeigt der Live-Lauf von R01; die Bänder selbst werden in dieser Runde nicht verschoben.
 ---
 
 ## Konsequenzen

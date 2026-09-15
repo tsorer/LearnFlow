@@ -21,6 +21,17 @@ RUNS = {  # R00
     "gpt-oss-local": ("2026-09-14T18-12-16Z", "2026-09-14T18-00-05Z"),
     "ministral3-local": ("2026-09-14T18-45-03Z", "2026-09-14T18-15-48Z"),
 }
+# Aufruf mit Argument «r01»: statt der R00-Läufe die R01-Live-Läufe nachrechnen (neueste
+# vollständige Läufe ab Start der R01-Kette). Isoliert die Wirkung der neuen Satzzerlegung auf
+# genau die Antworttexte, die im R01-Lauf entstanden sind.
+if "r01" in sys.argv:
+    import glob, os
+    def _newest(pattern):
+        c = [d for d in sorted(glob.glob(pattern)) if os.path.basename(d) >= "2026-09-15T12-13" and os.path.exists(d + "/details.json")]
+        return os.path.basename(c[-1]) if c else None
+    RUNS = {p: (_newest(f"eval/out/{p}/2*"), _newest(f"eval/out/{p}/in-corpus/2*")) for p in RUNS}
+    RUNS = {p: r for p, r in RUNS.items() if all(r)}
+
 MIN_COV, MEDIUM, HIGH, SC_LOW, SC_HIGH = 0.5, 0.45, 0.75, 0.45, 0.75
 HOLDOUT = set(json.load(open("/tmp/holdout.json")))
 
@@ -74,8 +85,11 @@ for prof, (ooc, ic) in RUNS.items():
         st = {s["id"]: s for s in e["response"]["debug"]["stages"]}
         if st.get("self_check", {}).get("ran"):
             sc[e["response"]["debug"]["llm_calls"][0]["response"].strip()] = st["self_check"]["value"]
-    # Kontrolle: alte Zerlegung muss die gespeicherten Entscheide reproduzieren
-    mismatch = [e["id"] for e in entries if decide(old, e, sc)[0] != e["response"].get("suppression_reason")]
+    # Kontrolle: der Code-Stand des Laufs muss die gespeicherten Entscheide reproduzieren —
+    # R00-Läufe mit der alten, R01-Läufe mit der neuen Zerlegung.
+    ref = new if "r01" in sys.argv else old
+    if ref is new: set_rules(set(RULES))
+    mismatch = [e["id"] for e in entries if decide(ref, e, sc)[0] != e["response"].get("suppression_reason")]
     for label, active in variants.items():
         mod = old if active is None else new
         if active is not None: set_rules(active)
@@ -92,7 +106,7 @@ for prof, (ooc, ic) in RUNS.items():
         ro, co = decide(old, e, sc); rn, cn = decide(new, e, sc)
         if (ro, co) != (rn, cn):
             changes.append((prof, e["id"], e["category"], ro, co, rn, cn))
-    print(f"{prof:17} Kontrolle R00 reproduziert: {'ja' if not mismatch else 'NEIN ' + str(mismatch)}")
+    print(f"{prof:17} Kontrolle Lauf reproduziert: {'ja' if not mismatch else 'NEIN ' + str(mismatch)}")
 
 print("\nProfil | Variante | OOC verweigert | False-Suppression (in_corpus) | davon Self-Check offen")
 for prof, rows in report.items():
