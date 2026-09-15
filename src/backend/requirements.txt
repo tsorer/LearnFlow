@@ -9,12 +9,16 @@ pgvector>=0.3.0
 
 # Auth
 python-jose[cryptography]>=3.3.0
-passlib[bcrypt]>=1.7.4
+# Direkt, nicht mehr transitiv ueber passlib[bcrypt] (T-63): app/auth/jwt.py
+# importiert `bcrypt` selbst, passlib wurde nirgends benutzt. Ohne diese Zeile
+# haette das Entfernen von passlib die Anmeldung mitgenommen.
+bcrypt>=4.1.0
 python-multipart>=0.0.9
 
 # LLM / Embeddings
+# Kein direktes `openai` (T-63): alle Aufrufe laufen ueber LiteLLM (ADR-004),
+# das seinen Provider-SDK-Bedarf selbst mitbringt.
 litellm>=1.40.0
-openai>=1.40.0
 
 # Background worker
 pgqueuer>=0.14.0,<1.0.0
@@ -33,9 +37,3 @@ slowapi>=0.1.9
 # Config
 pydantic-settings>=2.3.0
 python-dotenv>=1.0.0
-
-# Debugging
-debugpy>=1.8.0
-
-# Testing
-openapi-spec-validator>=0.7.0

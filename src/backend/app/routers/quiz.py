@@ -29,9 +29,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user, require_knowledge_owner
 from app.database import get_db
+from app.domain import PILOT_AREA
 from app.limiter import account_key, limiter
 from app.models.tables import QuizQuestion, QuizQuestionStatus, User, UserRole
-from app.routers.documents import PILOT_AREA
 from app.services.quiz import CONTEXT_CHUNK_COUNT, GeneratedQuestion, generate_quiz
 from app.services.retrieval import sample_chunks
 

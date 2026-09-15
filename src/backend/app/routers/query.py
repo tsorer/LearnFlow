@@ -25,9 +25,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
 from app.database import get_db
+from app.domain import PILOT_AREA
 from app.limiter import account_key, limiter
 from app.models.tables import Answer, QuerySession, User
-from app.routers.documents import PILOT_AREA
 from app.services.confidence import (
     BAND_LOW,
     SCORE_DIGITS,

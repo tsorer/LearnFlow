@@ -1,0 +1,40 @@
+# Was nicht ins Image gehoert (T-63).
+#
+# Der Dockerfile endet mit `COPY . .`, und ohne diese Datei landete der gesamte
+# Backend-Ordner in *beiden* Images -- auch im worker-Image, das mit
+# INSTALL_DEV=false gebaut wird und die Testabhaengigkeiten bewusst nicht hat.
+#
+# Im Entwicklungs- und im e2e-Stack faellt das nicht auf: docker-compose.yml
+# mountet `./backend:/app`, und `docker-compose.e2e.yml` setzt diesen Mount
+# nicht zurueck -- `make e2e` und `make eval` lesen ihre Tests also weiterhin
+# vom Host, nicht aus dem Image. Gemeint ist der Fall ohne Mount, also die
+# ausgelieferte Verteilung.
+#
+# Was hier NICHT stehen darf, weil es zur Laufzeit gebraucht wird:
+#   alembic/ und alembic.ini      -- `alembic upgrade head` im Startbefehl der api
+#   seed_users.py, seed_corpus.py -- per `docker exec` (Makefile)
+#   apply_embedding_config.py     -- Operator-Skript fuer den Dimensionswechsel (T-42)
+#   openapi.yaml                  -- Vertrag (ADR-010), von tests/test_rbac.py gelesen
+
+# Python-Artefakte
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Werkzeug-Caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Tests und Messlaeufe -- laufen im Container ueber den Bind-Mount, nie aus dem Image
+tests/
+e2e/
+perf/
+eval/
+
+# Niemals ins Image: `app/config.py` liest `.env` relativ zum Arbeitsverzeichnis,
+# eine versehentlich mitkopierte Datei wuerde also die Compose-Umgebung ueberstimmen.
+.env
+.env.*

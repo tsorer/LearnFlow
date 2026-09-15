@@ -1,4 +1,4 @@
-"""Tests for the JWT_SECRET startup validator (app/config.py)."""
+"""Tests for the JWT_SECRET startup validator and the CORS origins (app/config.py)."""
 
 import pytest
 from pydantic import ValidationError
@@ -50,3 +50,47 @@ def test_bcrypt_rounds_above_cap_rejected() -> None:
     """15+ costs seconds per hash — the cap keeps the login path responsive."""
     with pytest.raises(ValidationError, match="bcrypt_rounds"):
         _settings(bcrypt_rounds="15")
+
+
+# ---- CORS-Origins (T-63) ----------------------------------------------------
+#
+# Vorher stand `allow_origins=["*"]` fest im Code. Was hier geprueft wird, ist die
+# Uebersetzung der einen ENV-Zeile in die Liste, die `app/main.py` der Middleware
+# gibt -- und vor allem der Default, der die Middleware gar nicht erst registriert.
+
+
+def test_no_origins_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Der ausgelieferte Fall: nginx liefert SPA und API unter derselben Origin
+    aus, ein Cross-Origin-Zugriff kommt nicht vor.
+
+    `delenv` ist hier nicht Deko: `_settings()` reicht nur die drei Pflichtfelder
+    durch, alle uebrigen fuellt pydantic-settings weiterhin aus der Umgebung.
+    docker-compose.yml gibt der api ihr `env_file: .env` als echte
+    Umgebungsvariablen mit -- ein Entwickler, der `CORS_ALLOW_ORIGINS` dort
+    setzt (die .env.example nennt die Zeile), haette diesen Test rot gemacht,
+    ohne dass am Code etwas falsch waere. Die Faelle darunter sind davon nicht
+    betroffen: ein explizites Argument schlaegt die Umgebung.
+    """
+    monkeypatch.delenv("CORS_ALLOW_ORIGINS", raising=False)
+
+    assert _settings().cors_origins == []
+
+
+def test_single_origin() -> None:
+    assert _settings(cors_allow_origins="http://localhost:5173").cors_origins == [
+        "http://localhost:5173"
+    ]
+
+
+def test_several_origins_are_split_and_trimmed() -> None:
+    settings = _settings(cors_allow_origins="http://a.invalid, https://b.invalid")
+
+    assert settings.cors_origins == ["http://a.invalid", "https://b.invalid"]
+
+
+def test_stray_separators_do_not_become_an_empty_origin() -> None:
+    """Ein Trennzeichen zu viel darf keine Origin "" erzeugen -- die wuerde die
+    Middleware als zu vergleichenden Wert fuehren, ohne je zu passen."""
+    assert _settings(cors_allow_origins="http://a.invalid,,  ,").cors_origins == [
+        "http://a.invalid"
+    ]

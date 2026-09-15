@@ -13,6 +13,7 @@ from pgqueuer.models import Job
 
 from app.config import settings
 from app.exceptions import EmbeddingConfigError, UserFacingError
+from app.logging_config import configure_logging
 from app.models.tables import DocumentStatus
 from app.services.chunking import (
     DEFAULT_CHUNK_OVERLAP,
@@ -29,7 +30,10 @@ from app.services.embedding_config import (
 )
 from app.services.parsing import parse_document
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+# Seit T-63 dieselbe Konfiguration wie die API (app/logging_config.py), damit
+# beide Container im gemischten `docker compose logs` gleich aussehen. Neu
+# dabei: LOG_LEVEL wirkt jetzt auch hier, vorher stand INFO fest.
+configure_logging(settings.log_level)
 log = logging.getLogger(__name__)
 
 # The heading is indexed alongside the content: DOCX and Markdown headings are

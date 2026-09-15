@@ -19,6 +19,7 @@ from sqlalchemy.orm import defer
 
 from app.auth.dependencies import get_current_user, require_knowledge_owner
 from app.database import get_db
+from app.domain import PILOT_AREA
 from app.models.tables import (
     Chunk,
     Document,
@@ -30,10 +31,6 @@ from app.models.tables import (
 from app.queue import enqueue_document
 
 router = APIRouter(prefix="/documents", tags=["documents"])
-
-# MVP: genau ein hartcodierter Pilot-Bereich (Requirements §3) — User hat noch kein
-# eigenes area-Feld. Sobald Bereiche pro User existieren, ersetzt user.area dies hier.
-PILOT_AREA = "default"
 
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # ADR-003: hartes 10-MB-Limit
 
