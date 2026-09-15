@@ -39,7 +39,16 @@ docker exec -w /app -e PYTHONPATH=/app src-api-1 python /tmp/r01_offline.py     
 docker exec -w /app -e PYTHONPATH=/app src-api-1 python /tmp/r01_offline.py r01   # C: R01-Antworten alt vs. neu
 docker exec -w /app -e PYTHONPATH=/app src-api-1 python /tmp/r01_segmente.py      # Segmentvergleich geänderter Antworten
 docker exec -w /app src-api-1 python /tmp/r01_vergleich.py                         # B: live gegen R00, mit Ursache
-docker exec -w /app -e PYTHONPATH=/app src-api-1 python /tmp/r01_kennzahlen.py    # R01-Zeilen für kennzahlen.csv
+docker exec -w /app -e PYTHONPATH=/app src-api-1 python /tmp/kennzahlen_runde.py R01 2026-09-15T12-13 2026-09-15T17  # Zeilen für kennzahlen.csv
+```
+
+R02 (Zeitfenster statt fester Lauf-IDs):
+
+```bash
+docker exec -w /app -e PYTHONPATH=/app src-api-1 python /tmp/r02_format.py R02a 2026-09-15T19-19        # Belegformat der Antworten
+docker exec -w /app -e PYTHONPATH=/app src-api-1 python /tmp/r02b_offline.py R02a 2026-09-15T19-19      # tolerantes Lesen offline
+docker exec -w /app -e PYTHONPATH=/app src-api-1 python /tmp/vergleich.py 2026-09-15T12-13 2026-09-15T17 2026-09-15T19-19 9999  # R01 → R02a je Frage
+docker exec -w /app -e PYTHONPATH=/app src-api-1 python /tmp/kennzahlen_runde.py R02a 2026-09-15T19-19   # Zeilen für kennzahlen.csv
 ```
 
 Die Lauf-IDs sind in `r00_extract.py` und `r00_runs.py` fest eingetragen. Die Rohdaten unter

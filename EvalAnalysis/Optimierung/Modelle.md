@@ -45,6 +45,8 @@ Kein lokales Modell passt mit 16K-Kontext vollständig in die 8 GB VRAM der Test
   reproduzierbar trotz Temperatur 0.
 - **R01:** Keine Wirkung der neuen Satzzerlegung auf Unterdrückungen; 15 von 80 Antworten anders
   als in R00 (Rauschen). Self-Check läuft seltener (Dev 20 → 15).
+- **R02a:** Präziserer Prompt senkt unbelegte Aussagen 41 % → 28 % und False-Suppression Dev 10 → 8;
+  in fast jeder zweiten Antwort bleibt aber irgendwo ein Sammelbeleg.
 
 ### `qwen3-local` — qwen3:8b
 
@@ -54,6 +56,8 @@ Kein lokales Modell passt mit 16K-Kontext vollständig in die 8 GB VRAM der Test
   Self-Check gefangen.
 - **R01:** Unverändert (False-Suppression 1/33); drei Antworten überspringen den Self-Check jetzt,
   weil ihre Coverage korrekt auf 1,0 steigt. 72 von 80 Antworten wortgleich zu R00.
+- **R02a:** Belegt jetzt fast alles (7 % unbelegt) — auch falsche Antworten: DSGVO-Frage mit AI-Act-Kriterien
+  beantwortet und ausgeliefert. Out-of-Corpus-Refusal 68 % → 59 %.
 
 ### `gemma4-local` — gemma4:26b
 
@@ -76,6 +80,8 @@ Kein lokales Modell passt mit 16K-Kontext vollständig in die 8 GB VRAM der Test
 - **R01:** Nur 48 von 80 Antworten wortgleich zu R00 — über Tage **nicht** reproduzierbar. Reine
   R01-Wirkung −2. Einmal inhaltlich falsche Antwort ausgeliefert (`AIA-ANFORDERUNGEN-02`, Self-Check
   `GEDECKT`), einmal erfundene Referenz `[13]` korrekt gestoppt.
+- **R02a:** Grösster Gewinner des Prompts: fremde Formate 5 % → 0 %, unbelegte Aussagen 56 % → 41 %,
+  False-Suppression Dev 14 → 8.
 
 ### `ministral3-local` — ministral-3:14b
 
@@ -87,3 +93,5 @@ Kein lokales Modell passt mit 16K-Kontext vollständig in die 8 GB VRAM der Test
 - **R01:** Grösster Gewinner (False-Suppression Dev 13 → 10). Self-Check lehnte drei Antworten ab,
   die dank R01 Stufe 2 neu passierten — darunter eine inhaltlich falsche und eine
   Out-of-Corpus-Frage; 100 % Refusal bleiben.
+- **R02a:** Unterverweise `[1a]` fast verschwunden (24 % → 3 %), unbelegte Aussagen 36 % → 21 %. Neue
+  Fehlerform: zitiert Erwägungsgrund-Nummern des AI Act (`[13]`, `[65]`) statt der Abschnittsnummer.
