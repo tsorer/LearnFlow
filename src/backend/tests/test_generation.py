@@ -130,6 +130,17 @@ def test_the_citation_rule_asks_for_one_plain_reference_per_statement() -> None:
     assert "ohne Buchstaben, Unterpunkte oder andere Klammern" in system
 
 
+def test_a_refuted_premise_is_corrected_but_an_unsettled_one_is_refused() -> None:
+    """R03 (EvalAnalysis/Optimierung): models answered WEISS_NICHT to «the Belmont report
+    names five principles — which?» although the context says three. The exception must
+    stay narrow — a premise the context neither confirms nor refutes is still a refusal."""
+    system, _ = build_prompt(QUESTION, [make_hit()])
+
+    assert "ausdrücklich widerlegt" in system
+    assert "stelle die Annahme mit" in system
+    assert "widerlegt er sie auch\n   nicht, bleibt es bei WEISS_NICHT" in system
+
+
 # --- generation ------------------------------------------------------------
 
 
