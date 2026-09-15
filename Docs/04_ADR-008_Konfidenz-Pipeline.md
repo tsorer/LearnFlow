@@ -3,7 +3,7 @@
 | Feld          | Inhalt                                |
 | ------------- | ------------------------------------- |
 | **Status**    | Accepted                              |
-| **Datum**     | 2026-05-31 · aktualisiert 2026-06-03, 2026-08-16, 2026-08-20, 2026-08-22 |
+| **Datum**     | 2026-05-31 · aktualisiert 2026-06-03, 2026-08-16, 2026-08-20, 2026-08-22, 2026-08-26, 2026-09-15 |
 | **Verfasser** | LearnFlow-Team (Frank, Niklaus, Reto, Christoph) |
 
 ---
@@ -126,7 +126,7 @@ Mit diesem Nachtrag sind alle Stufen umgesetzt. Drei Punkte, die das ADR offenge
 
 **2. Der Self-Check liefert ein Urteil, keine Zahl.** US-02 formuliert Stufe 3 als Prozentsatz („< 80 % → Eingeschränkt belegt, < 50 % → unterdrückt"). Das steht gegen die Abwägung weiter unten in diesem ADR, die die LLM-Selbsteinschätzung als *Mass* verwirft: Ein Modell, das seine eigene Belegquote auf 78 % beziffert, hat diese Zahl nicht gemessen, sondern erzeugt — und ein Gate darauf zu bauen heisst, genau der Instanz zu vertrauen, die Stufe 3 kontrollieren soll. Stufe 3 antwortet deshalb mit `GEDECKT` oder `NICHT_GEDECKT` plus den ungedeckten Aussagen im Klartext, also mit einer Behauptung, die ein Mensch nachprüfen kann. Alles, was nicht als eines der beiden Sentinels lesbar ist — leere Antwort, Prosa, eine selbst erfundene Schreibweise — gilt als **nicht** bestanden: eine Prüfung, die sich nicht auswerten lässt, hat nicht stattgefunden.
 
-Die Bänder aus US-02 bleiben erhalten, kommen aber vom Komposit-Score über `confidence_threshold_high` / `_medium` — dort sind es kalibrierbare Zahlen statt Selbstauskünfte. Die Startwerte sind **0.75** und **0.45**, nicht die 80 % / 50 % aus dem ursprünglichen US-02-Text: jene bezogen sich auf eine LLM-Selbsteinschätzung und lassen sich nicht 1:1 auf ein anders gebildetes Mass übertragen. Beide sind Hypothesen bis zur Kalibrierung (offener Punkt 1). Die Akzeptanzkriterien in `Docs/02_Requirements.md` sind entsprechend umformuliert.
+Die Bänder aus US-02 bleiben erhalten, kommen aber vom Komposit-Score über `confidence_threshold_high` / `_medium` — dort sind es kalibrierbare Zahlen statt Selbstauskünfte. Die Startwerte sind **0.75** und **0.45**, nicht die 80 % / 50 % aus dem ursprünglichen US-02-Text: jene bezogen sich auf eine LLM-Selbsteinschätzung und lassen sich nicht 1:1 auf ein anders gebildetes Mass übertragen. Beide waren Hypothesen bis zur Kalibrierung (offener Punkt 1); der erste Kalibrierungslauf (T-57, Nachtrag 2026-09-15) bestätigt sie noch nicht — die Startwerte bleiben deshalb weiterhin in Kraft. Die Akzeptanzkriterien in `Docs/02_Requirements.md` sind entsprechend umformuliert.
 
 **3. Grenzband statt Grenzfall-Gefühl.** „Nahe der Schwelle" ist jetzt zwei `config`-Werte: `self_check_band_low` (0.45) und `self_check_band_high` (0.75). Halboffen — `low <= score < high` —, weil ein Score genau auf `high` bereits „klar hohe Konfidenz" ist und den zweiten Aufruf sparen soll. `low == high` ist damit ein leeres Band, also Stufe 3 bewusst abgeschaltet, so wie ein `similarity_threshold` von 0 Stufe 0 abschaltet. `low > high` wäre dasselbe *unbemerkt* und wird deshalb wie die Bandordnung aus dem Nachtrag 2026-08-16 in der Datenbank abgelehnt (Migration `0014`, aufgeschobener `CONSTRAINT TRIGGER`).
 
@@ -155,6 +155,17 @@ Fail-closed bleibt es trotzdem, auf drei anderen Beinen:
 **3. Ein Ausfall bleibt ein Ausfall.** Provider nicht erreichbar, Antwort nicht als die vereinbarte Struktur lesbar, oder keine einzige Frage überlebt die Prüfung: alle drei enden als 503, nicht als leeres Erfolgsergebnis. „Null Fragen erzeugt" wäre die getarnte Variante desselben Fehlers.
 
 **Bekannte Grenze.** Ob eine Frage inhaltlich zu ihrer Passage passt, prüft nichts davon — das kann nur Stefan, und das Eval-Gate aus ADR-009 deckt diesen Pfad nicht ab (es misst Halluzination im Antwortpfad). Sollte sich im Pilot zeigen, dass zu viel Unbrauchbares in seiner Warteschlange landet, ist der nächste Hebel ein Self-Check über Frage und Quellen-Passage — die Stufe wäre wiederverwendbar, weil `run_self_check` bereits mit einem Text und einem Kontext arbeitet.
+
+### Nachtrag 2026-09-15 — Kalibrierungs-Loop gebaut, erster Lauf bestätigt kein Accepted-Set (T-57, #125)
+
+Der in ADR-009 vorgesehene Kalibrierungs-Loop ist jetzt gebaut (`eval/calibrate.py`, `make calibrate`) und einmal ausgeführt worden. Vollständiger Bericht: `Docs/10_Kalibrierungsbericht.md`.
+
+Das Gitter fand auf dem Train-Split ein Set, das beide Reliability-Constraints erfüllte (Halluzination = 0 %, Out-of-Corpus-Refusal ≥ 90 %) — die Holdout-Bestätigung (unabhängige, vorher festgeschriebene Fragen) hält das Refusal-Gate aber nicht: 85,7 % statt ≥ 90 %, bei einer Auflösung von 14,3 Prozentpunkten pro Frage auf den 7 Out-of-Corpus-Holdout-Fragen. Eine einzelne Frage entscheidet hier. Zusätzlich läge die gefundene False-Suppression-Rate (26,7 % auf dem Holdout) über dem bestehenden CI-Gate von 15 % (`FALSE_SUPPRESSION_RATE_GATE`, `eval/test_in_corpus_quality.py`, T-56) — ein zweiter, vom Refusal-Gate unabhängiger Befund. Das ist bei dieser Stichprobengrösse ein erwartbares Ergebnis eines einzelnen Laufs, kein Beleg, dass die gefundenen Werte falsch wären — aber auch keine Bestätigung, auf der sich „Accepted" fixieren liesse.
+
+**Konsequenz für `confidence_threshold_medium`/`self_check_band_low`/`self_check_band_high`:** bleiben Hypothesen, Startwerte unverändert (0.45/0.45/0.75). Die Werte, die der Lauf gefunden hat (0.3/0.3/0.6), stehen im Bericht als Kandidat, nicht als Ersatz — ADR-008 ist fail-closed, ein nicht bestätigtes Ergebnis ersetzt keinen laufenden Wert. `confidence_threshold_high` bleibt zusätzlich aus einem zweiten Grund unverändert: der Sweep optimiert ihn gar nicht (er unterdrückt nichts, siehe oben), sondern setzt ihn nach Urteil gleich dem gewinnenden `self_check_band_high` — auch das nur für den nicht bestätigten Kandidaten.
+
+Nächster Schritt, nicht Teil von T-57: ein zweiter, unabhängiger Lauf zur Bestätigung, oder ein grösseres Gold-Dataset für eine feinere Holdout-Auflösung.
+
 ---
 
 ## Konsequenzen
@@ -173,7 +184,7 @@ Fail-closed bleibt es trotzdem, auf drei anderen Beinen:
 - **−** Höhere Latenz für Grenzfälle (Stufe 3 = zweiter LLM-Aufruf). Da kein Streaming mehr, wartet Lara auf die vollständige Antwort — Stufe 3 addiert direkt zur wahrgenommenen Wartezeit. Mitigation: nur nahe der Schwelle ausgelöst; bei klar hoher/niedriger Konfidenz übersprungen. Im Rahmen der Performance-NFA (≤ 10 s p95) zu validieren.
 - **−** Fail-closed senkt den Recall: korrekte, aber knapp belegte Antworten werden evtl. fälschlich unterdrückt. Bewusst akzeptiert; über `config`-Schwellen justierbar.
 - **−** Citation-Coverage misst *Beleg-Form*, nicht *inhaltliche Korrektheit* — ein LLM könnte korrekt zitieren und trotzdem falsch schlussfolgern. Mitigation: Stufe 3 (Self-Check) fängt einen Teil davon; Restrisiko über Eval messen.
-- **−** Alle Startwerte (Coverage 50 %, Gewichte, Band-Grenzen) sind **Hypothesen** und ohne Kalibrierung gegen ein Eval-Dataset nicht NFA-garantierend. Abhängigkeit zur (noch offenen) Eval-Strategie.
+- **−** Alle Startwerte (Coverage 50 %, Gewichte, Band-Grenzen) sind **Hypothesen** und ohne Kalibrierung gegen ein Eval-Dataset nicht NFA-garantierend. Der Kalibrierungs-Loop (ADR-009) ist seit T-57 gebaut und einmal gelaufen (Nachtrag 2026-09-15) — der erste Lauf bestätigt noch keinen anderen Wert als „Accepted", die Hypothese steht also nach wie vor.
 - **−** Mehrere Stufen = mehr Code/Test-Oberfläche als ein simpler Schwellenwert. Mitigation: jede Stufe ist isoliert testbar (Testability-NFA, vgl. C4).
 
 ---

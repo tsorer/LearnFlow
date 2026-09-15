@@ -3,7 +3,7 @@
 | Feld          | Inhalt                                           |
 | ------------- | ------------------------------------------------ |
 | **Status**    | Proposed                                         |
-| **Datum**     | 2026-05-31                                       |
+| **Datum**     | 2026-05-31 · aktualisiert 2026-09-15             |
 | **Verfasser** | LearnFlow-Team (Frank, Niklaus, Reto, Christoph) |
 
 ---
@@ -149,7 +149,7 @@ Ein Cross-Encoder-Re-Ranker ist der stärkste zusätzliche Präzisionshebel, wü
 ### Negative Konsequenzen
 
 - **−** Hybrid-Retrieval ist komplexer als Dense-only: zweiter Index (GIN auf `tsvector`), Fusion-Logik, mehr Tuning-Parameter. Mitigation: RRF ist parameterarm (nur `k`); Sparse-Suche ist PostgreSQL-nativ.
-- **−** Die Startwerte (512/64 Token, Cosine ≥ 0,35, k=20/n=5, RRF k=60) sind **Hypothesen**, keine validierten Werte — sie müssen im Spike gegen ein Eval-Dataset kalibriert werden. Ohne diese Kalibrierung ist die Reliability-NFA nicht garantiert.
+- **−** Die Startwerte (512/64 Token, Cosine ≥ 0,35, k=20/n=5, RRF k=60) sind **Hypothesen**, keine validierten Werte — sie müssen im Spike gegen ein Eval-Dataset kalibriert werden. Ohne diese Kalibrierung ist die Reliability-NFA nicht garantiert. Der Kalibrierungs-Loop ist seit T-57 gebaut und einmal gelaufen; der erste Lauf bestätigt noch keine anderen Werte als „Accepted" (Nachtrag 2026-09-15).
 - **−** Jeder Chunking-Parameter-Wechsel erzwingt vollständige Re-Indexierung (ADR-003/005). Mitigation: Parameter früh im Spike fixieren.
 - **−** Kein Re-Ranking im MVP → bei sehr ähnlichen Chunks evtl. suboptimale Reihenfolge im Kontext. Akzeptiert für den Pilot; nachrüstbar (Punkt 5).
 - **−** Ein zu hoher Schwellenwert erhöht fälschliche „Weiss ich nicht"-Antworten (Recall sinkt), ein zu tiefer lässt Halluzinationen durch (Precision sinkt) — der Trade-off muss messbasiert eingestellt werden (Abhängigkeit zur Eval-Strategie).
@@ -171,9 +171,15 @@ Ein Cross-Encoder-Re-Ranker ist der stärkste zusätzliche Präzisionshebel, wü
 
 ## Offene Punkte / nächste Schritte
 
-1. **Spike-Eval (Woche 1):** Eval-Dataset mit In-Corpus- und Out-of-Corpus-Fragen aufbauen; Chunking-Parameter, Schwellenwert und Top-k/n gegen die Reliability-NFA kalibrieren. (Abhängigkeit zur noch fehlenden Eval-Strategie.)
+1. **Spike-Eval (Woche 1):** Eval-Dataset mit In-Corpus- und Out-of-Corpus-Fragen aufbauen; Chunking-Parameter, Schwellenwert und Top-k/n gegen die Reliability-NFA kalibrieren. (Abhängigkeit zur noch fehlenden Eval-Strategie.) **Erledigt seit T-56/T-57** — Dataset und Kalibrierungs-Loop existieren, siehe Nachtrag unten.
 2. **ADR-008 (Konfidenz- & Unterdrückungspipeline):** Konfidenz-Berechnung und Self-Check als eigene Entscheidung — baut auf dem hier definierten Gate auf.
-3. Parameter nach dem Spike als „Accepted" fixieren, *bevor* der Produktiv-Korpus indexiert wird.
+3. Parameter nach dem Spike als „Accepted" fixieren, *bevor* der Produktiv-Korpus indexiert wird. **Noch offen** — der erste Kalibrierungslauf (T-57) bestätigt die Startwerte nicht als besser, siehe Nachtrag unten; ein zweiter Lauf oder ein grösseres Dataset ist Voraussetzung, bevor hier etwas fixiert wird.
+
+### Nachtrag 2026-09-15 — Kalibrierungs-Loop gebaut, erster Lauf bestätigt kein Accepted-Set (T-57, #125)
+
+Der Kalibrierungs-Loop aus ADR-009 ist gebaut (`eval/calibrate.py`, `make calibrate`) und einmal gelaufen; vollständiger Bericht: `Docs/10_Kalibrierungsbericht.md`. Für die hier relevanten Ranking-Parameter (`retrieval_top_k`, `rrf_k`, `context_top_n`) wählte die k-fold-Cross-Validation (Auswahl nach F1 aus Recall und Precision, nicht nach Recall allein — Recall wächst mit `context_top_n` nicht-fallend und würde sonst strukturell den grössten Gitterwert bevorzugen) auf dem Train-Split `retrieval_top_k=20, rrf_k=20, context_top_n=3` — beim Top-k nah am Startwert (20), beim RRF-`k` und vor allem beim Kontextumfang (3 statt 5) darunter.
+
+Das ist nicht per se falsch, aber auch nicht bestätigt: dieselbe Parameterwahl trägt die Vor-Generierungs-Gates (`similarity_threshold`, `min_retrieval_confidence`), deren Holdout-Bestätigung das Out-of-Corpus-Refusal-Gate knapp verfehlt (85,7 % statt ≥ 90 %, Details in ADR-008 Nachtrag 2026-09-15 und im Bericht). Weil A1 und A2 im selben Lauf zusammen ausgewählt wurden, ist unklar, ob das Ranking-Set selbst trägt oder nur im Zusammenspiel mit den (nicht bestätigten) Schwellen aus diesem einen Lauf funktioniert. Die Startwerte bleiben deshalb vorerst in Kraft; ein zweiter Lauf oder ein grösseres Gold-Dataset ist die Voraussetzung für „Accepted" (offener Punkt 3).
 
 ---
 

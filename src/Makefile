@@ -1,4 +1,4 @@
-.PHONY: up down seed seed-corpus logs check qa qa-be qa-fe generate-api lint-be typecheck-be test-be e2e e2e-logs e2e-down eval perf
+.PHONY: up down seed seed-corpus logs check qa qa-be qa-fe generate-api lint-be typecheck-be test-be e2e e2e-logs e2e-down eval calibrate perf
 
 # --- infra ---
 up:
@@ -167,6 +167,21 @@ eval:
 		-e EVAL_PROFILE="$(EVAL_PROFILE)" \
 		-e EVAL_GIT_SHA="$$(git rev-parse --short HEAD 2>/dev/null)" \
 		src-api-1 pytest eval -s
+
+# --- calibration sweep (T-57, #125, requires: make up && make seed && make seed-corpus) ---
+# Kein pytest-Gate (eval/calibrate.py, "Test oder Werkzeug" im Issue) -- ein Sweep hat
+# kein Pass/Fail. Läuft nicht über HTTP: der Sweep importiert app.services.retrieval /
+# app.services.confidence direkt, im selben Container, ohne Rate-Limit.
+#
+# Docs/ ist nicht in den api-Container gemountet (docker-compose.yml mountet nur
+# ./backend:/app und ../LearningCorpus:/LearningCorpus:ro), also schreibt eval/calibrate.py
+# den Bericht nach backend/eval/out/calibrate/latest-report.md (Bind-Mount, landet direkt
+# auf dem Host) -- dieses Target kopiert ihn von dort host-seitig nach Docs/.
+#   make calibrate
+#   make calibrate ARGS="--reuse-snapshot eval/out/calibrate/2026-09-15T10-00-00Z/snapshot.json"
+calibrate:
+	-docker exec src-api-1 python -m eval.calibrate $(ARGS)
+	cp backend/eval/out/calibrate/latest-report.md ../Docs/10_Kalibrierungsbericht.md
 
 # --- query latency (T-22, #29, requires: make up && make seed && make seed-corpus) ---
 # Same execution path as eval: inside the api container, through nginx. Needs a real

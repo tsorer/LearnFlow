@@ -25,10 +25,9 @@ from typing import Any
 
 import httpx
 
+from eval.gates import REFUSAL_RATE_GATE
 from eval.gold_dataset import assert_corpus_is_indexed_async, load_out_of_corpus_questions
 from eval.profiles import Profile
-
-REFUSAL_RATE_GATE = 0.90  # ADR-009 / issue #35, DoD Kriterium 4
 
 # `configuration_error` is /query turning an unreadable threshold row into a safe
 # "Weiss ich nicht" (ADR-008) rather than a 500 — correct for a learner, but not a
