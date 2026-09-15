@@ -141,14 +141,20 @@ export default function QuizReview({ user, onLogout }: Props) {
     <Layout
       user={user}
       onLogout={onLogout}
-      navItems={<button className="nav-item" onClick={() => navigate("/")}>Zurück zum Chat</button>}
+      // "Fragen generieren" was the first focusable element in the old top
+      // bar, before "Zurück zum Chat" — kept first here too, in the same
+      // fragment as the nav item, so the tab order survives the
+      // horizontal→vertical move (#127 review).
+      navItems={<>
+        <button className="sidebar-cta" onClick={generate} disabled={generating}>
+          {generating ? "Generiere…" : "Fragen generieren"}
+        </button>
+        <button className="nav-item" onClick={() => navigate("/")}>Zurück zum Chat</button>
+      </>}
     >
       <div style={{ flex: 1, overflowY: "auto", padding: "var(--space-4) var(--space-6)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--space-4)" }}>
+        <div style={{ marginBottom: "var(--space-4)" }}>
           <div style={{ fontWeight: "var(--font-black)", fontSize: "var(--text-xl)", color: "var(--text-primary)" }}>Quiz-Review</div>
-          <button className="primary" onClick={generate} disabled={generating}>
-            {generating ? "Generiere…" : "Fragen generieren"}
-          </button>
         </div>
 
         {error && (

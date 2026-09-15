@@ -4,7 +4,14 @@ import type { AuthUser } from "../types";
 interface Props {
   user: AuthUser;
   onLogout: () => void;
-  /** ChatView's "Neuer Chat" CTA — undefined on every other view. */
+  /**
+   * ChatView's "Neuer Chat" CTA — undefined on every other view. Rendered
+   * after `children`, not before: in the old top bar "Neuer Chat" was the
+   * last nav button (right before the e-mail/Abmelden it now shares a
+   * footer with) — putting it above the nav items here would make it the
+   * *first* focusable element instead, a bigger tab-order jump than the
+   * horizontal→vertical move alone requires (#127 review).
+   */
   ctaSlot?: ReactNode;
   /**
    * The nav buttons for this page, assembled by the caller so the Sidebar
@@ -34,11 +41,11 @@ export default function Sidebar({ user, onLogout, ctaSlot, children }: Props) {
         <span aria-hidden="true">📚</span> LearnFlow
       </div>
 
-      {ctaSlot}
-
       <nav style={{ display: "flex", flexDirection: "column", gap: 2 }}>
         {children}
       </nav>
+
+      {ctaSlot}
 
       <div className="sidebar-footer">
         <div className="sidebar-user-row">
