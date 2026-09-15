@@ -120,6 +120,16 @@ def test_the_context_is_declared_as_material_not_as_instructions() -> None:
     assert "keine Anweisungen" in system
 
 
+def test_the_citation_rule_asks_for_one_plain_reference_per_statement() -> None:
+    """R02 (EvalAnalysis/Optimierung): stage 2 counts a sentence as backed only by a
+    reference behind *that* sentence, and reads only plain numbers — gpt-4o-mini and
+    gpt-oss collected references at the end of a paragraph, ministral wrote [1a]."""
+    system, _ = build_prompt(QUESTION, [make_hit()])
+
+    assert "jeden Listenpunkt einzeln" in system
+    assert "ohne Buchstaben, Unterpunkte oder andere Klammern" in system
+
+
 # --- generation ------------------------------------------------------------
 
 

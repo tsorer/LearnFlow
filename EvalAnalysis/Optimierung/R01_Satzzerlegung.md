@@ -225,7 +225,7 @@ dadurch nicht mehr als unbelegt gezählt. Beobachtet einmal, ohne Einfluss auf d
 | Frage | Entscheid | Begründung |
 |---|---|---|
 | Änderung behalten? | **ja** | Hypothese bestätigt: Wirkung wie vorhergesagt, keine unbelegte Aussage neu als belegt (Abschnitt 5), Out-of-Corpus-Refusal und Halluzinationsrate unverändert |
-| Modelle weglassen / aufnehmen? | keines aufgrund von R01 · **gemma4: Pausierung offen** | R01 ändert an der Eignung nichts. gemma4 belegt mit 86 min LLM-Zeit rund 60 % jeder Runde und hat als Produktivmodell auf Grund von Laufzeit und Hardwarebedarf kaum Chancen; es bleibt aber das protokolltreueste Modell und zentral für die Frage Regel 3 vs. Regel 4. Entscheid durch die Projektverantwortlichen |
+| Modelle weglassen / aufnehmen? | keines weggelassen · **gemma4 pausiert** für R02 und R03, Wiederaufnahme in R04 (Entscheid Projektverantwortliche, 2026-09-15) | R01 ändert an der Eignung nichts. gemma4 belegt mit 86 min LLM-Zeit rund 60 % jeder Runde und hat als Produktivmodell auf Grund von Laufzeit und Hardwarebedarf kaum Chancen; es bleibt aber das protokolltreueste Modell und zentral für die Frage Regel 3 vs. Regel 4. Pausieren statt Weglassen, weil es für R04 gebraucht wird |
 | Befund an Kalibrierung (T-57) | Self-Check-Band prüfen | Die Bandgrenzen wurden gegen die zu tiefe Coverage-Messung gewählt; nach R01 läuft Stufe 3 deutlich seltener (Abschnitt 4) |
 | Nächste Runde | **R02 Zitierformat** | Nach R01 ist das Belegformat der grösste verbleibende Formatfehler (R00: Sammelbeleg S2a 13×, fremdes Format S2b 9×, vor allem gpt-oss, ministral, openai). Vorschlag: bewusst zwei Varianten messen — Format per Prompt erzwingen vs. Pipeline liest `[1a]`, `【1】` tolerant |
 

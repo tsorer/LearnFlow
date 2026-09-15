@@ -9,7 +9,7 @@ nicht hier.
 |---|---|---|---|---|---|
 | `openai` | gpt-4o-mini | OpenAI (Cloud) | nicht veröffentlicht | nein | Referenz |
 | `qwen3-local` | qwen3:8b | Alibaba | 8 B, dicht | abgeschaltet (`think: false`) | aktiv |
-| `gemma4-local` | gemma4:26b | Google | 26 B, MoE | ja, nicht abschaltbar | aktiv |
+| `gemma4-local` | gemma4:26b | Google | 26 B, MoE | ja, nicht abschaltbar | **pausiert** ab R02 (bis R04) |
 | `gpt-oss-local` | gpt-oss:20b | OpenAI (open weight) | 21 B, MoE (~3,6 B aktiv) | ja, Stufe `low` | aktiv |
 | `ministral3-local` | ministral-3:14b | Mistral (EU) | 14 B, dicht | nein | aktiv |
 
@@ -64,6 +64,9 @@ Kein lokales Modell passt mit 16K-Kontext vollständig in die 8 GB VRAM der Test
 - **R01:** Profitiert wie vorhergesagt (False-Suppression Dev 4 → 2). Einziges Modell mit 80 von 80
   wortgleichen Antworten über zwei Tage. 86 min LLM-Zeit, rund 60 % der Rundendauer;
   Pausierung zur Diskussion gestellt.
+- **Entscheid 2026-09-15:** pausiert für R02 und R03, Wiederaufnahme für R04 (Regel 3 vs. Regel 4).
+  Begründung: 86 min LLM-Zeit je Runde (rund 60 %), als Produktivmodell wegen Laufzeit und
+  Hardwarebedarf kaum Chancen; zentral bleibt es für die Frage Teilantwort vs. Verweigerung.
 
 ### `gpt-oss-local` — gpt-oss:20b
 

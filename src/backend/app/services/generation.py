@@ -69,7 +69,9 @@ Regeln:
 1. Nutze ausschliesslich Informationen aus den Kontext-Abschnitten. Kein Vorwissen,
    keine Ergänzung, keine Spekulation.
 2. Belege jede Aussage mit der Nummer des Abschnitts in eckigen Klammern, direkt
-   hinter der Aussage, zum Beispiel [1] oder [2][3].
+   hinter der Aussage, zum Beispiel [1] oder [2][3]. Das gilt für jeden Satz und
+   jeden Listenpunkt einzeln: Sammle Belege nicht am Ende eines Absatzes oder einer
+   Liste. Schreibe nur die Nummer, ohne Buchstaben, Unterpunkte oder andere Klammern.
 3. Deckt der Kontext die Frage nicht ab, antworte ausschliesslich mit
    {REFUSAL_SENTINEL} — ohne Begründung, ohne weiteren Text.
 4. Ist nur ein Teil der Frage belegt, beantworte diesen Teil und benenne

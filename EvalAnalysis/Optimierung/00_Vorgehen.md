@@ -206,6 +206,10 @@ je Runde.
 - **Aufnehmen**, wenn eine Runde eine Eigenschaft als relevant erkennt (z. B. «Denkmodus
   schadet der Protokolltreue») und ein Modell diese Eigenschaft gezielt anders ausprägt.
   Die Aufnahme wird mit dieser Hypothese begründet.
+- **Pausieren**, wenn ein Modell viel Rundenzeit bindet, als Produktivmodell kaum in Frage kommt,
+  für eine *spätere* Runde aber gebraucht wird. Ein pausiertes Modell läuft nicht mit, bleibt
+  im Steckbrief und wird mit Begründung wieder aufgenommen, sobald eine Runde seine
+  Eigenschaft untersucht. Weglassen ist endgültig, Pausieren nicht.
 - Die **Referenz** `openai` läuft in jeder Runde mit.
 
 ## 9. Ablauf einer Runde
