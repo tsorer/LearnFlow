@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import type { AuthUser, Document } from "../types";
 import { api } from "../api/client";
 
-interface Props { user: AuthUser; onClose: () => void; }
+interface Props { user: AuthUser; }
 
 // Only `available`/`failed` carry a coloured pill background — `pending`/
 // `processing` stay plain coloured text on transparent, as before the
@@ -44,7 +44,7 @@ export function validateFile(file: File): string | null {
   return null;
 }
 
-export default function Upload({ user, onClose }: Props) {
+export default function Upload({ user }: Props) {
   const [docs, setDocs] = useState<Document[]>([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
@@ -272,9 +272,8 @@ export default function Upload({ user, onClose }: Props) {
         </div>
       )}
       <div style={{ maxWidth: 720, margin: "0 auto" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+        <div style={{ marginBottom: 24 }}>
           <h2 style={{ fontSize: "var(--text-2xl)", fontWeight: "var(--font-black)", color: "var(--text-primary)" }}>Dokumente</h2>
-          <button className="secondary" onClick={onClose}>← Zurück zum Chat</button>
         </div>
 
         {/* Upload area — click via the label, drag & drop via the handlers */}

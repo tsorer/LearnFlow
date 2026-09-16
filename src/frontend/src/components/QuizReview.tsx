@@ -136,20 +136,15 @@ export default function QuizReview({ user, onLogout }: Props) {
   };
 
   return (
-    <Layout
-      user={user}
-      onLogout={onLogout}
-      // A board-level action, not navigation — stays a page-specific CTA
-      // rather than becoming a Sidebar nav item (#127 discussion).
-      ctaSlot={
-        <button className="sidebar-cta" onClick={generate} disabled={generating}>
-          {generating ? "Generiere…" : "Fragen generieren"}
-        </button>
-      }
-    >
+    <Layout user={user} onLogout={onLogout}>
       <div style={{ flex: 1, overflowY: "auto", padding: "var(--space-4) var(--space-6)" }}>
-        <div style={{ marginBottom: "var(--space-4)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--space-4)" }}>
           <div style={{ fontWeight: "var(--font-black)", fontSize: "var(--text-xl)", color: "var(--text-primary)" }}>Quiz-Dashboard</div>
+          {/* A board-level action, not navigation — stays a page-specific
+              button next to the title rather than a Sidebar nav item. */}
+          <button className="primary" onClick={generate} disabled={generating}>
+            {generating ? "Generiere…" : "Fragen generieren"}
+          </button>
         </div>
 
         {error && (
