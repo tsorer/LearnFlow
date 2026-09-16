@@ -615,12 +615,13 @@ describe("Frage-UI", () => {
     expect(await screen.findByText(/SKOS verlangt je Sprache genau ein prefLabel/)).toBeInTheDocument();
   });
 
-  it("hides Neuer Chat but keeps Parameter visible while the document view is open", async () => {
-    // "Neuer Chat" only exists in the chat body's own title row, which the
-    // document view replaces entirely. "⚙ Parameter" is a static, role-based
-    // Sidebar item (T-58 review: the menu depends only on role, never on
-    // which page/view is open) — it stays visible here too, and clicking it
-    // switches back to chat with the panel open (covered separately).
+  it("leaves Neuer Chat behind on /dokumente, while Parameter stays reachable", async () => {
+    // "Neuer Chat" only exists in the chat page's own title row — navigating
+    // to Dokumente (a real route since the UX pass of 2026-09; it used to be a
+    // boolean toggled inside ChatView, which kept Neuer Chat mounted but
+    // hidden) unmounts ChatView entirely. "⚙ Parameter" is a static,
+    // role-based Sidebar item (T-58 review: the menu depends only on role,
+    // never on which page is open) — it stays visible here too.
     api.route("get", "/api/admin/config", 200, { config: { retrieval_top_k: "20" } });
     api.route("get", "/api/documents", 200, []);
     await openChat("admin");
@@ -628,7 +629,7 @@ describe("Frage-UI", () => {
 
     await userEvent.click(screen.getByRole("button", { name: /^dokumente$/i }));
 
-    expect(await screen.findByRole("button", { name: /^chat$/i })).toBeInTheDocument();
+    expect(await screen.findByText(/Dateien hierher ziehen/i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /neuer chat/i })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /parameter/i })).toBeInTheDocument();
   });

@@ -56,6 +56,10 @@ interface Props {
 
 export default function QuizCard({ question: q, busy, onAction, onSave }: Props) {
   const [editing, setEditing] = useState(false);
+  // Collapsed by default (UX pass 2026-09): a board with many cards per column
+  // used to render every source passage in full, which made the column mostly
+  // quotation rather than questions to review.
+  const [sourceExpanded, setSourceExpanded] = useState(false);
   const [question, setQuestion] = useState(q.question);
   const [options, setOptions] = useState(q.options);
   const [correctAnswer, setCorrectAnswer] = useState<QuizQuestion["correct_answer"]>(q.correct_answer);
@@ -169,12 +173,25 @@ export default function QuizCard({ question: q, busy, onAction, onSave }: Props)
 
       <div>
         <div style={{ fontSize: "var(--text-2xs)", fontWeight: "var(--font-bold)", color: "var(--text-muted)", marginBottom: 2 }}>Quellen-Passage</div>
-        <blockquote style={{
-          margin: 0, borderLeft: "3px solid var(--coral)", paddingLeft: 10,
-          fontSize: "var(--text-xs)", color: "var(--text-muted)", fontStyle: "italic",
-        }}>
+        <button
+          type="button"
+          onClick={() => setSourceExpanded(v => !v)}
+          aria-expanded={sourceExpanded}
+          style={{
+            display: "block", width: "100%", background: "none", border: "none",
+            borderLeft: "3px solid var(--coral)", borderRadius: 0, padding: "0 0 0 10px",
+            textAlign: "left", cursor: "pointer", fontFamily: "inherit",
+            fontSize: "var(--text-xs)", color: "var(--text-muted)", fontStyle: "italic", lineHeight: 1.5,
+            ...(sourceExpanded ? {} : {
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical" as const,
+              overflow: "hidden",
+            }),
+          }}
+        >
           {q.source_excerpt}
-        </blockquote>
+        </button>
       </div>
 
       <div style={{ fontSize: "var(--text-2xs)", color: "var(--text-muted)" }}>

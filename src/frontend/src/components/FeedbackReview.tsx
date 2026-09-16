@@ -2,15 +2,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { AuthUser } from "../types";
 import { api, type FeedbackCategory, type FeedbackItem } from "../api/client";
 import { CATEGORY_META } from "./MessageBubble";
-import Layout, { type SidebarPanelState } from "./Layout";
+import Layout from "./Layout";
 
 const PAGE_SIZE = 50;
 
 const CATEGORY_OPTIONS = Object.entries(CATEGORY_META) as [FeedbackCategory, { label: string; helpful: boolean }][];
 
-interface Props extends SidebarPanelState { user: AuthUser; onLogout: () => void }
+interface Props { user: AuthUser; onLogout: () => void }
 
-export default function FeedbackReview({ user, onLogout, showUpload, setShowUpload, showParams, setShowParams }: Props) {
+export default function FeedbackReview({ user, onLogout }: Props) {
   const [items, setItems] = useState<FeedbackItem[]>([]);
   const [total, setTotal] = useState(0);
   const [helpfulFilter, setHelpfulFilter] = useState<"" | "true" | "false">("");
@@ -81,14 +81,7 @@ export default function FeedbackReview({ user, onLogout, showUpload, setShowUplo
   };
 
   return (
-    <Layout
-      user={user}
-      onLogout={onLogout}
-      showUpload={showUpload}
-      setShowUpload={setShowUpload}
-      showParams={showParams}
-      setShowParams={setShowParams}
-    >
+    <Layout user={user} onLogout={onLogout}>
       <div style={{ flex: 1, overflowY: "auto", padding: "var(--space-4) var(--space-6)" }}>
         <div style={{ fontWeight: "var(--font-black)", fontSize: "var(--text-xl)", color: "var(--text-primary)", marginBottom: "var(--space-4)" }}>
           Feedback-Übersicht
@@ -139,7 +132,17 @@ export default function FeedbackReview({ user, onLogout, showUpload, setShowUplo
               {total} Feedback{total === 1 ? "" : "s"}
             </div>
             {items.length === 0 && (
-              <div style={{ color: "var(--text-muted)", fontSize: "var(--text-xs)" }}>Kein Feedback vorhanden.</div>
+              <div style={{ textAlign: "center", color: "var(--text-muted)", padding: "48px 16px" }}>
+                <div style={{ fontSize: 28, marginBottom: 10 }}>💬</div>
+                <div style={{ fontWeight: "var(--font-bold)", color: "var(--text-primary)", fontSize: "var(--text-base)" }}>
+                  {helpfulFilter || categoryFilter ? "Kein Feedback für diesen Filter" : "Noch kein Feedback"}
+                </div>
+                <div style={{ fontSize: "var(--text-sm)", marginTop: 4 }}>
+                  {helpfulFilter || categoryFilter
+                    ? "Andere Filter wählen oder abwarten, bis mehr Bewertungen eintreffen."
+                    : "Sobald Lernende eine Antwort im Chat mit 👍/👎 bewerten, erscheint sie hier."}
+                </div>
+              </div>
             )}
             {items.map(item => (
               <div key={item.id} className="card" style={{

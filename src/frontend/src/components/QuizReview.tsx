@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { AuthUser } from "../types";
 import { api, ApiError, type QuizQuestion, type QuizQuestionStatus, type QuizQuestionUpdate } from "../api/client";
-import Layout, { type SidebarPanelState } from "./Layout";
+import Layout from "./Layout";
 import QuizCard from "./QuizCard";
 
 const PAGE_SIZE = 50;
@@ -34,9 +34,9 @@ export function generationFailureMessage(err: unknown): string {
   return "Fehler bei der Generierung. Bitte erneut versuchen.";
 }
 
-interface Props extends SidebarPanelState { user: AuthUser; onLogout: () => void }
+interface Props { user: AuthUser; onLogout: () => void }
 
-export default function QuizReview({ user, onLogout, showUpload, setShowUpload, showParams, setShowParams }: Props) {
+export default function QuizReview({ user, onLogout }: Props) {
   const [columns, setColumns] = useState<Record<QuizQuestionStatus, Column>>({
     pending: emptyColumn,
     approved: emptyColumn,
@@ -136,14 +136,7 @@ export default function QuizReview({ user, onLogout, showUpload, setShowUpload, 
   };
 
   return (
-    <Layout
-      user={user}
-      onLogout={onLogout}
-      showUpload={showUpload}
-      setShowUpload={setShowUpload}
-      showParams={showParams}
-      setShowParams={setShowParams}
-    >
+    <Layout user={user} onLogout={onLogout}>
       <div style={{ flex: 1, overflowY: "auto", padding: "var(--space-4) var(--space-6)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--space-4)" }}>
           <div style={{ fontWeight: "var(--font-black)", fontSize: "var(--text-xl)", color: "var(--text-primary)" }}>Quiz-Dashboard</div>

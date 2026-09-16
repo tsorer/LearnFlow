@@ -6,6 +6,8 @@ import ChatView from "./components/ChatView";
 import QuizReview from "./components/QuizReview";
 import QuizRun from "./components/QuizRun";
 import FeedbackReview from "./components/FeedbackReview";
+import DocumentsPage from "./components/DocumentsPage";
+import ParametersPage from "./components/ParametersPage";
 import { ProtectedRoute, GuestRoute } from "./components/RouteGuards";
 import { setUnauthorizedHandler } from "./api/client";
 
@@ -27,14 +29,6 @@ export default function App() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // Dokumente-/Parameter-Ansicht liegen ebenfalls hier statt in ChatView
-  // (T-58 Review-Folge): die Sidebar zeigt "Dokumente"/"Parameter" auf jeder
-  // Seite an (rollenbasiert, nicht mehr nur innerhalb von ChatView) und muss
-  // sie deshalb von jeder Seite aus öffnen können — ein dort lokaler State
-  // wäre ausserhalb von ChatView gar nicht erreichbar.
-  const [showUpload, setShowUpload] = useState(false);
-  const [showParams, setShowParams] = useState(false);
-
   // Ein 401 auf einer authentifizierten Anfrage beendet die Sitzung. Der leere
   // User-State laesst ProtectedRoute auf /login umleiten (T-40).
   useEffect(() => {
@@ -44,8 +38,6 @@ export default function App() {
       setMessages([]);
       setSessionId(null);
       setBusy(false);
-      setShowUpload(false);
-      setShowParams(false);
     });
     return () => setUnauthorizedHandler(null);
   }, []);
@@ -63,8 +55,6 @@ export default function App() {
     setMessages([]);
     setSessionId(null);
     setBusy(false);
-    setShowUpload(false);
-    setShowParams(false);
   };
 
   return (
@@ -92,10 +82,6 @@ export default function App() {
                   setSessionId={setSessionId}
                   busy={busy}
                   setBusy={setBusy}
-                  showUpload={showUpload}
-                  setShowUpload={setShowUpload}
-                  showParams={showParams}
-                  setShowParams={setShowParams}
                 />
               )}
             </ProtectedRoute>
@@ -105,16 +91,7 @@ export default function App() {
           path="/quiz-review"
           element={
             <ProtectedRoute user={user} roles={["knowledge_owner", "admin"]}>
-              {u => (
-                <QuizReview
-                  user={u}
-                  onLogout={logout}
-                  showUpload={showUpload}
-                  setShowUpload={setShowUpload}
-                  showParams={showParams}
-                  setShowParams={setShowParams}
-                />
-              )}
+              {u => <QuizReview user={u} onLogout={logout} />}
             </ProtectedRoute>
           }
         />
@@ -122,16 +99,7 @@ export default function App() {
           path="/quiz"
           element={
             <ProtectedRoute user={user}>
-              {u => (
-                <QuizRun
-                  user={u}
-                  onLogout={logout}
-                  showUpload={showUpload}
-                  setShowUpload={setShowUpload}
-                  showParams={showParams}
-                  setShowParams={setShowParams}
-                />
-              )}
+              {u => <QuizRun user={u} onLogout={logout} />}
             </ProtectedRoute>
           }
         />
@@ -139,16 +107,28 @@ export default function App() {
           path="/feedback"
           element={
             <ProtectedRoute user={user} roles={["knowledge_owner", "admin"]}>
-              {u => (
-                <FeedbackReview
-                  user={u}
-                  onLogout={logout}
-                  showUpload={showUpload}
-                  setShowUpload={setShowUpload}
-                  showParams={showParams}
-                  setShowParams={setShowParams}
-                />
-              )}
+              {u => <FeedbackReview user={u} onLogout={logout} />}
+            </ProtectedRoute>
+          }
+        />
+        {/* Reale Routen statt der beiden Booleans, die vorher innerhalb von
+            ChatView getoggelt wurden (T-58 UX-Nachbesserung 2026-09) —
+            "Dokumente" bleibt an die Upload-Rolle gebunden, "Parameter" bleibt
+            admin-only, beides deckungsgleich mit dem, was die Sidebar schon
+            anzeigt bzw. verbirgt. */}
+        <Route
+          path="/dokumente"
+          element={
+            <ProtectedRoute user={user} roles={["knowledge_owner", "admin"]}>
+              {u => <DocumentsPage user={u} onLogout={logout} />}
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/parameter"
+          element={
+            <ProtectedRoute user={user} roles={["admin"]}>
+              {u => <ParametersPage user={u} onLogout={logout} />}
             </ProtectedRoute>
           }
         />

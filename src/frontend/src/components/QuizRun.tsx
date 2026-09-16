@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { AuthUser } from "../types";
 import { api, type QuizQuestion } from "../api/client";
-import Layout, { type SidebarPanelState } from "./Layout";
+import Layout from "./Layout";
 import DocumentViewer from "./DocumentViewer";
 
 const OPTION_LETTERS = ["A", "B", "C", "D"] as const;
@@ -12,7 +12,7 @@ type Letter = (typeof OPTION_LETTERS)[number];
 // die Runde ist dann entsprechend kürzer (siehe Hinweis unten).
 const TARGET_LENGTH = 5;
 
-interface Props extends SidebarPanelState { user: AuthUser; onLogout: () => void }
+interface Props { user: AuthUser; onLogout: () => void }
 
 /** Frage-ID → gewählter Buchstabe. Nur im Browser-State, nie an ein Backend
  * gemeldet (US-08: "nicht personenbezogen gespeichert oder ausgewertet"). */
@@ -26,7 +26,7 @@ export function scoreOf(questions: QuizQuestion[], answers: Answers): number {
  * ganzen Frage, die zufällig auch eine davon trägt. */
 interface ViewerTarget { documentId: string; chunkId: string }
 
-export default function QuizRun({ user, onLogout, showUpload, setShowUpload, showParams, setShowParams }: Props) {
+export default function QuizRun({ user, onLogout }: Props) {
   const token = user.token;
   const [questions, setQuestions] = useState<QuizQuestion[] | null>(null);
   // `total` ist die Poolgröße laut Endpoint (openapi.yaml, app/routers/quiz.py
@@ -75,14 +75,13 @@ export default function QuizRun({ user, onLogout, showUpload, setShowUpload, sho
   };
 
   return (
-    <Layout
-      user={user}
-      onLogout={onLogout}
-      showUpload={showUpload}
-      setShowUpload={setShowUpload}
-      showParams={showParams}
-      setShowParams={setShowParams}
-    >
+    <Layout user={user} onLogout={onLogout}>
+      {/* Title, like every other page's header (UX pass 2026-09: this page
+          used to be the one without one — the only orientation it gave was
+          the plain "Frage X von Y" text buried in the card below). */}
+      <div style={{ fontWeight: "var(--font-black)", fontSize: "var(--text-xl)", color: "var(--text-primary)", padding: "var(--space-4) var(--space-6) 0" }}>
+        Quiz starten
+      </div>
       <div style={{ flex: 1, overflowY: "auto", padding: "var(--space-6)", display: "flex", justifyContent: "center" }}>
         <div style={{ width: "min(560px, 100%)", display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
           {error && (
@@ -188,8 +187,17 @@ function QuestionCard({ question: q, questionNumber, totalQuestions, shortRound,
         aria-label={`Frage ${questionNumber} von ${totalQuestions}: ${q.question}`}
         style={{ outline: "none" }}
       >
-        <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
+        <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", marginBottom: 6 }}>
           Frage {questionNumber} von {totalQuestions}
+        </div>
+        {/* A number alone made progress something to compute rather than see
+            (UX pass 2026-09) — `aria-hidden`, since the text above already
+            says the same thing to a screen reader. */}
+        <div aria-hidden="true" style={{ height: 4, borderRadius: 2, background: "var(--border)", overflow: "hidden" }}>
+          <div style={{
+            width: `${(questionNumber / totalQuestions) * 100}%`, height: "100%",
+            background: "var(--coral)", borderRadius: 2, transition: "width 0.2s ease",
+          }} />
         </div>
       </div>
 
