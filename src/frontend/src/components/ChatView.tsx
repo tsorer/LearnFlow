@@ -279,14 +279,6 @@ export default function ChatView({ user, onLogout, messages, setMessages, sessio
     <Layout
       user={user}
       onLogout={onLogout}
-      ctaSlot={!showUpload && (
-        // Disabled while an answer is on its way, like the textarea and the
-        // send button: `send` holds `sessionId` and `messages` across the
-        // await, so a reset in that window is undone when the response
-        // lands — the old session id returns and the answer is appended to
-        // a transcript that no longer holds its question.
-        <button className="sidebar-cta" onClick={newChat} disabled={busy}>Neuer Chat</button>
-      )}
       workspaceExtra={canUpload && (
         <button className={`nav-item${showUpload ? " active" : ""}`} onClick={() => setShowUpload(v => !v)}>
           {showUpload ? "Chat" : "Dokumente"}
@@ -302,9 +294,23 @@ export default function ChatView({ user, onLogout, messages, setMessages, sessio
       )}
     >
       {showUpload && canUpload ? (
-        <Upload user={user} onClose={() => setShowUpload(false)} />
+        <Upload user={user} />
       ) : (
         <>
+          {/* Title + primary action, like every other page's header */}
+          <div style={{
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+            padding: "var(--space-4) var(--space-6) 0",
+          }}>
+            <div style={{ fontWeight: "var(--font-black)", fontSize: "var(--text-xl)", color: "var(--text-primary)" }}>KI-Chat</div>
+            {/* Disabled while an answer is on its way, like the textarea and the
+                send button: `send` holds `sessionId` and `messages` across the
+                await, so a reset in that window is undone when the response
+                lands — the old session id returns and the answer is appended to
+                a transcript that no longer holds its question. */}
+            <button className="primary" onClick={newChat} disabled={busy}>Neuer Chat</button>
+          </div>
+
           {/* Messages */}
           <div style={{ flex: 1, overflowY: "auto", padding: "var(--space-6) 0" }}>
             <div style={{ maxWidth: 760, margin: "0 auto", padding: "0 var(--space-6)", display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
