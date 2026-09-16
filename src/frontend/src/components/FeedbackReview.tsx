@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import type { AuthUser } from "../types";
 import { api, type FeedbackCategory, type FeedbackItem } from "../api/client";
 import { CATEGORY_META } from "./MessageBubble";
@@ -12,7 +11,6 @@ const CATEGORY_OPTIONS = Object.entries(CATEGORY_META) as [FeedbackCategory, { l
 interface Props { user: AuthUser; onLogout: () => void }
 
 export default function FeedbackReview({ user, onLogout }: Props) {
-  const navigate = useNavigate();
   const [items, setItems] = useState<FeedbackItem[]>([]);
   const [total, setTotal] = useState(0);
   const [helpfulFilter, setHelpfulFilter] = useState<"" | "true" | "false">("");
@@ -83,11 +81,7 @@ export default function FeedbackReview({ user, onLogout }: Props) {
   };
 
   return (
-    <Layout
-      user={user}
-      onLogout={onLogout}
-      navItems={<button className="nav-item" onClick={() => navigate("/")}>Zurück zum Chat</button>}
-    >
+    <Layout user={user} onLogout={onLogout}>
       <div style={{ flex: 1, overflowY: "auto", padding: "var(--space-4) var(--space-6)" }}>
         <div style={{ fontWeight: "var(--font-black)", fontSize: "var(--text-xl)", color: "var(--text-primary)", marginBottom: "var(--space-4)" }}>
           Feedback-Übersicht

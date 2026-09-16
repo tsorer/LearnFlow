@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
 import type { AuthUser, Message } from "../types";
 import { api, ApiError, type ConfigMap } from "../api/client";
 import { getRoleFlags } from "../roles";
@@ -167,7 +166,6 @@ interface Props {
 }
 
 export default function ChatView({ user, onLogout, messages, setMessages, sessionId, setSessionId, busy, setBusy }: Props) {
-  const navigate = useNavigate();
   const [input, setInput] = useState("");
   const [inputError, setInputError] = useState("");
   const [showUpload, setShowUpload] = useState(false);
@@ -176,7 +174,7 @@ export default function ChatView({ user, onLogout, messages, setMessages, sessio
   const [paramSaved, setParamSaved] = useState(false);
   const [paramError, setParamError] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
-  const { canUpload, canReview, canViewFeedback, isAdmin } = getRoleFlags(user);
+  const { canUpload, isAdmin } = getRoleFlags(user);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -289,28 +287,19 @@ export default function ChatView({ user, onLogout, messages, setMessages, sessio
         // a transcript that no longer holds its question.
         <button className="sidebar-cta" onClick={newChat} disabled={busy}>Neuer Chat</button>
       )}
-      navItems={<>
-        {canUpload && (
-          <button className={`nav-item${showUpload ? " active" : ""}`} onClick={() => setShowUpload(v => !v)}>
-            {showUpload ? "Chat" : "Dokumente"}
-          </button>
-        )}
-        <button className="nav-item" onClick={() => navigate("/quiz")}>Quiz starten</button>
-        {canReview && (
-          <button className="nav-item" onClick={() => navigate("/quiz-review")}>Quiz-Review</button>
-        )}
-        {canViewFeedback && (
-          <button className="nav-item" onClick={() => navigate("/feedback")}>Feedback</button>
-        )}
-        {/* Hidden in the document view, because it acts on nothing there: the
-            parameter panel lives in the chat branch, so from here the button
-            only flipped an arrow. */}
-        {isAdmin && !showUpload && (
-          <button className={`nav-item${showParams ? " active" : ""}`} onClick={() => setShowParams(v => !v)}>
-            {showParams ? "⚙ Parameter ▲" : "⚙ Parameter ▼"}
-          </button>
-        )}
-      </>}
+      workspaceExtra={canUpload && (
+        <button className={`nav-item${showUpload ? " active" : ""}`} onClick={() => setShowUpload(v => !v)}>
+          {showUpload ? "Chat" : "Dokumente"}
+        </button>
+      )}
+      // Hidden in the document view, because it acts on nothing there: the
+      // parameter panel lives in the chat branch, so from here the button
+      // only flipped an arrow.
+      adminExtra={isAdmin && !showUpload && (
+        <button className={`nav-item${showParams ? " active" : ""}`} onClick={() => setShowParams(v => !v)}>
+          {showParams ? "⚙ Parameter ▲" : "⚙ Parameter ▼"}
+        </button>
+      )}
     >
       {showUpload && canUpload ? (
         <Upload user={user} onClose={() => setShowUpload(false)} />

@@ -603,7 +603,7 @@ describe("Frage-UI", () => {
 
     await userEvent.click(screen.getByRole("button", { name: /quiz starten/i }));
     await screen.findByText(/es sind noch keine quizfragen/i);
-    await userEvent.click(screen.getByRole("button", { name: /zurück zum chat/i }));
+    await userEvent.click(screen.getByRole("button", { name: /^ki-chat$/i }));
 
     expect(await screen.findByRole("button", { name: /neuer chat/i })).toBeDisabled();
 

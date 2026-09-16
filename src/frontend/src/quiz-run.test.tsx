@@ -254,7 +254,7 @@ describe("Zugriff (AK: für jede angemeldete Rolle erreichbar)", () => {
 });
 
 describe("Chat-Historie bleibt über /quiz erhalten (US-09)", () => {
-  it("zeigt den Chat-Verlauf und führt dieselbe Session fort, nachdem Lara Quiz starten und Zurück zum Chat geklickt hat", async () => {
+  it("zeigt den Chat-Verlauf und führt dieselbe Session fort, nachdem Lara Quiz starten und KI-Chat geklickt hat", async () => {
     api.route("post", "/api/auth/login", 200, { access_token: "tok123", token_type: "bearer", role: "learner" });
     api.route("get", "/api/auth/me", 200, { id: "u1", email: "lara@learnflow.ch", role: "learner" });
     api.route("post", "/api/query", 200, {
@@ -282,7 +282,7 @@ describe("Chat-Historie bleibt über /quiz erhalten (US-09)", () => {
     // /quiz unmountet ChatView — ein dort lokaler State wäre jetzt weg.
     await userEvent.click(screen.getByRole("button", { name: /quiz starten/i }));
     await screen.findByText(/es sind noch keine quizfragen/i);
-    await userEvent.click(screen.getByRole("button", { name: /zurück zum chat/i }));
+    await userEvent.click(screen.getByRole("button", { name: /^ki-chat$/i }));
 
     // AK 2: Verlauf bleibt für die Browser-Session sichtbar.
     expect(await screen.findByText("Was verlangt SKOS je Sprache?")).toBeInTheDocument();

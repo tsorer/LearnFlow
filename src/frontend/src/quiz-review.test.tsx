@@ -53,7 +53,7 @@ async function openBoard(role: Role = "knowledge_owner") {
   await userEvent.type(screen.getByLabelText(/e-mail/i), "stefan@learnflow.ch");
   await userEvent.type(screen.getByLabelText(/passwort/i), "secret");
   await userEvent.click(screen.getByRole("button", { name: /anmelden/i }));
-  await userEvent.click(await screen.findByRole("button", { name: /quiz-review/i }));
+  await userEvent.click(await screen.findByRole("button", { name: /quiz-dashboard/i }));
   await screen.findByText(/ausstehend/i);
 }
 
@@ -130,7 +130,7 @@ describe("Fehlerfälle beim Laden", () => {
     await userEvent.type(screen.getByLabelText(/e-mail/i), "stefan@learnflow.ch");
     await userEvent.type(screen.getByLabelText(/passwort/i), "secret");
     await userEvent.click(screen.getByRole("button", { name: /anmelden/i }));
-    await userEvent.click(await screen.findByRole("button", { name: /quiz-review/i }));
+    await userEvent.click(await screen.findByRole("button", { name: /quiz-dashboard/i }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(/fragen konnten nicht geladen werden/i);
   });
@@ -377,7 +377,7 @@ describe("generationFailureMessage (reine Funktion)", () => {
 });
 
 describe("Zugriffsschutz (AK: /quiz-review nur für knowledge_owner/admin)", () => {
-  it("zeigt den Quiz-Review-Button Lernenden nicht an", async () => {
+  it("zeigt den Quiz-Dashboard-Button Lernenden nicht an", async () => {
     api.route("post", "/api/auth/login", 200, { access_token: "tok123", token_type: "bearer", role: "learner" });
     api.route("get", "/api/auth/me", 200, { id: "u2", email: "lara@learnflow.ch", role: "learner" });
     render(<App />);
@@ -386,7 +386,7 @@ describe("Zugriffsschutz (AK: /quiz-review nur für knowledge_owner/admin)", () 
     await userEvent.click(screen.getByRole("button", { name: /anmelden/i }));
 
     await screen.findByLabelText(/frage/i);
-    expect(screen.queryByRole("button", { name: /quiz-review/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /quiz-dashboard/i })).not.toBeInTheDocument();
   });
 
   it("ProtectedRoute leitet eine falsche Rolle von /quiz-review weg", () => {
