@@ -257,9 +257,9 @@ Der Plan ist eine Erwartung, keine Verpflichtung — jede Runde begründet die n
 | Runde | Thema | Hypothese |
 |---|---|---|
 | R00 | Baseline | 5 Profile, gültige Messung, Einordnung aller Abweichungen, Holdout festlegen |
-| R01 | Verweigerungsprotokoll | P1 entsteht, weil Regel 3 und Regel 4 für Modelle mehrdeutig sind; ein Beispiel für `WEISS_NICHT` reduziert P1 ohne S1 zu erhöhen |
-| R02 | Zitierformat | S2 entsteht durch gebündelte Fussnoten; ein Zitierbeispiel senkt `citation_coverage`-Unterdrückungen |
-| R03 | Self-Check-Protokoll | Unlesbare Urteile und Denk-Vorlauf (S4, A) sind modellspezifisch; Prompt oder Parser machen sie robust |
+| R01 | Satzzerlegung in Stufe 2 | Stufe 2 zerlegte korrekt belegte Antworten falsch → **erledigt, übernommen** |
+| R02 | Zitierformat: erziehen gegen tolerant lesen | Sammelbelege und fremde Formate senken die Coverage → **erledigt: Prompt übernommen, tolerantes Lesen verworfen** |
+| R03 | Falsche Annahmen (Ausnahme in Regel 3) | Eine angehängte Ausnahme stellt widerlegte Annahmen richtig → **erledigt, verworfen (kein Effekt)** |
 | R04 | Regeln 3 und 4 als eine Entscheidung | Verweigerung, Richtigstellung und Teilantwort als drei Fälle einer Entscheidung wirken, wo eine angehängte Ausnahme (R03) nichts bewegt — **läuft, unvollständig** |
 | R05 | Generisch vs. modellspezifisch | Ein gemeinsamer Prompt erreicht nicht bei allen Modellen das Optimum — Mass für die «Nicht-Austauschbarkeit» |
 | R06 | Schlussmessung | Bestes Setup je Modell auf dem Holdout; Entscheid Produktivmodell |
