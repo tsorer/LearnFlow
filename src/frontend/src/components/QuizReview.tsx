@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import type { AuthUser } from "../types";
 import { api, ApiError, type QuizQuestion, type QuizQuestionStatus, type QuizQuestionUpdate } from "../api/client";
 import Layout from "./Layout";
@@ -38,7 +37,6 @@ export function generationFailureMessage(err: unknown): string {
 interface Props { user: AuthUser; onLogout: () => void }
 
 export default function QuizReview({ user, onLogout }: Props) {
-  const navigate = useNavigate();
   const [columns, setColumns] = useState<Record<QuizQuestionStatus, Column>>({
     pending: emptyColumn,
     approved: emptyColumn,
@@ -141,20 +139,17 @@ export default function QuizReview({ user, onLogout }: Props) {
     <Layout
       user={user}
       onLogout={onLogout}
-      // "Fragen generieren" was the first focusable element in the old top
-      // bar, before "Zurück zum Chat" — kept first here too, in the same
-      // fragment as the nav item, so the tab order survives the
-      // horizontal→vertical move (#127 review).
-      navItems={<>
+      // A board-level action, not navigation — stays a page-specific CTA
+      // rather than becoming a Sidebar nav item (#127 discussion).
+      ctaSlot={
         <button className="sidebar-cta" onClick={generate} disabled={generating}>
           {generating ? "Generiere…" : "Fragen generieren"}
         </button>
-        <button className="nav-item" onClick={() => navigate("/")}>Zurück zum Chat</button>
-      </>}
+      }
     >
       <div style={{ flex: 1, overflowY: "auto", padding: "var(--space-4) var(--space-6)" }}>
         <div style={{ marginBottom: "var(--space-4)" }}>
-          <div style={{ fontWeight: "var(--font-black)", fontSize: "var(--text-xl)", color: "var(--text-primary)" }}>Quiz-Review</div>
+          <div style={{ fontWeight: "var(--font-black)", fontSize: "var(--text-xl)", color: "var(--text-primary)" }}>Quiz-Dashboard</div>
         </div>
 
         {error && (

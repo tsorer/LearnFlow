@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import type { AuthUser } from "../types";
 import { api, type QuizQuestion } from "../api/client";
 import Layout from "./Layout";
@@ -28,7 +27,6 @@ export function scoreOf(questions: QuizQuestion[], answers: Answers): number {
 interface ViewerTarget { documentId: string; chunkId: string }
 
 export default function QuizRun({ user, onLogout }: Props) {
-  const navigate = useNavigate();
   const token = user.token;
   const [questions, setQuestions] = useState<QuizQuestion[] | null>(null);
   // `total` ist die Poolgröße laut Endpoint (openapi.yaml, app/routers/quiz.py
@@ -77,11 +75,7 @@ export default function QuizRun({ user, onLogout }: Props) {
   };
 
   return (
-    <Layout
-      user={user}
-      onLogout={onLogout}
-      navItems={<button className="nav-item" onClick={() => navigate("/")}>Zurück zum Chat</button>}
-    >
+    <Layout user={user} onLogout={onLogout}>
       <div style={{ flex: 1, overflowY: "auto", padding: "var(--space-6)", display: "flex", justifyContent: "center" }}>
         <div style={{ width: "min(560px, 100%)", display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
           {error && (

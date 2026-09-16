@@ -1,39 +1,36 @@
 import type { ReactNode } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import type { AuthUser } from "../types";
+import { getRoleFlags } from "../roles";
 
 interface Props {
   user: AuthUser;
   onLogout: () => void;
-  /**
-   * ChatView's "Neuer Chat" CTA — undefined on every other view. Rendered
-   * after `children`, not before: in the old top bar "Neuer Chat" was the
-   * last nav button (right before the e-mail/Abmelden it now shares a
-   * footer with) — putting it above the nav items here would make it the
-   * *first* focusable element instead, a bigger tab-order jump than the
-   * horizontal→vertical move alone requires (#127 review).
-   */
+  /** Page-specific primary action (ChatView's "Neuer Chat", QuizReview's
+   *  "Fragen generieren") — undefined where a page has none. Rendered after
+   *  the nav items, before the footer. */
   ctaSlot?: ReactNode;
-  /**
-   * The nav buttons for this page, assembled by the caller so the Sidebar
-   * shows exactly what each view's top bar used to show (same buttons, same
-   * role conditions) — the Sidebar itself carries no per-page visibility
-   * logic of its own.
-   */
-  children?: ReactNode;
+  /** ChatView's "Dokumente"/"Chat" toggle — a local view-mode switch, not a
+   *  route, so it stays ChatView-only rather than becoming a nav item here. */
+  workspaceExtra?: ReactNode;
+  /** ChatView's "⚙ Parameter ▲/▼" toggle — same reasoning as workspaceExtra. */
+  adminExtra?: ReactNode;
 }
 
 /**
- * Purely presentational shell (T-58): brand mark, an optional CTA, the
- * caller-assembled nav buttons, and a footer with the signed-in user.
- *
- * The footer's e-mail/Abmelden are shown on every page, including the three
- * (QuizReview/QuizRun/FeedbackReview) that had neither in their old top bar —
- * a deliberate, documented exception to "no new reachability" (see PR
- * description): logout is not a functional escalation, just a consequence of
- * having one persistent shell instead of four independent top bars.
+ * The persistent left navigation (T-58): one consistent set of destinations
+ * on every authenticated page, rather than each page only showing what its
+ * old top bar happened to show. "KI-Chat"/"Quiz starten"/"Quiz-Dashboard"/
+ * "Feedback" are real routes, so they are reachable and highlighted the same
+ * way regardless of where the user currently is — the inconsistent,
+ * page-dependent menu this replaces was itself the bug (T-58 follow-up).
  */
-export default function Sidebar({ user, onLogout, ctaSlot, children }: Props) {
+export default function Sidebar({ user, onLogout, ctaSlot, workspaceExtra, adminExtra }: Props) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { canReview, canViewFeedback } = getRoleFlags(user);
   const initials = user.email.slice(0, 2).toUpperCase();
+  const isActive = (path: string) => location.pathname === path;
 
   return (
     <aside className="sidebar">
@@ -42,7 +39,32 @@ export default function Sidebar({ user, onLogout, ctaSlot, children }: Props) {
       </div>
 
       <nav style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        {children}
+        <div className="sidebar-group-label">Arbeitsbereich</div>
+        <button className={`nav-item${isActive("/") ? " active" : ""}`} onClick={() => navigate("/")}>
+          KI-Chat
+        </button>
+        {workspaceExtra}
+
+        <div className="sidebar-group-label">Lernen</div>
+        <button className={`nav-item${isActive("/quiz") ? " active" : ""}`} onClick={() => navigate("/quiz")}>
+          Quiz starten
+        </button>
+        {canReview && (
+          <button className={`nav-item${isActive("/quiz-review") ? " active" : ""}`} onClick={() => navigate("/quiz-review")}>
+            Quiz-Dashboard
+          </button>
+        )}
+
+        {/* Only shown with something under it — an empty label right above
+            ctaSlot would read as if the CTA belonged to this group (learner
+            role: no Feedback, no adminExtra). */}
+        {(canViewFeedback || adminExtra) && <div className="sidebar-group-label">Verwaltung</div>}
+        {canViewFeedback && (
+          <button className={`nav-item${isActive("/feedback") ? " active" : ""}`} onClick={() => navigate("/feedback")}>
+            Feedback
+          </button>
+        )}
+        {adminExtra}
       </nav>
 
       {ctaSlot}
