@@ -262,7 +262,7 @@ Der Plan ist eine Erwartung, keine Verpflichtung — jede Runde begründet die n
 | R03 | Self-Check-Protokoll | Unlesbare Urteile und Denk-Vorlauf (S4, A) sind modellspezifisch; Prompt oder Parser machen sie robust |
 | R04 | Regeln 3 und 4 als eine Entscheidung | Verweigerung, Richtigstellung und Teilantwort als drei Fälle einer Entscheidung wirken, wo eine angehängte Ausnahme (R03) nichts bewegt — **läuft, unvollständig** |
 | R05 | Generisch vs. modellspezifisch | Ein gemeinsamer Prompt erreicht nicht bei allen Modellen das Optimum — Mass für die «Nicht-Austauschbarkeit» |
-| R05 | Schlussmessung | Bestes Setup je Modell auf dem Holdout; Entscheid Produktivmodell |
+| R06 | Schlussmessung | Bestes Setup je Modell auf dem Holdout; Entscheid Produktivmodell |
 
 ## 12. Offene technische Voraussetzungen
 
