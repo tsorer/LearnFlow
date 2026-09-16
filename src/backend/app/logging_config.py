@@ -25,9 +25,28 @@ FORMAT = "%(asctime)s %(levelname)s %(name)s %(message)s"
 
 DEFAULT_LEVEL = "INFO"
 
+#: Die Logger, für die `LOG_LEVEL` gilt — unsere eigenen, nach Paketnamen.
+OWN_LOGGERS = ("app", "worker")
+
+#: Alles andere. Bewusst nicht am konfigurierten Level beteiligt (Review zu
+#: PR #140): `LOG_LEVEL` steuert die Ausführlichkeit *dieses* Systems, nicht die
+#: seiner Abhängigkeiten. Stünde der Root-Logger auf INFO, schriebe `httpx` eine
+#: Zeile pro Provider-Aufruf — also mehrere pro `/query` und pro Embedding-Batch
+#: — und `LOG_LEVEL=DEBUG` zöge zusätzlich `httpcore` und LiteLLMs eigene
+#: Ausgabe mit hoch. WARNING statt vollständig stummschalten, damit eine echte
+#: Warnung einer Bibliothek weiterhin sichtbar ist; wer die Aufrufe sehen will,
+#: hebt den Level dieses einen Loggers gezielt an.
+THIRD_PARTY_LEVEL = logging.WARNING
+
 
 def configure_logging(level: str = DEFAULT_LEVEL) -> None:
-    """Root-Handler und Format setzen.
+    """Format und Level setzen: Handler am Root, Level an `OWN_LOGGERS`.
+
+    Der Handler muss an den Root, weil dorthin alles propagiert — der *Level*
+    aber nicht, siehe `THIRD_PARTY_LEVEL`. Ein propagierter Record wird nur vom
+    Level seines Ursprungsloggers und vom Level des Handlers geprüft, nicht vom
+    Level des Root-Loggers; `app.services.quiz` auf DEBUG erreicht die Ausgabe
+    also auch, während der Root auf WARNING steht.
 
     Ein unbrauchbarer `LOG_LEVEL` fällt auf INFO zurück und sagt das, statt den
     Prozess zu beenden — dieselbe Abwägung wie bei den Reaper-Werten in
@@ -38,19 +57,31 @@ def configure_logging(level: str = DEFAULT_LEVEL) -> None:
     `force=True`, damit ein zweiter Aufruf nicht stillschweigend wirkungslos
     bleibt: `basicConfig` tut sonst nichts, sobald der Root-Logger schon einen
     Handler hat — was unter pytest (caplog) und bei einem Reload der Fall ist.
+    Deshalb ruft weder die API noch der Worker diese Funktion beim Import auf,
+    sondern erst beim tatsächlichen Start (Lifespan bzw. `main()`): ein Import
+    von `app.main`, der keinen Server hochfährt, soll fremde Handler nicht
+    entfernen.
     """
     resolved = logging.getLevelNamesMapping().get(level.strip().upper())
-    unknown = resolved is None
 
-    # `is None`, nicht `or`: NOTSET ist ein gültiger Name und steht für 0, also
-    # für einen falsy Wert. Eine Wahrheitsprüfung hätte ausgerechnet den
-    # ausführlichsten Level stillschweigend auf INFO gedreht — und dabei die
-    # Warnung übersprungen, die dieser Funktion zufolge jeden Ersatz begleitet.
-    logging.basicConfig(
-        level=DEFAULT_LEVEL if unknown else resolved, format=FORMAT, force=True
-    )
+    # NOTSET (0) ist kein Level, auf dem man loggt, sondern der Sentinel „erbe
+    # vom Elternlogger". An `OWN_LOGGERS` gesetzt hiesse er konkret: erbe vom
+    # Root — und der steht hier auf WARNING. `LOG_LEVEL=NOTSET` bekäme damit
+    # das Gegenteil dessen, was jemand erwartet, der den ausführlichsten Wert
+    # der Liste wählt. Also wie ein unbrauchbarer Wert behandelt, inklusive der
+    # Warnung: still auf INFO drehen wäre der Fehler aus dem ersten Review.
+    if resolved is None or resolved == logging.NOTSET:
+        effective: int | str = DEFAULT_LEVEL
+        unusable = True
+    else:
+        effective = resolved
+        unusable = False
 
-    if unknown:
+    logging.basicConfig(level=THIRD_PARTY_LEVEL, format=FORMAT, force=True)
+    for name in OWN_LOGGERS:
+        logging.getLogger(name).setLevel(effective)
+
+    if unusable:
         logging.getLogger(__name__).warning(
-            "LOG_LEVEL=%r ist kein bekannter Level — es gilt %s", level, DEFAULT_LEVEL
+            "LOG_LEVEL=%r ist kein brauchbarer Level — es gilt %s", level, DEFAULT_LEVEL
         )

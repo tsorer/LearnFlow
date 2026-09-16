@@ -22,11 +22,6 @@ from app.services.embedding_config import (
     verify_embedding_config,
 )
 
-# Beim Import, nicht im Lifespan: der Startup-Check unten loggt selbst, und ein
-# Abbruch dort soll seine eigene Meldung noch im konfigurierten Format schreiben
-# können (T-63).
-configure_logging(settings.log_level)
-
 log = logging.getLogger(__name__)
 
 
@@ -42,6 +37,15 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     `app/services/embedding_config.py` for why this is a hard abort rather
     than a silent continue or an automatic re-index.
     """
+    # Hier und nicht beim Import dieses Moduls (Review zu PR #140): das Logging
+    # wird eingerichtet, wenn wirklich ein Server hochfährt. `configure_logging`
+    # arbeitet mit `force=True` und entfernt dabei bestehende Root-Handler — ein
+    # Import von `app.main`, der keinen Server startet (pytest-Collection, ein
+    # künftiger Entry-Point, der sein Logging vorher selbst konfiguriert), soll
+    # das nicht auslösen. Der Abbruch unten ist trotzdem gedeckt: er liegt in
+    # derselben Funktion, ein paar Zeilen weiter.
+    configure_logging(settings.log_level)
+
     async with AsyncSessionLocal() as db:
         result = await db.execute(
             select(Config.key, Config.value).where(Config.key.in_(EMBEDDING_CONFIG_KEYS))

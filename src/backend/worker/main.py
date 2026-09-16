@@ -30,10 +30,6 @@ from app.services.embedding_config import (
 )
 from app.services.parsing import parse_document
 
-# Seit T-63 dieselbe Konfiguration wie die API (app/logging_config.py), damit
-# beide Container im gemischten `docker compose logs` gleich aussehen. Neu
-# dabei: LOG_LEVEL wirkt jetzt auch hier, vorher stand INFO fest.
-configure_logging(settings.log_level)
 log = logging.getLogger(__name__)
 
 # The heading is indexed alongside the content: DOCX and Markdown headings are
@@ -905,6 +901,16 @@ def make_job_handler(pool: asyncpg.Pool) -> Callable[[Job], Awaitable[None]]:
 
 
 async def main() -> None:
+    # Seit T-63 dieselbe Konfiguration wie die API (app/logging_config.py), damit
+    # beide Container im gemischten `docker compose logs` gleich aussehen. Neu
+    # dabei: LOG_LEVEL wirkt jetzt auch hier, vorher stand INFO fest.
+    #
+    # Im Start und nicht beim Import, aus demselben Grund wie im Lifespan der API
+    # (Review zu PR #140): `configure_logging` entfernt mit `force=True` bestehende
+    # Root-Handler, und ein Import dieses Moduls ist nicht dasselbe wie ein
+    # startender Worker.
+    configure_logging(settings.log_level)
+
     log.info("Worker starting — connecting to database")
     conn = await asyncpg.connect(settings.asyncpg_dsn)
 

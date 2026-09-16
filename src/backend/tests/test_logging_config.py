@@ -1,28 +1,43 @@
 """T-63: die gemeinsame Logging-Konfiguration von API und Worker.
 
-Der Punkt der Tests ist nicht, dass `basicConfig` funktioniert, sondern die zwei
+Der Punkt der Tests ist nicht, dass `basicConfig` funktioniert, sondern die
 Zusagen, die diese Datei dem Betrieb macht: ein `app.*`-Logger erreicht die
-Ausgabe mit Zeitstempel und Namen, und ein vertippter `LOG_LEVEL` beendet den
+Ausgabe mit Zeitstempel und Namen, `LOG_LEVEL` steuert dabei *nur* die eigenen
+Logger und nicht die der Abhängigkeiten, und ein vertippter Wert beendet den
 Prozess nicht.
 """
 
 import logging
+import pathlib
+import subprocess
+import sys
 
 import pytest
 
-from app.logging_config import DEFAULT_LEVEL, FORMAT, configure_logging
+from app.logging_config import (
+    DEFAULT_LEVEL,
+    FORMAT,
+    OWN_LOGGERS,
+    THIRD_PARTY_LEVEL,
+    configure_logging,
+)
 
 
 @pytest.fixture(autouse=True)
-def _restore_root_logger():
-    """Die Root-Konfiguration wiederherstellen — `configure_logging` setzt sie
-    mit `force=True`, und ohne das hier nähme der erste Test dem Rest der Suite
-    das Logging weg."""
+def _restore_logging():
+    """Root-Konfiguration und die Level der eigenen Logger wiederherstellen.
+
+    `configure_logging` setzt beides mit `force=True` bzw. `setLevel`; ohne das
+    hier nähme der erste Test dem Rest der Suite das Logging weg.
+    """
     root = logging.getLogger()
-    handlers, level = root.handlers[:], root.level
+    handlers, root_level = root.handlers[:], root.level
+    own = {name: logging.getLogger(name).level for name in OWN_LOGGERS}
     yield
     root.handlers[:] = handlers
-    root.setLevel(level)
+    root.setLevel(root_level)
+    for name, level in own.items():
+        logging.getLogger(name).setLevel(level)
 
 
 def test_app_logger_reaches_the_output(capsys: pytest.CaptureFixture[str]) -> None:
@@ -37,6 +52,40 @@ def test_app_logger_reaches_the_output(capsys: pytest.CaptureFixture[str]) -> No
     # Der Loggername macht die Zeile im gemischten `docker compose logs`
     # zuordenbar — genau das fehlte dem nackten lastResort-Handler.
     assert "app.services.quiz" in err
+
+
+def test_worker_logger_reaches_the_output(capsys: pytest.CaptureFixture[str]) -> None:
+    """Der Worker hängt an derselben Konfiguration — und `worker` ist ein
+    eigener Paketname, der ohne Eintrag in OWN_LOGGERS am Root hängenbliebe."""
+    configure_logging("INFO")
+
+    logging.getLogger("worker.main").info("Worker ready")
+
+    assert "Worker ready" in capsys.readouterr().err
+
+
+def test_third_party_loggers_stay_quiet(capsys: pytest.CaptureFixture[str]) -> None:
+    """Review zu PR #140: stünde der *Root* auf dem konfigurierten Level,
+    schriebe `httpx` eine Zeile pro Provider-Aufruf — also mehrere pro `/query`.
+    LOG_LEVEL steuert die Ausführlichkeit dieses Systems, nicht die seiner
+    Abhängigkeiten."""
+    configure_logging("DEBUG")
+
+    logging.getLogger("httpx").info('HTTP Request: POST https://api.openai.com/v1/embeddings')
+    logging.getLogger("httpcore.http11").debug("send_request_headers")
+
+    assert capsys.readouterr().err == ""
+
+
+def test_a_third_party_warning_still_gets_through(capsys: pytest.CaptureFixture[str]) -> None:
+    """WARNING statt stumm: eine echte Warnung einer Bibliothek soll sichtbar
+    bleiben, sonst wäre die Ruhe mit Blindheit erkauft."""
+    configure_logging("INFO")
+
+    logging.getLogger("httpx").warning("Verbindung wird wiederholt")
+
+    assert "Verbindung wird wiederholt" in capsys.readouterr().err
+    assert logging.getLogger().level == THIRD_PARTY_LEVEL
 
 
 def test_level_is_applied(capsys: pytest.CaptureFixture[str]) -> None:
@@ -64,24 +113,26 @@ def test_unknown_level_falls_back_and_says_so(capsys: pytest.CaptureFixture[str]
     dieselbe Abwägung wie bei den Reaper-Werten (`worker/main.py`)."""
     configure_logging("VERBOSE")
 
-    assert logging.getLogger().level == logging.getLevelNamesMapping()[DEFAULT_LEVEL]
+    fallback = logging.getLevelNamesMapping()[DEFAULT_LEVEL]
+    assert all(logging.getLogger(name).level == fallback for name in OWN_LOGGERS)
     err = capsys.readouterr().err
     assert "VERBOSE" in err
     assert DEFAULT_LEVEL in err
 
 
-def test_notset_is_honoured_not_swallowed(capsys: pytest.CaptureFixture[str]) -> None:
-    """NOTSET ist ein gueltiger Levelname und steht fuer 0. Eine
-    Wahrheitspruefung auf den aufgeloesten Wert haette genau diesen Level auf
-    INFO gedreht -- und zwar ohne die Warnung, die jeden Ersatz begleiten soll."""
+def test_notset_is_rejected_loudly(capsys: pytest.CaptureFixture[str]) -> None:
+    """NOTSET ist kein Level, auf dem man loggt, sondern „erbe vom Eltern-
+    logger" — an `app` gesetzt hiesse das konkret: erbe die WARNING des Roots.
+    Wer den ausführlichsten Wert der Liste wählt, bekäme also den zweitleisesten.
+    Deshalb wie ein unbrauchbarer Wert behandelt — aber *mit* Warnung, denn
+    stilles Ersetzen war der Befund aus dem ersten Review."""
     configure_logging("NOTSET")
 
-    assert logging.getLogger().level == logging.NOTSET
-    logging.getLogger("app.services.config").debug("bei NOTSET sichtbar")
-
+    fallback = logging.getLevelNamesMapping()[DEFAULT_LEVEL]
+    assert all(logging.getLogger(name).level == fallback for name in OWN_LOGGERS)
     err = capsys.readouterr().err
-    assert "bei NOTSET sichtbar" in err
-    assert "kein bekannter Level" not in err
+    assert "NOTSET" in err
+    assert DEFAULT_LEVEL in err
 
 
 def test_second_call_is_not_silently_ignored(capsys: pytest.CaptureFixture[str]) -> None:
@@ -93,6 +144,37 @@ def test_second_call_is_not_silently_ignored(capsys: pytest.CaptureFixture[str])
     logging.getLogger("app.routers.query").info("nach dem zweiten Aufruf")
 
     assert "nach dem zweiten Aufruf" in capsys.readouterr().err
+
+
+def test_importing_app_main_does_not_configure_logging() -> None:
+    """Review zu PR #140: `configure_logging` laeuft mit `force=True` und
+    entfernt dabei bestehende Root-Handler. Ein Import von `app.main` ist aber
+    kein startender Server -- pytest importiert das Modul beim Einsammeln, und
+    ein kuenftiger Entry-Point koennte sein Logging vorher selbst einrichten.
+    Deshalb haengt der Aufruf am Lifespan, nicht am Import.
+
+    Eigener Interpreter, weil `app.main` in dieser Suite laengst importiert ist
+    und ein zweiter Import im selben Prozess nichts mehr ausfuehrt.
+    """
+    probe = (
+        "import logging;"
+        "h = logging.StreamHandler();"
+        "logging.getLogger().addHandler(h);"
+        "import app.main;"
+        "print(h in logging.getLogger().handlers)"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", probe],
+        cwd=pathlib.Path(__file__).resolve().parent.parent,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip().endswith("True"), (
+        "Der Import von app.main hat einen fremden Root-Handler entfernt: "
+        f"{result.stdout}{result.stderr}"
+    )
 
 
 def test_format_carries_time_level_and_name() -> None:
