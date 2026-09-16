@@ -47,6 +47,8 @@ Kein lokales Modell passt mit 16K-Kontext vollständig in die 8 GB VRAM der Test
   als in R00 (Rauschen). Self-Check läuft seltener (Dev 20 → 15).
 - **R02a:** Präziserer Prompt senkt unbelegte Aussagen 41 % → 28 % und False-Suppression Dev 10 → 8;
   in fast jeder zweiten Antwort bleibt aber irgendwo ein Sammelbeleg.
+- **R03:** Regel-Ausnahme für falsche Annahmen ohne Wirkung (4 von 6 Annahme-Fragen wie vorher);
+  False-Suppression Dev 8 → 7.
 
 ### `qwen3-local` — qwen3:8b
 
@@ -58,6 +60,8 @@ Kein lokales Modell passt mit 16K-Kontext vollständig in die 8 GB VRAM der Test
   weil ihre Coverage korrekt auf 1,0 steigt. 72 von 80 Antworten wortgleich zu R00.
 - **R02a:** Belegt jetzt fast alles (7 % unbelegt) — auch falsche Antworten: DSGVO-Frage mit AI-Act-Kriterien
   beantwortet und ausgeliefert. Out-of-Corpus-Refusal 68 % → 59 %.
+- **R03:** Keine Wirkung auf Annahme-Fragen (5 von 6). Einmal in einer Endlosschleife hängen
+  geblieben (`AIA-OOC-01`, 8000 Tokens, 13 min, als abgeschnitten unterdrückt).
 
 ### `gemma4-local` — gemma4:26b
 
@@ -82,6 +86,8 @@ Kein lokales Modell passt mit 16K-Kontext vollständig in die 8 GB VRAM der Test
   `GEDECKT`), einmal erfundene Referenz `[13]` korrekt gestoppt.
 - **R02a:** Grösster Gewinner des Prompts: fremde Formate 5 % → 0 %, unbelegte Aussagen 56 % → 41 %,
   False-Suppression Dev 14 → 8.
+- **R03:** Annahme-Fragen 3 → 4 (nur `SAMW-ADV-04`); False-Suppression Dev 8 → 13 durch
+  Formatrauschen (unbelegte Aussagen 41 % → 49 %). Instabilstes Modell der Reihe.
 
 ### `ministral3-local` — ministral-3:14b
 
@@ -95,3 +101,4 @@ Kein lokales Modell passt mit 16K-Kontext vollständig in die 8 GB VRAM der Test
   Out-of-Corpus-Frage; 100 % Refusal bleiben.
 - **R02a:** Unterverweise `[1a]` fast verschwunden (24 % → 3 %), unbelegte Aussagen 36 % → 21 %. Neue
   Fehlerform: zitiert Erwägungsgrund-Nummern des AI Act (`[13]`, `[65]`) statt der Abschnittsnummer.
+- **R03:** Annahme-Fragen 2 → 3 (nur `SAMW-ADV-04`); False-Suppression Dev 9 → 8, 100 % Refusal.

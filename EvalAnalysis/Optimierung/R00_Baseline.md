@@ -54,17 +54,17 @@ Der Generierungs-Prompt gibt dem Modell sechs Regeln vor; auf sie beziehen sich 
 > **Die False-Suppression ist überwiegend ein Formatproblem, kein Urteilsproblem.**
 > Von 59 Unterdrückungen beantwortbarer Fragen im Entwicklungs-Set (alle Modelle) waren
 > 30 Antworten inhaltlich richtig — gescheitert an der Art, wie belegt wurde (22),
-> oder an der Satzzerlegung der Pipeline (8). Echte Übervorsicht (S1) macht 18 aus. Jedes Modell scheitert dabei auf seine
+> oder an der Satzzerlegung der Pipeline (8). Echte Übervorsicht (S1) macht 12 aus (Korrektur R03). Jedes Modell scheitert dabei auf seine
 > eigene Art: gpt-4o-mini und gpt-oss sammeln Belege am Absatzende, ministral erfindet
 > Unterverweise wie `[1a]`, gpt-oss schreibt `【1】`, qwen3 verweigert in Prosa.
 
 | Profil | Urteilsfähigkeit | Protokolltreue | Abweichungen (Dev) | davon Format/Pipeline (S2) |
 |---|---|---|---|---|
-| `openai` gpt-4o-mini | 89,7 % | 91,4 % | 14 | 5 |
+| `openai` gpt-4o-mini | 93,1 % | 91,4 % | 14 | 5 |
 | `qwen3-local` | 93,1 % | 94,8 % | 9 | 0 |
 | `gemma4-local` | 98,3 % | 98,3 % | 10 | 3 |
-| `gpt-oss-local` | 86,2 % | 81,0 % | 22 | 12 |
-| `ministral3-local` | 86,2 % | 86,2 % | 19 | 10 |
+| `gpt-oss-local` | 89,7 % | 81,0 % | 22 | 12 |
+| `ministral3-local` | 89,7 % | 86,2 % | 19 | 10 |
 
 **Grenze beider Achsen:** Eingeordnet werden nur Abweichungen. Eine ausgelieferte Antwort,
 die wie erwartet durchkommt, wird nicht inhaltlich geprüft. qwen3 liefert am meisten aus
@@ -182,14 +182,14 @@ Modell dabei inhaltlich richtig lag:
 
 | Klasse | openai | qwen3 | gemma4 | gpt-oss | ministral | Σ |
 |---|---|---|---|---|---|---|
-| S1 Übervorsicht | 6 | 1 | 1 | 5 | 5 | 18 |
+| S1 Übervorsicht | 4 | 1 | 1 | 3 | 3 | 12 |
 | S2a Sammelbeleg | 5 | – | 1 | 7 | – | 13 |
 | S2b Fremdes Zitatformat | – | – | – | 3 | 6 | 9 |
 | S2c Segmentierung *(Pipeline)* | – | – | 2 | 2 | 3 | 7 |
 | S2d Lückensatz *(Pipeline)* | – | – | – | – | 1 | 1 |
 | S3 Echte Deckungslücke | – | 2 | – | – | – | 2 |
 | S4 Self-Check-Fehlurteil | – | – | – | 1 | 1 | 2 |
-| S5 Retrieval | – | – | – | 2 | 2 | 4 |
+| S5 Retrieval | 2 | – | – | 4 | 4 | 10 |
 | P1 Prosa-Verweigerung | – | 2 | – | – | – | 2 |
 | P2 Teilantwort mit Lücke | 1 | 1 | 3 | – | – | 5 |
 | F1 Verwechslung | – | 1 | – | 1 | – | 2 |
@@ -263,13 +263,13 @@ nicht schlechter, sondern anders.
 
 ### 5.4 Übervorsicht hängt an der Frage, nicht am Modell
 
-Die 18 S1-Fälle konzentrieren sich auf wenige Fragen, die mehrere Modelle gleichzeitig
+Die S1-Fälle konzentrieren sich auf wenige Fragen, die mehrere Modelle gleichzeitig
 verweigern:
 
 | Frage | verweigert von | Muster |
 |---|---|---|
-| `SKOS-IPV-01` «Muss … die IPV beanspruchen?» | openai, gpt-oss, ministral | Ja/Nein-Frage, Antwort nur als Schlussfolgerung aus dem Kontext |
-| `SKOS-EL-01` «Gehen EL der Sozialhilfe vor?» | openai, gpt-oss, ministral | Ja/Nein-Frage mit Schlussfolgerung |
+| ~~`SKOS-IPV-01`~~ | openai, gpt-oss, ministral | **Korrektur R03: kein S1** — die Pflicht zur Geltendmachung steht nicht im Kontext (S5 Retrieval) |
+| ~~`SKOS-EL-01`~~ | openai, gpt-oss, ministral | **Korrektur R03: kein S1** — der Vorrang steht nicht im Kontext (S5 Retrieval) |
 | `AIA-LEITLINIEN-01` «Bis wann …?» | openai, gemma4, ministral (gpt-oss: Self-Check) | Datum steht im Kontext |
 | `SAMW-ADV-01` «Auf welcher Seite steht das Verbot …?» | openai, qwen3, gpt-oss, ministral | falsche Prämisse |
 | `SAMW-ADV-02` «Wie lauten alle fünf Prinzipien?» | openai, gpt-oss, ministral | falsche Prämisse (es sind drei) |
@@ -362,3 +362,8 @@ unbelegte Aussage muss unbelegt bleiben.
   Einordnung und Eignung unverändert.
 - **2026-09-15:** Reproduzierbarkeit der lokalen Modelle eingeschränkt auf eine Sitzung
   (Abschnitt 1, Reproduzierbarkeit), belegt durch den R01-Lauf.
+- **2026-09-16 (aus R03):** `SKOS-EL-01` und `SKOS-IPV-01` von S1 (Übervorsicht) auf S5 (Retrieval)
+  korrigiert — die erwartete Seite lag im Kontext, die tragende Aussage (Vorrang bzw. Pflicht zur
+  Geltendmachung) aber nicht. Sechs Zeilen in `labels/R00.csv` (openai, gpt-oss, ministral).
+  Folge: S1 18 → 12, S5 4 → 10, Urteilsfähigkeit openai 89,7 → 93,1 %, gpt-oss und ministral je
+  86,2 → 89,7 %. Belege in `R03_Praemissen.md`, Abschnitt 5.4.
