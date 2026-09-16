@@ -217,6 +217,28 @@ Die Messreihe über fünf Modelle (`EvalAnalysis/Optimierung/R00_Baseline.md`, B
    das bei mehr Last oder einem anderen Provider ändern, ist der Hebel das Grenzband, nicht
    das Abschalten der Stufe.
 
+6. **Stufe 3 ist nicht modellunabhängig (T-62, Runde R04, 2026-09-16) — offen.** Der
+   Self-Check-Prompt verlangt eine *Deckungs*prüfung, wird aber von `ministral-3:14b`
+   systematisch als *Vollständigkeits*prüfung gelesen: 8 von 16 Urteilen `NICHT_GEDECKT`, in
+   fünf Fällen mit der Begründung, die Antwort behandle einen Aspekt nicht — obwohl jede
+   Aussage darin belegt war. Über alle vier anderen Profile zusammen: ein einziges
+   `NICHT_GEDECKT`. Der Prompt liefert die Ursache selbst: der Einleitungssatz spricht von
+   «**vollständig** durch die Kontext-Abschnitte gedeckt», Regel 1 zwei Sätze später von «ob
+   die Antwort … **vollständig** ist, spielt keine Rolle». `gpt-4o-mini` löst die Doppeldeutigkeit
+   richtig auf, ein kleineres Modell nicht. Belege und Wortlaut der Urteile:
+   `EvalAnalysis/Optimierung/R04_Entscheidungsregel.md`, Abschnitt 4.3. Der Prompt wird in Runde
+   R05 überarbeitet und gemessen; bis dahin gilt: **wer das Produktivmodell wechselt, misst
+   Stufe 3 eigens nach** — ein Modellwechsel verschiebt nicht nur die Antwortqualität, sondern
+   auch das Urteil des Prüfers.
+
+7. **Stufe 2 misst Belegform, nicht Belegbezug (T-62, Runde R04) — offen.** Eine in Prosa
+   formulierte Verweigerung («Die Kontext-Abschnitte enthalten keine Angabe … `[1][2][3][4][5]`»)
+   erreicht Coverage 1,0 und wird ausgeliefert, während eine korrekte Antwort mit einem
+   Sammelbeleg 0,33 erreicht und unterdrückt wird. Beides ist nach dem Kontrakt aus dem Nachtrag
+   2026-08-20 korrekt gezählt — die Stufe prüft, *ob* hinter einer Aussage eine gültige Nummer
+   steht, nicht *ob* die Nummer sie stützt. Kandidat für eine eigene Runde; ohne Massnahme bleibt
+   es eine bekannte Lücke des fail-closed-Versprechens.
+
 ---
 
 *Abhängigkeiten: ADR-007 (Retrieval-Gate als Stufe 0, Grounding-Prompt/Citations), ADR-004 (LLM-Aufruf für Self-Check, Provider-Portabilität), ADR-003 (`config`-Tabelle für Schwellen), ADR-005 (kein PyTorch-Re-Ranker/Klassifikator) · Erfüllt: Reliability-NFA, US-02 (Konfidenz-Anzeige)*

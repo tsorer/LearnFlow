@@ -152,6 +152,33 @@ Stufe 2 nebenbei auch Inhalte; mit besserer Formtreue hängt die inhaltliche Pr�
 Stufe 3 (ADR-008). Zudem lesen einzelne Modelle «Nummer» als Nummer *aus* dem Dokument
 (Erwägungsgründe `[13]`, `[65]`) — Stufe 2 unterdrückt das korrekt als erfundene Referenz.
 
+**Präzisierung (T-62, Runde R04, 2026-09-16) — Verweigern, Richtigstellen und Teilantworten
+sind *eine* Entscheidung.** Der Prompt liess das Modell bisher zuerst prüfen, ob der Kontext die
+Frage deckt (Regel 3, sonst `WEISS_NICHT`), und erlaubte danach die Teilantwort mit benannter
+Lücke (Regel 4). Beides steht jetzt in einer Regel mit drei ausdrücklich getrennten Fällen:
+**a)** der Kontext widerlegt eine Annahme der Frage → mit Beleg richtigstellen; **b)** der
+Kontext beantwortet die Frage ganz oder in einem Teil → auf diesen Teil antworten und die Lücke
+benennen; **c)** der Kontext trägt nichts bei — *auch dann nicht, wenn er Ähnliches zu einem
+anderen Gegenstand enthält* → ausschliesslich `WEISS_NICHT`.
+
+Anlass waren zwei Befunde derselben Messreihe: Fragen mit falscher Annahme («der Belmont-Report
+nennt fünf Prinzipien») wurden verweigert statt richtiggestellt, und Fragen ohne Antwort im
+Korpus mit einer Teilantwort aus thematisch verwandten Passagen beantwortet — nach der alten
+Regel 4 erlaubt. Eine als Ausnahme *angehängte* Regel (Runde R03) hatte bei keinem Modell
+Wirkung; hinter «antworte ausschliesslich mit `WEISS_NICHT`» wird nichts mehr gelesen.
+
+Gemessen über fünf Modelle (`EvalAnalysis/Optimierung/R04_Entscheidungsregel.md`):
+Out-of-Corpus-Refusal steigt dort, wo sie zu tief war (qwen3 59,1 % → 68,2 %, gemma4 81,8 % →
+86,4 %, gpt-oss 90,9 % → 95,5 %), die Referenz `gpt-4o-mini` hält 90,9 % und stellt eine
+Annahme-Frage mehr richtig; die Halluzinationsrate bleibt bei allen fünf Profilen 0 %.
+
+**Bekannte Nebenwirkung — der Regelblock ist länger, und Länge ist nicht gratis.** Vier von fünf
+Modellen schreiben längere Antworten, ohne mehr Belege zu setzen; «Zeichen je Beleg» steigt
+(Referenz 178 → 194), die Coverage sinkt entsprechend, und mehr Antworten landen im Grenzband von
+Stufe 3 (ADR-008). Bei `ministral-3:14b` kippt das die Runde: die False-Suppression steigt
+31,1 % → 40,0 %, nicht weil das Modell schlechter urteilt, sondern weil Stufe 3 sie anschliessend
+verwirft. Wer diese Regel kürzt, misst dieselben vier Grössen erneut.
+
 ### 5. Re-Ranking — bewusst out-of-scope für den MVP
 
 Ein Cross-Encoder-Re-Ranker ist der stärkste zusätzliche Präzisionshebel, würde aber entweder PyTorch ins Backend zurückholen (gegen ADR-005) oder einen weiteren Provider erfordern. Für den MVP wird darauf verzichtet; die Retrieval-Schnittstelle wird jedoch so geschnitten, dass ein Re-Ranking-Schritt **zwischen Fusion und Gate** ohne Architekturumbau nachgerüstet werden kann.
