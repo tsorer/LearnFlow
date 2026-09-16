@@ -51,5 +51,20 @@ docker exec -w /app -e PYTHONPATH=/app src-api-1 python /tmp/vergleich.py 2026-0
 docker exec -w /app -e PYTHONPATH=/app src-api-1 python /tmp/kennzahlen_runde.py R02a 2026-09-15T19-19   # Zeilen für kennzahlen.csv
 ```
 
+R03/R04 (Prämissen, Entscheidungsregel):
+
+```bash
+docker exec -w /app -e PYTHONPATH=/app src-api-1 python /tmp/r03_praemissen.py   2026-09-15T21-36 2026-09-16T04 2026-09-16T04-50 9999            # Annahme-Fragen, zwei Runden
+docker exec -w /app -e PYTHONPATH=/app src-api-1 python /tmp/abweichungen.py   2026-09-16T04-50 9999                                            # alle Abweichungen mit Antworttext
+docker exec -w /app -e PYTHONPATH=/app src-api-1 python /tmp/laenge.py   2026-09-15T21-36 2026-09-16T04 2026-09-16T04-50 9999             # Antwortlänge und Belegdichte
+docker exec -w /app -e PYTHONPATH=/app src-api-1 python /tmp/self_check_statistik.py   2026-09-16T04-50 9999                                            # Stufe 3: Aufrufe und Urteile
+docker exec -w /app -e PYTHONPATH=/app src-api-1 python /tmp/kennzahlen_runde.py R04 2026-09-16T04-50
+```
+
+`r03_praemissen.py`, `vergleich.py`, `r02_format.py`, `laenge.py`, `self_check_statistik.py`
+und `abweichungen.py` nehmen die Profile als zusätzliche Argumente. Nötig für
+`gemma4-local`, das in R02a/R03 pausiert war und deshalb ein anderes Vergleichsfenster
+braucht (R01 statt R03).
+
 Die Lauf-IDs sind in `r00_extract.py` und `r00_runs.py` fest eingetragen. Die Rohdaten unter
 `src/backend/eval/out/` sind gitignored und liegen nur auf dem Messrechner.

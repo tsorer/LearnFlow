@@ -260,9 +260,15 @@ Der Plan ist eine Erwartung, keine Verpflichtung — jede Runde begründet die n
 | R01 | Satzzerlegung in Stufe 2 | Stufe 2 zerlegte korrekt belegte Antworten falsch → **erledigt, übernommen** |
 | R02 | Zitierformat: erziehen gegen tolerant lesen | Sammelbelege und fremde Formate senken die Coverage → **erledigt: Prompt übernommen, tolerantes Lesen verworfen** |
 | R03 | Falsche Annahmen (Ausnahme in Regel 3) | Eine angehängte Ausnahme stellt widerlegte Annahmen richtig → **erledigt, verworfen (kein Effekt)** |
-| R04 | Regeln 3 und 4 als eine Entscheidung | Verweigerung, Richtigstellung und Teilantwort als drei Fälle einer Entscheidung wirken, wo eine angehängte Ausnahme (R03) nichts bewegt — **läuft, unvollständig** |
-| R05 | Generisch vs. modellspezifisch | Ein gemeinsamer Prompt erreicht nicht bei allen Modellen das Optimum — Mass für die «Nicht-Austauschbarkeit» |
-| R06 | Schlussmessung | Bestes Setup je Modell auf dem Holdout; Entscheid Produktivmodell |
+| R04 | Regeln 3 und 4 als eine Entscheidung | Verweigerung, Richtigstellung und Teilantwort als drei Fälle einer Entscheidung wirken, wo eine angehängte Ausnahme (R03) nichts bewegt — **erledigt, übernommen** (4 von 5 Profilen besser) |
+| R05 | Self-Check-Prompt (neu, aus R04) | Stufe 3 prüft modellabhängig Vollständigkeit statt Deckung — der Prompt sagt beides. Eindeutig formuliert, fallen die S4-Fehlurteile weg, ohne dass Ungedecktes durchkommt |
+| R06 | Generisch vs. modellspezifisch | Ein gemeinsamer Prompt erreicht nicht bei allen Modellen das Optimum — Mass für die «Nicht-Austauschbarkeit» |
+| R07 | Schlussmessung | Bestes Setup je Modell auf dem Holdout; Entscheid Produktivmodell |
+
+Zwei weitere Kandidaten aus R04, noch ohne Platz im Plan: **Belegdichte statt Belegzahl**
+(Stufe 2b zählt, *ob* eine Nummer hinter einer Aussage steht, nicht *ob* sie stützt — eine
+Verweigerung mit `[1][2][3][4][5]` erreicht Coverage 1,0) und eine **kürzere Fassung des
+R04-Regelblocks** (länger heisst längere Antworten bei gleich vielen Belegen).
 
 ## 12. Offene technische Voraussetzungen
 

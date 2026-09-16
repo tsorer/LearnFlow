@@ -4,7 +4,9 @@ Zielfragen (Entwicklungs-Set, adversarial, erwartete Antwort = Richtigstellung):
   AIA-ADV-01, AIA-ADV-02, AIA-ADV-03, SAMW-ADV-01, SAMW-ADV-02, SAMW-ADV-04
 Kontrollfragen (sollen verweigert bleiben): SKOS-ADV-02, SKOS-IPV-02 und alle out_of_corpus (Dev).
 
-Aufruf: python r03_praemissen.py <alt-ab> <alt-bis> <neu-ab> <neu-bis>
+Aufruf: python r03_praemissen.py <alt-ab> <alt-bis> <neu-ab> <neu-bis> [Profil ...]
+  Ohne Profil-Argumente die vier in R03 gemessenen Profile; `gemma4-local` war in R03
+  pausiert und wird deshalb einzeln mit seinem eigenen Vergleichsfenster aufgerufen.
 """
 import glob, json, os, sys
 
@@ -12,7 +14,7 @@ import yaml
 from eval.gold_dataset import _corpus_dir
 
 A_FROM, A_TO, B_FROM, B_TO = sys.argv[1:5]
-PROFILES = ["openai", "qwen3-local", "gpt-oss-local", "ministral3-local"]
+PROFILES = sys.argv[5:] or ["openai", "qwen3-local", "gpt-oss-local", "ministral3-local"]
 TARGETS = ["AIA-ADV-01", "AIA-ADV-02", "AIA-ADV-03", "SAMW-ADV-01", "SAMW-ADV-02", "SAMW-ADV-04"]
 GUARDS = ["SKOS-ADV-02", "SKOS-IPV-02"]
 HOLDOUT = set(json.load(open("/tmp/holdout.json")))
@@ -53,4 +55,4 @@ for prof in PROFILES:
         print(f"  {q}: {outcome(a[q])} → {outcome(b[q])} (Coverage {cov})")
         calls = b[q]["response"]["debug"].get("llm_calls") or []
         if calls:
-            print("     R03:", calls[0]["response"].strip().replace("\n", " ⏎ ")[:420])
+            print("     neu:", calls[0]["response"].strip().replace("\n", " ⏎ ")[:420])

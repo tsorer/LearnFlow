@@ -140,7 +140,18 @@ PROFILES: dict[str, Profile] = {
         name="gemma4-local",
         model="ollama_chat/gemma4:26b",
         timeout_seconds=1800.0,
-        max_answer_tokens=8000,
+        # 8000 reichten bis R01 und reichen seit R04 nicht mehr: derselbe
+        # Grounding-Prompt mit dem längeren Regelblock hat den *unsichtbaren*
+        # Vorlauf von gemma4 fast verdoppelt (Median 858 -> 1535
+        # Completion-Tokens, 2,43 -> 4,11 Tokens je sichtbarem Zeichen). Zwei
+        # Fragen liefen am 2026-09-16 ins Limit und kamen mit
+        # `finish_reason='length'` bei **null** Zeichen zurück
+        # (`SKOS-SIL-01`, `SAMW-GENERALKONSENT-01`) — im Eval zählt das als
+        # Verweigerung und misst das Budget statt das Modell. 12000 passt mit
+        # dem längsten gemessenen Prompt (2967 Tokens) unter `num_ctx`.
+        # Nur dieses Profil braucht das: die anderen vier liegen im Median
+        # unter 150 Completion-Tokens.
+        max_answer_tokens=12000,
         self_check_timeout_seconds=600.0,
         # 1000 reicht für die Out-of-Corpus-Prompts, nicht für die längeren
         # In-Corpus-Kontexte: am 2026-09-14 zwei Self-Check-Aufrufe mit
