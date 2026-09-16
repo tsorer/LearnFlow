@@ -71,5 +71,15 @@ und `abweichungen.py` nehmen die Profile als zusätzliche Argumente. Nötig für
 `gemma4-local`, das in R02a/R03 pausiert war und deshalb ein anderes Vergleichsfenster
 braucht (R01 statt R03).
 
+Pipeline-Review (`Pipeline-Review.md`) — die drei Auswertungen, die nicht an einer Runde
+hängen, sondern an der Pipeline selbst. Retrieval ist deterministisch und läuft vor dem
+Modell, deshalb genügt je ein Lauf:
+
+```bash
+docker exec -w /app -e PYTHONPATH=/app src-api-1 python /tmp/retrieval_diagnose.py  # Rang- oder Findungsproblem?
+docker exec -w /app -e PYTHONPATH=/app src-api-1 python /tmp/recall_at_n.py         # was ein groesseres Kontextfenster braechte
+docker exec -w /app -e PYTHONPATH=/app src-api-1 python /tmp/gate_diagnose.py       # trennt Stufe 0/1 ueberhaupt?
+```
+
 Die Lauf-IDs sind in `r00_extract.py` und `r00_runs.py` fest eingetragen. Die Rohdaten unter
 `src/backend/eval/out/` sind gitignored und liegen nur auf dem Messrechner.
