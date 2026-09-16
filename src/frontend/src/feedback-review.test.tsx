@@ -69,7 +69,7 @@ describe("Liste (AK: alle Feedbacks sichtbar, Freitext lesbar)", () => {
     api.route("get", "/api/feedback", 200, { items: [], total: 0 });
     await openDashboard();
 
-    expect(screen.getByText(/kein feedback vorhanden/i)).toBeInTheDocument();
+    expect(screen.getByText(/noch kein feedback/i)).toBeInTheDocument();
   });
 
   it("rendert ein Feedback ohne Kategorie und ohne Kommentar", async () => {

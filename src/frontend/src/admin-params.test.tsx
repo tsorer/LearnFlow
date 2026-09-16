@@ -124,6 +124,12 @@ async function openPanel() {
   await userEvent.click(screen.getByRole("button", { name: /anmelden/i }));
   await screen.findByLabelText("Frage");
   await userEvent.click(screen.getByRole("button", { name: /parameter/i }));
+  // "Parameter" is a route now (UX pass 2026-09), not a boolean flipped on an
+  // already-mounted ChatView — GET /api/admin/config only fires once this page
+  // mounts, so the fields exist immediately but their values arrive a tick
+  // later than before. Every case below reads a pre-filled value, so the
+  // shared helper waits for the config to have actually landed.
+  await waitFor(() => expect(screen.getByLabelText("Kandidaten je Suche")).toHaveValue(20));
 }
 
 /** The config object the app last put on the wire. */

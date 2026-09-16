@@ -671,6 +671,10 @@ export default function MessageBubble({ message: m, token }: Props) {
   const submitting = useRef(false);
   const [showSources, setShowSources] = useState(false);
   const [viewerCitation, setViewerCitation] = useState<Citation | null>(null);
+  // Collapsed by default (UX pass 2026-09): the retrieval/pipeline internals
+  // below are admin-only already, but rendering them open under every answer
+  // still buried the answer itself under a debug dump nobody had asked to see.
+  const [showDebug, setShowDebug] = useState(false);
 
   const selectThumb = (helpful: boolean) => {
     if (feedback !== null || submitting.current) return;
@@ -873,9 +877,19 @@ export default function MessageBubble({ message: m, token }: Props) {
         />
       )}
 
-      {/* Always-visible debug panel */}
+      {/* Admin-only retrieval/pipeline internals, collapsed by default. */}
       {d && m.confidence && (
-        <DebugPanel debug={d} confidence={m.confidence} />
+        <div>
+          <button
+            className="secondary"
+            style={{ fontSize: 11, padding: "2px 9px" }}
+            onClick={() => setShowDebug(v => !v)}
+            aria-expanded={showDebug}
+          >
+            {showDebug ? "Details zur Antwort ▲" : "Details zur Antwort ▼"}
+          </button>
+          {showDebug && <div style={{ marginTop: 8 }}><DebugPanel debug={d} confidence={m.confidence} /></div>}
+        </div>
       )}
 
       {/* Feedback */}

@@ -132,6 +132,9 @@ async function ask(response: QueryResponse) {
   await userEvent.type(await screen.findByLabelText("Frage"), "Was regelt der EU AI Act?");
   await userEvent.click(screen.getByRole("button", { name: /senden/i }));
   await screen.findByText(response.message!);
+  // The chunk table is collapsed by default (UX pass 2026-09); every case in
+  // this file reads the table itself, so the shared helper opens it once.
+  await userEvent.click(screen.getByRole("button", { name: /details zur antwort/i }));
 }
 
 beforeEach(() => {
