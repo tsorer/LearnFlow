@@ -2,7 +2,7 @@
 
 Eine Einschätzung der LearnFlow-Pipeline gegen Literatur und gängige Praxis, belegt mit den
 Messungen aus `kennzahlen.csv` und drei zusätzlichen Auswertungen (`werkzeuge/retrieval_diagnose.py`,
-`werkzeuge/recall_at_n.py`, `werkzeuge/gate_diagnose.py`). Stand 2026-09-16, Code-Stand `b7246f9`.
+`werkzeuge/recall_at_n.py`, `werkzeuge/gate_diagnose.py`, `werkzeuge/risiko_deckung.py`). Stand 2026-09-16, Code-Stand `b7246f9`.
 
 > **Zur Literatur:** Die genannten Arbeiten sind aus dem Gedächtnis zitiert, ohne
 > Online-Recherche in dieser Sitzung. Autor, Jahr und Kernaussage sind belastbar; wer daraus
@@ -15,12 +15,18 @@ Messungen aus `kennzahlen.csv` und drei zusätzlichen Auswertungen (`werkzeuge/r
 **Die Pipeline ist sicherheitsorientiert gebaut und hält, was sie in dieser Richtung
 verspricht — sie bezahlt das mit Recall, und zwar mehr, als nötig wäre.**
 
-| Zusage | Zielwert | gemessen (Referenz `gpt-4o-mini`, R04) | Urteil |
+| Zusage | Zielwert | gemessen (Referenz `gpt-4o-mini`, R04) | Urteil gegen **externe** Vergleichswerte (Abschnitt 2a) |
 |---|---|---|---|
-| Halluzinationsrate | 0 % | 0 % (0 von 41 ausgelieferten Antworten) | erfüllt, aber kleine Stichprobe |
-| Out-of-Corpus-Refusal | ≥ 90 % | 90,9 % | knapp erfüllt |
-| False-Suppression | ≤ 15 % | **22,2 %** | **verfehlt** |
-| Context-Recall (top-5) | — | **0,772** | die eigentliche Obergrenze |
+| Halluzinationsrate | 0 % | 0 % (0 von 41) | **Die Zahl trägt nicht.** Streng gerechnet über *alle* ausgelieferten Antworten: **2,9 %** — der offizielle Pool schliesst Out-of-Corpus-Antworten aus, und genau dort liegen 100 % der inhaltlichen Fehler. |
+| Out-of-Corpus-Refusal | ≥ 90 % | 90,9 % (Modell allein: 81,8 %) | **deutlich über dem, was Benchmarks für rohes Modellverhalten berichten** (Grössenordnung 45 %) — nicht «knapp erfüllt» |
+| False-Suppression | ≤ 15 % | 22,2 % | **kein Urteil möglich.** Die 15 % sind laut ADR-009 ein «Startwert», der nach dem ersten Kalibrierungslauf bestätigt werden sollte und es nie wurde. Es gibt keinen externen Beleg für diesen Wert. |
+| Context-Recall (top-5) | — | 0,772 | **im Rahmen** dessen, was für deutsches Fachretrieval publiziert ist — der Befund liegt nicht im Niveau, sondern im Abstand zu 0,945 in der Kandidatenliste |
+
+> **Korrektur gegenüber der ersten Fassung dieses Dokuments (2026-09-16):** Ich hatte
+> «False-Suppression verfehlt» und «Halluzinationsrate erfüllt» geschrieben. Beides war gegen
+> unsere eigenen Zielwerte gemessen statt gegen Daten. Nachgerechnet ist es **umgekehrt**: die
+> False-Suppression lässt sich ohne externen Massstab gar nicht als Fehlschlag bezeichnen, und
+> die 0 % Halluzination sind ein Artefakt der Pool-Definition.
 
 Die vier Befunde, die dahinterstehen:
 
@@ -53,6 +59,149 @@ Retrieval-Zahlen unten stammen deshalb aus einem Lauf und gelten für alle Profi
 obere 95-%-Schranke von rund **7 %**, nicht «null». Eine Frage der 22
 Out-of-Corpus-Fragen sind 4,5 Prozentpunkte. Alle Aussagen unten, die sich auf einzelne
 Fragen stützen, sind entsprechend zu lesen.
+
+---
+
+## 2a. Gegen externe Daten statt gegen eigene Zielwerte
+
+Die drei Zielwerte der Arbeit sind **projektintern gesetzt** und teils ausdrücklich vorläufig:
+
+| Zielwert | Herkunft | Status |
+|---|---|---|
+| Halluzinationsrate = 0 % | Reliability-NFA | Anforderung, nicht kalibriert |
+| Out-of-Corpus-Refusal ≥ 90 % | Reliability-NFA, Issue #35 | Anforderung, nicht kalibriert |
+| False-Suppression ≤ 15 % | ADR-009, Gruppe A | ausdrücklich **«Startwert»**, sollte «nach dem ersten Kalibrierungslauf als *Accepted* bestätigt» werden — ist bis heute nicht bestätigt |
+
+ADR-008 sagt es selbst: «Alle Startwerte (Coverage 50 %, Gewichte, Band-Grenzen) sind
+**Hypothesen** und ohne Kalibrierung gegen ein Eval-Dataset nicht NFA-garantierend.» Ein
+Urteil «verfehlt» gegen eine unbestätigte Hypothese misst die Hypothese, nicht die Pipeline.
+Deshalb hier dieselben Messungen gegen Grössen, die ausserhalb dieses Projekts definiert sind.
+
+### 2a.1 Die Halluzinationsrate von 0 % hält der Prüfung nicht stand
+
+`eval/test_in_corpus_quality.py` zählt in den Halluzinations-Pool nur `in_corpus`- und
+bewertete `adversarial`-Fragen. **Ausgelieferte Antworten auf `out_of_corpus`-Fragen fliessen
+nicht ein** — mit der Begründung, für sie sei keine Referenzantwort definiert.
+
+Rechnet man streng über *alle* ausgelieferten Antworten des Entwicklungs-Sets, mit der
+Einordnung aus `labels/R04.csv` (Klassen F1, F2, S3 = inhaltlich falsch):
+
+| Profil | ausgeliefert | davon inhaltlich falsch | strenge Fehlerrate | offizielle Rate |
+|---|---|---|---|---|
+| `openai` | 34 | 1 (`AIA-OOC-01`) | **2,9 %** | 0 % |
+| `qwen3-local` | 44 | 2 (`SKOS-EL-OOC-01`, `AIA-OOC-01`) | **4,5 %** | 0 % |
+| `gpt-oss-local` | 26 | 1 (`SKOS-EL-OOC-01`) | **3,8 %** | 0 % |
+| `ministral3-local` | 25 | 0 | 0 % | 0 % |
+| `gemma4-local` | 39 | 0 | 0 % | 0 % |
+
+**Jede einzelne inhaltlich falsche Antwort ist eine Antwort auf eine
+Out-of-Corpus-Frage** — also genau die Kategorie, die der offizielle Pool ausschliesst. Die
+0 % entstehen dadurch nicht aus der Qualität der Pipeline, sondern aus dem Zuschnitt des
+Nenners.
+
+**Externe Einordnung:** RAGTruth (Niu et al., ACL 2024) annotiert Halluzinationen
+wortgenau in RAG-Antworten und berichtet für starke Modelle in QA-Aufgaben Anteile
+halluzinationshaltiger Antworten im **zweistelligen Prozentbereich**. FACTS Grounding
+(Google DeepMind, 2024/25) misst für die besten Modelle rund **80–86 %** vollständig
+gegroundete Antworten. Gegen diese Grössenordnungen sind 2,9 % bis 4,5 % **gut** — die
+Pipeline ist also besser, als die korrigierte Zahl zunächst klingt. Nur eben nicht null.
+
+**Was daraus folgt:** nicht «die Pipeline halluziniert doch», sondern **die Kennzahl gehört
+repariert**. Solange ausgelieferte Out-of-Corpus-Antworten nicht in den Nenner zählen, misst
+das schärfste Gate der Arbeit an der gefährlichsten Kategorie vorbei. (Derselbe Befund in
+anderer Form in #139, wo der Pool umgekehrt zu *weit* gefasst war.)
+
+### 2a.2 Die Refusal-Rate ist besser, als «knapp über 90 %» klingt
+
+Die 90,9 % sind die Leistung der **ganzen Pipeline**. Vergleichbar mit Benchmarks, die rohes
+Modellverhalten messen, ist die Verweigerung durch das Modell allein (Stufe 2a):
+
+| Profil | nur Modell | ganze Pipeline | Beitrag der Stufen 2b/3 |
+|---|---|---|---|
+| `openai` | 81,8 % | 90,9 % | +9,1 pp |
+| `qwen3-local` | 68,2 % | 68,2 % | **+0** |
+| `gpt-oss-local` | 90,9 % | 95,5 % | +4,5 pp |
+| `ministral3-local` | 90,9 % | 95,5 % | +4,5 pp |
+| `gemma4-local` | 86,4 % | 86,4 % | **+0** |
+
+**Externe Einordnung:** Das RGB-Benchmark (Chen et al., AAAI 2024) misst «negative
+rejection» — ob ein Modell verweigert, wenn alle abgerufenen Dokumente irrelevant sind — und
+berichtet für ChatGPT Werte in der **Grössenordnung 45 %**. Unsere Modelle liegen mit
+68–91 % deutlich darüber, und zwar in einem *härteren* Setting: RGB legt bewusst irrelevante
+Dokumente vor, unsere Pipeline legt die **ähnlichsten** Abschnitte des Korpus vor, die
+thematisch danebenliegen (die DSGVO/AI-Act-Verwechslung ist genau das). Zugunsten der
+Benchmarks spricht, dass unser Prompt die Verweigerung ausdrücklich als Protokoll vorschreibt.
+
+Zwei Befunde, die erst dieser Vergleich sichtbar macht:
+
+1. **Der Grossteil der Verweigerung ist Modellverhalten, nicht Pipeline.** Die nachgelagerten
+   Stufen steuern zwischen **0 und 9 Prozentpunkten** bei — bei `qwen3` und `gemma4`
+   buchstäblich nichts.
+2. Damit relativiert sich die Erzählung «fail-closed über vier Stufen». Was hier verweigert,
+   ist überwiegend der Grounding-Prompt, und der ist genau das, woran R02 bis R04 gearbeitet
+   haben.
+
+### 2a.3 Für die False-Suppression gibt es keinen externen Massstab — wohl aber die richtige Darstellungsform
+
+Es existiert kein Benchmark, der «≤ 15 % fälschlich unterdrückte beantwortbare Fragen» als
+Norm setzt. Die Literatur zur *selective prediction* (El-Yaniv & Wiener 2010; Kamath et al.
+2020 für QA unter Domänenverschiebung) stellt diese Frage grundsätzlich anders: nicht «wie
+hoch darf die Abstinenzrate sein», sondern **welches Risiko bei welcher Abdeckung**. Ein
+einzelner Zielwert ohne Angabe des zugehörigen Risikos ist keine Spezifikation.
+
+Als Risiko-Deckungs-Punkte gelesen sehen unsere fünf Profile so aus:
+
+| Profil | Deckung (beantwortete von beantwortbaren) | strenge Fehlerrate | Out-of-Corpus-Refusal |
+|---|---|---|---|
+| `qwen3-local` | 93,3 % | 4,5 % | 68,2 % |
+| `gemma4-local` | 88,9 % | 0 % | 86,4 % |
+| `openai` | 77,8 % | 2,9 % | 90,9 % |
+| `gpt-oss-local` | 62,2 % | 3,8 % | 95,5 % |
+| `ministral3-local` | 60,0 % | 0 % | 95,5 % |
+
+Das ist die Kurve, und sie verläuft wie erwartet: Wer mehr ausliefert, verweigert seltener,
+wo er sollte. `gemma4` ist der auffällige Punkt — 88,9 % Deckung bei **null** gemessenen
+inhaltlichen Fehlern und 86,4 % Refusal. Kein anderes Profil dominiert es.
+
+**Damit ist die Aussage «False-Suppression verfehlt das Ziel» nicht haltbar.** Haltbar ist:
+*bei dieser Deckung erreicht die Referenz eine strenge Fehlerrate von 2,9 %, und es gibt ein
+lokales Modell, das bei höherer Deckung eine niedrigere Fehlerrate erreicht.* Ob 77,8 %
+Deckung für einen Lernassistenten in der Sozialhilfe zu wenig ist, ist eine fachliche Frage
+an die Anwendung — keine, die eine Zahl in einem ADR beantwortet.
+
+### 2a.4 Der Recall liegt im üblichen Rahmen — der Befund ist der Abstand, nicht das Niveau
+
+Ich hatte 0,772 als «die eigentliche Obergrenze» bezeichnet, was nach einem Mangel klingt.
+Externe Einordnung: Auf BEIR (Thakur et al. 2021) fallen auch starke dichte Retriever in
+Fachdomänen deutlich ab; für **deutsches** Retrieval berichten GermanQuAD/GermanDPR (Möller
+et al. 2021) Recall-Werte in kleinen Top-k-Schnitten in derselben Grössenordnung, in der wir
+liegen. Ein Recall@5 von 0,77 auf deutschem Verwaltungs- und Rechtstext **ohne**
+domänenspezifisches Fine-Tuning ist unauffällig.
+
+Der belastbare Befund bleibt trotzdem stehen, weil er **intern** ist und keinen Zielwert
+braucht: 0,772 im Kontext gegen 0,945 in der Kandidatenliste. Dieser Abstand ist unabhängig
+davon, ob 0,772 «gut» oder «schlecht» ist.
+
+### 2a.5 Wo unsere Beleg-Prüfung im Vergleich steht
+
+ALCE (Gao et al., EMNLP 2023) misst Citation Recall und Precision per Entailment und findet
+selbst für GPT-4-Klasse-Modelle Werte, die deutlich unter 100 % liegen — vollständig belegte
+Antworten sind auch für Spitzenmodelle nicht gelöst. Unsere Referenz lässt 31 % der Aussagen
+ohne gültigen Beleg (R04). Das ist gegen diesen Hintergrund **kein Ausreisser**, sondern der
+Normalfall — und es begründet, warum Stufe 2 als *Gate* so viel unterdrückt: sie verlangt
+eine Formtreue, die Modelle allgemein nicht erreichen.
+
+### 2a.6 Was von meiner ursprünglichen Bewertung übrig bleibt
+
+| Aussage der ersten Fassung | nach externem Abgleich |
+|---|---|
+| «Halluzinationsrate 0 % — erfüllt» | **zurückgezogen.** Streng gerechnet 2,9 %; die 0 % sind eine Eigenschaft des Nenners |
+| «Out-of-Corpus-Refusal knapp erfüllt» | **zu streng.** Gegen Benchmarks für Modellverhalten liegt die Rate weit vorn |
+| «False-Suppression verfehlt» | **zurückgezogen.** Zielwert ist ein unbestätigter Startwert; richtig ist die Risiko-Deckungs-Darstellung |
+| «Recall 0,772 ist die Obergrenze» | **umformuliert.** Das Niveau ist üblich; der Befund ist der Abstand zu 0,945 |
+| «Stufe 0/1 blockiert nichts» | **bleibt.** Braucht keinen Zielwert — eine Schwelle, die nie greift, ist nachweisbar wirkungslos |
+| «Rangproblem statt Findungsproblem» | **bleibt.** Interner Vergleich zweier Schnitte derselben Liste |
+| «Stufe 2 misst Form, nicht Stützung» | **bleibt**, und wird durch ALCE gestützt |
 
 ---
 
@@ -355,6 +504,11 @@ er ist der billigste zu messen, weil er offline gegen den bestehenden Index läu
 | Es et al. (2023), *RAGAS* | Evaluationsrahmen; ADR-009 nennt es |
 | Chen et al. (2024), *BGE-M3* | Kandidat für P4 |
 | Sarthi et al. (2024), *RAPTOR* | Hierarchische Zusammenfassung — Option, wenn der Korpus wächst |
+| Chen et al. (2024), *Benchmarking LLMs in RAG* (RGB) | «negative rejection» als Vergleichsgrösse zu unserer Refusal-Rate (Abschnitt 2a.2) |
+| Niu et al. (2024), *RAGTruth* | wortgenaue Halluzinations-Annotation; Vergleichsgrösse zu unserer strengen Fehlerrate (2a.1) |
+| Google DeepMind (2024/25), *FACTS Grounding* | Anteil vollständig gegroundeter Antworten als zweite Vergleichsgrösse (2a.1) |
+| El-Yaniv & Wiener (2010); Kamath et al. (2020), *Selective QA under Domain Shift* | Risiko-Deckungs-Darstellung statt eines einzelnen Abstinenz-Zielwerts (2a.3) |
+| Thakur et al. (2021), *BEIR*; Möller et al. (2021), *GermanQuAD/GermanDPR* | Einordnung unseres Recall-Niveaus für deutsches Fachretrieval (2a.4) |
 
 ---
 

@@ -79,6 +79,7 @@ Modell, deshalb genügt je ein Lauf:
 docker exec -w /app -e PYTHONPATH=/app src-api-1 python /tmp/retrieval_diagnose.py  # Rang- oder Findungsproblem?
 docker exec -w /app -e PYTHONPATH=/app src-api-1 python /tmp/recall_at_n.py         # was ein groesseres Kontextfenster braechte
 docker exec -w /app -e PYTHONPATH=/app src-api-1 python /tmp/gate_diagnose.py       # trennt Stufe 0/1 ueberhaupt?
+docker exec -w /app -e PYTHONPATH=/app src-api-1 python /tmp/risiko_deckung.py      # strenge Fehlerrate, Modell- vs. Pipeline-Verweigerung
 ```
 
 Die Lauf-IDs sind in `r00_extract.py` und `r00_runs.py` fest eingetragen. Die Rohdaten unter
