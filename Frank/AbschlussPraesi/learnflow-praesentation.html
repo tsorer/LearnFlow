@@ -1,0 +1,618 @@
+<title>LearnFlow-Präsentation</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root{
+    --paper:#f3f3ef;
+    --paper-raised:#ffffff;
+    --ink:#1e2420;
+    --ink-soft:#5b655d;
+    --line:#dad9d2;
+    --accent:#2f6f63;
+    --accent-strong:#204d44;
+    --accent-soft:#e4eeea;
+    --band-high:#3f8f6f;
+    --band-medium:#c08a2e;
+    --band-low:#b5533e;
+    --shadow: 0 1px 2px rgba(30,36,32,0.06), 0 6px 20px -10px rgba(30,36,32,0.18);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#141815;
+      --paper-raised:#1b211d;
+      --ink:#edefea;
+      --ink-soft:#a9b3ac;
+      --line:#2c332e;
+      --accent:#7bd3bc;
+      --accent-strong:#a6e6d3;
+      --accent-soft:#1e3a32;
+      --band-high:#5fbf98;
+      --band-medium:#e0ae55;
+      --band-low:#e08268;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 10px 30px -12px rgba(0,0,0,0.55);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#141815;
+    --paper-raised:#1b211d;
+    --ink:#edefea;
+    --ink-soft:#a9b3ac;
+    --line:#2c332e;
+    --accent:#7bd3bc;
+    --accent-strong:#a6e6d3;
+    --accent-soft:#1e3a32;
+    --band-high:#5fbf98;
+    --band-medium:#e0ae55;
+    --band-low:#e08268;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 10px 30px -12px rgba(0,0,0,0.55);
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:"IBM Plex Sans", "Segoe UI", sans-serif;
+    line-height:1.55;
+  }
+  .page{
+    max-width:980px;
+    margin:0 auto;
+    padding:56px 32px 96px;
+  }
+  h1,h2,h3{
+    font-family:"Source Serif 4", Georgia, serif;
+    font-weight:600;
+    text-wrap:balance;
+    color:var(--ink);
+    margin:0;
+  }
+  .mono{ font-family:"IBM Plex Mono", ui-monospace, monospace; }
+
+  /* ---- Masthead ---- */
+  .masthead{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    gap:24px;
+    padding-bottom:28px;
+    border-bottom:2px solid var(--ink);
+    margin-bottom:8px;
+  }
+  .masthead h1{ font-size:2.15rem; letter-spacing:-0.01em; }
+  .masthead .eyebrow{
+    font-family:"IBM Plex Mono", monospace;
+    font-size:0.72rem;
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+    color:var(--accent);
+    margin-bottom:10px;
+    display:block;
+  }
+  .masthead .meta{
+    text-align:right;
+    font-size:0.85rem;
+    color:var(--ink-soft);
+    font-family:"IBM Plex Mono", monospace;
+    line-height:1.7;
+    white-space:nowrap;
+  }
+
+  /* ---- Timeline strip ---- */
+  .timeline{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:3px;
+    margin:34px 0 6px;
+  }
+  .timeline a{
+    display:block;
+    text-decoration:none;
+    color:inherit;
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-top:4px solid var(--seg, var(--accent));
+    padding:14px 16px 16px;
+    transition:transform .15s ease;
+  }
+  .timeline a:hover{ transform:translateY(-2px); }
+  .timeline .t-num{ font-family:"IBM Plex Mono",monospace; font-size:0.72rem; color:var(--ink-soft); }
+  .timeline .t-time{ font-family:"IBM Plex Mono",monospace; font-size:0.78rem; color:var(--seg,var(--accent)); font-weight:500; margin:4px 0 6px; }
+  .timeline .t-title{ font-size:0.95rem; font-weight:600; }
+  .timeline-caption{
+    font-size:0.78rem; color:var(--ink-soft); font-family:"IBM Plex Mono",monospace;
+    display:flex; justify-content:space-between; margin-bottom:40px;
+  }
+
+  /* ---- Intro note ---- */
+  .intro-note{
+    background:var(--accent-soft);
+    border-left:3px solid var(--accent);
+    padding:16px 20px;
+    font-size:0.92rem;
+    margin-bottom:48px;
+    color:var(--ink);
+  }
+  .intro-note strong{ color:var(--accent-strong); }
+
+  /* ---- Segment ---- */
+  .segment{
+    display:grid;
+    grid-template-columns:220px 1fr;
+    gap:32px;
+    padding:36px 0;
+    border-bottom:1px solid var(--line);
+  }
+  .segment:last-of-type{ border-bottom:none; }
+  .segment-meta{ position:sticky; top:24px; align-self:start; }
+  .segment-num{
+    font-family:"IBM Plex Mono",monospace;
+    font-size:0.75rem;
+    color:var(--seg,var(--accent));
+    letter-spacing:0.08em;
+    margin-bottom:6px;
+  }
+  .segment-meta h2{ font-size:1.5rem; margin-bottom:10px; }
+  .segment-time{
+    font-family:"IBM Plex Mono",monospace;
+    font-size:0.82rem;
+    color:var(--ink-soft);
+    display:flex; flex-direction:column; gap:4px;
+  }
+  .segment-time .dur{ color:var(--ink); font-weight:500; }
+  .role-pill{
+    display:inline-block;
+    margin-top:14px;
+    padding:4px 10px;
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-radius:3px;
+    font-size:0.76rem;
+    color:var(--ink-soft);
+  }
+
+  .segment-body p.goal{
+    font-size:1rem;
+    margin:0 0 18px;
+    color:var(--ink);
+  }
+  .segment-body p.goal em{ color:var(--ink-soft); font-style:normal; }
+
+  .beat{
+    display:grid;
+    grid-template-columns:64px 1fr;
+    gap:14px;
+    padding:10px 0;
+    border-top:1px solid var(--line);
+  }
+  .beat:first-of-type{ border-top:none; }
+  .beat .clock{
+    font-family:"IBM Plex Mono",monospace;
+    font-size:0.76rem;
+    color:var(--seg,var(--accent));
+    padding-top:2px;
+  }
+  .beat .content strong{ font-weight:600; }
+  .beat .content .say{ color:var(--ink); }
+  .beat .content .show{
+    display:block;
+    margin-top:3px;
+    font-size:0.86rem;
+    color:var(--ink-soft);
+  }
+  .tag{
+    display:inline-block;
+    font-family:"IBM Plex Mono",monospace;
+    font-size:0.68rem;
+    letter-spacing:0.03em;
+    padding:1px 7px;
+    border-radius:2px;
+    background:var(--accent-soft);
+    color:var(--accent-strong);
+    margin-left:7px;
+    vertical-align:1px;
+  }
+
+  .band-example{
+    display:flex; gap:8px; margin:14px 0 4px; flex-wrap:wrap;
+  }
+  .band-chip{
+    font-family:"IBM Plex Mono",monospace;
+    font-size:0.74rem;
+    padding:4px 10px;
+    border-radius:3px;
+    color:#fff;
+  }
+
+  .fact-row{
+    display:grid;
+    grid-template-columns:1fr 1fr 1fr;
+    gap:12px;
+    margin:18px 0 6px;
+  }
+  .fact{
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    padding:14px 16px;
+    box-shadow:var(--shadow);
+  }
+  .fact .num{
+    font-family:"IBM Plex Mono",monospace;
+    font-size:1.35rem;
+    font-weight:500;
+    color:var(--accent-strong);
+    display:block;
+  }
+  .fact .lbl{ font-size:0.78rem; color:var(--ink-soft); }
+
+  /* ---- Closing sections ---- */
+  .closing{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:24px;
+    margin-top:56px;
+  }
+  .closing .box{
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    padding:22px 24px;
+    box-shadow:var(--shadow);
+  }
+  .closing h3{ font-size:1.05rem; margin-bottom:12px; }
+  .closing ul{ margin:0; padding-left:18px; font-size:0.92rem; }
+  .closing li{ margin-bottom:8px; }
+
+  footer{
+    margin-top:64px;
+    padding-top:20px;
+    border-top:1px solid var(--line);
+    font-family:"IBM Plex Mono",monospace;
+    font-size:0.74rem;
+    color:var(--ink-soft);
+    display:flex;
+    justify-content:space-between;
+  }
+
+  @media (max-width:720px){
+    .masthead{ flex-direction:column; align-items:flex-start; }
+    .masthead .meta{ text-align:left; }
+    .timeline{ grid-template-columns:repeat(2,1fr); }
+    .segment{ grid-template-columns:1fr; }
+    .segment-meta{ position:static; }
+    .fact-row{ grid-template-columns:1fr; }
+    .closing{ grid-template-columns:1fr; }
+  }
+</style>
+
+<div class="page">
+
+  <div class="masthead">
+    <div>
+      <span class="eyebrow">Fahrplan · 4 Sprecher:innen à 7.5 Min</span>
+      <h1>LearnFlow-Präsentation</h1>
+    </div>
+    <div class="meta">
+      Gesamtdauer 30:00<br>
+      Corpus: SKOS · EU AI Act · SAMW<br>
+      Stand 2026-09-12
+    </div>
+  </div>
+
+  <div class="timeline">
+    <a href="#teil-1" style="--seg:var(--accent)">
+      <span class="t-num">TEIL 1</span>
+      <div class="t-time">00:00 – 07:30</div>
+      <div class="t-title">Live-Demo</div>
+    </a>
+    <a href="#teil-2" style="--seg:#4d7a9e">
+      <span class="t-num">TEIL 2</span>
+      <div class="t-time">07:30 – 15:00</div>
+      <div class="t-title">Wie die Antwort entsteht</div>
+    </a>
+    <a href="#teil-3" style="--seg:#8a7440">
+      <span class="t-num">TEIL 3</span>
+      <div class="t-time">15:00 – 22:30</div>
+      <div class="t-title">Wie wir es gebaut haben</div>
+    </a>
+    <a href="#teil-4" style="--seg:var(--band-low)">
+      <span class="t-num">TEIL 4</span>
+      <div class="t-time">22:30 – 30:00</div>
+      <div class="t-title">Erkenntnisse &amp; Grenzen</div>
+    </a>
+  </div>
+  <div class="timeline-caption">
+    <span>Demo zuerst, damit das Publikum ein Bild hat, bevor die Erklärung kommt</span>
+    <span>4 × 7:30</span>
+  </div>
+
+  <div class="intro-note">
+    <strong>Zu deiner Frage nach weiteren Ideen:</strong> Eure Grundstruktur (Demo → Generierung → Umsetzung →
+    Erkenntnisse) ist schlüssig. Eingebaut habe ich vier Ergänzungen, markiert mit <span class="tag">+ Ergänzung</span>:
+    ein 30-Sekunden-Problemrahmen vor der Demo (sonst hängt sie in der Luft), eine Architektur-Brücke zwischen
+    Teil 1 und 2, die Eval-Zahlen als eigener Schwerpunkt in Teil 4 (das ist der Teil, der zeigt, dass ihr Qualität
+    messt statt behauptet) und ein kurzer Ausblick am Schluss statt eines reinen Rückblicks.
+  </div>
+
+  <!-- TEIL 1 -->
+  <section class="segment" id="teil-1" style="--seg:var(--accent)">
+    <div class="segment-meta">
+      <div class="segment-num">TEIL 1 / 4</div>
+      <h2>Live-Demo</h2>
+      <div class="segment-time">
+        <span class="dur">7:30 min</span>
+        <span>00:00 – 07:30</span>
+      </div>
+      <span class="role-pill">Sprecher:in A</span>
+    </div>
+    <div class="segment-body">
+      <p class="goal">Ziel: Das Publikum sieht das System live antworten — <em>bevor</em> irgendetwas erklärt wird.
+      Der Fail-closed-Moment ("Weiss ich nicht") ist der Cliffhanger für Teil 2.</p>
+
+      <div class="beat">
+        <div class="clock">0:00</div>
+        <div class="content">
+          <span class="say"><strong>Problemrahmen, ein Satz.</strong> Lernende stehen vor komplexen Fachtexten
+          (Sozialhilfe-Richtlinien SKOS, EU AI Act, SAMW-Leitfäden) — ein Chatbot, der halluziniert, ist hier
+          schlimmer als keiner.</span>
+          <span class="tag">+ Ergänzung</span>
+        </div>
+      </div>
+      <div class="beat">
+        <div class="clock">0:30</div>
+        <div class="content">
+          <span class="say"><strong>Frage mit guter Korpus-Deckung.</strong> Antwort mit Quellenverweisen <span class="mono">[1][2]</span>,
+          Konfidenz-Band «hoch».</span>
+          <span class="show">Zeigen: Antwort + Fussnoten + grünes Band im UI.</span>
+        </div>
+      </div>
+      <div class="beat">
+        <div class="clock">2:00</div>
+        <div class="content">
+          <span class="say"><strong>Grenzfall-Frage.</strong> Band «mittel» — Antwort kommt, aber mit Hinweis.</span>
+          <span class="show">Zeigen: gelbes Band, Unterschied zur ersten Antwort benennen.</span>
+        </div>
+      </div>
+      <div class="beat">
+        <div class="clock">3:30</div>
+        <div class="content">
+          <span class="say"><strong>Out-of-Corpus-Frage</strong> (z. B. AHV-Altersrente — nicht im Korpus).
+          System antwortet <span class="mono">WEISS_NICHT</span> statt zu raten.</span>
+          <span class="show">Zeigen: der Moment, in dem es verweigert — das ist die Kernaussage der ganzen Präsentation.</span>
+        </div>
+      </div>
+      <div class="beat">
+        <div class="clock">5:00</div>
+        <div class="content">
+          <span class="say"><strong>Admin-Debug-Panel</strong> kurz aufklappen: Chunk-Scores, Dense-/Sparse-Rang,
+          welche Stufe warum unterdrückt hat.</span>
+          <span class="show">Weckt Neugier auf Teil 2, ohne es dort schon zu erklären.</span>
+        </div>
+      </div>
+      <div class="beat">
+        <div class="clock">6:30</div>
+        <div class="content">
+          <span class="say"><strong>Quiz-Feature</strong> in 30 Sekunden antippen: generierter Vorschlag,
+          Freigabe-Workflow (nicht sichtbar, bevor ein Mensch bestätigt hat).</span>
+        </div>
+      </div>
+      <div class="beat">
+        <div class="clock">7:00</div>
+        <div class="content">
+          <span class="say"><strong>Übergabe:</strong> „Wie kommt diese Antwort — und diese Verweigerung —
+          eigentlich zustande?“</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TEIL 2 -->
+  <section class="segment" id="teil-2" style="--seg:#4d7a9e">
+    <div class="segment-meta">
+      <div class="segment-num">TEIL 2 / 4</div>
+      <h2>Wie die Antwort entsteht</h2>
+      <div class="segment-time">
+        <span class="dur">7:30 min</span>
+        <span>07:30 – 15:00</span>
+      </div>
+      <span class="role-pill">Sprecher:in B</span>
+    </div>
+    <div class="segment-body">
+      <p class="goal">Ziel: Die zwei Suchmechanismen und die Konfidenz-Pipeline verständlich machen —
+      ohne Codezeilen, mit der Logik dahinter.</p>
+
+      <div class="beat">
+        <div class="clock">7:30</div>
+        <div class="content">
+          <span class="say"><strong>Architektur-Brücke, ein Diagramm.</strong> Wo diese Logik im System sitzt
+          (API-Server, zwischen Retrieval und Antwort).</span>
+          <span class="tag">+ Ergänzung</span>
+        </div>
+      </div>
+      <div class="beat">
+        <div class="clock">8:30</div>
+        <div class="content">
+          <span class="say"><strong>Hybrid-Retrieval:</strong> Dense-Suche (Embeddings, Bedeutung) findet
+          Umschreibungen; Sparse-Suche (Volltext, Wörter) findet exakte Fachbegriffe wie „hochriskant“.
+          Beide werden fusioniert (Reciprocal Rank Fusion) — nicht addiert, weil ihre Skalen nicht
+          vergleichbar sind.</span>
+          <span class="show">Bild: zwei Ranglisten, die zu einer verschmelzen.</span>
+        </div>
+      </div>
+      <div class="beat">
+        <div class="clock">10:30</div>
+        <div class="content">
+          <span class="say"><strong>Generierung:</strong> Ein Prompt zwingt das Modell, jede Aussage mit
+          einer Quellenreferenz <span class="mono">[n]</span> zu belegen — Material, keine Behauptung ohne Beleg.</span>
+        </div>
+      </div>
+      <div class="beat">
+        <div class="clock">11:30</div>
+        <div class="content">
+          <span class="say"><strong>Die Konfidenz-Pipeline — vier Stufen, jede kann stoppen:</strong>
+          Retrieval-Gate → Retrieval-Konfidenz → Citation-Check → Self-Check. Leitprinzip:
+          <em>fail-closed</em> — im Zweifel «Weiss ich nicht» statt einer unsicheren Antwort.</span>
+          <div class="band-example">
+            <span class="band-chip" style="background:var(--band-high)">hoch — Antwort + Quellen</span>
+            <span class="band-chip" style="background:var(--band-medium)">mittel — Antwort + Hinweis</span>
+            <span class="band-chip" style="background:var(--band-low)">niedrig — «Weiss ich nicht»</span>
+          </div>
+          <span class="show">Das ist exakt, was in der Demo zu sehen war — Kreis schliesst sich.</span>
+        </div>
+      </div>
+      <div class="beat">
+        <div class="clock">14:00</div>
+        <div class="content">
+          <span class="say"><strong>Warum das zählt:</strong> alle Schwellen sind über Konfiguration
+          kalibrierbar, ohne Deployment — die Pipeline ist ein Instrument, kein fixer Code.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TEIL 3 -->
+  <section class="segment" id="teil-3" style="--seg:#8a7440">
+    <div class="segment-meta">
+      <div class="segment-num">TEIL 3 / 4</div>
+      <h2>Wie wir es gebaut haben</h2>
+      <div class="segment-time">
+        <span class="dur">7:30 min</span>
+        <span>15:00 – 22:30</span>
+      </div>
+      <span class="role-pill">Sprecher:in C</span>
+    </div>
+    <div class="segment-body">
+      <p class="goal">Ziel: Architektur- und Prozessentscheide zeigen — nicht jede Codezeile, sondern
+      warum so und nicht anders.</p>
+
+      <div class="beat">
+        <div class="clock">15:00</div>
+        <div class="content">
+          <span class="say"><strong>Architektur:</strong> Modularer Monolith statt Microservices, 4 Container
+          (Webapp / API / Worker / DB) via Docker Compose. Bewusst einfach für ein Vierer-Team im Zeitrahmen.</span>
+          <span class="show">Zeigen: C4-Container-Diagramm.</span>
+        </div>
+      </div>
+      <div class="beat">
+        <div class="clock">17:00</div>
+        <div class="content">
+          <span class="say"><strong>Stack:</strong> FastAPI/Python auf PostgreSQL 17 mit pgvector (HNSW) und
+          Volltextsuche — eine Datenbank für beide Suchen, kein separates Vektor-DB-System. Hintergrundjobs über
+          <span class="mono">pgqueuer</span>, absichtlich ohne Redis. React/TypeScript vorne, LLM-Zugriff über
+          LiteLLM (Provider austauschbar).</span>
+        </div>
+      </div>
+      <div class="beat">
+        <div class="clock">19:00</div>
+        <div class="content">
+          <span class="say"><strong>API-First:</strong> Jede Schnittstellenänderung beginnt in der
+          OpenAPI-Spec, erst danach Backend und generierte Frontend-Typen — hält vier Leute an
+          verschiedenen Enden synchron.</span>
+        </div>
+      </div>
+      <div class="beat">
+        <div class="clock">20:15</div>
+        <div class="content">
+          <span class="say"><strong>Ein konkreter Stolperstein:</strong> beim Vergleich mit einem lokalen Modell
+          (Ollama) kürzte die Engine den Prompt stillschweigend bei 4096 Token — ausgerechnet die
+          Systemanweisung mit dem Verweigerungsprotokoll fiel weg. Sichtbar wurde das nur über
+          <span class="mono">finish_reason</span> und Token-Zahlen, die wir seither in jedem Eval-Lauf mitschreiben.</span>
+          <span class="show">Zeigt: Messmethodik ist Teil der Arbeit, nicht nur das Feature.</span>
+        </div>
+      </div>
+      <div class="beat">
+        <div class="clock">22:00</div>
+        <div class="content">
+          <span class="say"><strong>Prozess:</strong> Entscheide als ADRs dokumentiert, Backlog in GitHub
+          Issues (T-01…T-61), jeder PR mit CI-Gate und Zweitreview.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TEIL 4 -->
+  <section class="segment" id="teil-4" style="--seg:var(--band-low)">
+    <div class="segment-meta">
+      <div class="segment-num">TEIL 4 / 4</div>
+      <h2>Erkenntnisse &amp; Grenzen</h2>
+      <div class="segment-time">
+        <span class="dur">7:30 min</span>
+        <span>22:30 – 30:00</span>
+      </div>
+      <span class="role-pill">Sprecher:in D</span>
+    </div>
+    <div class="segment-body">
+      <p class="goal">Ziel: Ergebnisse mit Zahlen statt Behauptungen zeigen, ehrlich benennen, was nicht
+      geht — und mit einem Ausblick schliessen statt mit einem Mängelbericht.</p>
+
+      <div class="beat">
+        <div class="clock">22:30</div>
+        <div class="content">
+          <span class="say"><strong>Eval-Ergebnis, das Kern-Zahl.</strong> Out-of-Corpus-Fragen des
+          Gold-Datasets: 90 % Verweigerungsquote gefordert, das Produktivmodell erreicht 95,5 %.</span>
+          <span class="tag">+ Ergänzung</span>
+          <div class="fact-row">
+            <div class="fact"><span class="num">95,5 %</span><span class="lbl">gpt-4o-mini (Produktivprofil)</span></div>
+            <div class="fact"><span class="num">81,8 %</span><span class="lbl">lokal, gemma4:26b</span></div>
+            <div class="fact"><span class="num">68,2 %</span><span class="lbl">lokal, qwen3:8b</span></div>
+          </div>
+          <span class="show">Einordnung: lokale Modelle verweigern inhaltlich oft richtig, halten aber das
+          erwartete Ausgabeformat seltener ein — kein reiner Qualitätsunterschied.</span>
+        </div>
+      </div>
+      <div class="beat">
+        <div class="clock">25:30</div>
+        <div class="content">
+          <span class="say"><strong>Überraschendster Befund:</strong> Citation-Coverage belohnt Kürze. Eine
+          Ein-Satz-Antwort erreicht Coverage 1,0, landet im Band «hoch» — und der Self-Check läuft dort gar
+          nicht mehr. Die knappste, selbstsicherste Antwort umgeht die meisten Sicherungen.</span>
+        </div>
+      </div>
+      <div class="beat">
+        <div class="clock">27:00</div>
+        <div class="content">
+          <span class="say"><strong>Was nicht ging:</strong> Umstieg auf Azure OpenAI EU (Voraussetzung für
+          echte interne Dokumente im Betrieb) — im MVP bewusst nicht gemacht. Schwellen-Kalibrierung gegen
+          das Gold-Dataset ist eine Hypothese, kein gemessener Optimalwert. Ein Re-Ranker/Cross-Encoder als
+          zusätzliche Prüfschicht wurde verworfen, um kein zweites ML-Modell ins Deployment zu holen.</span>
+        </div>
+      </div>
+      <div class="beat">
+        <div class="clock">29:00</div>
+        <div class="content">
+          <span class="say"><strong>Ausblick:</strong> ein Satz, wo das Team als Nächstes ansetzen würde,
+          wäre das Projekt kein Kursabschluss.</span>
+          <span class="tag">+ Ergänzung</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="closing">
+    <div class="box">
+      <h3>Vor der Probe klären</h3>
+      <ul>
+        <li>Wer spricht welchen Teil — Namen statt A–D eintragen.</li>
+        <li>Demo-Fragen vorher gegen den aktuellen Korpus-Stand testen (Konfidenz-Werte ändern sich mit
+          jeder Konfigurationsänderung).</li>
+        <li>Übergänge zwischen den Teilen einmal laut sprechen — das sind die Stellen, an denen 30 Minuten
+          zu 35 werden.</li>
+        <li>Fallback für die Demo: Screenshots/Aufzeichnung, falls Live-System oder Netz ausfällt.</li>
+      </ul>
+    </div>
+    <div class="box">
+      <h3>Wenn Zeit übrig bleibt</h3>
+      <ul>
+        <li>Der Korpus-Verwechslungstest (EU-Recht vs. deutsches Gesetz) als Beispiel für die gefährlichste
+          Fehlerklasse: gut belegt, plausibel, aber falsch zugeordnet.</li>
+        <li>Warum <span class="mono">NULL</span> und <span class="mono">0.0</span> in den Auswertungstabellen
+          bewusst unterschieden werden — kleines, aber überzeugendes Sorgfalts-Detail.</li>
+        <li>Eine Frage aus dem Publikum vorwegnehmen: „Warum kein Streaming?“ — bewusster Entscheid, weil
+          die Pipeline erst nach allen Stufen antworten darf.</li>
+      </ul>
+    </div>
+  </div>
+
+  <footer>
+    <span>LearnFlow · CAS-Projekt</span>
+    <span>Grobplanung — Timings als Richtwert, nicht Sekunden-Skript</span>
+  </footer>
+
+</div>

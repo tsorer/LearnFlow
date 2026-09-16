@@ -1,0 +1,831 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LearnFlow – Wie haben wir es umgesetzt</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap">
+  <style>
+    /* ── Layout und Tokens aus Christophs Folien (learnflow_learnings.html) ── */
+    :root {
+      --paper: #f7f5f0;
+      --paper-deep: #eee9df;
+      --ink: #101e36;
+      --text: #253247;
+      --muted: #6f7886;
+      --line: #ded9ce;
+      --teal: #0fa8a0;
+      --teal-dark: #087d78;
+      --teal-pale: #e4f6f4;
+      --white: #fffefb;
+      --amber: #bf8830;
+      --amber-dark: #8a5f1e;
+      --amber-pale: #f7edd9;
+      --coral: #cf665c;
+      --coral-dark: #a8453c;
+      --coral-pale: #fae8e5;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 100%; height: 100%; margin: 0; overflow: hidden;
+      background: #dcd8d0;
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+    }
+    body { display: grid; place-items: center; }
+
+    .deck { position: fixed; top: 50%; left: 50%; width: 1600px; height: 900px; transform-origin: center center; }
+
+    .slide {
+      position: absolute; inset: 0; display: none; overflow: hidden;
+      background:
+        radial-gradient(circle at 88% 16%, rgba(15, 168, 160, .10), transparent 25%),
+        linear-gradient(112deg, var(--paper) 0%, var(--paper) 62%, #f3f0e9 100%);
+      box-shadow: 0 30px 80px rgba(16, 30, 54, .18);
+    }
+    .slide.active { display: block; }
+
+    .topbar {
+      position: absolute; z-index: 5; top: 50px; left: 70px; right: 70px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .brand { display: flex; align-items: center; gap: 13px; color: var(--ink); font-size: 22px; font-weight: 820; letter-spacing: -.04em; }
+    .brand-mark {
+      display: grid; place-items: center; width: 34px; height: 34px; border-radius: 9px;
+      background: var(--ink); color: var(--white); font-size: 15px; letter-spacing: -.02em;
+    }
+    .context { color: var(--muted); font-size: 15px; font-weight: 720; letter-spacing: .12em; text-transform: uppercase; }
+
+    .content {
+      position: absolute; inset: 124px 70px 62px;
+      display: grid; grid-template-columns: .88fr 1.12fr; gap: 62px; align-items: center;
+    }
+    .content.wide { grid-template-columns: .62fr 1.38fr; gap: 50px; }
+    .story { min-width: 0; align-self: center; }
+
+    .eyebrow {
+      display: flex; align-items: center; gap: 12px; margin-bottom: 21px;
+      color: var(--teal-dark); font-size: 15px; font-weight: 790; letter-spacing: .11em; text-transform: uppercase;
+    }
+    .eyebrow::before { content: ""; width: 42px; height: 3px; border-radius: 3px; background: var(--teal); }
+
+    h1 { max-width: 650px; margin: 0; color: var(--ink); font-size: 48px; font-weight: 790; line-height: 1.06; letter-spacing: -.052em; }
+    h1 .accent { position: relative; display: inline-block; color: var(--teal-dark); }
+    h1 .accent::after {
+      content: ""; position: absolute; left: 1px; right: -4px; bottom: -6px; height: 7px; border-radius: 8px;
+      background: var(--teal); opacity: .20; transform: rotate(-1.1deg);
+    }
+    .lead { max-width: 600px; margin: 26px 0 0; color: #566173; font-size: 20px; line-height: 1.48; letter-spacing: -.014em; }
+
+    .learning {
+      max-width: 620px; margin-top: 24px; padding: 16px 0 16px 22px; border-left: 4px solid var(--teal);
+      color: var(--ink); font-size: 18px; font-weight: 660; line-height: 1.42;
+    }
+    .learning strong {
+      display: block; margin-bottom: 5px; color: var(--teal-dark);
+      font-size: 15px; font-weight: 820; letter-spacing: .10em; text-transform: uppercase;
+    }
+
+    .panel {
+      position: relative; align-self: center; min-height: 620px; padding: 38px 42px 34px;
+      border: 1px solid rgba(16, 30, 54, .10); border-radius: 30px; background: rgba(255, 254, 251, .88);
+      box-shadow: 0 30px 68px rgba(16, 30, 54, .13), 0 4px 12px rgba(16, 30, 54, .05); backdrop-filter: blur(9px);
+    }
+    .panel::after {
+      content: ""; position: absolute; z-index: -1; inset: 24px -24px -24px 34px;
+      border: 1px solid rgba(15, 168, 160, .14); border-radius: 30px;
+    }
+    .panel-label {
+      display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;
+      color: var(--muted); font-size: 15px; font-weight: 770; letter-spacing: .08em; text-transform: uppercase;
+    }
+    .status { display: flex; align-items: center; gap: 8px; color: var(--teal-dark); letter-spacing: .02em; text-transform: none; }
+    .status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--teal); box-shadow: 0 0 0 5px var(--teal-pale); }
+    .status.warn { color: var(--coral-dark); }
+    .status.warn::before { background: var(--coral); box-shadow: 0 0 0 5px var(--coral-pale); }
+
+    .comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .comparison section { min-width: 0; padding: 23px 23px 20px; border-radius: 20px; background: var(--paper); }
+    .comparison section.filtered { background: var(--amber-pale); }
+    .comparison section.good { background: var(--teal-pale); }
+    .comparison h2 { margin: 0 0 15px; color: var(--ink); font-size: 19px; font-weight: 790; line-height: 1.25; }
+    .comparison .metric { color: var(--ink); font-size: 18px; font-weight: 680; line-height: 1.35; }
+    .comparison .metric strong { color: var(--teal-dark); font-size: 31px; letter-spacing: -.04em; }
+    .comparison .filtered .metric strong { color: var(--amber-dark); }
+    .comparison .outcome { margin-top: 8px; color: var(--muted); font-size: 15px; font-weight: 640; line-height: 1.35; }
+
+    .scores { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+    .score {
+      min-width: 49px; padding: 8px 9px; border-radius: 10px; background: var(--teal-pale);
+      color: var(--teal-dark); text-align: center; font-size: 16px; font-weight: 770; line-height: 1.15;
+    }
+    .score small { display: block; font-size: 12px; font-weight: 650; opacity: .8; }
+    .score.weak { background: var(--amber-pale); color: var(--amber-dark); outline: 1px solid rgba(191, 136, 48, .28); }
+    .score.bad { background: var(--coral-pale); color: var(--coral-dark); outline: 1px solid rgba(207, 102, 92, .28); }
+    .score.gone { background: transparent; color: var(--muted); outline: 1px dashed var(--line); text-decoration: line-through; }
+
+    .finding {
+      margin-top: 22px; padding: 19px 21px; border-left: 4px solid var(--amber); border-radius: 0 14px 14px 0;
+      background: #fcf8ef; color: var(--text); font-size: 18px; line-height: 1.48;
+    }
+    .finding strong { color: var(--ink); }
+    .finding.good { border-left-color: var(--teal); background: #f1faf8; }
+
+    .criteria { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; margin-top: 18px; }
+    .criterion {
+      padding: 12px 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--white);
+      color: var(--ink); text-align: center; font-size: 15px; font-weight: 710; line-height: 1.3;
+    }
+
+    .claim {
+      margin-bottom: 20px; padding: 18px 20px; border-radius: 16px; background: var(--ink); color: var(--white);
+      font-size: 18px; font-weight: 650; line-height: 1.42;
+    }
+    .claim small { display: block; margin-bottom: 6px; color: #a8e7e2; font-size: 13px; font-weight: 780; letter-spacing: .1em; text-transform: uppercase; }
+    .code-block {
+      margin: 0; padding: 15px 16px; border-radius: 12px; background: rgba(255, 254, 251, .82); color: var(--ink);
+      font: 600 15px/1.5 var(--mono); white-space: pre-wrap;
+    }
+    .code-block .k { color: var(--muted); font-weight: 500; }
+    .code-block .hl { color: var(--coral-dark); font-weight: 800; }
+    .code-block .ok { color: var(--teal-dark); font-weight: 800; }
+
+    .page-number { position: absolute; right: 70px; bottom: 32px; z-index: 6; color: var(--muted); font-size: 15px; font-weight: 760; letter-spacing: .08em; }
+    .nav { position: fixed; z-index: 20; left: 50%; bottom: 18px; display: flex; gap: 10px; transform: translateX(-50%); }
+    .nav button { width: 11px; height: 11px; padding: 0; border: 0; border-radius: 50%; background: rgba(16, 30, 54, .28); cursor: pointer; }
+    .nav button.active { background: var(--teal-dark); }
+
+    /* ── Ergänzungen für Block 2, in derselben Formensprache ─────────────── */
+
+    /* Architektur-Diagramm */
+    .arch { width: 100%; height: auto; display: block; }
+    .arch .box { fill: var(--white); stroke: var(--line); stroke-width: 1.5; }
+    .arch .box.db { fill: var(--teal-pale); stroke: rgba(15, 168, 160, .35); }
+    .arch .box.ext { fill: #fcf8ef; stroke: var(--amber); stroke-dasharray: 7 5; }
+    .arch .t { fill: var(--ink); font: 790 19px Inter, sans-serif; letter-spacing: -.02em; text-anchor: middle; }
+    .arch .s { fill: var(--muted); font: 600 14px Inter, sans-serif; text-anchor: middle; }
+    .arch .edge { stroke: var(--muted); stroke-width: 2; fill: none; }
+    .arch .lbl { fill: var(--muted); font: 650 13px Inter, sans-serif; }
+    .arch .lbl.c { text-anchor: middle; }
+    .arch .no { fill: var(--coral-dark); font: 750 14px Inter, sans-serif; text-anchor: middle; }
+    .arch .leg-h { fill: var(--ink); font: 790 15px Inter, sans-serif; }
+    .arch .leg { fill: var(--text); font: 600 14px Inter, sans-serif; }
+    .arch .leg b { font-weight: 800; }
+    .arch .note { fill: var(--amber-dark); font: 700 13px Inter, sans-serif; text-anchor: middle; }
+
+    /* Lara-Fragen */
+    .asker { display: grid; grid-template-columns: 200px 1fr; gap: 30px; align-items: start; }
+    .portrait {
+      width: 200px; height: 200px; border-radius: 26px; overflow: hidden;
+      background: var(--teal-pale); box-shadow: 0 14px 30px rgba(16, 30, 54, .14);
+    }
+    .portrait img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .asks { display: grid; gap: 30px; }
+    .ask-label { color: var(--muted); font-size: 14px; font-weight: 780; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 8px; }
+    .ask-label .q { color: var(--teal-dark); }
+    .bubble {
+      padding: 22px 26px; border-radius: 20px; background: var(--ink); color: var(--white);
+      font-size: 27px; font-weight: 700; line-height: 1.3; letter-spacing: -.025em;
+      box-shadow: 0 14px 28px rgba(16, 30, 54, .16);
+    }
+    .bubble .typo { text-decoration: underline wavy var(--coral); text-underline-offset: 5px; }
+    .panel-foot { margin-top: 44px; padding-top: 24px; border-top: 1px solid var(--line); color: var(--muted); font-size: 16px; font-weight: 620; line-height: 1.45; }
+    .panel-foot strong { color: var(--ink); }
+
+    /* Workflow-Tabelle */
+    .flow { display: grid; grid-template-columns: 36px 1.25fr 1fr 1fr; gap: 5px 12px; align-items: stretch; }
+    .flow .h { color: var(--muted); font-size: 13px; font-weight: 790; letter-spacing: .1em; text-transform: uppercase; padding-bottom: 4px; }
+    .flow .h.q { color: var(--teal-dark); }
+    .flow .n { color: var(--muted); font-size: 14px; font-weight: 760; text-align: right; padding-top: 8px; }
+    .flow .step { padding: 6px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--white); color: var(--ink); font-size: 16px; font-weight: 720; line-height: 1.25; }
+    .flow .step.gate { border-left: 4px solid var(--ink); }
+    .flow .step.llm { border-color: rgba(16, 30, 54, .35); background: #eef0f4; }
+    .flow .r { padding: 6px 12px; border-radius: 10px; font-size: 15px; font-weight: 700; line-height: 1.25; display: flex; align-items: center; }
+    .flow .r.ok { background: var(--teal-pale); color: var(--teal-dark); }
+    .flow .r.warn { background: var(--amber-pale); color: var(--amber-dark); }
+    .flow .r.bad { background: var(--coral-pale); color: var(--coral-dark); }
+    .flow .r.info { background: var(--paper); color: var(--muted); }
+    .flow .r.llm { background: #eef0f4; color: var(--ink); }
+    .flow .r.skip { border: 1px dashed var(--line); color: var(--muted); font-weight: 620; }
+
+    /* Ranglisten */
+    .rank { width: 100%; border-collapse: collapse; font-size: 16px; }
+    .rank th { padding: 0 8px 8px; color: var(--muted); font-size: 12.5px; font-weight: 790; letter-spacing: .08em; text-transform: uppercase; text-align: left; }
+    .rank td { padding: 8px; border-top: 1px solid var(--line); color: var(--text); font-weight: 620; white-space: nowrap; }
+    .rank td.num { font-variant-numeric: tabular-nums; }
+    .rank tr.gt td { background: var(--teal-pale); color: var(--teal-dark); font-weight: 800; }
+    .rank tr.cut td { border-bottom: 3px solid var(--ink); }
+    .rank tr.out td { color: #9aa1ac; }
+    .src { display: inline-block; padding: 2px 8px; border-radius: 7px; font-size: 13.5px; font-weight: 780; }
+    .src.obv { background: var(--teal-pale); color: var(--teal-dark); }
+    .src.fremd { background: var(--coral-pale); color: var(--coral-dark); }
+    .rank tr.gt .src.obv { background: var(--white); }
+
+    /* Kategorien Gold-Dataset */
+    .cats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 18px; }
+    .cat { padding: 16px 16px 15px; border-radius: 16px; background: var(--paper); }
+    .cat b { display: block; color: var(--teal-dark); font-size: 34px; font-weight: 840; letter-spacing: -.05em; line-height: 1; }
+    .cat span { display: block; margin: 6px 0 6px; color: var(--ink); font: 700 14px var(--mono); }
+    .cat p { margin: 0; color: var(--text); font-size: 15px; font-weight: 600; line-height: 1.38; }
+    .sub-label { margin: 0 0 8px; color: var(--muted); font-size: 13px; font-weight: 790; letter-spacing: .1em; text-transform: uppercase; }
+
+    /* Schrittkette in einer Vergleichsspalte */
+    .steps { display: grid; gap: 10px; }
+    .steps div { display: flex; justify-content: space-between; gap: 10px; padding-bottom: 9px; border-bottom: 1px solid rgba(16, 30, 54, .08); font-size: 16px; font-weight: 620; color: var(--text); }
+    .steps div:last-child { border-bottom: 0; padding-bottom: 0; }
+    .steps div b { color: var(--ink); font-weight: 800; font-variant-numeric: tabular-nums; text-align: right; }
+    .steps div b.warn { color: var(--amber-dark); }
+    .steps div b.skip { color: var(--muted); font-weight: 600; }
+
+    /* ── v3: drei Wege ───────────────────────────────────────────────── */
+    .wrail { display: flex; gap: 6px; margin-bottom: 22px; }
+    .wrail span {
+      padding: 7px 12px; border-radius: 99px; background: rgba(16, 30, 54, .06); color: #9aa1ac;
+      font-size: 13px; font-weight: 780; letter-spacing: .02em; white-space: nowrap;
+    }
+    .wrail span.done { background: var(--teal-pale); color: var(--teal-dark); }
+    .wrail span.on { background: var(--ink); color: var(--white); }
+
+    .learning.bad { border-left-color: var(--coral); }
+    .learning.bad strong { color: var(--coral-dark); }
+    .learning.aha { border-left-color: var(--amber); }
+    .learning.aha strong { color: var(--amber-dark); }
+
+    .panel.center { display: flex; flex-direction: column; justify-content: center; }
+
+    .ways { display: grid; gap: 14px; }
+    .way { display: grid; grid-template-columns: 52px 1fr; gap: 16px; align-items: start; padding: 17px 19px; border: 1px solid var(--line); border-radius: 18px; background: var(--white); }
+    .way b { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 13px; background: var(--teal-pale); color: var(--teal-dark); font-size: 20px; font-weight: 850; }
+    .way h3 { margin: 0 0 4px; color: var(--ink); font-size: 20px; font-weight: 820; letter-spacing: -.02em; }
+    .way p { margin: 0 0 8px; color: var(--muted); font-size: 16.5px; font-weight: 620; line-height: 1.38; }
+    .way .gate { display: inline-block; padding: 6px 12px; border-radius: 99px; background: var(--paper); color: var(--ink); font-size: 14.5px; font-weight: 800; }
+    .way .gate.human { background: var(--amber-pale); color: var(--amber-dark); }
+    .way .gate.eval { background: var(--teal-pale); color: var(--teal-dark); }
+
+    .pipe { display: grid; gap: 9px; }
+    .pipe > div { display: grid; grid-template-columns: 34px 1fr auto; gap: 14px; align-items: center; padding: 12px 15px; border: 1px solid var(--line); border-radius: 13px; background: var(--white); }
+    .pipe b { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; background: var(--paper); color: var(--muted); font-size: 15px; font-weight: 850; }
+    .pipe h3 { margin: 0; color: var(--ink); font-size: 18px; font-weight: 760; }
+    .pipe small { display: block; margin-top: 2px; color: var(--muted); font-size: 14.5px; font-weight: 620; }
+    .pipe .tag { padding: 6px 11px; border-radius: 99px; background: var(--paper); color: var(--muted); font-size: 13px; font-weight: 800; white-space: nowrap; }
+    .pipe .tag.llm { background: var(--ink); color: var(--white); }
+    .pipe .tag.gate { background: var(--coral-pale); color: var(--coral-dark); }
+    .pipe .tag.human { background: var(--amber-pale); color: var(--amber-dark); }
+
+    .stat { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .stat div { padding: 15px 17px; border-radius: 15px; background: var(--paper); }
+    .stat b { display: block; color: var(--teal-dark); font-size: 33px; font-weight: 850; letter-spacing: -.045em; line-height: 1; }
+    .stat span { display: block; margin-top: 6px; color: var(--muted); font-size: 15px; font-weight: 680; line-height: 1.3; }
+
+    .chip { display: inline-block; margin: 3px 4px 3px 0; padding: 7px 11px; border-radius: 10px; background: var(--white); border: 1px solid var(--line); color: var(--ink); font-size: 17px; font-weight: 720; }
+    .chip small { display: block; margin-top: 2px; font-size: 12.5px; font-weight: 650; color: var(--muted); text-decoration: none; }
+    .chip.out { color: #a3a9b2; text-decoration: line-through; border-style: dashed; background: transparent; }
+    .chip.ok { background: var(--teal-pale); border-color: transparent; color: var(--teal-dark); }
+    .chip.ok small { color: var(--teal-dark); }
+
+    .law { margin: 0; padding: 18px 20px; border-radius: 16px; background: var(--white); border: 1px solid var(--line); font: 600 17px/1.55 var(--mono); color: var(--muted); white-space: pre-wrap; }
+    .law .ans { color: var(--ink); font-weight: 800; background: #fcf3dc; padding: 0 4px; border-radius: 5px; }
+
+    .vs { width: 100%; border-collapse: collapse; }
+    .vs th { padding: 0 10px 9px; color: var(--muted); font-size: 12.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; text-align: left; }
+    .vs td { padding: 11px 10px; border-top: 1px solid var(--line); color: var(--text); font-size: 17px; font-weight: 680; white-space: nowrap; }
+    .vs td.l { color: var(--muted); font-size: 15.5px; font-weight: 700; }
+    .vs td.v { font-variant-numeric: tabular-nums; font-weight: 800; color: var(--ink); }
+    .vs td.ok { color: var(--teal-dark); font-weight: 820; }
+    .vs td.warn { color: var(--amber-dark); font-weight: 820; }
+    .vs tr.big td { font-size: 19px; }
+
+    .chunkcut { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .chunkcut div { padding: 16px 18px; border-radius: 16px; background: var(--paper); font: 600 15.5px/1.5 var(--mono); color: var(--text); }
+    .chunkcut div b { display: block; margin-bottom: 8px; font-family: Inter, sans-serif; font-size: 13px; font-weight: 820; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+    .chunkcut div .edge { color: var(--coral-dark); font-weight: 800; }
+    .chunkline { margin-top: 12px; text-align: center; color: var(--muted); font-size: 15px; font-weight: 700; }
+
+    .qcard { padding: 18px 20px; border-radius: 16px; background: var(--white); border: 1px solid var(--line); }
+    .qcard .qq { color: var(--ink); font-size: 19px; font-weight: 800; line-height: 1.35; }
+    .qcard ol { margin: 12px 0 0; padding-left: 22px; color: var(--text); font-size: 16.5px; font-weight: 620; line-height: 1.6; }
+    .qcard li.right { color: var(--teal-dark); font-weight: 820; }
+    .qcard .prov { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14.5px; font-weight: 680; }
+
+    .gates { display: grid; gap: 10px; margin-top: 14px; }
+    .gates div { display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: center; padding: 12px 16px; border-radius: 13px; background: var(--white); border: 1px solid var(--line); }
+    .gates span { color: var(--ink); font-size: 16.5px; font-weight: 720; }
+    .gates b { color: var(--teal-dark); font-size: 22px; font-weight: 850; font-variant-numeric: tabular-nums; }
+    .gates small { display: block; color: var(--muted); font-size: 13.5px; font-weight: 640; }
+
+    .evalcats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 14px; }
+    .evalcats div { padding: 14px 15px; border-radius: 14px; background: var(--paper); }
+    .evalcats b { display: block; color: var(--ink); font-size: 30px; font-weight: 850; letter-spacing: -.04em; line-height: 1; }
+    .evalcats span { display: block; margin-top: 5px; color: var(--ink); font-size: 15px; font-weight: 760; }
+    .evalcats small { display: block; margin-top: 3px; color: var(--muted); font-size: 13.5px; font-weight: 640; line-height: 1.3; }
+
+    .close { display: grid; gap: 14px; }
+    .close div { display: grid; grid-template-columns: 1fr auto; gap: 18px; align-items: center; padding: 20px 22px; border-radius: 18px; background: var(--white); border: 1px solid var(--line); }
+    .close h3 { margin: 0 0 4px; color: var(--ink); font-size: 20px; font-weight: 820; }
+    .close p { margin: 0; color: var(--muted); font-size: 16px; font-weight: 640; }
+    .close em { font-style: normal; padding: 9px 16px; border-radius: 99px; font-size: 17px; font-weight: 850; white-space: nowrap; }
+    .close em.m { background: var(--ink); color: var(--white); }
+    .close em.h { background: var(--amber-pale); color: var(--amber-dark); }
+    .close em.e { background: var(--teal-pale); color: var(--teal-dark); }
+
+    /* ── Q1/Q2-Abzeichen ─────────────────────────────────────────────── */
+    :root { --q1: #2f5bd3; --q1-pale: #e8eefc; --q2: #8b3fd9; --q2-pale: #f3eafc; }
+    .qb {
+      display: inline-flex; align-items: center; gap: .32em; vertical-align: .06em;
+      padding: .16em .55em .16em .38em; border-radius: 99px; color: #fff;
+      font-size: clamp(16px, .7em, 30px); font-weight: 850; letter-spacing: .01em; line-height: 1.15;
+      text-transform: none; white-space: nowrap; font-style: normal;
+    }
+    .qb.q1 { background: var(--q1); }
+    .qb.q2 { background: var(--q2); }
+    .qb .qi {
+      display: inline-grid; place-items: center; width: 1.25em; height: 1.25em; border-radius: 50%;
+      background: rgba(255, 255, 255, .22); font-size: .95em; font-weight: 900;
+    }
+    .qb .qi svg { width: .82em; height: .82em; display: block; }
+    .bubble.b1 { box-shadow: inset 7px 0 0 var(--q1), 0 14px 28px rgba(16, 30, 54, .16); }
+    .bubble.b2 { box-shadow: inset 7px 0 0 var(--q2), 0 14px 28px rgba(16, 30, 54, .16); }
+    .ask-label .q { color: inherit; }
+    .ask-label .qb { font-size: 22px; margin-right: 4px; }
+    .panel-label .qb, .vs th .qb { font-size: 17px; margin-right: 3px; }
+    .learning .qb { font-size: 17px; }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+    }
+
+    /* v4: aus V2 übernommen */
+    .big-lead { max-width: 600px; margin: 26px 0 0; color: #566173; font-size: 22px; line-height: 1.45; letter-spacing: -.014em; }
+    .take {
+      max-width: 620px; margin-top: 26px; padding: 16px 0 16px 22px; border-left: 4px solid var(--amber);
+      color: var(--ink); font-size: 20px; font-weight: 700; line-height: 1.4;
+    }
+    .take.good { border-left-color: var(--teal); }
+    .take.bad { border-left-color: var(--coral); }
+    /* v4: Balken der Ähnlichkeit (V2 F11), aus V2 übernommen */
+    .doc { display: inline-block; padding: 3px 10px; border-radius: 8px; font-size: 15px; font-weight: 800; white-space: nowrap; }
+    .doc.obv { background: var(--teal-pale); color: var(--teal-dark); }
+    .doc.fremd { background: var(--coral-pale); color: var(--coral-dark); }
+    .listhead { margin: 0 0 10px; color: var(--muted); font-size: 14px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+    .listhead .qb { font-size: 20px; margin-right: 4px; }
+    .bars { display: grid; gap: 10px; }
+    .bar { display: grid; grid-template-columns: 190px 1fr 60px; gap: 14px; align-items: center; }
+    .bar .track { position: relative; height: 22px; border-radius: 6px; background: var(--paper); }
+    .bar .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 6px; background: rgba(15, 168, 160, .55); }
+    .bar .fill.low { background: rgba(207, 102, 92, .55); }
+    .bar .thr { position: absolute; top: -5px; bottom: -5px; width: 3px; background: var(--ink); border-radius: 2px; left: 58.33%; }
+    .bar .v { font-size: 17px; font-weight: 800; color: var(--ink); text-align: right; font-variant-numeric: tabular-nums; }
+    .bars-note { margin-top: 12px; color: var(--muted); font-size: 14px; font-weight: 650; }
+    /* v4: Eval als Ablauf (V2 F18): Schrittkästen aus V2 übernommen */
+    .phases { display: grid; gap: 12px; }
+    .phase { display: grid; grid-template-columns: 60px 1fr auto; gap: 18px; align-items: center; padding: 16px 20px; border: 1px solid var(--line); border-radius: 18px; background: var(--white); }
+    .phase b { display: grid; place-items: center; width: 50px; height: 50px; border-radius: 14px; background: var(--teal-pale); color: var(--teal-dark); font-size: 21px; font-weight: 850; }
+    .phase h3 { margin: 0 0 3px; color: var(--ink); font-size: 21px; font-weight: 800; letter-spacing: -.02em; }
+    .phase p { margin: 0; color: var(--muted); font-size: 16.5px; font-weight: 620; line-height: 1.35; }
+    .phase .tag { padding: 6px 12px; border-radius: 99px; font-size: 13.5px; font-weight: 800; white-space: nowrap; background: var(--paper); color: var(--muted); }
+    .phase .tag.gate { background: var(--coral-pale); color: var(--coral-dark); }
+    /* v4: eine Karte pro Fragetyp — Erklärung oben, geforderter Wert unten (Zuordnung nach ADR-009) */
+    .qtypes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 18px; }
+    .qtypes > div { display: flex; flex-direction: column; padding: 14px 16px; border-radius: 16px; background: var(--paper); }
+    .qtypes b { color: var(--teal-dark); font-size: 30px; font-weight: 850; letter-spacing: -.04em; line-height: 1; }
+    .qtypes span { margin-top: 5px; color: var(--ink); font-size: 16px; font-weight: 780; }
+    .qtypes small { margin-top: 2px; color: var(--muted); font-size: 14px; font-weight: 620; line-height: 1.3; }
+    .qtypes .req { margin-top: auto; padding-top: 10px; }
+    .qtypes .req div { margin-top: 8px; padding: 8px 12px; border-radius: 12px; background: var(--white); border: 2px solid var(--ink); }
+    .qtypes .req strong { display: block; color: var(--ink); font-size: 24px; font-weight: 850; letter-spacing: -.03em; }
+    .qtypes .req em { display: block; color: var(--muted); font-size: 13.5px; font-weight: 650; font-style: normal; }
+    /* v4: Flussdiagramm der fünf Phasen (baut auf .arch auf) */
+    .flowd .ah { fill: var(--muted); }
+    .flowd .ph { fill: var(--ink); font: 800 15px Inter, sans-serif; }
+    .flowd .num { fill: var(--teal-pale); }
+    .flowd .num.gate { fill: var(--coral-pale); }
+    .flowd .num.llm { fill: var(--ink); }
+    .flowd .nt { fill: var(--teal-dark); font: 850 15px Inter, sans-serif; text-anchor: middle; }
+    .flowd .nt.gate { fill: var(--coral-dark); }
+    .flowd .nt.llm { fill: var(--white); }
+    .flowd .box.gate { stroke: var(--coral); stroke-width: 2; }
+    .flowd .box.llm { fill: var(--ink); stroke: var(--ink); }
+    .flowd .t.inv { fill: var(--white); }
+    .flowd .s.inv { fill: rgba(255, 254, 251, .72); }
+    .flowd .box.stop { fill: var(--coral-pale); stroke: var(--coral); stroke-dasharray: 6 5; }
+    .flowd .t.stop { fill: var(--coral-dark); }
+    .flowd .lbl.neg { fill: var(--coral-dark); font-weight: 750; }
+    .flowd .lbl.yes { fill: var(--teal-dark); font-weight: 750; }
+    /* v4: Self-Check (V2 F16) — durchlaufener Pfad vs. nicht durchlaufene Pfade */
+    .flowd .ahp { fill: var(--ink); }
+    .flowd .edge.path { stroke: var(--ink); stroke-width: 2.6; }
+    .flowd .edge.alt { stroke-dasharray: 6 5; opacity: .55; }
+    .flowd .lbl.alt { opacity: .8; }
+    .flowd .capt { fill: var(--teal-dark); font: 800 13px Inter, sans-serif; letter-spacing: .1em; text-anchor: middle; }
+    .flowd .anst { fill: var(--ink); font: 750 17px Inter, sans-serif; text-anchor: middle; }
+    .flowd .cref { fill: var(--teal-dark); font-family: var(--mono); font-weight: 800; }
+
+    /* ── Ergänzungen für Block 3, in derselben Formensprache ─────────────── */
+
+    /* Hinweis auf die Live-Ansicht in GitHub (ersetzt .status im panel-label) */
+    .live {
+      display: flex; align-items: center; gap: 8px; padding: 6px 13px; border-radius: 99px;
+      background: var(--amber-pale); color: var(--amber-dark);
+      font-size: 13.5px; font-weight: 820; letter-spacing: .02em; text-transform: none;
+    }
+    .live::before { content: "↗"; font-size: 15px; font-weight: 900; }
+
+    /* Rollenteilung Mensch / Maschine */
+    .roles { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .roles section { padding: 22px 22px 20px; border-radius: 20px; background: var(--paper); }
+    .roles section.human { background: var(--amber-pale); }
+    .roles h2 {
+      margin: 0 0 4px; color: var(--muted); font-size: 13px; font-weight: 820;
+      letter-spacing: .1em; text-transform: uppercase;
+    }
+    .roles section.human h2 { color: var(--amber-dark); }
+    .roles .who { color: var(--ink); font-size: 24px; font-weight: 850; letter-spacing: -.03em; line-height: 1.15; }
+    .roles section.human .who { color: var(--amber-dark); }
+    .roles ul { margin: 14px 0 0; padding: 0; list-style: none; display: grid; gap: 9px; }
+    .roles li { color: var(--text); font-size: 16px; font-weight: 640; line-height: 1.35; padding-left: 18px; position: relative; }
+    .roles li::before { content: ""; position: absolute; left: 0; top: .62em; width: 7px; height: 2px; border-radius: 2px; background: var(--muted); }
+
+    /* Orte, an denen ein Entscheid lebt */
+    .places { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 20px; }
+    .places div { padding: 13px 15px; border: 1px solid var(--line); border-radius: 14px; background: var(--white); }
+    .places b { display: block; color: var(--ink); font: 800 15px var(--mono); letter-spacing: -.01em; }
+    .places span { display: block; margin-top: 4px; color: var(--muted); font-size: 14.5px; font-weight: 640; line-height: 1.3; }
+
+    /* Kette: Entscheid → Regel → Code */
+    .chain { display: grid; gap: 12px; }
+    .chain > div {
+      position: relative; padding: 18px 20px; border: 1px solid var(--line);
+      border-radius: 18px; background: var(--white);
+    }
+    .chain > div + div::before {
+      content: "↓"; position: absolute; left: 50%; top: -20px; transform: translateX(-50%);
+      color: var(--muted); font-size: 16px; font-weight: 900; line-height: 1;
+    }
+    .chain .where {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px;
+      color: var(--muted); font-size: 13px; font-weight: 820; letter-spacing: .09em; text-transform: uppercase;
+    }
+    .chain .where em { font-style: normal; padding: 4px 10px; border-radius: 99px; background: var(--paper); color: var(--muted); letter-spacing: .02em; }
+    .chain .where em.live { background: var(--teal-pale); color: var(--teal-dark); }
+    .chain p { margin: 0; color: var(--ink); font-size: 17.5px; font-weight: 680; line-height: 1.42; }
+    .chain p .mono { font: 800 16.5px var(--mono); color: var(--coral-dark); }
+    .chain p .ok { color: var(--teal-dark); font-weight: 820; }
+
+    /* Nachgeführt-Punkte für ADR-008 */
+    .revs { display: flex; align-items: center; gap: 7px; margin-top: 10px; }
+    .revs i { width: 10px; height: 10px; border-radius: 50%; background: var(--teal); opacity: .55; }
+    .revs i.first { opacity: 1; box-shadow: 0 0 0 4px var(--teal-pale); }
+    .revs span { margin-left: 5px; color: var(--muted); font-size: 14px; font-weight: 700; }
+
+    /* GitHub-artige Karte (Issue / Pull Request) */
+    .gh { border: 1px solid var(--line); border-radius: 18px; background: var(--white); overflow: hidden; }
+    .gh-top { padding: 16px 20px 15px; border-bottom: 1px solid var(--line); background: var(--paper); }
+    .gh-state {
+      display: inline-flex; align-items: center; gap: 7px; padding: 5px 12px; border-radius: 99px;
+      background: #6f42c1; color: #fff; font-size: 13px; font-weight: 820; letter-spacing: .02em;
+    }
+    .gh-state.open { background: var(--teal-dark); }
+    .gh-num { margin-left: 10px; color: var(--muted); font-size: 14.5px; font-weight: 740; }
+    .gh-title { margin: 11px 0 0; color: var(--ink); font-size: 21px; font-weight: 820; letter-spacing: -.025em; line-height: 1.3; }
+    .gh-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 11px; }
+    .gh-meta span { padding: 4px 10px; border-radius: 99px; background: var(--white); border: 1px solid var(--line); color: var(--muted); font-size: 12.5px; font-weight: 780; }
+    .gh-meta span.ms { background: var(--teal-pale); border-color: transparent; color: var(--teal-dark); }
+    .gh-body { padding: 18px 20px 19px; }
+    .gh-quote {
+      margin: 0; padding: 14px 16px; border-left: 4px solid var(--amber); border-radius: 0 12px 12px 0;
+      background: #fcf8ef; color: var(--text); font-size: 16.5px; font-weight: 640; line-height: 1.45;
+    }
+    .gh-quote b { color: var(--ink); font-weight: 820; }
+    .gh-sub { margin: 17px 0 9px; color: var(--muted); font-size: 12.5px; font-weight: 820; letter-spacing: .09em; text-transform: uppercase; }
+    .gh-dod { display: grid; gap: 7px; }
+    .gh-dod div { display: grid; grid-template-columns: 19px 1fr; gap: 10px; align-items: start; color: var(--text); font-size: 15.5px; font-weight: 640; line-height: 1.32; }
+    .gh-dod i {
+      width: 18px; height: 18px; margin-top: 1px; border: 1.5px solid var(--line); border-radius: 5px;
+      background: var(--white); display: grid; place-items: center;
+      color: var(--white); font-size: 12px; font-weight: 900; font-style: normal;
+    }
+    .gh-dod div.done i { background: var(--teal-dark); border-color: var(--teal-dark); }
+    .gh-dod div.done i::before { content: "✓"; }
+
+    /* Sprint-Bogen */
+    .arc { display: grid; gap: 7px; }
+    .arc > div { display: grid; grid-template-columns: 78px 1fr 112px; gap: 14px; align-items: center; padding: 11px 15px; border: 1px solid var(--line); border-radius: 13px; background: var(--white); }
+    .arc b { color: var(--ink); font-size: 15px; font-weight: 840; letter-spacing: -.01em; }
+    .arc h3 { margin: 0; color: var(--ink); font-size: 17px; font-weight: 760; line-height: 1.25; }
+    .arc small { display: block; margin-top: 2px; color: var(--muted); font-size: 14px; font-weight: 620; line-height: 1.3; }
+    .arc em { font-style: normal; padding: 6px 11px; border-radius: 99px; text-align: center; font-size: 13px; font-weight: 820; white-space: nowrap; }
+    .arc em.bau { background: var(--paper); color: var(--muted); }
+    .arc em.sich { background: var(--amber-pale); color: var(--amber-dark); }
+    .arc em.mess { background: var(--teal-pale); color: var(--teal-dark); }
+
+    /* Messwerte als Beleg */
+    .meas { display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; }
+    .meas div { padding: 12px 13px; border-radius: 13px; background: var(--paper); text-align: center; }
+    .meas b { display: block; color: var(--ink); font-size: 22px; font-weight: 850; letter-spacing: -.035em; line-height: 1; font-variant-numeric: tabular-nums; }
+    .meas span { display: block; margin-top: 5px; color: var(--muted); font-size: 13px; font-weight: 700; line-height: 1.25; }
+    .meas div.res { background: var(--teal-pale); }
+    .meas div.res b { color: var(--teal-dark); }
+    .meas div.res span { color: var(--teal-dark); }
+
+    /* O-Ton-Zeilen */
+    .otone { display: grid; gap: 7px; margin-top: 4px; }
+    .otone q {
+      padding: 9px 14px; border-radius: 11px; background: var(--paper);
+      color: var(--text); font-size: 15.5px; font-weight: 660; line-height: 1.35; quotes: "„" "“";
+    }
+    .otone q.hl { background: var(--ink); color: var(--white); font-weight: 720; }
+  </style>
+</head>
+<body>
+  <main class="deck" aria-label="LearnFlow — Wie haben wir es umgesetzt">
+
+    <!-- ── 1 · Leitprinzip ─────────────────────────────────────────────── -->
+    <section class="slide active" aria-label="Leitprinzip">
+      <header class="topbar">
+        <div class="brand"><span class="brand-mark" aria-hidden="true">LF</span><span>LearnFlow</span></div>
+        <div class="context" data-title="Wie haben wir es umgesetzt"></div>
+      </header>
+      <div class="content">
+        <div class="story">
+          <div class="wrail"><span class="on">Entscheiden</span><span>Umsetzen</span><span>Prüfen</span></div>
+          <div class="eyebrow">Arbeitsweise</div>
+          <h1>Wir haben den Code nicht geschrieben. Wir haben <span class="accent">entschieden.</span></h1>
+          <p class="lead">Claude Code erzeugt die Implementierung. Damit das trägt, muss jeder Entscheid schriftlich, auffindbar und maschinell prüfbar sein — sonst wird er in der nächsten Sitzung neu erfunden.</p>
+          <div class="learning">
+            <strong>Steht so in unserer Definition of Done</strong>
+            „Code wird KI-gestützt mit Claude Code erzeugt; die Teammitglieder sind primär Reviewer und Verifizierer. Daraus folgt: das menschliche Review und die automatisierten Gates sind die Qualitätssicherung, nicht das Schreiben des Codes."
+          </div>
+        </div>
+        <div class="panel center">
+          <div class="panel-label"><span>Rollenteilung</span><span class="status">Docs/07_Definition-of-Done.md</span></div>
+          <div class="roles">
+            <section>
+              <h2>Schreibt</h2>
+              <div class="who">Die KI</div>
+              <ul>
+                <li>Implementierung und Tests</li>
+                <li>Migrationen und Spec-Diffs</li>
+                <li>Recherche im bestehenden Code</li>
+                <li>Befunde im Review — mit Datei und Zeile</li>
+              </ul>
+            </section>
+            <section class="human">
+              <h2>Entscheidet</h2>
+              <div class="who">Das Team</div>
+              <ul>
+                <li>Scope: was gehört ins Ticket, was nicht</li>
+                <li>Welcher Befund gefixt wird — und welcher nicht</li>
+                <li>Was ein ADR wird und was ein Kommentar</li>
+                <li>Das Gedächtnis über Wochen hinweg</li>
+              </ul>
+            </section>
+          </div>
+          <div class="places">
+            <div><b>Docs/ADR-00X</b><span>Der Entscheid samt Begründung und Alternativen</span></div>
+            <div><b>CLAUDE.md</b><span>Der Entscheid als Regel, die die KI nicht überschreiten darf</span></div>
+            <div><b>GitHub Issue</b><span>Akzeptanzkriterien und DoD als Checkliste</span></div>
+            <div><b>openapi.yaml</b><span>Der Vertrag, den beide Seiten einhalten müssen</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="page-number"></div>
+    </section>
+
+    <!-- ── 2 · ADRs ────────────────────────────────────────────────────── -->
+    <section class="slide" aria-label="ADRs">
+      <header class="topbar">
+        <div class="brand"><span class="brand-mark" aria-hidden="true">LF</span><span>LearnFlow</span></div>
+        <div class="context" data-title="Wie haben wir es umgesetzt"></div>
+      </header>
+      <div class="content">
+        <div class="story">
+          <div class="wrail"><span class="on">Entscheiden</span><span>Umsetzen</span><span>Prüfen</span></div>
+          <div class="eyebrow">Architekturentscheide</div>
+          <h1>Ein Entscheid, der nur im Code steht, wird <span class="accent">jede Woche neu</span> diskutiert</h1>
+          <p class="lead">Zehn ADRs, geschrieben bevor die erste Zeile Produktionscode entstand. Nicht als Pflichtübung aus dem Unterricht — sondern weil ein ADR die Form ist, in der auch eine Maschine eine Vorgabe entgegennimmt.</p>
+          <div class="take good">ADR-008 trägt im Kopf sechs Nachträge. Jeder davon ist eine Erkenntnis aus einem konkreten Ticket, die zurück in den Entscheid geflossen ist. ADRs sind bei uns kein Archiv, sondern Arbeitsmaterial.</div>
+        </div>
+        <div class="panel center">
+          <div class="panel-label"><span>Vom Entscheid zur geprüften Zeile</span><span class="status">Beispiel ADR-008</span></div>
+          <div class="chain">
+            <div>
+              <div class="where"><span>1 · Der Entscheid</span><em>Docs/04_ADR-008</em></div>
+              <p>Fail-closed: Im Zweifel wird unterdrückt. Alle Schwellen liegen in der Datenbank und sind <span class="ok">ohne Deployment</span> kalibrierbar.</p>
+              <div class="revs"><i class="first"></i><i></i><i></i><i></i><i></i><i></i><span>sechsmal nachgeführt</span></div>
+            </div>
+            <div>
+              <div class="where"><span>2 · Die Regel für die KI</span><em>CLAUDE.md</em></div>
+              <p>„Fail-closed-Schwellen (ADR-008) nicht aufweichen <span class="mono">(z.&nbsp;B. &gt;= → &gt;)</span>; Eval-Gates (ADR-009) nicht umgehen."</p>
+            </div>
+            <div>
+              <div class="where"><span>3 · In der Umsetzung</span><em class="live">aus dem Chatverlauf</em></div>
+              <p>„Die Band-Semantik steht in den <span class="mono">description</span>-Spalten … — <span class="ok">die &gt;= bleiben &gt;=</span> (CLAUDE.md-Tripwire zu ADR-008)."</p>
+            </div>
+          </div>
+          <div class="panel-foot"><strong>Der Unterschied zwischen einem Dokument, das existiert, und einem Entscheid, der wirkt:</strong> Die KI begründet ihre eigene Codezeile mit unserer Regel — ohne dass jemand danach gefragt hat.</div>
+        </div>
+      </div>
+      <div class="page-number"></div>
+    </section>
+
+    <!-- ── 3 · Issues ──────────────────────────────────────────────────── -->
+    <section class="slide" aria-label="Issues">
+      <header class="topbar">
+        <div class="brand"><span class="brand-mark" aria-hidden="true">LF</span><span>LearnFlow</span></div>
+        <div class="context" data-title="Wie haben wir es umgesetzt"></div>
+      </header>
+      <div class="content">
+        <div class="story">
+          <div class="wrail"><span class="done">Entscheiden</span><span class="on">Umsetzen</span><span>Prüfen</span></div>
+          <div class="eyebrow">Backlog</div>
+          <h1>39 geplant. <span class="accent">30 kamen dazu.</span></h1>
+          <p class="lead">Der Erst-Backlog T-01 bis T-38 entstand an einem Tag aus den User Stories und wurde per Skript angelegt — mit Milestone, Board-Eintrag und der Definition of Done als Checkliste in jedem einzelnen Ticket.</p>
+          <div class="take">Die interessantere Hälfte sind die 30, die niemand geplant hat. Sie entstanden in Reviews und Eval-Läufen — dort, wo sie auffielen, nicht dort, wo man sie vermutet hatte.</div>
+          <div class="stat" style="margin-top:26px; max-width:520px;">
+            <div><b>69</b><span>Issues insgesamt · 61 geschlossen</span></div>
+            <div><b>74</b><span>Pull Requests · 69 gemergt</span></div>
+          </div>
+        </div>
+        <div class="panel center">
+          <div class="panel-label"><span>Ein Ticket, das aus einem Review entstand</span><span class="live">live in GitHub</span></div>
+          <div class="gh">
+            <div class="gh-top">
+              <span class="gh-state">Closed</span><span class="gh-num">#90 · aus dem Review zu PR #86</span>
+              <h3 class="gh-title">[T-46] Lose typisierte Spec-Felder: Enum prüfen und Entscheid im ADR festhalten</h3>
+              <div class="gh-meta"><span>documentation</span><span>backend</span><span>frontend</span><span class="ms">Sprint 8</span></div>
+            </div>
+            <div class="gh-body">
+              <p class="gh-quote">„Der Entscheid steht <b>nur</b> als Schema-Beschreibung in <b>openapi.yaml</b>, nicht in einem ADR. Der Entscheid ist damit schlecht auffindbar und <b>wird bei jeder Berührung neu aufgemacht</b>."</p>
+              <div class="gh-sub">Definition of Done — in jedem Ticket</div>
+              <div class="gh-dod">
+                <div class="done"><i></i><span>Review durch eine zweite Person — nicht Autor/Prompter des Codes</span></div>
+                <div class="done"><i></i><span>CI grün: Lint + Type-Check + Tests</span></div>
+                <div class="done"><i></i><span>Unit-Test für neue Logik; RAG-Komponente isoliert aufrufbar</span></div>
+                <div><i></i><span>Eval-Gate nicht verschlechtert <em style="color:var(--muted);font-style:normal">(nur bei RAG-Änderungen)</em></span></div>
+                <div class="done"><i></i><span>ADR/Docs aktualisiert</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="page-number"></div>
+    </section>
+
+    <!-- ── 4 · Sprints ─────────────────────────────────────────────────── -->
+    <section class="slide" aria-label="Sprints">
+      <header class="topbar">
+        <div class="brand"><span class="brand-mark" aria-hidden="true">LF</span><span>LearnFlow</span></div>
+        <div class="context" data-title="Wie haben wir es umgesetzt"></div>
+      </header>
+      <div class="content">
+        <div class="story">
+          <div class="wrail"><span class="done">Entscheiden</span><span class="on">Umsetzen</span><span>Prüfen</span></div>
+          <div class="eyebrow">Rhythmus</div>
+          <h1>Bauen. Absichern. <span class="accent">Messen.</span></h1>
+          <p class="lead">Neun Sprints als GitHub-Meilensteine. Kein Scrum-Theater — keine Dailys, keine Velocity-Rechnung, keine Retro-Formate. Geblieben ist, was bei einem nebenberuflichen Team trägt: feste Zeitbox, Milestone am Ticket, ein Board, klare Reihenfolge.</p>
+          <div class="take good">Die Reihenfolge ist kein Zufall: erst funktionsfähig, dann fail-closed, dann messbar. Reliability vor Feature-Breite — so steht es in den Quality Attributes.</div>
+        </div>
+        <div class="panel center">
+          <div class="panel-label"><span>Neun Meilensteine</span><span class="live">live in GitHub · Board</span></div>
+          <div class="arc">
+            <div><b>Sprint 0–1</b><div><h3>Infrastruktur und Grundlagen</h3><small>DB-Schema · OpenAPI-Gerüst · Login · pgqueuer</small></div><em class="bau">Bauen</em></div>
+            <div><b>Sprint 2–3</b><div><h3>Das Skelett steht</h3><small>Upload · RBAC · Parsing/Chunking · Embedding + pgvector · Branch Protection</small></div><em class="bau">Bauen</em></div>
+            <div><b>Sprint 4</b><div><h3>Die Pipeline entsteht</h3><small>Retrieval · LLM-Generierung · Feedback</small></div><em class="bau">Bauen</em></div>
+            <div><b>Sprint 5</b><div><h3>Fail-closed wird echt</h3><small>Quellenvalidierung · Konfidenz-Score · Self-Check · Unterdrückungslogik</small></div><em class="sich">Absichern</em></div>
+            <div><b>Sprint 6</b><div><h3>Qualität wird prüfbar</h3><small>Gold-Eval-Dataset · PDF-Textextraktion · Konfidenz-Badges</small></div><em class="sich">Absichern</em></div>
+            <div><b>Sprint 7</b><div><h3>Sichtbarkeit und Betrieb</h3><small>Admin-Seite · Dashboards · Dokumentviewer · Latenz-Test</small></div><em class="sich">Absichern</em></div>
+            <div><b>Sprint 8</b><div><h3>Messen statt raten</h3><small>In-Corpus-Eval · Kalibrierungs-Loop · Pipeline-Optimierung</small></div><em class="mess">Messen</em></div>
+          </div>
+        </div>
+      </div>
+      <div class="page-number"></div>
+    </section>
+
+    <!-- ── 5 · Umsetzungsprozess ───────────────────────────────────────── -->
+    <section class="slide" aria-label="Umsetzungsprozess">
+      <header class="topbar">
+        <div class="brand"><span class="brand-mark" aria-hidden="true">LF</span><span>LearnFlow</span></div>
+        <div class="context" data-title="Wie haben wir es umgesetzt"></div>
+      </header>
+      <div class="content">
+        <div class="story">
+          <div class="wrail"><span class="done">Entscheiden</span><span class="on">Umsetzen</span><span>Prüfen</span></div>
+          <div class="eyebrow">Umsetzung</div>
+          <h1>Der Plan ist das Arbeitsprodukt. Der Code <span class="accent">fällt danach an.</span></h1>
+          <p class="lead">„Erstelle einen Umsetzungsplan für Issue&nbsp;#…" — so beginnen 18 der 40 dokumentierten Arbeitsverläufe. Keine Zeile Code, bevor nicht jeder offene Punkt entschieden ist.</p>
+          <div class="learning">
+            <strong>Der Satz, der den Prozess trägt</strong>
+            „Erstelle einen Plan, wie das Issue umgesetzt werden kann. Stelle mir vor der Umsetzung Fragen, bis alle Unklarheiten geklärt sind."
+          </div>
+          <div class="take">Nicht „schreib mir Code", sondern „frag mich, bis du es verstanden hast". Zweimal deckte allein die Bestandsaufnahme einen Widerspruch in unseren eigenen Dokumenten auf, den vorher niemand gesucht hatte.</div>
+        </div>
+        <div class="panel center">
+          <div class="panel-label"><span>Der Ablauf, verbindlich für jedes Ticket</span><span class="status">CLAUDE.md</span></div>
+          <div class="pipe">
+            <div><b>1</b><div><h3>Issue lesen</h3><small>Akzeptanzkriterien und Scope erfassen</small></div><span class="tag">Mensch + KI</span></div>
+            <div><b>2</b><div><h3>Spec prüfen</h3><small>Docs/ gegenlesen — bei Widerspruch zuerst rückfragen</small></div><span class="tag gate">Stopp-Punkt</span></div>
+            <div><b>3</b><div><h3>Plan und Rückfragen</h3><small>Offene Punkte werden entschieden, nicht geraten</small></div><span class="tag human">Mensch entscheidet</span></div>
+            <div><b>4</b><div><h3>Spec zuerst</h3><small>openapi.yaml vor dem Code, Typen generieren</small></div><span class="tag">ADR-010</span></div>
+            <div><b>5</b><div><h3>Code und Tests</h3><small>Die kleinste Änderung, die das Problem löst</small></div><span class="tag llm">KI</span></div>
+            <div><b>6</b><div><h3>Verifikation</h3><small>QA grün + Kriterien manuell am laufenden System</small></div><span class="tag gate">Gate</span></div>
+          </div>
+          <div class="gh-sub" style="margin-top:22px">Schritt 0 in T-51: gemessen statt geschätzt</div>
+          <div class="meas">
+            <div><b>29,3 s</b><span>Parsing<br>576 Seiten</span></div>
+            <div><b>4,4 s</b><span>Speichern<br>1850 Chunks</span></div>
+            <div><b>120 s</b><span>Embedding-Retry<br>harter Boden</span></div>
+            <div class="res"><b>300 s</b><span>Schwelle<br>→ zurück in ADR-006</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="page-number"></div>
+    </section>
+
+    <!-- ── 6 · Review ──────────────────────────────────────────────────── -->
+    <section class="slide" aria-label="Review-Prozess">
+      <header class="topbar">
+        <div class="brand"><span class="brand-mark" aria-hidden="true">LF</span><span>LearnFlow</span></div>
+        <div class="context" data-title="Wie haben wir es umgesetzt"></div>
+      </header>
+      <div class="content">
+        <div class="story">
+          <div class="wrail"><span class="done">Entscheiden</span><span class="done">Umsetzen</span><span class="on">Prüfen</span></div>
+          <div class="eyebrow">Review</div>
+          <h1>Vier Schichten. <span class="accent">Keine trägt allein.</span></h1>
+          <p class="lead">Wenn die KI den Code schreibt, ist das klassische Vier-Augen-Review nicht mehr die stärkste Kontrolle — niemand hat den Code Zeile für Zeile im Kopf. Wir haben die Prüfung deshalb gestaffelt.</p>
+          <div class="take good">Die KI findet die Inkonsistenz. Nur der Mensch weiss, welche der beiden Versionen die gemeinte war.</div>
+          <div class="otone">
+            <q class="hl">Wie schwerwiegend sind die Befunde? Was passiert, wenn es nicht angepasst wird?</q>
+            <q>Ja, fix alle bis auf #9 und #11</q>
+            <q>Punkt 1: Kommentieren. Den Rest wie vorgeschlagen umsetzen.</q>
+            <q>bewerte kritisch diese 3 Befunde:</q>
+          </div>
+        </div>
+        <div class="panel center">
+          <div class="panel-label"><span>Gestaffelte Prüfung</span><span class="live">live in GitHub · Pull Request</span></div>
+          <div class="pipe">
+            <div><b>1</b><div><h3>Automatische Gates</h3><small>backend · frontend · e2e als Required Checks, Branch Protection auf main</small></div><span class="tag">CI</span></div>
+            <div><b>2</b><div><h3>KI-Review gegen den PR</h3><small>Befunde mit Datei und Zeile, gegen die Akzeptanzkriterien</small></div><span class="tag llm">KI</span></div>
+            <div><b>3</b><div><h3>Gegen-Review</h3><small>Eine zweite, unabhängige Sitzung bewertet die Befunde der ersten</small></div><span class="tag llm">KI</span></div>
+            <div><b>4</b><div><h3>Triage und Approve</h3><small>Was jetzt, was als Folge-Ticket, was als bewusstes Restrisiko</small></div><span class="tag human">Mensch</span></div>
+          </div>
+          <div class="finding good">
+            <strong>PR #91 — ein Befund, den man nur durch Zählen findet:</strong> „Das e2e-Login-Budget ist nach dem PR bei 4 von 5, und T-15 bringt den fünften." Ein noch nicht gemergter Branch hätte die Testsuite über die Kante gekippt. Aus dem Hinweis wurde später ein eigenes Ticket.
+          </div>
+          <div class="panel-foot"><strong>16 von 40</strong> dokumentierten Arbeitsverläufen sind reine Review-Protokolle · <strong>24 Mal</strong> beginnt ein Prompt mit „bewerte…" — das ist Schicht 3.</div>
+        </div>
+      </div>
+      <div class="page-number"></div>
+    </section>
+
+  </main>
+
+  <nav class="nav" aria-label="Foliennavigation"></nav>
+
+  <script>
+    const deck = document.querySelector('.deck');
+    const slides = [...document.querySelectorAll('.slide')];
+    const nav = document.querySelector('.nav');
+    let current = 0;
+
+    slides.forEach((slide, i) => {
+      const ctx = slide.querySelector('.context');
+      if (ctx) ctx.textContent = `${ctx.dataset.title} · ${i + 1}/${slides.length}`;
+      const num = slide.querySelector('.page-number');
+      if (num) num.textContent = String(i + 1).padStart(2, '0');
+      const dot = document.createElement('button');
+      dot.type = 'button';
+      dot.setAttribute('aria-label', `Folie ${i + 1} anzeigen`);
+      dot.addEventListener('click', () => showSlide(i));
+      nav.appendChild(dot);
+    });
+    const dots = [...nav.querySelectorAll('button')];
+
+    function fitDeck() {
+      const scale = Math.min(window.innerWidth / 1600, window.innerHeight / 900);
+      deck.style.transform = `translate(-50%, -50%) scale(${scale})`;
+    }
+
+    function showSlide(index) {
+      current = (index + slides.length) % slides.length;
+      slides.forEach((slide, i) => slide.classList.toggle('active', i === current));
+      dots.forEach((dot, i) => dot.classList.toggle('active', i === current));
+    }
+
+    window.addEventListener('keydown', event => {
+      if (['ArrowRight', 'ArrowDown', 'PageDown', ' '].includes(event.key)) showSlide(current + 1);
+      if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(event.key)) showSlide(current - 1);
+      if (event.key === 'Home') showSlide(0);
+      if (event.key === 'End') showSlide(slides.length - 1);
+    });
+    window.addEventListener('resize', fitDeck);
+    fitDeck();
+    showSlide(0);
+  </script>
+</body>
+</html>
