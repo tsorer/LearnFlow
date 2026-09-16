@@ -1,0 +1,350 @@
+<title>LearnFlow-Datenmodell</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F5F3EE;
+    --surface: #FFFFFF;
+    --surface-2: #FBFAF6;
+    --ink: #20242B;
+    --muted: #5B6472;
+    --line: #D9D4C8;
+    --line-strong: #B9B2A2;
+    --identity: #2E6C8E;
+    --content: #6B4F94;
+    --qa: #3F7A5C;
+    --utility: #8C7A4E;
+    --accent: #B85A2A;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14171B;
+      --surface: #1B1F25;
+      --surface-2: #20252B;
+      --ink: #E7E9EE;
+      --muted: #9AA3B0;
+      --line: #333A44;
+      --line-strong: #454E5A;
+      --identity: #6FB3D8;
+      --content: #B79FE0;
+      --qa: #7FC49E;
+      --utility: #D0B77A;
+      --accent: #E0895A;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14171B;
+    --surface: #1B1F25;
+    --surface-2: #20252B;
+    --ink: #E7E9EE;
+    --muted: #9AA3B0;
+    --line: #333A44;
+    --line-strong: #454E5A;
+    --identity: #6FB3D8;
+    --content: #B79FE0;
+    --qa: #7FC49E;
+    --utility: #D0B77A;
+    --accent: #E0895A;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+    padding: 0 20px;
+    padding-block: 40px 64px;
+  }
+  main { max-width: 1080px; margin: 0 auto; }
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 10px;
+  }
+  h1 {
+    font-size: clamp(28px, 4vw, 38px);
+    font-weight: 700;
+    margin: 0 0 10px;
+    text-wrap: balance;
+    letter-spacing: -0.01em;
+  }
+  .dek {
+    font-size: 16px;
+    color: var(--muted);
+    max-width: 680px;
+    line-height: 1.55;
+    margin: 0 0 36px;
+  }
+  .dek code {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.92em;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+
+  figure { margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 8px; }
+  svg { display: block; width: 100%; height: auto; }
+  figcaption { font-size: 13.5px; color: var(--muted); line-height: 1.6; padding: 16px 14px 6px; }
+  figcaption strong { color: var(--ink); font-weight: 600; }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 24px;
+    margin: 18px 2px 46px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+  .legend .item { white-space: nowrap; display: inline-flex; align-items: center; gap: 8px; }
+  .legend .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; }
+  .legend .ln { display: inline-block; width: 22px; height: 0; border-top: 2px solid var(--line-strong); }
+  .legend .ln.dashed { border-top-style: dashed; }
+
+  .notes {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+    margin-top: 8px;
+  }
+  @media (max-width: 640px) { .notes { grid-template-columns: 1fr; } }
+  .note h2 {
+    font-size: 12px;
+    font-family: "IBM Plex Mono", monospace;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 4px;
+    font-weight: 600;
+  }
+  .note h3 { font-size: 19px; font-weight: 600; margin: 0 0 16px; }
+  .note ul { list-style: none; margin: 0; padding: 0; border-left: 2px solid var(--line); }
+  .note li { position: relative; padding: 0 0 18px 22px; font-size: 14.5px; line-height: 1.55; }
+  .note li:last-child { padding-bottom: 0; }
+  .note li::before {
+    content: "";
+    position: absolute; left: -5px; top: 6px;
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--surface); border: 2px solid var(--line-strong);
+  }
+  .note .mono { font-family: "IBM Plex Mono", monospace; font-size: 0.9em; color: var(--muted); }
+
+  footer {
+    margin-top: 52px; padding-top: 18px; border-top: 1px solid var(--line);
+    font-size: 12.5px; color: var(--muted); font-family: "IBM Plex Mono", monospace;
+  }
+
+  .box-fill { fill: var(--surface); }
+  .box-stroke { stroke: var(--line-strong); stroke-width: 1.5; }
+  .box-title { fill: var(--ink); font-weight: 700; }
+  .field { fill: var(--muted); font-family: "IBM Plex Mono", monospace; font-size: 11px; }
+  .field-key { fill: var(--ink); font-weight: 600; }
+  .field-accent { fill: var(--accent); font-weight: 600; }
+  .lbl { fill: var(--muted); font-family: "IBM Plex Mono", monospace; font-size: 11px; }
+  .conn { stroke: var(--line-strong); stroke-width: 1.6; fill: none; }
+  .conn-dashed { stroke: var(--line-strong); stroke-width: 1.6; fill: none; stroke-dasharray: 5 4; }
+  .conn-arrow { fill: var(--line-strong); }
+  .pill-identity { fill: var(--identity); }
+  .pill-content { fill: var(--content); }
+  .pill-qa { fill: var(--qa); }
+  .pill-utility { fill: var(--utility); }
+  .pill-text { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; fill: var(--surface); font-weight: 600; }
+</style>
+
+<main>
+  <p class="eyebrow">Datenmodell · Stand main, 16.09.2026</p>
+  <h1>Wie die LearnFlow-Datenbank aufgebaut ist</h1>
+  <p class="dek">Acht Tabellen in PostgreSQL 17, aus <code>app/models/tables.py</code> — plus <code>pgqueuer</code>/<code>pgqueuer_log</code> als von der Queue-Library selbst verwaltete Infrastruktur ohne Fremdschlüssel-Bezug (siehe Architektur-Diagramm). Die Pfeile zeigen nicht nur, wer wen referenziert, sondern auch, <strong style="color:var(--ink)">was beim Löschen passiert</strong> — das ist an zwei Stellen bewusst unterschiedlich gelöst.</p>
+
+  <figure>
+    <svg viewBox="0 0 1240 1080" role="img" aria-label="Entity-Relationship-Diagramm der LearnFlow-Datenbank: users referenziert von documents, query_sessions und config jeweils per ON DELETE SET NULL; documents verzweigt per ON DELETE CASCADE zu chunks und quiz_questions; chunks verzweigt optional per SET NULL zu quiz_questions; query_sessions verzweigt per CASCADE zu answers, answers per CASCADE und eindeutigem Fremdschlüssel zu feedback. feedback besitzt bewusst kein user_id-Feld.">
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <polygon points="0,0 10,5 0,10" class="conn-arrow" />
+        </marker>
+      </defs>
+
+      <!-- users -->
+      <g>
+        <rect x="470" y="30" width="300" height="175" rx="10" class="box-fill box-stroke" />
+        <text x="620" y="54" text-anchor="middle" class="box-title" font-size="16">users</text>
+        <rect x="580" y="62" width="80" height="16" rx="8" class="pill-identity" />
+        <text x="620" y="73.5" text-anchor="middle" class="pill-text">Identity</text>
+        <text x="486" y="94" class="field"><tspan class="field-key">PK</tspan> id : uuid</text>
+        <text x="486" y="109.3" class="field"><tspan class="field-key">UK</tspan> email : varchar(255)</text>
+        <text x="486" y="124.6" class="field">hashed_password : varchar(255)</text>
+        <text x="486" y="139.9" class="field">role : learner · owner · admin</text>
+        <text x="486" y="155.2" class="field">is_active : boolean</text>
+        <text x="486" y="170.5" class="field">created_at : timestamptz</text>
+      </g>
+
+      <!-- documents -->
+      <g>
+        <rect x="110" y="275" width="300" height="220" rx="10" class="box-fill box-stroke" />
+        <text x="260" y="299" text-anchor="middle" class="box-title" font-size="16">documents</text>
+        <rect x="220" y="307" width="80" height="16" rx="8" class="pill-content" />
+        <text x="260" y="318.5" text-anchor="middle" class="pill-text">Content</text>
+        <text x="126" y="339" class="field"><tspan class="field-key">PK</tspan> id : uuid</text>
+        <text x="126" y="354.3" class="field"><tspan class="field-key">UK</tspan> (area, filename)</text>
+        <text x="126" y="369.6" class="field">filename, content_type : varchar</text>
+        <text x="126" y="384.9" class="field">content : bytea ≤10MB</text>
+        <text x="126" y="400.2" class="field">status : varchar</text>
+        <text x="126" y="415.5" class="field"><tspan class="field-key">FK</tspan> uploaded_by → users</text>
+        <text x="126" y="430.8" class="field">area : varchar</text>
+        <text x="126" y="446.1" class="field">created_at/updated_at/validated_at</text>
+        <text x="126" y="461.4" class="field">index_* : Optimistic-Lock + Reaper</text>
+      </g>
+
+      <!-- query_sessions -->
+      <g>
+        <rect x="830" y="275" width="300" height="130" rx="10" class="box-fill box-stroke" />
+        <text x="980" y="299" text-anchor="middle" class="box-title" font-size="16">query_sessions</text>
+        <rect x="940" y="307" width="80" height="16" rx="8" class="pill-qa" />
+        <text x="980" y="318.5" text-anchor="middle" class="pill-text">Q&amp;A</text>
+        <text x="846" y="339" class="field"><tspan class="field-key">PK</tspan> id : uuid</text>
+        <text x="846" y="354.3" class="field"><tspan class="field-key">FK</tspan> user_id → users</text>
+        <text x="846" y="369.6" class="field">created_at : timestamptz</text>
+      </g>
+
+      <!-- config -->
+      <g>
+        <rect x="480" y="275" width="280" height="160" rx="10" class="box-fill box-stroke" />
+        <text x="620" y="299" text-anchor="middle" class="box-title" font-size="16">config</text>
+        <rect x="580" y="307" width="80" height="16" rx="8" class="pill-utility" />
+        <text x="620" y="318.5" text-anchor="middle" class="pill-text">Utility</text>
+        <text x="496" y="339" class="field"><tspan class="field-key">PK</tspan> key : varchar(100)</text>
+        <text x="496" y="354.3" class="field">value : text</text>
+        <text x="496" y="369.6" class="field">description : text</text>
+        <text x="496" y="384.9" class="field"><tspan class="field-key">FK</tspan> changed_by → users</text>
+        <text x="496" y="400.2" class="field">changed_at : timestamptz</text>
+      </g>
+
+      <!-- chunks -->
+      <g>
+        <rect x="110" y="565" width="300" height="175" rx="10" class="box-fill box-stroke" />
+        <text x="260" y="589" text-anchor="middle" class="box-title" font-size="16">chunks</text>
+        <rect x="220" y="597" width="80" height="16" rx="8" class="pill-content" />
+        <text x="260" y="608.5" text-anchor="middle" class="pill-text">Content</text>
+        <text x="126" y="629" class="field"><tspan class="field-key">PK</tspan> id : uuid</text>
+        <text x="126" y="644.3" class="field"><tspan class="field-key">FK</tspan> document_id → documents</text>
+        <text x="126" y="659.6" class="field">content : text</text>
+        <text x="126" y="674.9" class="field">chunk_index/page/heading</text>
+        <text x="126" y="690.2" class="field">embedding : vector(1536) · HNSW</text>
+        <text x="126" y="705.5" class="field">tsv : tsvector · GIN, Deutsch</text>
+      </g>
+
+      <!-- answers -->
+      <g>
+        <rect x="830" y="565" width="300" height="205" rx="10" class="box-fill box-stroke" />
+        <text x="980" y="589" text-anchor="middle" class="box-title" font-size="16">answers</text>
+        <rect x="940" y="597" width="80" height="16" rx="8" class="pill-qa" />
+        <text x="980" y="608.5" text-anchor="middle" class="pill-text">Q&amp;A</text>
+        <text x="846" y="629" class="field"><tspan class="field-key">PK</tspan> id : uuid</text>
+        <text x="846" y="644.3" class="field"><tspan class="field-key">FK</tspan> session_id → query_sessions</text>
+        <text x="846" y="659.6" class="field">question/answer_text : text</text>
+        <text x="846" y="674.9" class="field">confidence_score : float</text>
+        <text x="846" y="690.2" class="field">citation_coverage/retrieval_conf.</text>
+        <text x="846" y="705.5" class="field">self_check_passed : boolean</text>
+        <text x="846" y="720.8" class="field">suppressed : boolean</text>
+        <text x="846" y="736.1" class="field">created_at : timestamptz</text>
+      </g>
+
+      <!-- quiz_questions -->
+      <g>
+        <rect x="110" y="840" width="300" height="205" rx="10" class="box-fill box-stroke" />
+        <text x="260" y="864" text-anchor="middle" class="box-title" font-size="16">quiz_questions</text>
+        <rect x="220" y="872" width="80" height="16" rx="8" class="pill-content" />
+        <text x="260" y="883.5" text-anchor="middle" class="pill-text">Content</text>
+        <text x="126" y="904" class="field"><tspan class="field-key">PK</tspan> id : uuid</text>
+        <text x="126" y="919.3" class="field"><tspan class="field-key">FK</tspan> document_id → documents</text>
+        <text x="126" y="934.6" class="field"><tspan class="field-key">FK</tspan> chunk_id → chunks (nullable)</text>
+        <text x="126" y="949.9" class="field">question : text</text>
+        <text x="126" y="965.2" class="field">options : jsonb[4] · answer: A–D</text>
+        <text x="126" y="980.5" class="field">explanation/source_excerpt</text>
+        <text x="126" y="995.8" class="field">status : pending→approved|rejected</text>
+        <text x="126" y="1011.1" class="field">created_at/approved_at</text>
+      </g>
+
+      <!-- feedback -->
+      <g>
+        <rect x="830" y="840" width="300" height="175" rx="10" class="box-fill box-stroke" />
+        <text x="980" y="864" text-anchor="middle" class="box-title" font-size="16">feedback</text>
+        <rect x="940" y="872" width="80" height="16" rx="8" class="pill-qa" />
+        <text x="980" y="883.5" text-anchor="middle" class="pill-text">Q&amp;A</text>
+        <text x="846" y="904" class="field"><tspan class="field-key">PK</tspan> id : uuid</text>
+        <text x="846" y="919.3" class="field"><tspan class="field-key">FK</tspan> answer_id → answers · UK</text>
+        <text x="846" y="934.6" class="field">helpful : boolean</text>
+        <text x="846" y="949.9" class="field">category/comment : text</text>
+        <text x="846" y="965.2" class="field">created_at : timestamptz</text>
+        <text x="846" y="983.5" class="field field-accent">∅ kein user_id — pseudonymisiert</text>
+      </g>
+
+      <!-- connectors -->
+      <polyline points="560,205 560,240 260,240 260,275" class="conn-dashed" marker-end="url(#arrow)" />
+      <text x="368" y="233" text-anchor="middle" class="lbl">uploaded_by · SET NULL</text>
+
+      <polyline points="680,205 680,240 980,240 980,275" class="conn-dashed" marker-end="url(#arrow)" />
+      <text x="830" y="233" text-anchor="middle" class="lbl">user_id · SET NULL</text>
+
+      <line x1="620" y1="205" x2="620" y2="275" class="conn-dashed" marker-end="url(#arrow)" />
+      <text x="632" y="245" class="lbl">changed_by · SET NULL</text>
+
+      <line x1="260" y1="495" x2="260" y2="565" class="conn" marker-end="url(#arrow)" />
+      <text x="272" y="534" class="lbl">document_id · CASCADE</text>
+
+      <polyline points="115,455 55,455 55,942 110,942" class="conn" marker-end="url(#arrow)" />
+      <text x="60" y="700" text-anchor="middle" class="lbl" transform="rotate(-90 60 700)">document_id · CASCADE</text>
+
+      <line x1="260" y1="740" x2="260" y2="840" class="conn-dashed" marker-end="url(#arrow)" />
+      <text x="272" y="794" class="lbl">chunk_id · SET NULL</text>
+
+      <line x1="980" y1="405" x2="980" y2="565" class="conn" marker-end="url(#arrow)" />
+      <text x="992" y="489" class="lbl">session_id · CASCADE</text>
+
+      <line x1="980" y1="770" x2="980" y2="840" class="conn" marker-end="url(#arrow)" />
+      <text x="992" y="809" class="lbl">answer_id · CASCADE · 1:0..1</text>
+    </svg>
+    <figcaption>
+      <strong>Gestrichelt = <code>ON DELETE SET NULL</code></strong> (Referenz verwaist, die Zeile bleibt) — durchweg dort, wo <span class="mono" style="font-family:'IBM Plex Mono',monospace">users</span> die Quelle ist. <strong>Durchgezogen = <code>ON DELETE CASCADE</code></strong> — durchweg innerhalb der Content- und Q&amp;A-Ketten. <span class="mono" style="font-family:'IBM Plex Mono',monospace">feedback.answer_id</span> ist zusätzlich eindeutig: höchstens eine Bewertung pro Antwort.
+    </figcaption>
+  </figure>
+
+  <div class="legend">
+    <span class="item"><span class="dot" style="background:var(--identity)"></span>Identity — users</span>
+    <span class="item"><span class="dot" style="background:var(--content)"></span>Content — documents, chunks, quiz_questions</span>
+    <span class="item"><span class="dot" style="background:var(--qa)"></span>Q&amp;A — query_sessions, answers, feedback</span>
+    <span class="item"><span class="dot" style="background:var(--utility)"></span>Utility — config</span>
+    <span class="item"><span class="ln"></span>CASCADE</span>
+    <span class="item"><span class="ln dashed"></span>SET NULL</span>
+  </div>
+
+  <div class="notes">
+    <div class="note">
+      <h2>Löschverhalten</h2>
+      <h3>Was beim Löschen passiert</h3>
+      <ul>
+        <li>Ein <span class="mono">user</span> wird gelöscht → seine Dokumente, Sessions und Config-Änderungen bleiben, nur die Referenz wird <span class="mono">NULL</span></li>
+        <li>Ein <span class="mono">document</span> wird gelöscht → seine <span class="mono">chunks</span> und <span class="mono">quiz_questions</span> werden mitgelöscht (CASCADE)</li>
+        <li><span class="mono">quiz_questions.chunk_id</span> wird bei Ersatz der Quelle nur auf <span class="mono">NULL</span> gesetzt, nicht die Frage gelöscht — sie fällt zurück auf <span class="mono">status = pending</span></li>
+      </ul>
+    </div>
+    <div class="note">
+      <h2>Sonderfälle</h2>
+      <h3>Was im Schema nicht offensichtlich ist</h3>
+      <ul>
+        <li><span class="mono">feedback</span> hat bewusst kein <span class="mono">user_id</span>-Feld — Pseudonymisierung (US-03)</li>
+        <li><span class="mono">documents</span> trägt drei eigene „Uhren" fürs Worker/Reaper-Zusammenspiel: <span class="mono">index_version</span> (Optimistic-Lock), <span class="mono">index_attempts</span> (Reaper-Budget), <span class="mono">index_progress_at</span> (Fortschritts-Heartbeat, T-51) — keine mit <span class="mono">onupdate</span></li>
+        <li><span class="mono">config</span> ist generisches Key/Value, die Wertebereiche sind aber seit Migration 0009 per DB-<span class="mono">CHECK</span> + Trigger erzwungen, nicht nur im Code — aktuell an 5 Stellen verstreut (T-64)</li>
+      </ul>
+    </div>
+  </div>
+
+  <footer>Quellen: src/backend/app/models/tables.py · alembic/versions/0001–0020 · Docs/08_ERD.md — Stand main, 16.09.2026</footer>
+</main>

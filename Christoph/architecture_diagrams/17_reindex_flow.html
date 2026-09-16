@@ -1,0 +1,293 @@
+<title>LearnFlow-Reindex-Flow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F5F3EE;
+    --surface: #FFFFFF;
+    --surface-2: #FBFAF6;
+    --ink: #20242B;
+    --muted: #5B6472;
+    --line: #D9D4C8;
+    --line-strong: #B9B2A2;
+    --neutral: #5B6472;
+    --accent: #6B4F94;
+    --error: #A23B3B;
+    --good: #3F7A5C;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14171B;
+      --surface: #1B1F25;
+      --surface-2: #20252B;
+      --ink: #E7E9EE;
+      --muted: #9AA3B0;
+      --line: #333A44;
+      --line-strong: #454E5A;
+      --neutral: #9AA3B0;
+      --accent: #B79FE0;
+      --error: #E2726B;
+      --good: #7FC49E;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14171B;
+    --surface: #1B1F25;
+    --surface-2: #20252B;
+    --ink: #E7E9EE;
+    --muted: #9AA3B0;
+    --line: #333A44;
+    --line-strong: #454E5A;
+    --neutral: #9AA3B0;
+    --accent: #B79FE0;
+    --error: #E2726B;
+    --good: #7FC49E;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+    padding: 0 20px; padding-block: 40px 64px;
+  }
+  main { max-width: 1080px; margin: 0 auto; }
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px;
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px;
+  }
+  h1 {
+    font-size: clamp(28px, 4vw, 38px); font-weight: 700; margin: 0 0 10px;
+    text-wrap: balance; letter-spacing: -0.01em;
+  }
+  .dek { font-size: 16px; color: var(--muted); max-width: 720px; line-height: 1.55; margin: 0 0 36px; }
+  .dek code {
+    font-family: "IBM Plex Mono", monospace; font-size: 0.92em; background: var(--surface-2);
+    border: 1px solid var(--line); padding: 1px 5px; border-radius: 4px;
+  }
+
+  figure { margin: 0 0 40px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 8px; }
+  svg { display: block; width: 100%; height: auto; }
+  figcaption { font-size: 13.5px; color: var(--muted); line-height: 1.6; padding: 16px 14px 6px; }
+  figcaption strong { color: var(--ink); font-weight: 600; }
+  figcaption code { font-family: "IBM Plex Mono", monospace; font-size: 0.95em; }
+
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 18px 2px 46px;
+    font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--muted);
+  }
+  .legend .item { white-space: nowrap; display: inline-flex; align-items: center; gap: 7px; }
+  .legend .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; }
+  .legend .ln { display: inline-block; width: 20px; height: 0; border-top: 2px solid var(--line-strong); }
+  .legend .ln.dashed { border-top-style: dashed; }
+
+  .notes { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 8px; }
+  @media (max-width: 640px) { .notes { grid-template-columns: 1fr; } }
+  .note h2 {
+    font-size: 12px; font-family: "IBM Plex Mono", monospace; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--muted); margin: 0 0 4px; font-weight: 600;
+  }
+  .note h3 { font-size: 19px; font-weight: 600; margin: 0 0 16px; }
+  .note ul { list-style: none; margin: 0; padding: 0; border-left: 2px solid var(--line); }
+  .note li { position: relative; padding: 0 0 18px 22px; font-size: 14.5px; line-height: 1.55; }
+  .note li:last-child { padding-bottom: 0; }
+  .note li::before {
+    content: ""; position: absolute; left: -5px; top: 6px; width: 8px; height: 8px;
+    border-radius: 50%; background: var(--surface); border: 2px solid var(--line-strong);
+  }
+  .note .mono { font-family: "IBM Plex Mono", monospace; font-size: 0.9em; color: var(--muted); }
+
+  footer {
+    margin-top: 52px; padding-top: 18px; border-top: 1px solid var(--line);
+    font-size: 12.5px; color: var(--muted); font-family: "IBM Plex Mono", monospace;
+  }
+
+  .box-fill { fill: var(--surface); }
+  .box-stroke { stroke: var(--line-strong); stroke-width: 1.5; }
+  .box-title { fill: var(--ink); font-weight: 700; }
+  .desc { fill: var(--muted); font-size: 12px; }
+  .pill-neutral { fill: var(--neutral); }
+  .pill-text { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; fill: var(--surface); font-weight: 600; }
+  .conn { stroke: var(--line-strong); stroke-width: 1.6; fill: none; }
+  .arrow-neutral { fill: var(--line-strong); }
+  .arrow-error { fill: var(--error); }
+  .arrow-accent { fill: var(--accent); }
+  .box-good { fill: var(--surface); stroke: var(--good); stroke-width: 1.6; }
+  .box-warn { fill: var(--surface); stroke: var(--error); stroke-width: 1.8; }
+  .box-accent { fill: var(--surface); stroke: var(--accent); stroke-width: 1.8; }
+  .title-warn { fill: var(--error); }
+  .title-good { fill: var(--good); }
+  .title-accent { fill: var(--accent); }
+  .dash-accent { stroke: var(--accent); stroke-width: 1.6; fill: none; stroke-dasharray: 6 4; }
+  .dash-neutral { stroke: var(--neutral); stroke-width: 1.6; fill: none; stroke-dasharray: 5 4; }
+  .phase-label { fill: var(--muted); font-family: "IBM Plex Mono", monospace; font-size: 11.5px; font-style: italic; }
+</style>
+
+<main>
+  <p class="eyebrow">Reindex-Flow · Stand main, 16.09.2026</p>
+  <h1>Wie ein Modellwechsel den Korpus neu einbettet</h1>
+  <p class="dek">Ein Fail-closed-Paar in zwei Hälften (T-42, ADR-005): ein <strong style="color:var(--ink)">automatischer Guard</strong>, der API und Worker beim Start abbrechen lässt, sobald Konfiguration und Datenbank auseinanderlaufen — und ein <strong style="color:var(--ink)">manuelles Skript</strong>, das einzige, was diesen Abbruch je auflöst, weil es dabei den ganzen Korpus neu einbetten muss.</p>
+
+  <figure>
+    <svg viewBox="0 0 1280 1280" role="img" aria-label="Zweiteiliges Flussdiagramm: beim Start von API oder Worker vergleicht ein Guard die persistierte Embedding-Konfiguration mit den aktuellen Settings. Stimmen sie überein, startet der Prozess normal, sonst bricht er mit einer Fehlermeldung ab, die zwei Auswege nennt: die Einstellung zurücksetzen oder das Abgleich-Skript ausführen. Das Skript vergleicht dieselben Werte erneut, legt bei einer geänderten Dimension die Embedding-Spalte und ihren Index neu an, aktualisiert die Konfigurationszeilen, und setzt danach in einer Transaktion jedes Dokument, jeden Chunk, jede freigegebene Quiz-Frage und die Warteschlange zurück, bevor es jedes Dokument neu zur Indexierung einreiht.">
+      <defs>
+        <marker id="rx-neutral" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <polygon points="0,0 10,5 0,10" class="arrow-neutral" />
+        </marker>
+        <marker id="rx-error" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <polygon points="0,0 10,5 0,10" class="arrow-error" />
+        </marker>
+        <marker id="rx-accent" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <polygon points="0,0 10,5 0,10" class="arrow-accent" />
+        </marker>
+      </defs>
+
+      <text x="140" y="30" class="phase-label">Phase A · automatisch, bei jedem Start von api ODER worker</text>
+
+      <!-- A1 -->
+      <g>
+        <rect x="140" y="50" width="1000" height="125" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="76" class="box-title" font-size="15.5">verify_embedding_config — Persistiert vs. Settings</text>
+        <rect x="840" y="59" width="300" height="18" rx="9" class="pill-neutral" /><text x="990" y="72" text-anchor="middle" class="pill-text">reine Funktion, kein eigener DB-Zugriff</text>
+        <text x="164" y="100" class="desc">config.embed_model/_dimensions (was ein früherer Start akzeptierte)</text>
+        <text x="164" y="115.5" class="desc">gegen Settings aus .env — pgvector prüft nur die Dimension, nie ob</text>
+        <text x="164" y="131" class="desc">zwei gleich breite Modelle dieselben sind (Issue #68)</text>
+      </g>
+
+      <line x1="370" y1="175" x2="370" y2="210" class="conn" marker-end="url(#rx-neutral)" />
+      <line x1="910" y1="175" x2="910" y2="210" class="conn" marker-end="url(#rx-error)" />
+
+      <!-- A2a good -->
+      <g>
+        <rect x="140" y="210" width="460" height="95" rx="10" class="box-good" />
+        <text x="164" y="236" class="box-title title-good" font-size="14.5">gleich → Prozess startet</text>
+        <text x="164" y="258" class="desc">normaler Betrieb, nichts zu tun</text>
+      </g>
+
+      <!-- A2b error -->
+      <g>
+        <rect x="680" y="210" width="460" height="95" rx="10" class="box-warn" />
+        <text x="704" y="236" class="box-title title-warn" font-size="14.5">verschieden → EmbeddingConfigError</text>
+        <text x="704" y="258" class="desc">API und Worker brechen ab — kein automatischer</text>
+        <text x="704" y="273" class="desc">Fallback auf einen der beiden Werte</text>
+      </g>
+
+      <line x1="910" y1="305" x2="400" y2="350" class="dash-neutral" marker-end="url(#rx-neutral)" />
+      <line x1="910" y1="305" x2="910" y2="350" class="dash-accent" marker-end="url(#rx-accent)" />
+
+      <!-- A3a -->
+      <g>
+        <rect x="140" y="350" width="460" height="95" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="376" class="box-title" font-size="14.5">nicht beabsichtigt</text>
+        <text x="164" y="398" class="desc">EMBED_MODEL/_DIMENSIONS zurück auf den</text>
+        <text x="164" y="413" class="desc">persistierten Wert</text>
+      </g>
+
+      <!-- A3b -->
+      <g>
+        <rect x="680" y="350" width="460" height="95" rx="10" class="box-accent" />
+        <text x="704" y="376" class="box-title title-accent" font-size="14.5">beabsichtigt → apply_embedding_config.py</text>
+        <text x="704" y="398" class="desc">docker compose run --rm — akzeptiert den neuen</text>
+        <text x="704" y="413" class="desc">Wert und stösst die Re-Indexierung an</text>
+      </g>
+
+      <line x1="910" y1="445" x2="910" y2="480" class="dash-accent" marker-end="url(#rx-accent)" />
+      <text x="140" y="500" class="phase-label">Phase B · manuell — kein Startup-Check, nur db muss laufen</text>
+
+      <!-- B1 -->
+      <g>
+        <rect x="140" y="520" width="1000" height="125" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="546" class="box-title" font-size="15.5">Persistiert vs. Settings erneut vergleichen</text>
+        <rect x="800" y="529" width="340" height="18" rx="9" class="pill-neutral" /><text x="970" y="542" text-anchor="middle" class="pill-text">derselbe Parser wie Phase A</text>
+        <text x="164" y="570" class="desc">gleich → „Bereits synchron", Skript endet — ein Aufruf ohne</text>
+        <text x="164" y="585.5" class="desc">echte Änderung ist immer ein sicheres No-op</text>
+        <text x="164" y="601" class="desc">verschieden → weiter</text>
+      </g>
+      <line x1="370" y1="645" x2="370" y2="680" class="conn" marker-end="url(#rx-neutral)" />
+      <line x1="910" y1="645" x2="910" y2="680" class="conn" marker-end="url(#rx-neutral)" />
+
+      <!-- B2a -->
+      <g>
+        <rect x="140" y="680" width="460" height="120" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="706" class="box-title" font-size="14.5">Dimension geändert</text>
+        <text x="164" y="728" class="desc">chunks.embedding neu anlegen: DROP + CREATE zur</text>
+        <text x="164" y="743" class="desc">neuen Breite, HNSW-Index neu — die Spaltenbreite ist</text>
+        <text x="164" y="758" class="desc">bei pgvector fix seit der Anlage</text>
+      </g>
+
+      <!-- B2b -->
+      <g>
+        <rect x="680" y="680" width="460" height="120" rx="10" class="box-fill box-stroke" />
+        <text x="704" y="706" class="box-title" font-size="14.5">nur Modell geändert</text>
+        <text x="704" y="728" class="desc">Spalte bleibt unangetastet — für pgvector unsichtbar:</text>
+        <text x="704" y="743" class="desc">zwei gleich breite Modelle sehen identisch aus</text>
+        <text x="704" y="758" class="desc">(Issue #68)</text>
+      </g>
+      <line x1="370" y1="800" x2="640" y2="840" class="conn" marker-end="url(#rx-neutral)" />
+      <line x1="910" y1="800" x2="640" y2="840" class="conn" marker-end="url(#rx-neutral)" />
+
+      <!-- B3 -->
+      <g>
+        <rect x="140" y="840" width="1000" height="105" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="866" class="box-title" font-size="15.5">config-Zeilen aktualisieren</text>
+        <rect x="900" y="849" width="240" height="18" rx="9" class="pill-neutral" /><text x="1020" y="862" text-anchor="middle" class="pill-text">changed_by = NULL</text>
+        <text x="164" y="890" class="desc">über denselben UPDATE-Pfad wie die Admin-API — unterliegt derselben</text>
+        <text x="164" y="905.5" class="desc">CHECK-Regel (0018). changed_by bleibt leer: kein Admin steht dahinter</text>
+      </g>
+      <line x1="640" y1="945" x2="640" y2="985" class="conn" marker-end="url(#rx-neutral)" />
+
+      <!-- B4 -->
+      <g>
+        <rect x="140" y="985" width="1000" height="150" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="1011" class="box-title" font-size="15.5">Jedes Dokument zurücksetzen</text>
+        <rect x="940" y="994" width="200" height="18" rx="9" class="pill-neutral" /><text x="1040" y="1007" text-anchor="middle" class="pill-text">1 Transaktion</text>
+        <text x="164" y="1035" class="desc">status=pending, index_version+1, index_attempts=0 — alle Chunks</text>
+        <text x="164" y="1050.5" class="desc">gelöscht (referenzieren einen Vektorraum, der gerade verschwand),</text>
+        <text x="164" y="1066" class="desc">freigegebene Quiz-Fragen → pending, gequeute Jobs verworfen</text>
+        <text x="164" y="1081.5" class="desc">und neu eingereiht</text>
+      </g>
+      <line x1="640" y1="1135" x2="640" y2="1170" class="conn" marker-end="url(#rx-neutral)" />
+
+      <!-- final -->
+      <g>
+        <rect x="140" y="1170" width="1000" height="95" rx="10" class="box-fill" style="stroke:var(--ink);stroke-width:1.5" />
+        <text x="164" y="1200" class="box-title" font-size="15.5">N Dokumente neu eingeplant</text>
+        <text x="164" y="1222" class="desc">kein Ausfall nötig — ein laufender Indexierungslauf verliert einfach den</text>
+        <text x="164" y="1237.5" class="desc">Versions-Wettlauf in mark_available (Superseded, siehe Upload-Flow)</text>
+      </g>
+    </svg>
+    <figcaption>
+      <strong style="color:var(--accent)">Violett gestrichelt</strong> = der Weg, der tatsächlich neu indexiert. <strong>Grau gestrichelt</strong> = der Weg zurück, ohne dass irgendetwas geschrieben wird. Beide sind gleich gültige Antworten auf denselben Absturz — welcher richtig ist, weiss nur der Operator, nie der Prozess selbst.
+    </figcaption>
+  </figure>
+
+  <div class="legend">
+    <span class="item"><span class="dot" style="background:var(--good)"></span>normaler Start</span>
+    <span class="item"><span class="dot" style="background:var(--error)"></span>Absturz, kein Fallback</span>
+    <span class="item"><span class="dot" style="background:var(--accent)"></span>löst tatsächlich neu ein</span>
+    <span class="item"><span class="ln dashed"></span>Operator-Entscheidung</span>
+  </div>
+
+  <div class="notes">
+    <div class="note">
+      <h2>Ein Fail-closed-Paar, zwei Hälften</h2>
+      <h3>Automatisch abstürzen, manuell heilen</h3>
+      <ul>
+        <li>Der Start-Guard ist absichtlich automatisch und ohne Fallback: weder API noch Worker dürfen je einen Chunk unter einer unabgeglichenen Konfiguration einbetten (ADR-008) — ein Absturz ist hier das sichere Verhalten, keine Störung</li>
+        <li>Das Abgleich-Skript ist absichtlich manuell: eine Re-Indexierung des ganzen Korpus ist eine folgenreiche Operation, die keiner der beiden Prozesse je von sich aus während eines Starts auslösen sollte</li>
+        <li><span class="mono">docker compose run</span> statt <span class="mono">docker exec</span>: sobald <span class="mono">.env</span> den geänderten Wert trägt, crash-loopen die laufenden Container genau an der Abweichung, die das Skript auflösen soll — oft gibt es also gar keinen laufenden Container, in den man <span class="mono">exec</span>'en könnte</li>
+      </ul>
+    </div>
+    <div class="note">
+      <h2>Warum eine Transaktion für den ganzen Korpus</h2>
+      <h3>Alles oder nichts, kein Ausfall</h3>
+      <ul>
+        <li>Alle Chunks werden sofort gelöscht statt dem Worker überlassen, sie Dokument für Dokument zu ersetzen — bis der letzte Requeue durchläuft, wären sie sonst Vektoren aus zwei verschiedenen Modellen in derselben Suche</li>
+        <li>Freigegebene Quiz-Fragen fallen auf <span class="mono">pending</span> zurück, mit derselben Begründung wie bei einer Dokument-Ersetzung (siehe Upload-Flow) — sonst liefe eine genehmigte Frage mit <span class="mono">chunk_id</span> NULL weiter aus, verankert in einem Korpus, der gerade unter ihr weggezogen wurde</li>
+        <li>Kein Ausfall nötig: ein Indexierungslauf, der sein Dokument noch vor dem Commit dieses Skripts gelesen hat, verliert einfach den Versions-Wettlauf und verwirft sich selbst als <span class="mono">Superseded</span> — derselbe Mechanismus, der auch eine gewöhnliche Dokument-Ersetzung schützt</li>
+      </ul>
+    </div>
+  </div>
+
+  <footer>Quellen: apply_embedding_config.py · app/services/embedding_config.py (verify_embedding_config, embedding_config_from) · Migration 0018 — Stand main, 16.09.2026</footer>
+</main>

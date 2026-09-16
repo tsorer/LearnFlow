@@ -1,0 +1,329 @@
+<title>LearnFlow-Quiz-Flow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F5F3EE;
+    --surface: #FFFFFF;
+    --surface-2: #FBFAF6;
+    --ink: #20242B;
+    --muted: #5B6472;
+    --line: #D9D4C8;
+    --line-strong: #B9B2A2;
+    --neutral: #5B6472;
+    --accent: #6B4F94;
+    --error: #A23B3B;
+    --good: #3F7A5C;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14171B;
+      --surface: #1B1F25;
+      --surface-2: #20252B;
+      --ink: #E7E9EE;
+      --muted: #9AA3B0;
+      --line: #333A44;
+      --line-strong: #454E5A;
+      --neutral: #9AA3B0;
+      --accent: #B79FE0;
+      --error: #E2726B;
+      --good: #7FC49E;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14171B;
+    --surface: #1B1F25;
+    --surface-2: #20252B;
+    --ink: #E7E9EE;
+    --muted: #9AA3B0;
+    --line: #333A44;
+    --line-strong: #454E5A;
+    --neutral: #9AA3B0;
+    --accent: #B79FE0;
+    --error: #E2726B;
+    --good: #7FC49E;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+    padding: 0 20px; padding-block: 40px 64px;
+  }
+  main { max-width: 1080px; margin: 0 auto; }
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px;
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px;
+  }
+  h1 {
+    font-size: clamp(28px, 4vw, 38px); font-weight: 700; margin: 0 0 10px;
+    text-wrap: balance; letter-spacing: -0.01em;
+  }
+  .dek { font-size: 16px; color: var(--muted); max-width: 700px; line-height: 1.55; margin: 0 0 36px; }
+  .dek code {
+    font-family: "IBM Plex Mono", monospace; font-size: 0.92em; background: var(--surface-2);
+    border: 1px solid var(--line); padding: 1px 5px; border-radius: 4px;
+  }
+  h2.section {
+    font-size: 12px; font-family: "IBM Plex Mono", monospace; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--muted); margin: 0 0 4px; font-weight: 600;
+  }
+  h3.section-title { font-size: 21px; font-weight: 600; margin: 0 0 16px; }
+
+  figure { margin: 0 0 46px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 8px; }
+  svg { display: block; width: 100%; height: auto; }
+  figcaption { font-size: 13.5px; color: var(--muted); line-height: 1.6; padding: 16px 14px 6px; }
+  figcaption strong { color: var(--ink); font-weight: 600; }
+  figcaption code { font-family: "IBM Plex Mono", monospace; font-size: 0.95em; }
+
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 18px 2px 46px;
+    font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--muted);
+  }
+  .legend .item { white-space: nowrap; display: inline-flex; align-items: center; gap: 7px; }
+  .legend .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; }
+  .legend .ln { display: inline-block; width: 20px; height: 0; border-top: 2px solid var(--line-strong); }
+  .legend .ln.dashed { border-top-style: dashed; }
+
+  .notes { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 8px; }
+  @media (max-width: 640px) { .notes { grid-template-columns: 1fr; } }
+  .note h2 {
+    font-size: 12px; font-family: "IBM Plex Mono", monospace; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--muted); margin: 0 0 4px; font-weight: 600;
+  }
+  .note h3 { font-size: 19px; font-weight: 600; margin: 0 0 16px; }
+  .note ul { list-style: none; margin: 0; padding: 0; border-left: 2px solid var(--line); }
+  .note li { position: relative; padding: 0 0 18px 22px; font-size: 14.5px; line-height: 1.55; }
+  .note li:last-child { padding-bottom: 0; }
+  .note li::before {
+    content: ""; position: absolute; left: -5px; top: 6px; width: 8px; height: 8px;
+    border-radius: 50%; background: var(--surface); border: 2px solid var(--line-strong);
+  }
+  .note .mono { font-family: "IBM Plex Mono", monospace; font-size: 0.9em; color: var(--muted); }
+
+  footer {
+    margin-top: 52px; padding-top: 18px; border-top: 1px solid var(--line);
+    font-size: 12.5px; color: var(--muted); font-family: "IBM Plex Mono", monospace;
+  }
+
+  .box-fill { fill: var(--surface); }
+  .box-stroke { stroke: var(--line-strong); stroke-width: 1.5; }
+  .box-title { fill: var(--ink); font-weight: 700; }
+  .desc { fill: var(--muted); font-size: 12px; }
+  .pill-neutral { fill: var(--neutral); }
+  .pill-text { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; fill: var(--surface); font-weight: 600; }
+  .conn { stroke: var(--line-strong); stroke-width: 1.6; fill: none; }
+  .arrow-neutral { fill: var(--line-strong); }
+  .arrow-error { fill: var(--error); }
+  .arrow-accent { fill: var(--accent); }
+  .branch-error { stroke: var(--error); stroke-width: 1.7; fill: none; }
+  .exit-box-error { fill: var(--surface); stroke: var(--error); stroke-width: 1.8; }
+  .exit-title-error { fill: var(--error); font-family: "IBM Plex Mono", monospace; font-weight: 700; }
+  .exit-desc { fill: var(--muted); font-size: 11px; }
+
+  .state-box { fill: var(--surface); stroke-width: 2; }
+  .state-title { fill: var(--ink); font-weight: 700; font-size: 16px; }
+  .state-desc { fill: var(--muted); font-size: 11.5px; }
+  .edge-generic { stroke: var(--line-strong); stroke-width: 1.6; fill: none; }
+  .edge-auto { stroke: var(--accent); stroke-width: 1.8; fill: none; stroke-dasharray: 6 4; }
+  .edge-external { stroke: var(--neutral); stroke-width: 1.6; fill: none; stroke-dasharray: 3 4; }
+  .lbl-mono { fill: var(--muted); font-family: "IBM Plex Mono", monospace; font-size: 10.5px; }
+</style>
+
+<main>
+  <p class="eyebrow">Quiz-Flow · Stand main, 16.09.2026</p>
+  <h1>Wie aus Chunks ein freigegebenes Quiz wird</h1>
+  <p class="dek">Zwei getrennte Mechanismen: <strong style="color:var(--ink)">Generierung</strong> (Stefan löst aus, das Modell schlägt vor, jede Frage einzeln geprüft) und <strong style="color:var(--ink)">Freigabe</strong> (ein Zustandsautomat mit zwei Regeln, die man beim blossen Lesen des Endpoints leicht übersieht). Es gibt hier keine Konfidenz-Pipeline wie beim Antwort-Pfad — <strong style="color:var(--ink)">das menschliche Review übernimmt diese Rolle</strong> (ADR-008).</p>
+
+  <h2 class="section">Flow</h2>
+  <h3 class="section-title">Generierung — vom Klick bis zu fünf Vorschlägen</h3>
+  <figure>
+    <svg viewBox="0 0 1280 940" role="img" aria-label="Flussdiagramm der Quiz-Generierung: zehn zufällige Chunks aus dem Bereich sampeln, ein LLM-Aufruf mit JSON-Modus erzeugt bis zu fünf Fragen, jede Frage wird einzeln gegen Quelle, Optionsanzahl und Antwortlabel geprüft und bei Fehlschlag verworfen statt den ganzen Lauf zu verwerfen, die überlebenden Fragen werden als pending gespeichert. Kein indexiertes Dokument, ein Provider-Fehler oder eine abgeschnittene Antwort, und der Fall dass keine einzige Frage die Prüfung übersteht, verzweigen zu drei unterschiedlichen Fehlerantworten.">
+      <defs>
+        <marker id="q-neutral" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <polygon points="0,0 10,5 0,10" class="arrow-neutral" />
+        </marker>
+        <marker id="q-error" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <polygon points="0,0 10,5 0,10" class="arrow-error" />
+        </marker>
+      </defs>
+
+      <text x="140" y="30" class="desc" font-family="IBM Plex Mono, monospace">POST /quiz/generate · require_knowledge_owner</text>
+
+      <!-- 1 -->
+      <g>
+        <rect x="140" y="50" width="460" height="105" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="76" class="box-title" font-size="15.5">Rate-Limit + Rolle prüfen</text>
+        <rect x="480" y="59" width="108" height="16" rx="8" class="pill-neutral" /><text x="534" y="70.5" text-anchor="middle" class="pill-text">3/min · Account</text>
+        <text x="164" y="100" class="desc">niedriger als /query: ein Klick kostet</text>
+        <text x="164" y="115.5" class="desc">gleich fünf Fragen aus zehn Chunks</text>
+      </g>
+      <line x1="370" y1="155" x2="370" y2="200" class="conn" marker-end="url(#q-neutral)" />
+
+      <!-- 2 -->
+      <g>
+        <rect x="140" y="200" width="460" height="105" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="226" class="box-title" font-size="15.5">Chunks sampeln</text>
+        <rect x="480" y="209" width="108" height="16" rx="8" class="pill-neutral" /><text x="534" y="220.5" text-anchor="middle" class="pill-text">10 zufällig</text>
+        <text x="164" y="250" class="desc">2:1-Reserve zu den 5 Fragen — das</text>
+        <text x="164" y="265.5" class="desc">Modell wählt selbst, was genug hergibt</text>
+      </g>
+      <line x1="370" y1="305" x2="370" y2="350" class="conn" marker-end="url(#q-neutral)" />
+
+      <!-- 3 -->
+      <g>
+        <rect x="140" y="350" width="460" height="125" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="376" class="box-title" font-size="15.5">LLM-Aufruf</text>
+        <rect x="480" y="359" width="108" height="16" rx="8" class="pill-neutral" /><text x="534" y="370.5" text-anchor="middle" class="pill-text">JSON-Mode</text>
+        <text x="164" y="400" class="desc">temperature=0, max_tokens=1600,</text>
+        <text x="164" y="415.5" class="desc">timeout=60s, kein Retry — deterministisch,</text>
+        <text x="164" y="431" class="desc">damit der Testlauf reproduzierbar bleibt</text>
+      </g>
+      <line x1="370" y1="475" x2="370" y2="520" class="conn" marker-end="url(#q-neutral)" />
+
+      <!-- 4 -->
+      <g>
+        <rect x="140" y="520" width="460" height="145" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="546" class="box-title" font-size="15.5">Jede Frage einzeln prüfen</text>
+        <rect x="480" y="529" width="108" height="16" rx="8" class="pill-neutral" /><text x="534" y="540.5" text-anchor="middle" class="pill-text">pro Frage</text>
+        <text x="164" y="570" class="desc">Quelle existiert (1..10)? Genau 4</text>
+        <text x="164" y="585.5" class="desc">Optionen, Labels passen zur Reihenfolge,</text>
+        <text x="164" y="601" class="desc">keine Duplikate, gültiges correct_answer —</text>
+        <text x="164" y="616.5" class="desc">eine schlechte Frage verwirft nur sich selbst</text>
+      </g>
+      <line x1="370" y1="665" x2="370" y2="710" class="conn" marker-end="url(#q-neutral)" />
+
+      <!-- final: pending -->
+      <g>
+        <rect x="140" y="710" width="460" height="90" rx="10" class="box-fill" style="stroke:var(--ink);stroke-width:1.5" />
+        <text x="164" y="742" class="box-title" font-size="15.5">status = pending</text>
+        <text x="164" y="764" class="desc">unsichtbar für Lernende, bis zur Freigabe</text>
+      </g>
+
+      <!-- exit: 409 no chunks -->
+      <line x1="600" y1="252.5" x2="760" y2="252.5" class="branch-error" marker-end="url(#q-error)" />
+      <rect x="760" y="205" width="380" height="95" rx="10" class="exit-box-error" />
+      <text x="776" y="229" class="exit-title-error" font-size="13.5">HTTP 409 · Conflict</text>
+      <text x="776" y="249" class="exit-desc">im Bereich ist kein indexiertes</text>
+      <text x="776" y="263.5" class="exit-desc">Dokument vorhanden</text>
+
+      <!-- exit: 503 provider/truncated -->
+      <line x1="600" y1="412.5" x2="760" y2="412.5" class="branch-error" marker-end="url(#q-error)" />
+      <rect x="760" y="365" width="380" height="95" rx="10" class="exit-box-error" />
+      <text x="776" y="389" class="exit-title-error" font-size="13.5">HTTP 503 · Service Unavailable</text>
+      <text x="776" y="409" class="exit-desc">Provider-Fehler oder finish_reason=</text>
+      <text x="776" y="423.5" class="exit-desc">length — nie ein 500 hierfür</text>
+
+      <!-- exit: 0 survivors -->
+      <line x1="600" y1="592.5" x2="760" y2="592.5" class="branch-error" marker-end="url(#q-error)" />
+      <rect x="760" y="545" width="380" height="95" rx="10" class="exit-box-error" />
+      <text x="776" y="569" class="exit-title-error" font-size="13.5">HTTP 503 · 0 von N überlebt</text>
+      <text x="776" y="589" class="exit-desc">jede Frage verworfen zählt als</text>
+      <text x="776" y="603.5" class="exit-desc">Fehlschlag, nicht als leerer Erfolg</text>
+    </svg>
+    <figcaption>
+      Ein <strong>Programmfehler</strong> (<code>TypeError</code>, <code>AttributeError</code>, <code>NameError</code>, <code>ImportError</code>) wird bewusst <strong>nicht</strong> abgefangen und erscheint als <code>HTTP 500</code>, nicht als <code>503</code> — ein Bug soll nie wie ein Provider-Ausfall aussehen.
+    </figcaption>
+  </figure>
+
+  <h2 class="section">Zustandsautomat</h2>
+  <h3 class="section-title">Freigabe — pending · approved · rejected</h3>
+  <figure>
+    <svg viewBox="0 0 1000 700" role="img" aria-label="Zustandsdiagramm der Quiz-Frage: pending, approved und rejected sind über PATCH in jede Richtung explizit erreichbar. Zwei Übergänge sind nicht angefordert, sondern automatisch: eine bereits freigegebene Frage fällt beim Ändern des Inhalts ohne mitgeschicktes status-Feld automatisch auf pending zurück, und eine Dokument-Ersetzung setzt nur zuvor freigegebene Fragen auf pending zurück, während abgelehnte Fragen abgelehnt bleiben.">
+      <defs>
+        <marker id="s-neutral" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <polygon points="0,0 10,5 0,10" fill="var(--line-strong)" />
+        </marker>
+        <marker id="s-accent" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <polygon points="0,0 10,5 0,10" fill="var(--accent)" />
+        </marker>
+      </defs>
+
+      <!-- external trigger box -->
+      <rect x="20" y="190" width="200" height="80" rx="10" class="box-fill" style="stroke:var(--neutral);stroke-width:1.5;stroke-dasharray:5 4" />
+      <text x="120" y="220" text-anchor="middle" class="desc" font-weight="600">Dokument ersetzt</text>
+      <text x="120" y="238" text-anchor="middle" class="desc" font-size="10.5">(documents.py _replace)</text>
+      <text x="120" y="253" text-anchor="middle" class="desc" font-size="10.5">nur wenn zuvor approved</text>
+      <path d="M 220,235 C 300,200 380,160 405,130" class="edge-external" marker-end="url(#s-neutral)" />
+
+      <!-- pending -->
+      <rect x="400" y="60" width="200" height="90" rx="12" class="state-box" style="stroke:var(--ink)" />
+      <text x="500" y="98" text-anchor="middle" class="state-title">pending</text>
+      <text x="500" y="118" text-anchor="middle" class="state-desc">Startzustand — unsichtbar</text>
+      <text x="500" y="132" text-anchor="middle" class="state-desc">für Lernende</text>
+
+      <!-- approved -->
+      <rect x="90" y="470" width="230" height="110" rx="12" class="state-box" style="stroke:var(--good)" />
+      <text x="205" y="508" text-anchor="middle" class="state-title" fill="var(--good)">approved</text>
+      <text x="205" y="528" text-anchor="middle" class="state-desc">sichtbar in /quiz/questions/</text>
+      <text x="205" y="542" text-anchor="middle" class="state-desc">sample — der Pool für T-36</text>
+      <text x="205" y="560" text-anchor="middle" class="state-desc" font-style="italic">approved_at gesetzt</text>
+
+      <!-- rejected -->
+      <rect x="680" y="470" width="230" height="110" rx="12" class="state-box" style="stroke:var(--error)" />
+      <text x="795" y="508" text-anchor="middle" class="state-title" fill="var(--error)">rejected</text>
+      <text x="795" y="528" text-anchor="middle" class="state-desc">unsichtbar — und bleibt es,</text>
+      <text x="795" y="542" text-anchor="middle" class="state-desc">auch nach Dokument-Ersetzung</text>
+
+      <!-- pending <-> approved (generic) -->
+      <line x1="440" y1="150" x2="240" y2="475" class="edge-generic" marker-end="url(#s-neutral)" marker-start="url(#s-neutral)" />
+      <text x="270" y="300" class="lbl-mono" transform="rotate(-58 270 300)">PATCH status=... (explizit,</text>
+      <text x="270" y="313" class="lbl-mono" transform="rotate(-58 270 313)">jede Richtung erlaubt)</text>
+
+      <!-- pending <-> rejected (generic) -->
+      <line x1="560" y1="150" x2="760" y2="475" class="edge-generic" marker-end="url(#s-neutral)" marker-start="url(#s-neutral)" />
+      <text x="700" y="300" class="lbl-mono" transform="rotate(58 700 300)">PATCH status=...</text>
+      <text x="700" y="313" class="lbl-mono" transform="rotate(58 700 313)">(explizit)</text>
+
+      <!-- approved <-> rejected (generic) -->
+      <line x1="320" y1="525" x2="680" y2="525" class="edge-generic" marker-end="url(#s-neutral)" marker-start="url(#s-neutral)" />
+      <text x="500" y="518" text-anchor="middle" class="lbl-mono">PATCH status=... (explizit)</text>
+
+      <!-- approved self-loop -->
+      <path d="M 130,470 C 100,420 160,420 190,468" class="edge-generic" marker-end="url(#s-neutral)" />
+      <text x="70" y="440" class="lbl-mono">erneut approved,</text>
+      <text x="70" y="452" class="lbl-mono">unverändert →</text>
+      <text x="70" y="464" class="lbl-mono">approved_at bleibt</text>
+
+      <!-- auto: approved -> pending on content edit -->
+      <path d="M 300,470 C 400,350 430,260 470,155" class="edge-auto" marker-end="url(#s-accent)" />
+      <text x="330" y="330" class="lbl-mono" fill="var(--accent)" transform="rotate(-63 330 330)">automatisch: Inhalt geändert,</text>
+      <text x="330" y="343" class="lbl-mono" fill="var(--accent)" transform="rotate(-63 330 343)">kein status mitgeschickt</text>
+    </svg>
+    <figcaption>
+      <strong style="color:var(--accent)">Gestrichelt violett</strong> = automatisch, nicht angefordert: ein Reviewer, der nur den Text ändert, entzieht damit stillschweigend die Freigabe — sie galt für den Text, den er gesehen hat, nicht für jeden künftigen. <strong>Gestrichelt grau</strong> = ausgelöst von einem anderen Router (Dokument-Ersetzung), nicht vom Quiz-Endpoint selbst.
+    </figcaption>
+  </figure>
+
+  <div class="legend">
+    <span class="item"><span class="dot" style="background:var(--good)"></span>approved — sichtbar für Lernende</span>
+    <span class="item"><span class="dot" style="background:var(--error)"></span>rejected — dauerhaft unsichtbar</span>
+    <span class="item"><span class="dot" style="background:var(--accent)"></span>automatischer Übergang</span>
+    <span class="item"><span class="ln"></span>explizit per PATCH</span>
+    <span class="item"><span class="ln dashed"></span>automatisch / extern ausgelöst</span>
+  </div>
+
+  <div class="notes">
+    <div class="note">
+      <h2>Fail-closed ohne Konfidenz-Pipeline</h2>
+      <h3>Der Mensch ist das Gate</h3>
+      <ul>
+        <li>Eine Frage ohne gültige Quellenangabe wird verworfen wie eine erfundene Zitation in ADR-008 — derselbe Massstab wie im Antwort-Pfad, nur trägt hier das Review die Verantwortung statt einer Schwelle</li>
+        <li><span class="mono">GET /quiz/questions</span> zeigt Reviewern alle Status, Lernenden nur <span class="mono">approved</span> — derselbe fail-closed-Filter wie in der RBAC-Matrix, hier speziell für Fragen</li>
+        <li><span class="mono">GET /quiz/questions/sample</span> zieht dagegen für <strong>jede</strong> Rolle nur aus <span class="mono">approved</span> — auch ein Reviewer sieht beim Quiz-Durchlauf selbst genau das, was ein Lernender sähe</li>
+      </ul>
+    </div>
+    <div class="note">
+      <h2>Freigabe ist fragil, mit Absicht</h2>
+      <h3>Zwei Regeln, die man leicht übersieht</h3>
+      <ul>
+        <li>Wird der Text einer freigegebenen Frage geändert, ohne <span class="mono">status</span> mitzuschicken, fällt sie automatisch auf <span class="mono">pending</span> zurück — eine Freigabe gilt für den gesehenen Text, nicht auf Vorrat</li>
+        <li>Erneutes <span class="mono">status=approved</span> auf eine unveränderte, bereits freigegebene Frage ist keine zweite Freigabe — <span class="mono">approved_at</span> bleibt stehen (US-07 will den Moment der Freigabe, nicht jedes Speichern)</li>
+        <li>Eine Dokument-Ersetzung setzt nur <span class="mono">approved</span>-Fragen zurück auf <span class="mono">pending</span> — eine bereits <span class="mono">rejected</span>-Frage bleibt es</li>
+      </ul>
+    </div>
+  </div>
+
+  <footer>Quellen: app/routers/quiz.py (generate_questions, visible_statuses, apply_update) · app/services/quiz.py (generate_quiz, parse_quiz_response) — Stand main, 16.09.2026</footer>
+</main>

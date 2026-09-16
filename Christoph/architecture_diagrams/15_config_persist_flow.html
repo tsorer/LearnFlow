@@ -1,0 +1,276 @@
+<title>LearnFlow-Config-Persistenz</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F5F3EE;
+    --surface: #FFFFFF;
+    --surface-2: #FBFAF6;
+    --ink: #20242B;
+    --muted: #5B6472;
+    --line: #D9D4C8;
+    --line-strong: #B9B2A2;
+    --neutral: #5B6472;
+    --accent: #6B4F94;
+    --error: #A23B3B;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14171B;
+      --surface: #1B1F25;
+      --surface-2: #20252B;
+      --ink: #E7E9EE;
+      --muted: #9AA3B0;
+      --line: #333A44;
+      --line-strong: #454E5A;
+      --neutral: #9AA3B0;
+      --accent: #B79FE0;
+      --error: #E2726B;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14171B;
+    --surface: #1B1F25;
+    --surface-2: #20252B;
+    --ink: #E7E9EE;
+    --muted: #9AA3B0;
+    --line: #333A44;
+    --line-strong: #454E5A;
+    --neutral: #9AA3B0;
+    --accent: #B79FE0;
+    --error: #E2726B;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+    padding: 0 20px; padding-block: 40px 64px;
+  }
+  main { max-width: 1080px; margin: 0 auto; }
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px;
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px;
+  }
+  h1 {
+    font-size: clamp(28px, 4vw, 38px); font-weight: 700; margin: 0 0 10px;
+    text-wrap: balance; letter-spacing: -0.01em;
+  }
+  .dek { font-size: 16px; color: var(--muted); max-width: 720px; line-height: 1.55; margin: 0 0 36px; }
+  .dek code {
+    font-family: "IBM Plex Mono", monospace; font-size: 0.92em; background: var(--surface-2);
+    border: 1px solid var(--line); padding: 1px 5px; border-radius: 4px;
+  }
+  h2.section {
+    font-size: 12px; font-family: "IBM Plex Mono", monospace; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--muted); margin: 0 0 4px; font-weight: 600;
+  }
+  h3.section-title { font-size: 21px; font-weight: 600; margin: 0 0 16px; }
+
+  figure { margin: 0 0 40px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 8px; }
+  svg { display: block; width: 100%; height: auto; }
+  figcaption { font-size: 13.5px; color: var(--muted); line-height: 1.6; padding: 16px 14px 6px; }
+  figcaption strong { color: var(--ink); font-weight: 600; }
+  figcaption code { font-family: "IBM Plex Mono", monospace; font-size: 0.95em; }
+
+  .table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 6px 6px 2px; margin-bottom: 46px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; min-width: 720px; }
+  thead th {
+    text-align: left; padding: 12px 14px; font-family: "IBM Plex Mono", monospace;
+    font-size: 11.5px; letter-spacing: 0.03em; color: var(--muted); font-weight: 600;
+    border-bottom: 2px solid var(--line);
+  }
+  tbody td { padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: top; font-size: 13px; }
+  tbody tr:last-child td { border-bottom: none; }
+  td.mig { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; font-weight: 700; white-space: nowrap; }
+  td.trig { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; color: var(--accent); white-space: nowrap; }
+  .table-caption { font-size: 13px; color: var(--muted); padding: 2px 14px 14px; line-height: 1.6; }
+
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 18px 2px 46px;
+    font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--muted);
+  }
+  .legend .item { white-space: nowrap; display: inline-flex; align-items: center; gap: 7px; }
+  .legend .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; }
+
+  .notes { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 8px; }
+  @media (max-width: 640px) { .notes { grid-template-columns: 1fr; } }
+  .note h2 {
+    font-size: 12px; font-family: "IBM Plex Mono", monospace; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--muted); margin: 0 0 4px; font-weight: 600;
+  }
+  .note h3 { font-size: 19px; font-weight: 600; margin: 0 0 16px; }
+  .note ul { list-style: none; margin: 0; padding: 0; border-left: 2px solid var(--line); }
+  .note li { position: relative; padding: 0 0 18px 22px; font-size: 14.5px; line-height: 1.55; }
+  .note li:last-child { padding-bottom: 0; }
+  .note li::before {
+    content: ""; position: absolute; left: -5px; top: 6px; width: 8px; height: 8px;
+    border-radius: 50%; background: var(--surface); border: 2px solid var(--line-strong);
+  }
+  .note .mono { font-family: "IBM Plex Mono", monospace; font-size: 0.9em; color: var(--muted); }
+
+  footer {
+    margin-top: 52px; padding-top: 18px; border-top: 1px solid var(--line);
+    font-size: 12.5px; color: var(--muted); font-family: "IBM Plex Mono", monospace;
+  }
+
+  .box-fill { fill: var(--surface); }
+  .box-stroke { stroke: var(--line-strong); stroke-width: 1.5; }
+  .box-title { fill: var(--ink); font-weight: 700; }
+  .desc { fill: var(--muted); font-size: 12px; }
+  .pill-neutral { fill: var(--neutral); }
+  .pill-accent { fill: var(--accent); }
+  .pill-text { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; fill: var(--surface); font-weight: 600; }
+  .conn { stroke: var(--line-strong); stroke-width: 1.6; fill: none; }
+  .arrow-neutral { fill: var(--line-strong); }
+  .arrow-error { fill: var(--error); }
+  .branch-error { stroke: var(--error); stroke-width: 1.7; fill: none; }
+  .exit-box-error { fill: var(--surface); stroke: var(--error); stroke-width: 1.8; }
+  .exit-title-error { fill: var(--error); font-family: "IBM Plex Mono", monospace; font-weight: 700; }
+  .exit-desc { fill: var(--muted); font-size: 11px; }
+  .step-no { fill: var(--muted); font-family: "IBM Plex Mono", monospace; font-size: 13px; font-weight: 600; }
+</style>
+
+<main>
+  <p class="eyebrow">Config-Persistenz-Flow · Stand main, 16.09.2026</p>
+  <h1>Was unter dem Formcheck wirklich durchsetzt</h1>
+  <p class="dek">Im Admin-Config-Flow hiess es nur „DB-CHECK + Band-Trigger, deferred". Hier ist, was das konkret bedeutet: <strong style="color:var(--ink)">zwei Mechanismen mit zwei verschiedenen Zeitpunkten</strong> in derselben Transaktion — und ein einziger Constraint-Name, der seit sieben Migrationen mitwächst, ohne je umbenannt zu werden.</p>
+
+  <figure>
+    <svg viewBox="0 0 1280 700" role="img" aria-label="Flussdiagramm: eine Update-Anweisung auf die config-Tabelle löst sofort einen zeilenlokalen CHECK-Constraint aus, der je nach Schlüssel eine passende Regel anwendet. Erst wenn ein Commit angefordert wird, feuert ein zusätzlicher, auf Commit verzögerter Trigger, der beide Werte eines Schwellenpaars frisch aus der Tabelle liest und ihre Reihenfolge prüft. Beide Prüfungen können scheitern, an unterschiedlichen Zeitpunkten der Transaktion, enden aber in derselben Fehlerklasse.">
+      <defs>
+        <marker id="cp-neutral" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <polygon points="0,0 10,5 0,10" class="arrow-neutral" />
+        </marker>
+        <marker id="cp-error" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <polygon points="0,0 10,5 0,10" class="arrow-error" />
+        </marker>
+      </defs>
+
+      <text x="140" y="30" class="desc" font-family="IBM Plex Mono, monospace">z. B. PUT ändert confidence_threshold_medium, in einer Transaktion mit anderen Schlüsseln</text>
+
+      <!-- 1 -->
+      <g>
+        <rect x="140" y="50" width="1000" height="90" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="76" class="box-title" font-size="15.5">UPDATE-Anweisung läuft</text>
+        <text x="164" y="100" class="desc">eine Anweisung je vorgemerktem Schlüssel (admin.py update_config)</text>
+      </g>
+      <line x1="640" y1="140" x2="640" y2="180" class="conn" marker-end="url(#cp-neutral)" />
+
+      <!-- 2 -->
+      <g>
+        <rect x="140" y="180" width="1000" height="140" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="206" class="box-title" font-size="15.5">CHECK feuert sofort, pro Zeile</text>
+        <rect x="860" y="189" width="260" height="18" rx="9" class="pill-neutral" /><text x="990" y="202" text-anchor="middle" class="pill-text">ck_config_confidence_threshold_value</text>
+        <text x="164" y="232" class="desc">CASE nach Schlüssel: Intervall [0,1]? positive Ganzzahl?</text>
+        <text x="164" y="247.5" class="desc">eigener Bereich (embed_dimensions, Retention-Tage,</text>
+        <text x="164" y="263" class="desc">Reaper-Sekunden)? sonst true (z. B. embed_model)</text>
+        <text x="164" y="290" class="desc" font-style="italic">bricht genau diese eine Anweisung ab — mitten in der</text>
+        <text x="164" y="305" class="desc" font-style="italic">Transaktion, bevor irgendetwas committet ist</text>
+      </g>
+      <line x1="640" y1="320" x2="640" y2="360" class="conn" marker-end="url(#cp-neutral)" />
+
+      <!-- 3 -->
+      <g>
+        <rect x="140" y="360" width="1000" height="80" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="388" class="box-title" font-size="15.5">COMMIT angefordert</text>
+        <text x="164" y="410" class="desc">alle Anweisungen der Transaktion sind so weit ohne CHECK-Fehler durch</text>
+      </g>
+      <line x1="640" y1="440" x2="640" y2="480" class="conn" marker-end="url(#cp-neutral)" />
+
+      <!-- 4 -->
+      <g>
+        <rect x="140" y="480" width="1000" height="140" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="506" class="box-title" font-size="15.5">Deferred Trigger feuert — erst jetzt</text>
+        <rect x="820" y="489" width="300" height="18" rx="9" class="pill-accent" /><text x="970" y="502" text-anchor="middle" class="pill-text">DEFERRABLE INITIALLY DEFERRED</text>
+        <text x="164" y="532" class="desc">liest beide Werte eines Bandpaars frisch aus der Tabelle</text>
+        <text x="164" y="547.5" class="desc">(nicht NEW/OLD — funktioniert so auch bei DELETE) und</text>
+        <text x="164" y="563" class="desc">prüft: medium ≤ high? low ≤ high?</text>
+        <text x="164" y="590" class="desc" font-style="italic">deshalb dürfen beide Werte eines Paars in beliebiger</text>
+        <text x="164" y="605" class="desc" font-style="italic">Reihenfolge in derselben Transaktion geändert werden</text>
+      </g>
+      <line x1="640" y1="620" x2="640" y2="655" class="conn" marker-end="url(#cp-neutral)" />
+      <text x="640" y="678" text-anchor="middle" class="box-title" font-size="15.5">COMMIT durch</text>
+    </svg>
+    <figcaption>
+      Beide Wege enden in derselben SQLSTATE <code>23514</code> (<code>check_violation</code>), die <code>admin.py</code>s <code>except IntegrityError</code> abfängt und als <code>422</code> mit der DB-eigenen Meldung meldet (siehe Admin-Config-Flow) — <strong>wann</strong> der Fehler kommt, unterscheidet admin.py dabei nicht. Der Unterschied liegt allein im Zeitpunkt innerhalb der Transaktion: <strong>CHECK</strong> sofort, satzweise; <strong>Trigger</strong> erst am Ende, über die ganze Zeile hinweg.
+    </figcaption>
+  </figure>
+
+  <h2 class="section">Migrationen</h2>
+  <h3 class="section-title">Ein Name, sieben Migrationen</h3>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Migration</th><th>Fügt der CHECK hinzu</th><th>Trigger</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="mig">0009</td>
+          <td>confidence_threshold_high/_medium — Intervall [0,1]</td>
+          <td class="trig">+ Band-Trigger #1 (confidence)</td>
+        </tr>
+        <tr>
+          <td class="mig">0012</td>
+          <td>similarity_threshold, min_retrieval_confidence, min_citation_coverage (Intervall) + retrieval_top_k, context_top_n, rrf_k (Zähler)</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td class="mig">0014</td>
+          <td>self_check_band_low/_high — dieselbe Intervall-Regel</td>
+          <td class="trig">+ Band-Trigger #2 (self-check)</td>
+        </tr>
+        <tr>
+          <td class="mig">0017</td>
+          <td>processing_max_attempts (Zähler)</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td class="mig">0018</td>
+          <td>embed_dimensions (eigener Bereich, ≤2000) + embed_model (nur „nicht leer")</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td class="mig">0019</td>
+          <td>Retention-Tage — eigener Bereich 1–36500, <em>vor</em> dem Zähler-Zweig platziert</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td class="mig">0020</td>
+          <td>Reaper-Sekunden — eigener Bereich 120–999999, ebenfalls vor dem Zähler-Zweig</td>
+          <td>—</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="table-caption"><span class="mono" style="font-family:'IBM Plex Mono',monospace">ck_config_confidence_threshold_value</span> trägt seinen Namen aus 0009 bis heute — obwohl er längst Embedding-Konfiguration, Aufbewahrungsfristen und Reaper-Zeiten mitprüft, nicht nur Konfidenz-Schwellen.</p>
+  </div>
+
+  <div class="legend">
+    <span class="item"><span class="dot" style="background:var(--neutral)"></span>CHECK — sofort, pro Zeile</span>
+    <span class="item"><span class="dot" style="background:var(--accent)"></span>Trigger — deferred, über zwei Zeilen</span>
+  </div>
+
+  <div class="notes">
+    <div class="note">
+      <h2>Zwei Zeitpunkte, eine sqlstate</h2>
+      <h3>Warum ein Trigger nötig ist</h3>
+      <ul>
+        <li>CHECK ist per Definition zeilenlokal — PostgreSQL erlaubt darin keine Subqueries, also keinen Vergleich mit einer anderen Zeile. Für „medium ≤ high" reicht das nicht</li>
+        <li>Der Trigger ist deshalb <span class="mono">DEFERRABLE INITIALLY DEFERRED</span> und feuert erst bei <span class="mono">COMMIT</span> — genau deshalb dürfen beide Werte eines Bandpaars in derselben Transaktion in beliebiger Reihenfolge geändert werden, ohne dass der Zwischenzustand fälschlich als Verletzung zählt</li>
+        <li>Eine fehlende Zeile ist für den Trigger kein Fehler — er prüft nur, wenn <strong>beide</strong> Werte vorhanden sind; ein fehlender fällt ohnehin auf den Modul-Default zurück (siehe Config-Read-Flow)</li>
+      </ul>
+    </div>
+    <div class="note">
+      <h2>Verteidigung in der Reihenfolge</h2>
+      <h3>Warum CASE-Zweige so sortiert sind</h3>
+      <ul>
+        <li>Engere Bereiche (Retention-Tage, Reaper-Sekunden) stehen bewusst <strong>vor</strong> dem allgemeinen Zähler-Zweig — <span class="mono">CASE</span> nimmt den ersten passenden Zweig, also gewinnt die engere Regel, selbst wenn eine künftige Migration denselben Schlüssel versehentlich auch in <span class="mono">COUNT_KEYS</span> aufnimmt</li>
+        <li>Zwei unabhängige Trigger, nicht einer: das Confidence-Band und das Self-Check-Band prüfen unterschiedliche Zeilenpaare und dürfen sich nicht gegenseitig ins Spiel bringen</li>
+        <li>Jede Migration widert die Zeilen-Prüfung, bevor sie neue Zeilen seedet — der Seed ist damit schon durch die Regel gedeckt, die er erfüllen muss</li>
+      </ul>
+    </div>
+  </div>
+
+  <footer>Quellen: alembic/versions/0009, 0012, 0014, 0017, 0018, 0019, 0020 · app/routers/admin.py — Stand main, 16.09.2026</footer>
+</main>

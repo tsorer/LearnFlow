@@ -1,0 +1,361 @@
+<title>LearnFlow-Auth-und-RBAC</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F5F3EE;
+    --surface: #FFFFFF;
+    --surface-2: #FBFAF6;
+    --ink: #20242B;
+    --muted: #5B6472;
+    --line: #D9D4C8;
+    --line-strong: #B9B2A2;
+    --neutral: #5B6472;
+    --error: #A23B3B;
+    --role-learner: #A9BBCB;
+    --role-owner: #4F7FA3;
+    --role-admin: #1E3A52;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14171B;
+      --surface: #1B1F25;
+      --surface-2: #20252B;
+      --ink: #E7E9EE;
+      --muted: #9AA3B0;
+      --line: #333A44;
+      --line-strong: #454E5A;
+      --neutral: #9AA3B0;
+      --error: #E2726B;
+      --role-learner: #5A7186;
+      --role-owner: #7FB0D8;
+      --role-admin: #CFE1F0;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14171B;
+    --surface: #1B1F25;
+    --surface-2: #20252B;
+    --ink: #E7E9EE;
+    --muted: #9AA3B0;
+    --line: #333A44;
+    --line-strong: #454E5A;
+    --neutral: #9AA3B0;
+    --error: #E2726B;
+    --role-learner: #5A7186;
+    --role-owner: #7FB0D8;
+    --role-admin: #CFE1F0;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+    padding: 0 20px; padding-block: 40px 64px;
+  }
+  main { max-width: 1080px; margin: 0 auto; }
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px;
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px;
+  }
+  h1 {
+    font-size: clamp(28px, 4vw, 38px); font-weight: 700; margin: 0 0 10px;
+    text-wrap: balance; letter-spacing: -0.01em;
+  }
+  .dek { font-size: 16px; color: var(--muted); max-width: 700px; line-height: 1.55; margin: 0 0 36px; }
+  .dek code {
+    font-family: "IBM Plex Mono", monospace; font-size: 0.92em; background: var(--surface-2);
+    border: 1px solid var(--line); padding: 1px 5px; border-radius: 4px;
+  }
+  h2.section {
+    font-size: 12px; font-family: "IBM Plex Mono", monospace; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--muted); margin: 0 0 4px; font-weight: 600;
+  }
+  h3.section-title { font-size: 21px; font-weight: 600; margin: 0 0 16px; }
+
+  figure { margin: 0 0 46px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 8px; }
+  svg { display: block; width: 100%; height: auto; }
+  figcaption { font-size: 13.5px; color: var(--muted); line-height: 1.6; padding: 16px 14px 6px; }
+  figcaption strong { color: var(--ink); font-weight: 600; }
+  figcaption code { font-family: "IBM Plex Mono", monospace; font-size: 0.95em; }
+
+  .table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 6px 6px 2px; margin-bottom: 14px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; min-width: 620px; }
+  thead th {
+    text-align: left; padding: 12px 14px; font-family: "IBM Plex Mono", monospace;
+    font-size: 11.5px; letter-spacing: 0.03em; color: var(--muted); font-weight: 600;
+    border-bottom: 2px solid var(--line);
+  }
+  thead th.role { text-align: center; }
+  thead th.role .role-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+  tbody td { padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tbody td.role { text-align: center; }
+  tbody tr:last-child td { border-bottom: none; }
+  td.action { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; white-space: nowrap; }
+  td.hint { color: var(--muted); font-size: 12.5px; }
+  .yes { display: inline-block; width: 16px; height: 16px; border-radius: 50%; position: relative; }
+  .yes::after { content: "✓"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--surface); font-weight: 700; }
+  .no { color: var(--line-strong); font-size: 14px; }
+  .table-caption { font-size: 13px; color: var(--muted); padding: 2px 14px 14px; line-height: 1.6; }
+
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 18px 2px 46px;
+    font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--muted);
+  }
+  .legend .item { white-space: nowrap; display: inline-flex; align-items: center; gap: 7px; }
+  .legend .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; }
+
+  .notes { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 8px; }
+  @media (max-width: 640px) { .notes { grid-template-columns: 1fr; } }
+  .note h2 {
+    font-size: 12px; font-family: "IBM Plex Mono", monospace; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--muted); margin: 0 0 4px; font-weight: 600;
+  }
+  .note h3 { font-size: 19px; font-weight: 600; margin: 0 0 16px; }
+  .note ul { list-style: none; margin: 0; padding: 0; border-left: 2px solid var(--line); }
+  .note li { position: relative; padding: 0 0 18px 22px; font-size: 14.5px; line-height: 1.55; }
+  .note li:last-child { padding-bottom: 0; }
+  .note li::before {
+    content: ""; position: absolute; left: -5px; top: 6px; width: 8px; height: 8px;
+    border-radius: 50%; background: var(--surface); border: 2px solid var(--line-strong);
+  }
+  .note .mono { font-family: "IBM Plex Mono", monospace; font-size: 0.9em; color: var(--muted); }
+
+  footer {
+    margin-top: 52px; padding-top: 18px; border-top: 1px solid var(--line);
+    font-size: 12.5px; color: var(--muted); font-family: "IBM Plex Mono", monospace;
+  }
+
+  .box-fill { fill: var(--surface); }
+  .box-stroke { stroke: var(--line-strong); stroke-width: 1.5; }
+  .box-title { fill: var(--ink); font-weight: 700; }
+  .desc { fill: var(--muted); font-size: 12px; }
+  .pill-neutral { fill: var(--neutral); }
+  .pill-text { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; fill: var(--surface); font-weight: 600; }
+  .conn { stroke: var(--line-strong); stroke-width: 1.6; fill: none; }
+  .arrow-neutral { fill: var(--line-strong); }
+  .arrow-error { fill: var(--error); }
+  .branch-error { stroke: var(--error); stroke-width: 1.7; fill: none; }
+  .exit-box-error { fill: var(--surface); stroke: var(--error); stroke-width: 1.8; }
+  .exit-title-error { fill: var(--error); font-family: "IBM Plex Mono", monospace; font-weight: 700; }
+  .exit-desc { fill: var(--muted); font-size: 11px; }
+  .divider-text { fill: var(--muted); font-family: "IBM Plex Mono", monospace; font-size: 11.5px; font-style: italic; }
+</style>
+
+<main>
+  <p class="eyebrow">Auth &amp; RBAC · Stand main, 16.09.2026</p>
+  <h1>Wie Anmeldung und Rollen-Rechte funktionieren</h1>
+  <p class="dek">Zwei getrennte Fragen, die im Code auch getrennt beantwortet werden: <strong style="color:var(--ink)">wer bist du</strong> (<code>routers/auth.py</code>, <code>get_current_user</code>) und <strong style="color:var(--ink)">was darfst du</strong> (<code>require_role</code>, pro Endpoint). Beide sind absichtlich fail-closed — im Zweifel 401/403, nie ein stillschweigendes Durchwinken.</p>
+
+  <h2 class="section">Flow</h2>
+  <h3 class="section-title">Vom Login bis zur geprüften Anfrage</h3>
+  <figure>
+    <svg viewBox="0 0 1280 1170" role="img" aria-label="Flussdiagramm: Login prüft zuerst das Rate-Limit pro IP-Adresse, sucht den Nutzer, verifiziert das Passwort immer und auch bei unbekannter E-Mail gegen einen Dummy-Hash, und stellt bei Erfolg ein JWT aus. Jede weitere Anfrage dekodiert das Token, prüft die Rolle gegen die für die Route erlaubte Menge und prüft ein Rate-Limit pro Account statt pro IP, bevor die Endpoint-Logik läuft. Login-Fehler, Token-Fehler, Rollen-Fehler und Rate-Limit-Überschreitung verzweigen zu vier getrennten HTTP-Fehlerantworten.">
+      <defs>
+        <marker id="ar-neutral" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <polygon points="0,0 10,5 0,10" class="arrow-neutral" />
+        </marker>
+        <marker id="ar-error" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <polygon points="0,0 10,5 0,10" class="arrow-error" />
+        </marker>
+      </defs>
+
+      <text x="140" y="30" class="desc" font-family="IBM Plex Mono, monospace">POST /auth/login · kein Token nötig</text>
+
+      <!-- A1 -->
+      <g>
+        <rect x="140" y="50" width="460" height="105" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="76" class="box-title" font-size="15.5">Rate-Limit prüfen</text>
+        <rect x="480" y="59" width="108" height="16" rx="8" class="pill-neutral" /><text x="534" y="70.5" text-anchor="middle" class="pill-text">5/min · IP</text>
+        <text x="164" y="100" class="desc">vor jedem DB-Zugriff — noch kein</text>
+        <text x="164" y="115.5" class="desc">Account etabliert, gegen den man zählen könnte</text>
+      </g>
+      <line x1="370" y1="155" x2="370" y2="195" class="conn" marker-end="url(#ar-neutral)" />
+
+      <!-- A2 -->
+      <g>
+        <rect x="140" y="195" width="460" height="90" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="221" class="box-title" font-size="15.5">User suchen</text>
+        <text x="164" y="245" class="desc">per E-Mail + is_active — Ergebnis wird</text>
+        <text x="164" y="260.5" class="desc">nicht sofort geprüft</text>
+      </g>
+      <line x1="370" y1="285" x2="370" y2="325" class="conn" marker-end="url(#ar-neutral)" />
+
+      <!-- A3 -->
+      <g>
+        <rect x="140" y="325" width="460" height="105" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="351" class="box-title" font-size="15.5">Passwort verifizieren</text>
+        <rect x="480" y="334" width="108" height="16" rx="8" class="pill-neutral" /><text x="534" y="345.5" text-anchor="middle" class="pill-text">konstante Zeit</text>
+        <text x="164" y="375" class="desc">läuft immer — auch bei unbekannter</text>
+        <text x="164" y="390.5" class="desc">E-Mail, gegen einen fest generierten Dummy-Hash</text>
+      </g>
+      <line x1="370" y1="430" x2="370" y2="470" class="conn" marker-end="url(#ar-neutral)" />
+
+      <!-- A4 -->
+      <g>
+        <rect x="140" y="470" width="460" height="105" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="496" class="box-title" font-size="15.5">JWT ausstellen</text>
+        <rect x="480" y="479" width="108" height="16" rx="8" class="pill-neutral" /><text x="534" y="490.5" text-anchor="middle" class="pill-text">React-State</text>
+        <text x="164" y="520" class="desc">sub=user.id, role=user.role,</text>
+        <text x="164" y="535.5" class="desc">Ablauf jwt_expire_hours — nie in localStorage (ADR-002)</text>
+      </g>
+      <line x1="370" y1="575" x2="370" y2="630" class="conn" marker-end="url(#ar-neutral)" />
+      <text x="386" y="606" class="divider-text">— jede weitere Anfrage: Authorization: Bearer &lt;token&gt; —</text>
+
+      <!-- B2 -->
+      <g>
+        <rect x="140" y="630" width="460" height="105" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="656" class="box-title" font-size="15.5">Token dekodieren + User laden</text>
+        <rect x="480" y="639" width="108" height="16" rx="8" class="pill-neutral" /><text x="534" y="650.5" text-anchor="middle" class="pill-text">get_current_user</text>
+        <text x="164" y="680" class="desc">UUID-Form von sub geprüft, bevor sie</text>
+        <text x="164" y="695.5" class="desc">an die DB geht — sonst 500 statt 401</text>
+      </g>
+      <line x1="370" y1="735" x2="370" y2="775" class="conn" marker-end="url(#ar-neutral)" />
+
+      <!-- B3 -->
+      <g>
+        <rect x="140" y="775" width="460" height="90" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="801" class="box-title" font-size="15.5">Rollen-Gate</text>
+        <rect x="480" y="784" width="108" height="16" rx="8" class="pill-neutral" /><text x="534" y="795.5" text-anchor="middle" class="pill-text">require_role</text>
+        <text x="164" y="825" class="desc">z. B. require_knowledge_owner = owner ODER admin</text>
+      </g>
+      <line x1="370" y1="865" x2="370" y2="905" class="conn" marker-end="url(#ar-neutral)" />
+
+      <!-- B4 -->
+      <g>
+        <rect x="140" y="905" width="460" height="105" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="931" class="box-title" font-size="15.5">Rate-Limit prüfen</text>
+        <rect x="480" y="914" width="108" height="16" rx="8" class="pill-neutral" /><text x="534" y="925.5" text-anchor="middle" class="pill-text">pro Account</text>
+        <text x="164" y="955" class="desc">Schlüssel aus dem Token, nicht der IP —</text>
+        <text x="164" y="970.5" class="desc">ein Büro-NAT soll nicht als Ganzes gesperrt werden</text>
+      </g>
+      <line x1="370" y1="1010" x2="370" y2="1050" class="conn" marker-end="url(#ar-neutral)" />
+
+      <!-- final -->
+      <g>
+        <rect x="140" y="1050" width="460" height="80" rx="10" class="box-fill" style="stroke:var(--ink);stroke-width:1.5" />
+        <text x="164" y="1082" class="box-title" font-size="15.5">Endpoint-Logik ausführen</text>
+        <text x="164" y="1100" class="desc">erst jetzt beginnt die eigentliche Route</text>
+      </g>
+
+      <!-- exits -->
+      <line x1="600" y1="377.5" x2="760" y2="377.5" class="branch-error" marker-end="url(#ar-error)" />
+      <rect x="760" y="330" width="380" height="95" rx="10" class="exit-box-error" />
+      <text x="776" y="354" class="exit-title-error" font-size="13.5">HTTP 401 · Invalid credentials</text>
+      <text x="776" y="374" class="exit-desc">unbekannte E-Mail ODER falsches</text>
+      <text x="776" y="388.5" class="exit-desc">Passwort — bewusst nicht unterscheidbar</text>
+
+      <line x1="600" y1="682.5" x2="760" y2="682.5" class="branch-error" marker-end="url(#ar-error)" />
+      <rect x="760" y="635" width="380" height="95" rx="10" class="exit-box-error" />
+      <text x="776" y="659" class="exit-title-error" font-size="13.5">HTTP 401 · Invalid/expired token</text>
+      <text x="776" y="679" class="exit-desc">kaputt, abgelaufen, oder User seither</text>
+      <text x="776" y="693.5" class="exit-desc">gelöscht/deaktiviert</text>
+
+      <line x1="600" y1="820" x2="760" y2="820" class="branch-error" marker-end="url(#ar-error)" />
+      <rect x="760" y="772.5" width="380" height="95" rx="10" class="exit-box-error" />
+      <text x="776" y="796.5" class="exit-title-error" font-size="14">HTTP 403 · Insufficient role</text>
+      <text x="776" y="816.5" class="exit-desc">Rolle nicht in der für diese Route</text>
+      <text x="776" y="831" class="exit-desc">erlaubten Menge</text>
+
+      <line x1="600" y1="957.5" x2="760" y2="957.5" class="branch-error" marker-end="url(#ar-error)" />
+      <rect x="760" y="910" width="380" height="95" rx="10" class="exit-box-error" />
+      <text x="776" y="934" class="exit-title-error" font-size="14">HTTP 429 · Too Many Requests</text>
+      <text x="776" y="954" class="exit-desc">Login 5/min/IP · Query 10/min/Account</text>
+      <text x="776" y="968.5" class="exit-desc">· Quiz-Generierung 3/min/Account</text>
+    </svg>
+    <figcaption>
+      Beide Fehlschläge von A3 (unbekannte E-Mail, falsches Passwort) enden in <strong>derselben</strong> Fehlermeldung mit <strong>derselben</strong> Antwortzeit — der Dummy-Hash-Vergleich läuft immer, damit die Latenz selbst nichts über die Existenz eines Accounts verrät.
+    </figcaption>
+  </figure>
+
+  <h2 class="section">Matrix</h2>
+  <h3 class="section-title">Wer darf was</h3>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Route</th>
+          <th class="role"><span class="role-dot" style="background:var(--role-learner)"></span>learner</th>
+          <th class="role"><span class="role-dot" style="background:var(--role-owner)"></span>knowledge_owner</th>
+          <th class="role"><span class="role-dot" style="background:var(--role-admin)"></span>admin</th>
+          <th>Hinweis</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="action">POST /auth/login</td>
+          <td class="role"><span class="no">–</span></td><td class="role"><span class="no">–</span></td><td class="role"><span class="no">–</span></td>
+          <td class="hint">öffentlich, kein Token nötig · 5/min pro IP</td>
+        </tr>
+        <tr>
+          <td class="action">GET/POST/DELETE /documents</td>
+          <td class="role"><span class="no">✗</span></td><td class="role"><span class="yes" style="background:var(--role-owner)"></span></td><td class="role"><span class="yes" style="background:var(--role-admin)"></span></td>
+          <td class="hint">require_knowledge_owner</td>
+        </tr>
+        <tr>
+          <td class="action">GET /documents/{id}/content</td>
+          <td class="role"><span class="yes" style="background:var(--role-learner)"></span></td><td class="role"><span class="yes" style="background:var(--role-owner)"></span></td><td class="role"><span class="yes" style="background:var(--role-admin)"></span></td>
+          <td class="hint">jede Rolle — der Chunk wurde bereits zitiert (T-21)</td>
+        </tr>
+        <tr>
+          <td class="action">POST /query</td>
+          <td class="role"><span class="yes" style="background:var(--role-learner)"></span></td><td class="role"><span class="yes" style="background:var(--role-owner)"></span></td><td class="role"><span class="yes" style="background:var(--role-admin)"></span></td>
+          <td class="hint">10/min pro Account</td>
+        </tr>
+        <tr>
+          <td class="action">POST /answers/{id}/feedback</td>
+          <td class="role"><span class="yes" style="background:var(--role-learner)"></span></td><td class="role"><span class="yes" style="background:var(--role-owner)"></span></td><td class="role"><span class="yes" style="background:var(--role-admin)"></span></td>
+          <td class="hint">nur wer schreibt wird geprüft — Zeile bleibt pseudonymisiert</td>
+        </tr>
+        <tr>
+          <td class="action">GET /feedback (Übersicht)</td>
+          <td class="role"><span class="no">✗</span></td><td class="role"><span class="yes" style="background:var(--role-owner)"></span></td><td class="role"><span class="yes" style="background:var(--role-admin)"></span></td>
+          <td class="hint">require_knowledge_owner</td>
+        </tr>
+        <tr>
+          <td class="action">GET /quiz/questions</td>
+          <td class="role"><span class="yes" style="background:var(--role-learner)"></span></td><td class="role"><span class="yes" style="background:var(--role-owner)"></span></td><td class="role"><span class="yes" style="background:var(--role-admin)"></span></td>
+          <td class="hint">learner sieht nur status=approved (Filter engt ein, nie 403)</td>
+        </tr>
+        <tr>
+          <td class="action">POST /quiz/generate</td>
+          <td class="role"><span class="no">✗</span></td><td class="role"><span class="yes" style="background:var(--role-owner)"></span></td><td class="role"><span class="yes" style="background:var(--role-admin)"></span></td>
+          <td class="hint">3/min pro Account</td>
+        </tr>
+        <tr>
+          <td class="action">PATCH /quiz/questions/{id}</td>
+          <td class="role"><span class="no">✗</span></td><td class="role"><span class="yes" style="background:var(--role-owner)"></span></td><td class="role"><span class="yes" style="background:var(--role-admin)"></span></td>
+          <td class="hint">Review-Entscheid (T-35)</td>
+        </tr>
+        <tr>
+          <td class="action">GET/PUT /admin/config</td>
+          <td class="role"><span class="no">✗</span></td><td class="role"><span class="no">✗</span></td><td class="role"><span class="yes" style="background:var(--role-admin)"></span></td>
+          <td class="hint">require_admin — einzige admin-exklusive Gruppe</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="table-caption">Die Rollen bilden eine echte Hierarchie, kein Geflecht: jedes Recht von <span class="mono" style="font-family:'IBM Plex Mono',monospace">learner</span> hat auch <span class="mono" style="font-family:'IBM Plex Mono',monospace">knowledge_owner</span>, jedes davon auch <span class="mono" style="font-family:'IBM Plex Mono',monospace">admin</span> — <span class="mono" style="font-family:'IBM Plex Mono',monospace">require_knowledge_owner</span> schliesst <span class="mono" style="font-family:'IBM Plex Mono',monospace">admin</span> im Code explizit mit ein.</p>
+  </div>
+
+  <div class="notes">
+    <div class="note">
+      <h2>Wiederkehrendes Muster</h2>
+      <h3>Existenz nie verraten</h3>
+      <ul>
+        <li>Gleiches <span class="mono">404</span> für „existiert nicht" und „gehört dir nicht" — unabhängig voneinander so kommentiert in <span class="mono">documents.py</span> (Bereichsprüfung), <span class="mono">feedback.py</span> (Antwort-Zugehörigkeit) und <span class="mono">quiz.py</span></li>
+        <li><span class="mono">visible_statuses()</span> engt nur ein, verweigert nie: fragt ein <span class="mono">learner</span> nach <span class="mono">status=pending</span>, bekommt er eine leere Liste statt <span class="mono">403</span> — ein Filter bleibt ein Blick auf die eigenen Rechte, keine Berechtigungsanfrage</li>
+      </ul>
+    </div>
+    <div class="note">
+      <h2>Rate-Limiting</h2>
+      <h3>Zwei verschiedene Schlüssel</h3>
+      <ul>
+        <li><span class="mono">/auth/login</span> zählt pro IP — es gibt noch keinen Account, gegen den man zählen könnte. Jede geschützte Route danach zählt pro Account, aus dem Token gelesen</li>
+        <li>Grund für den Wechsel: die Pilot-Nutzer sitzen hinter einem gemeinsamen Büro-NAT — ein IP-Limit dort würde ein einzelner Vielfrager für alle sperren (Docs/03_QualityAttributes.md, Security)</li>
+      </ul>
+    </div>
+  </div>
+
+  <footer>Quellen: app/routers/auth.py · app/auth/dependencies.py, jwt.py · app/limiter.py · app/routers/documents.py, feedback.py, quiz.py, admin.py — Stand main, 16.09.2026</footer>
+</main>

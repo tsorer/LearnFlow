@@ -1,0 +1,257 @@
+<title>LearnFlow-Frontend-Flow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F5F3EE;
+    --surface: #FFFFFF;
+    --surface-2: #FBFAF6;
+    --ink: #20242B;
+    --muted: #5B6472;
+    --line: #D9D4C8;
+    --line-strong: #B9B2A2;
+    --neutral: #5B6472;
+    --error: #A23B3B;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14171B;
+      --surface: #1B1F25;
+      --surface-2: #20252B;
+      --ink: #E7E9EE;
+      --muted: #9AA3B0;
+      --line: #333A44;
+      --line-strong: #454E5A;
+      --neutral: #9AA3B0;
+      --error: #E2726B;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14171B;
+    --surface: #1B1F25;
+    --surface-2: #20252B;
+    --ink: #E7E9EE;
+    --muted: #9AA3B0;
+    --line: #333A44;
+    --line-strong: #454E5A;
+    --neutral: #9AA3B0;
+    --error: #E2726B;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+    padding: 0 20px; padding-block: 40px 64px;
+  }
+  main { max-width: 1080px; margin: 0 auto; }
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px;
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px;
+  }
+  h1 {
+    font-size: clamp(28px, 4vw, 38px); font-weight: 700; margin: 0 0 10px;
+    text-wrap: balance; letter-spacing: -0.01em;
+  }
+  .dek { font-size: 16px; color: var(--muted); max-width: 700px; line-height: 1.55; margin: 0 0 36px; }
+  .dek code {
+    font-family: "IBM Plex Mono", monospace; font-size: 0.92em; background: var(--surface-2);
+    border: 1px solid var(--line); padding: 1px 5px; border-radius: 4px;
+  }
+  h2.section {
+    font-size: 12px; font-family: "IBM Plex Mono", monospace; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--muted); margin: 0 0 4px; font-weight: 600;
+  }
+  h3.section-title { font-size: 21px; font-weight: 600; margin: 0 0 16px; }
+
+  figure { margin: 0 0 40px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 8px; }
+  svg { display: block; width: 100%; height: auto; }
+  figcaption { font-size: 13.5px; color: var(--muted); line-height: 1.6; padding: 16px 14px 6px; }
+  figcaption strong { color: var(--ink); font-weight: 600; }
+  figcaption code { font-family: "IBM Plex Mono", monospace; font-size: 0.95em; }
+
+  .table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 6px 6px 2px; margin-bottom: 46px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; min-width: 560px; }
+  thead th {
+    text-align: left; padding: 12px 14px; font-family: "IBM Plex Mono", monospace;
+    font-size: 11.5px; letter-spacing: 0.03em; color: var(--muted); font-weight: 600;
+    border-bottom: 2px solid var(--line);
+  }
+  tbody td { padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: top; font-size: 13px; }
+  tbody tr:last-child td { border-bottom: none; }
+  td.route { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; font-weight: 600; white-space: nowrap; }
+  .table-caption { font-size: 13px; color: var(--muted); padding: 2px 14px 14px; line-height: 1.6; }
+
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 18px 2px 46px;
+    font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--muted);
+  }
+  .legend .item { white-space: nowrap; display: inline-flex; align-items: center; gap: 7px; }
+  .legend .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; }
+
+  .notes { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 8px; }
+  @media (max-width: 640px) { .notes { grid-template-columns: 1fr; } }
+  .note h2 {
+    font-size: 12px; font-family: "IBM Plex Mono", monospace; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--muted); margin: 0 0 4px; font-weight: 600;
+  }
+  .note h3 { font-size: 19px; font-weight: 600; margin: 0 0 16px; }
+  .note ul { list-style: none; margin: 0; padding: 0; border-left: 2px solid var(--line); }
+  .note li { position: relative; padding: 0 0 18px 22px; font-size: 14.5px; line-height: 1.55; }
+  .note li:last-child { padding-bottom: 0; }
+  .note li::before {
+    content: ""; position: absolute; left: -5px; top: 6px; width: 8px; height: 8px;
+    border-radius: 50%; background: var(--surface); border: 2px solid var(--line-strong);
+  }
+  .note .mono { font-family: "IBM Plex Mono", monospace; font-size: 0.9em; color: var(--muted); }
+
+  footer {
+    margin-top: 52px; padding-top: 18px; border-top: 1px solid var(--line);
+    font-size: 12.5px; color: var(--muted); font-family: "IBM Plex Mono", monospace;
+  }
+
+  .box-fill { fill: var(--surface); }
+  .box-stroke { stroke: var(--line-strong); stroke-width: 1.5; }
+  .box-title { fill: var(--ink); font-weight: 700; }
+  .desc { fill: var(--muted); font-size: 12px; }
+  .pill-neutral { fill: var(--neutral); }
+  .pill-text { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; fill: var(--surface); font-weight: 600; }
+  .conn { stroke: var(--line-strong); stroke-width: 1.6; fill: none; }
+  .arrow-neutral { fill: var(--line-strong); }
+  .arrow-error { fill: var(--error); }
+  .branch-error { stroke: var(--error); stroke-width: 1.7; fill: none; }
+  .exit-box-error { fill: var(--surface); stroke: var(--error); stroke-width: 1.8; }
+  .exit-title-error { fill: var(--error); font-family: "IBM Plex Mono", monospace; font-weight: 700; }
+  .exit-desc { fill: var(--muted); font-size: 11px; }
+  .step-no { fill: var(--muted); font-family: "IBM Plex Mono", monospace; font-size: 13px; font-weight: 600; }
+</style>
+
+<main>
+  <p class="eyebrow">Frontend-Flow · Stand main, 16.09.2026</p>
+  <h1>Wie das Frontend eine abgelaufene Sitzung merkt</h1>
+  <p class="dek">Die Kehrseite des <strong style="color:var(--ink)">Auth/RBAC-Diagramms</strong>: dort ist <code>HTTP 401</code> ein Server-Ausgang, hier ist es ein <strong style="color:var(--ink)">Ereignis, auf das genau eine zentrale Stelle reagiert</strong> — nicht jeder Screen einzeln.</p>
+
+  <figure>
+    <svg viewBox="0 0 1280 815" role="img" aria-label="Flussdiagramm: eine Anfrage läuft über den typisierten API-Client, ein zentraler Response-Interceptor prüft bei jeder Antwort, ob es sich um ein 401 auf eine Anfrage handelt, die einen Authorization-Header trug. Ist das nicht der Fall, bleibt es ein gewöhnlicher Fehler, etwa ein falsches Passwort beim Login. Ist es der Fall, löst der Interceptor einen in App.tsx registrierten Callback aus, der den Nutzer- und Chat-Zustand vollständig leert. ProtectedRoute reagiert beim nächsten Render auf den fehlenden Nutzer und leitet zur Login-Seite um, die dort ein Sitzung-abgelaufen-Flag statt eines generischen Fehlers zeigt.">
+      <defs>
+        <marker id="fe-neutral" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <polygon points="0,0 10,5 0,10" class="arrow-neutral" />
+        </marker>
+        <marker id="fe-error" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <polygon points="0,0 10,5 0,10" class="arrow-error" />
+        </marker>
+      </defs>
+
+      <!-- 1 -->
+      <g>
+        <rect x="140" y="50" width="460" height="105" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="76" class="step-no">1</text>
+        <text x="186" y="76" class="box-title" font-size="15.5">Anfrage über den API-Client</text>
+        <rect x="480" y="59" width="108" height="16" rx="8" class="pill-neutral" /><text x="534" y="70.5" text-anchor="middle" class="pill-text">openapi-fetch</text>
+        <text x="164" y="100" class="desc">jeder Pfad/Body gegen schema.d.ts geprüft —</text>
+        <text x="164" y="115.5" class="desc">ein Vertragsbruch bricht den Build, nicht die Laufzeit</text>
+      </g>
+      <line x1="370" y1="155" x2="370" y2="195" class="conn" marker-end="url(#fe-neutral)" />
+
+      <!-- 2 -->
+      <g>
+        <rect x="140" y="195" width="460" height="125" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="221" class="step-no">2</text>
+        <text x="186" y="221" class="box-title" font-size="15.5">Response-Interceptor</text>
+        <rect x="480" y="204" width="108" height="16" rx="8" class="pill-neutral" /><text x="534" y="215.5" text-anchor="middle" class="pill-text">client.use()</text>
+        <text x="164" y="245" class="desc">401 UND die Anfrage trug einen</text>
+        <text x="164" y="260.5" class="desc">Authorization-Header?</text>
+      </g>
+      <line x1="370" y1="320" x2="370" y2="360" class="conn" marker-end="url(#fe-neutral)" />
+
+      <!-- 3 -->
+      <g>
+        <rect x="140" y="360" width="460" height="125" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="386" class="step-no">3</text>
+        <text x="186" y="386" class="box-title" font-size="15.5">onUnauthorized() auslösen</text>
+        <rect x="480" y="369" width="108" height="16" rx="8" class="pill-neutral" /><text x="534" y="380.5" text-anchor="middle" class="pill-text">App.tsx</text>
+        <text x="164" y="410" class="desc">user=null, sessionExpired=true — Chat-</text>
+        <text x="164" y="425.5" class="desc">State komplett geleert (messages,</text>
+        <text x="164" y="441" class="desc">sessionId, busy)</text>
+      </g>
+      <line x1="370" y1="485" x2="370" y2="525" class="conn" marker-end="url(#fe-neutral)" />
+
+      <!-- 4 -->
+      <g>
+        <rect x="140" y="525" width="460" height="125" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="551" class="step-no">4</text>
+        <text x="186" y="551" class="box-title" font-size="15.5">ProtectedRoute reagiert</text>
+        <rect x="480" y="534" width="108" height="16" rx="8" class="pill-neutral" /><text x="534" y="545.5" text-anchor="middle" class="pill-text">kein navigate()</text>
+        <text x="164" y="575" class="desc">user===null beim nächsten Render →</text>
+        <text x="164" y="590.5" class="desc">Navigate zu /login — reiner Seiteneffekt</text>
+        <text x="164" y="606" class="desc">des State, keine explizite Weiterleitung</text>
+      </g>
+      <line x1="370" y1="650" x2="370" y2="690" class="conn" marker-end="url(#fe-neutral)" />
+
+      <!-- final -->
+      <g>
+        <rect x="140" y="690" width="460" height="90" rx="10" class="box-fill" style="stroke:var(--ink);stroke-width:1.5" />
+        <text x="164" y="722" class="box-title" font-size="15.5">/login zeigt „Sitzung abgelaufen"</text>
+        <text x="164" y="744" class="desc">sessionExpired-Flag, nicht der generische Fehlertext</text>
+      </g>
+
+      <!-- exit: no token, normal error -->
+      <line x1="600" y1="257.5" x2="760" y2="257.5" class="branch-error" marker-end="url(#fe-error)" />
+      <rect x="760" y="210" width="380" height="95" rx="10" class="exit-box-error" />
+      <text x="776" y="234" class="exit-title-error" font-size="13.5">kein Teardown — normaler Fehler</text>
+      <text x="776" y="254" class="exit-desc">z. B. /auth/login: 401 ohne Token bleibt</text>
+      <text x="776" y="268.5" class="exit-desc">ein Credentials-Fehler, nie „Sitzung</text>
+      <text x="776" y="283" class="exit-desc">abgelaufen"</text>
+    </svg>
+    <figcaption>
+      Der Unterschied entscheidet über die richtige Fehlermeldung: ein falsches Passwort beim Login trägt nie einen <code>Authorization</code>-Header und darf deshalb nie als abgelaufene Sitzung erscheinen — beide Fälle liefern serverseitig dasselbe <code>401</code>.
+    </figcaption>
+  </figure>
+
+  <h2 class="section">Routen</h2>
+  <h3 class="section-title">Wer eine Seite überhaupt sieht</h3>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Route</th><th>Ohne Login</th><th>Rolle</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="route">/login</td><td>zeigt das Formular — GuestRoute schickt einen bereits Angemeldeten zu /</td><td>—</td></tr>
+        <tr><td class="route">/ (Chat)</td><td>→ /login</td><td>jede angemeldete Rolle</td></tr>
+        <tr><td class="route">/quiz</td><td>→ /login</td><td>jede angemeldete Rolle</td></tr>
+        <tr><td class="route">/quiz-review</td><td>→ /login</td><td>knowledge_owner, admin</td></tr>
+        <tr><td class="route">/feedback</td><td>→ /login</td><td>knowledge_owner, admin</td></tr>
+        <tr><td class="route">* (unbekannt)</td><td>→ / (dann ggf. weiter zu /login)</td><td>—</td></tr>
+      </tbody>
+    </table>
+    <p class="table-caption">Eine falsche Rolle führt zurück auf <span class="mono" style="font-family:'IBM Plex Mono',monospace">/</span>, nicht auf <span class="mono" style="font-family:'IBM Plex Mono',monospace">/login</span> — der User ist ja angemeldet, eine eigene Fehlerseite für diesen Fall wäre Ballast.</p>
+  </div>
+
+  <div class="legend">
+    <span class="item"><span class="dot" style="background:var(--error)"></span>kein Session-Teardown</span>
+  </div>
+
+  <div class="notes">
+    <div class="note">
+      <h2>State-Ort ist kein Zufall</h2>
+      <h3>Warum Chat-State in App.tsx liegt</h3>
+      <ul>
+        <li><span class="mono">messages</span>/<span class="mono">sessionId</span>/<span class="mono">busy</span> liegen in <span class="mono">App.tsx</span>, nicht in <span class="mono">ChatView</span> — <span class="mono">/quiz</span> und <span class="mono">/quiz-review</span> unmounten ChatView, lokaler State wäre beim Zurücknavigieren leer (US-09 verlangt die Historie für die ganze Browser-Session)</li>
+        <li><span class="mono">busy</span> gehört bewusst dazu: bliebe es lokal, setzte ein Remount es zurück, während eine alte Anfrage noch läuft und am Ende in die (jetzt gehobenen) <span class="mono">messages</span> schreibt — die Sperre gegen eine zweite Frage während des Wartens griffe dann nicht mehr</li>
+        <li>JWT und User nur im Memory (ADR-002), bewusst kein <span class="mono">localStorage</span> — dasselbe Prinzip wie im Auth/RBAC-Diagramm auf der Backend-Seite</li>
+      </ul>
+    </div>
+    <div class="note">
+      <h2>Guards sind UX, nicht Sicherheit</h2>
+      <h3>Die Grenze bleibt serverseitig</h3>
+      <ul>
+        <li><span class="mono">ProtectedRoute</span>/<span class="mono">GuestRoute</span> sind zentral statt pro Route inline — eine neue geschützte Seite kann so nicht versehentlich ohne Guard entstehen</li>
+        <li>Ein Guard hier verhindert nur, dass die UI eine Seite <em>zeigt</em>, die der Server ohnehin mit 403 abweisen würde — die eigentliche Durchsetzung bleibt in <span class="mono">require_role</span> (siehe Auth/RBAC-Diagramm)</li>
+        <li>Drei verschiedene Fehlerformen (eigene <span class="mono">HTTPException</span>, FastAPI-Validierungsliste, nginx-Klartext bei 413/502) laufen in <span class="mono">errorMessage()</span> zu einem einzigen anzeigbaren String zusammen</li>
+      </ul>
+    </div>
+  </div>
+
+  <footer>Quellen: src/frontend/src/App.tsx, api/client.ts, components/RouteGuards.tsx — Stand main, 16.09.2026</footer>
+</main>

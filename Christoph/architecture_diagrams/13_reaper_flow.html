@@ -1,0 +1,251 @@
+<title>LearnFlow-Reaper-Flow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F5F3EE;
+    --surface: #FFFFFF;
+    --surface-2: #FBFAF6;
+    --ink: #20242B;
+    --muted: #5B6472;
+    --line: #D9D4C8;
+    --line-strong: #B9B2A2;
+    --neutral: #5B6472;
+    --accent: #6B4F94;
+    --error: #A23B3B;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14171B;
+      --surface: #1B1F25;
+      --surface-2: #20252B;
+      --ink: #E7E9EE;
+      --muted: #9AA3B0;
+      --line: #333A44;
+      --line-strong: #454E5A;
+      --neutral: #9AA3B0;
+      --accent: #B79FE0;
+      --error: #E2726B;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14171B;
+    --surface: #1B1F25;
+    --surface-2: #20252B;
+    --ink: #E7E9EE;
+    --muted: #9AA3B0;
+    --line: #333A44;
+    --line-strong: #454E5A;
+    --neutral: #9AA3B0;
+    --accent: #B79FE0;
+    --error: #E2726B;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+    padding: 0 20px; padding-block: 40px 64px;
+  }
+  main { max-width: 1080px; margin: 0 auto; }
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px;
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px;
+  }
+  h1 {
+    font-size: clamp(28px, 4vw, 38px); font-weight: 700; margin: 0 0 10px;
+    text-wrap: balance; letter-spacing: -0.01em;
+  }
+  .dek { font-size: 16px; color: var(--muted); max-width: 720px; line-height: 1.55; margin: 0 0 36px; }
+  .dek code {
+    font-family: "IBM Plex Mono", monospace; font-size: 0.92em; background: var(--surface-2);
+    border: 1px solid var(--line); padding: 1px 5px; border-radius: 4px;
+  }
+
+  figure { margin: 0 0 40px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 8px; }
+  svg { display: block; width: 100%; height: auto; }
+  figcaption { font-size: 13.5px; color: var(--muted); line-height: 1.6; padding: 16px 14px 6px; }
+  figcaption strong { color: var(--ink); font-weight: 600; }
+  figcaption code { font-family: "IBM Plex Mono", monospace; font-size: 0.95em; }
+
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 18px 2px 46px;
+    font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--muted);
+  }
+  .legend .item { white-space: nowrap; display: inline-flex; align-items: center; gap: 7px; }
+  .legend .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; }
+  .legend .ln { display: inline-block; width: 20px; height: 0; border-top: 2px solid var(--line-strong); }
+  .legend .ln.dashed { border-top-style: dashed; }
+
+  .notes { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 8px; }
+  @media (max-width: 640px) { .notes { grid-template-columns: 1fr; } }
+  .note h2 {
+    font-size: 12px; font-family: "IBM Plex Mono", monospace; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--muted); margin: 0 0 4px; font-weight: 600;
+  }
+  .note h3 { font-size: 19px; font-weight: 600; margin: 0 0 16px; }
+  .note ul { list-style: none; margin: 0; padding: 0; border-left: 2px solid var(--line); }
+  .note li { position: relative; padding: 0 0 18px 22px; font-size: 14.5px; line-height: 1.55; }
+  .note li:last-child { padding-bottom: 0; }
+  .note li::before {
+    content: ""; position: absolute; left: -5px; top: 6px; width: 8px; height: 8px;
+    border-radius: 50%; background: var(--surface); border: 2px solid var(--line-strong);
+  }
+  .note .mono { font-family: "IBM Plex Mono", monospace; font-size: 0.9em; color: var(--muted); }
+
+  footer {
+    margin-top: 52px; padding-top: 18px; border-top: 1px solid var(--line);
+    font-size: 12.5px; color: var(--muted); font-family: "IBM Plex Mono", monospace;
+  }
+
+  .box-fill { fill: var(--surface); }
+  .box-stroke { stroke: var(--line-strong); stroke-width: 1.5; }
+  .box-title { fill: var(--ink); font-weight: 700; }
+  .desc { fill: var(--muted); font-size: 12px; }
+  .pill-neutral { fill: var(--neutral); }
+  .pill-text { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; fill: var(--surface); font-weight: 600; }
+  .conn { stroke: var(--line-strong); stroke-width: 1.6; fill: none; }
+  .arrow-neutral { fill: var(--line-strong); }
+  .arrow-accent { fill: var(--accent); }
+  .loop-line { stroke: var(--accent); stroke-width: 1.7; fill: none; stroke-dasharray: 6 4; }
+  .box-good { fill: var(--surface); stroke: var(--neutral); stroke-width: 1.6; }
+  .box-warn { fill: var(--surface); stroke: var(--error); stroke-width: 1.8; }
+  .title-warn { fill: var(--error); }
+</style>
+
+<main>
+  <p class="eyebrow">Worker-Reaper-Flow · Stand main, 16.09.2026</p>
+  <h1>Wie ein hängender Indexierungslauf entdeckt wird</h1>
+  <p class="dek">Anders als jeder bisherige Flow hier: <strong style="color:var(--ink)">kein Request löst das aus</strong>. Der Reaper ist eine Schleife, die für die Lebensdauer des Workers läuft, sich ihr eigenes Zeitmass gibt und pro Durchgang zwei völlig unabhängige Aufräumarbeiten erledigt — an zwei verschiedenen Uhren, ohne dass die eine von der anderen weiss.</p>
+
+  <figure>
+    <svg viewBox="0 0 1280 760" role="img" aria-label="Zyklisches Flussdiagramm: der Reaper schläft ein aus dem Stall-Intervall abgeleitetes Zeitfenster, liest dann drei Konfigurationswerte weich validiert, und führt danach zwei unabhängige Aktionen aus: Dokumente reapen, deren Fortschritts-Zeitstempel zu alt ist, mit den zwei Ausgängen erneut eingereiht oder aufgegeben, sowie unabhängig davon verwaiste Warteschlangenzeilen löschen, gemessen am Heartbeat des Queue-Systems statt am Fortschritts-Zeitstempel. Beide Aktionen laufen in jedem Fall, auch nach einem Fehler, wieder in denselben Schlaf zurück.">
+      <defs>
+        <marker id="r-neutral" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <polygon points="0,0 10,5 0,10" class="arrow-neutral" />
+        </marker>
+        <marker id="r-accent" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <polygon points="0,0 10,5 0,10" class="arrow-accent" />
+        </marker>
+      </defs>
+
+      <!-- StepA: sleep -->
+      <g>
+        <rect x="140" y="50" width="1000" height="105" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="76" class="box-title" font-size="16">sleep(interval)</text>
+        <rect x="900" y="59" width="220" height="18" rx="9" class="pill-neutral" /><text x="1010" y="72" text-anchor="middle" class="pill-text">clamp(stall÷4, 5–300s)</text>
+        <text x="164" y="100" class="desc">schläft zuerst — frisch gestartete Jobs sind noch nicht verwaist,</text>
+        <text x="164" y="115.5" class="desc">und die API migriert bei diesem Deployment vielleicht noch</text>
+      </g>
+      <line x1="640" y1="155" x2="640" y2="195" class="conn" marker-end="url(#r-neutral)" />
+
+      <!-- StepB: config -->
+      <g>
+        <rect x="140" y="195" width="1000" height="125" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="221" class="box-title" font-size="16">Config lesen — 3 Schlüssel</text>
+        <rect x="880" y="204" width="240" height="18" rx="9" class="pill-neutral" /><text x="1000" y="217" text-anchor="middle" class="pill-text">weich validiert</text>
+        <text x="164" y="245" class="desc">unlesbar oder ausserhalb [120, 999999]? → Warnung + Default,</text>
+        <text x="164" y="260.5" class="desc">Lauf geht weiter — anders als admin.py, das denselben Bereich</text>
+        <text x="164" y="276" class="desc">hart mit 422 ablehnt, bevor der Wert je in der Tabelle landet</text>
+      </g>
+      <line x1="640" y1="320" x2="640" y2="345" class="conn" />
+      <text x="640" y="365" text-anchor="middle" class="desc" font-style="italic">zwei unabhängige Aktionen — verschiedene Uhren, verschiedene Tabellen</text>
+      <line x1="370" y1="345" x2="370" y2="380" class="conn" marker-end="url(#r-neutral)" />
+      <line x1="910" y1="345" x2="910" y2="380" class="conn" marker-end="url(#r-neutral)" />
+
+      <!-- L1 -->
+      <g>
+        <rect x="140" y="380" width="460" height="150" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="406" class="box-title" font-size="15.5">Dokumente reapen</text>
+        <rect x="420" y="389" width="168" height="18" rx="9" class="pill-neutral" /><text x="504" y="402" text-anchor="middle" class="pill-text">1 Transaktion</text>
+        <text x="164" y="430" class="desc">status=processing UND index_progress_at</text>
+        <text x="164" y="445.5" class="desc">älter als stall_seconds →</text>
+        <text x="164" y="461" class="desc">index_version++, index_attempts++</text>
+        <text x="164" y="480" class="desc" font-family="IBM Plex Mono, monospace" font-size="10.5">STUCK_DOCUMENTS</text>
+      </g>
+      <line x1="260" y1="530" x2="260" y2="558" class="conn" marker-end="url(#r-neutral)" />
+      <line x1="500" y1="530" x2="500" y2="558" class="conn" marker-end="url(#r-neutral)" />
+
+      <!-- L2a requeue -->
+      <g>
+        <rect x="140" y="558" width="220" height="112" rx="10" class="box-good" />
+        <text x="250" y="584" text-anchor="middle" class="box-title" font-size="14">erneut eingereiht</text>
+        <text x="250" y="604" text-anchor="middle" class="desc">attempts &lt; max_attempts</text>
+        <text x="250" y="619" text-anchor="middle" class="desc">status=pending +</text>
+        <text x="250" y="634" text-anchor="middle" class="desc">neue pgqueuer-Zeile</text>
+      </g>
+
+      <!-- L2b give up -->
+      <g>
+        <rect x="380" y="558" width="220" height="112" rx="10" class="box-warn" />
+        <text x="490" y="584" text-anchor="middle" class="box-title title-warn" font-size="14">aufgegeben</text>
+        <text x="490" y="604" text-anchor="middle" class="desc">attempts ≥ max_attempts</text>
+        <text x="490" y="619" text-anchor="middle" class="desc">status=failed + Meldung</text>
+        <text x="490" y="634" text-anchor="middle" class="desc">für den Knowledge Owner</text>
+      </g>
+
+      <!-- R1 -->
+      <g>
+        <rect x="680" y="380" width="460" height="150" rx="10" class="box-fill box-stroke" />
+        <text x="704" y="406" class="box-title" font-size="14.5">Verwaiste Queue-Zeilen löschen</text>
+        <rect x="964" y="389" width="156" height="18" rx="9" class="pill-neutral" /><text x="1042" y="402" text-anchor="middle" class="pill-text">kein TX</text>
+        <text x="704" y="430" class="desc">entrypoint=process_document,</text>
+        <text x="704" y="445.5" class="desc">status=picked, heartbeat älter als</text>
+        <text x="704" y="461" class="desc">2 × timeout_seconds — andere Tabelle</text>
+        <text x="704" y="480" class="desc" font-family="IBM Plex Mono, monospace" font-size="10.5">DELETE_ORPHANED_PICKED_ROWS</text>
+      </g>
+      <line x1="910" y1="530" x2="910" y2="558" class="conn" marker-end="url(#r-neutral)" />
+
+      <!-- R2 -->
+      <g>
+        <rect x="680" y="558" width="460" height="112" rx="10" class="box-fill box-stroke" />
+        <text x="910" y="584" text-anchor="middle" class="box-title" font-size="14">unabhängig protokolliert</text>
+        <text x="910" y="606" text-anchor="middle" class="desc">betrifft jede alte Zeile — nicht nur die</text>
+        <text x="910" y="621" text-anchor="middle" class="desc">oben gerade gereapten Dokumente</text>
+        <text x="910" y="638" text-anchor="middle" class="desc" font-style="italic">kein eigener Versions-Guard</text>
+      </g>
+
+      <!-- convergence + loop back -->
+      <line x1="250" y1="670" x2="250" y2="700" class="conn" />
+      <line x1="490" y1="670" x2="490" y2="700" class="conn" />
+      <line x1="910" y1="670" x2="910" y2="700" class="conn" />
+      <polyline points="910,700 250,700" class="loop-line" />
+      <polyline points="250,700 60,700 60,102 140,102" class="loop-line" marker-end="url(#r-accent)" />
+      <text x="72" y="420" class="desc" fill="var(--accent)" transform="rotate(-90 72 420)" text-anchor="middle">nächste Passage in intervall Sekunden</text>
+      <text x="640" y="716" text-anchor="middle" class="desc" font-style="italic">jede Exception hier: geloggt und geschluckt — kein Crash, keine Ausnahme verlässt die Passage</text>
+    </svg>
+    <figcaption>
+      Die zwei Aktionen prüfen absichtlich nie gegeneinander: <strong>links</strong> entscheidet <code>index_progress_at</code> (vom Worker selbst geschrieben, T-51), ob ein <em>Dokument</em> verwaist ist; <strong>rechts</strong> entscheidet <code>pgqueuer.heartbeat</code> (vom Queue-System), ob seine <em>Warteschlangen-Zeile</em> verschwinden darf. Dieselbe Passage misst beide, nie das eine gegen das andere.
+    </figcaption>
+  </figure>
+
+  <div class="legend">
+    <span class="item"><span class="dot" style="background:var(--neutral)"></span>Dokument-Ausgang: neutral</span>
+    <span class="item"><span class="dot" style="background:var(--error)"></span>Dokument-Ausgang: aufgegeben</span>
+    <span class="item"><span class="ln dashed" style="border-color:var(--accent)"></span>Schleife — kein Request, kein Ende</span>
+  </div>
+
+  <div class="notes">
+    <div class="note">
+      <h2>Zwei Uhren, mit Absicht getrennt</h2>
+      <h3>Ein Dokument ist nicht seine Queue-Zeile</h3>
+      <ul>
+        <li>Das Löschen der Queue-Zeile hat keinen Versions-Guard wie das Dokument: ein Lauf, der nur langsamer als das Timeout ist statt tot, könnte seine eigene Zeile verlieren — sein späteres <span class="mono">pgqueuer_log</span>-Update liefe dann ins Leere. Kein Fehler, nur ein fehlender Log-Eintrag</li>
+        <li>Der Faktor <span class="mono">×2</span> beim Löschen verengt genau dieses Risiko, statt es zu schliessen — er verlangt einen Lauf, der mehr als doppelt so lange braucht wie der ADR-006-Worst-Case, bevor seine Zeile verschwindet</li>
+        <li><span class="mono">index_attempts</span> wird nur bei erfolgreicher Indexierung zurückgesetzt (<span class="mono">mark_available</span>), nie vom Reaper selbst — das Budget bindet einen Vorfall, nicht das Dokument für immer</li>
+      </ul>
+    </div>
+    <div class="note">
+      <h2>Fail-soft lesen, fail-hard schreiben</h2>
+      <h3>Derselbe Wertebereich, zwei Antworten</h3>
+      <ul>
+        <li>Dasselbe <span class="mono">[120, 999999]</span> gilt an zwei Stellen mit entgegengesetztem Verhalten: <span class="mono">admin.py</span> lehnt einen ungültigen Wert vor dem Schreiben mit 422 ab; der Reaper akzeptiert, was in der Tabelle steht, und ersetzt einen kaputten Wert beim Lesen still durch den Default plus eine Log-Warnung</li>
+        <li>Begründung: ein Formfehler beim Schreiben hat einen Menschen davor, der ihn sofort korrigiert; ein kaputter Wert, den der Reaper Minuten später liest, hat keinen — ein Reaper, der deswegen ganz aufhört zu reapen, wäre der grössere Schaden</li>
+        <li>Jede Exception in einer Passage wird geloggt und geschluckt, nie weitergeworfen — ein kaputter Reaper darf den Job-Konsumenten nicht mitreissen, den derselbe Worker-Prozess auch betreibt</li>
+      </ul>
+    </div>
+  </div>
+
+  <footer>Quellen: worker/main.py (reap_stuck_documents, reaper_loop, read_reaper_config, _clamped_int) — Stand main, 16.09.2026</footer>
+</main>
