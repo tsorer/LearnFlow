@@ -59,7 +59,12 @@ docker exec -w /app -e PYTHONPATH=/app src-api-1 python /tmp/abweichungen.py   2
 docker exec -w /app -e PYTHONPATH=/app src-api-1 python /tmp/laenge.py   2026-09-15T21-36 2026-09-16T04 2026-09-16T04-50 9999             # Antwortlänge und Belegdichte
 docker exec -w /app -e PYTHONPATH=/app src-api-1 python /tmp/self_check_statistik.py   2026-09-16T04-50 9999                                            # Stufe 3: Aufrufe und Urteile
 docker exec -w /app -e PYTHONPATH=/app src-api-1 python /tmp/kennzahlen_runde.py R04 2026-09-16T04-50
+docker cp ../EvalAnalysis/Optimierung/labels/R04.csv src-api-1:/tmp/labels-R04.csv
+docker exec -w /app -e PYTHONPATH=/app src-api-1 python /tmp/schwellen.py   # braucht min_citation_coverage einen Wert je Modell?
 ```
+
+`schwellen.py` hat keine Zeitfenster-Argumente: die R04-Lauf-IDs stehen fest im Skript, weil
+es die Zahlen zu einem bestimmten Abschnitt in `Stellschrauben.md` belegt.
 
 `r03_praemissen.py`, `vergleich.py`, `r02_format.py`, `laenge.py`, `self_check_statistik.py`
 und `abweichungen.py` nehmen die Profile als zusätzliche Argumente. Nötig für
