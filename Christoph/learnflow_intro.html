@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>LearnFlow — Intro Slide, Entwurf 1</title>
+  <title>LearnFlow — Intro Slide mit Lara</title>
   <style>
     :root {
       --paper: #f7f5f0;
@@ -206,7 +206,7 @@
       position: relative;
       align-self: center;
       min-height: 610px;
-      padding: 58px 50px 44px;
+      padding: 38px 44px 32px;
       border: 1px solid rgba(16, 30, 54, .10);
       border-radius: 30px;
       background: rgba(255, 254, 251, .86);
@@ -227,7 +227,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 35px;
+      margin-bottom: 24px;
       color: var(--muted);
       font-size: 15px;
       font-weight: 760;
@@ -253,9 +253,53 @@
       box-shadow: 0 0 0 5px var(--teal-pale);
     }
 
+    .question-row {
+      display: grid;
+      grid-template-columns: 140px 1fr;
+      align-items: center;
+      gap: 22px;
+      margin-bottom: 22px;
+    }
+
+    .lara-portrait {
+      position: relative;
+      width: 140px;
+      height: 140px;
+      margin: 0;
+      overflow: hidden;
+      border: 1px solid rgba(15, 168, 160, .22);
+      border-radius: 30px;
+      background: linear-gradient(145deg, var(--teal-pale), #f7f5f0);
+      box-shadow: 0 14px 28px rgba(16, 30, 54, .12);
+      animation: rise .7s .05s both cubic-bezier(.2, .8, .2, 1);
+    }
+
+    .lara-portrait img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      transform: scale(1.08) translateY(4px);
+      transform-origin: center bottom;
+      filter: drop-shadow(0 8px 12px rgba(16, 30, 54, .12));
+    }
+
+    .question-copy {
+      min-width: 0;
+    }
+
+    .question-label {
+      margin-bottom: 9px;
+      color: var(--muted);
+      font-size: 15px;
+      font-weight: 760;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
     .question {
-      width: 85%;
-      margin: 0 0 26px auto;
+      width: 100%;
+      margin: 0;
       padding: 22px 26px;
       border-radius: 22px 22px 5px 22px;
       background: var(--ink);
@@ -432,11 +476,19 @@
 
       <div class="product" aria-label="Beispiel einer quellenbelegten LearnFlow-Antwort">
         <div class="product-label">
-          <span>Lara fragt</span>
+          <span>Beispiel</span>
           <span class="corpus-status">Vertrauensprüfung: OK</span>
         </div>
 
-        <div class="question">Was bedeutet das Bedarfsdeckungsprinzip?</div>
+        <div class="question-row">
+          <figure class="lara-portrait">
+            <img src="assets/lara-portrait-v1.png" alt="Semirealistisches Porträt der fiktiven Lara">
+          </figure>
+          <div class="question-copy">
+            <div class="question-label">Lara fragt</div>
+            <div class="question">Was bedeutet das Bedarfsdeckungsprinzip?</div>
+          </div>
+        </div>
 
         <div class="answer">
           <div class="answer-meta">LearnFlow antwortet</div>
