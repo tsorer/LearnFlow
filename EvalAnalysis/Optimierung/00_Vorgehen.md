@@ -260,7 +260,8 @@ Der Plan ist eine Erwartung, keine Verpflichtung — jede Runde begründet die n
 | R01 | Verweigerungsprotokoll | P1 entsteht, weil Regel 3 und Regel 4 für Modelle mehrdeutig sind; ein Beispiel für `WEISS_NICHT` reduziert P1 ohne S1 zu erhöhen |
 | R02 | Zitierformat | S2 entsteht durch gebündelte Fussnoten; ein Zitierbeispiel senkt `citation_coverage`-Unterdrückungen |
 | R03 | Self-Check-Protokoll | Unlesbare Urteile und Denk-Vorlauf (S4, A) sind modellspezifisch; Prompt oder Parser machen sie robust |
-| R04 | Generisch vs. modellspezifisch | Ein gemeinsamer Prompt erreicht nicht bei allen Modellen das Optimum — Mass für die «Nicht-Austauschbarkeit» |
+| R04 | Regeln 3 und 4 als eine Entscheidung | Verweigerung, Richtigstellung und Teilantwort als drei Fälle einer Entscheidung wirken, wo eine angehängte Ausnahme (R03) nichts bewegt — **läuft, unvollständig** |
+| R05 | Generisch vs. modellspezifisch | Ein gemeinsamer Prompt erreicht nicht bei allen Modellen das Optimum — Mass für die «Nicht-Austauschbarkeit» |
 | R05 | Schlussmessung | Bestes Setup je Modell auf dem Holdout; Entscheid Produktivmodell |
 
 ## 12. Offene technische Voraussetzungen
