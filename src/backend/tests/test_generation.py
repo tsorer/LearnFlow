@@ -130,6 +130,19 @@ def test_the_citation_rule_asks_for_one_plain_reference_per_statement() -> None:
     assert "ohne Buchstaben, Unterpunkte oder andere Klammern" in system
 
 
+def test_the_three_cases_are_decided_before_answering() -> None:
+    """R04 (EvalAnalysis/Optimierung): refuting a premise, answering a covered part and
+    refusing are one decision, not a rule plus exceptions — R03 showed an exception
+    appended behind «antworte ausschliesslich mit WEISS_NICHT» stays unread. Related
+    material about a different subject is explicitly not a partial answer."""
+    system, _ = build_prompt(QUESTION, [make_hit()])
+
+    assert "widerlegt eine Annahme der Frage" in system
+    assert "ganz oder in einem Teil" in system
+    assert "Ähnliches zu einem anderen Gegenstand" in system
+    assert REFUSAL_SENTINEL in system
+
+
 # --- generation ------------------------------------------------------------
 
 
