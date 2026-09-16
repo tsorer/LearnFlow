@@ -1,0 +1,1562 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<style>html{color-scheme:light dark}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>LearnFlow Datenregister</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:ital,wght@0,500;0,600;1,400&display=swap">
+
+<style>
+  :root {
+    /* Ground: cool grey-green paper, hue-biased toward the teal ink */
+    --paper:      #EFF1EE;
+    --surface:    #F8F9F7;
+    --surface-2:  #E7EAE6;
+    --ink:        #17201C;
+    --ink-2:      #414D47;
+    --ink-3:      #6C7772;
+    --rule:       #D3D8D2;
+    --rule-soft:  #E1E5E0;
+    /* Institutional accent */
+    --accent:     #1F5F53;
+    --accent-2:   #2E8172;
+    --accent-wash:#DCE8E4;
+    /* The one signal colour: data crossing the boundary */
+    --signal:     #A8431C;
+    --signal-2:   #C4562B;
+    --signal-wash:#F3E1D8;
+
+    --f-display: "IBM Plex Serif", "Iowan Old Style", Georgia, serif;
+    --f-body:    "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+    --f-mono:    "IBM Plex Mono", "Cascadia Mono", ui-monospace, monospace;
+
+    --measure: 68ch;
+    --pad: clamp(1.25rem, 4vw, 3.5rem);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:      #101512;
+      --surface:    #171E1A;
+      --surface-2:  #1F2823;
+      --ink:        #E3E8E4;
+      --ink-2:      #B2BDB7;
+      --ink-3:      #869089;
+      --rule:       #2B352F;
+      --rule-soft:  #222B26;
+      --accent:     #5FBFA8;
+      --accent-2:   #7FD3BE;
+      --accent-wash:#1B2E29;
+      --signal:     #E4885F;
+      --signal-2:   #F0A17C;
+      --signal-wash:#2E1F17;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:      #101512;
+    --surface:    #171E1A;
+    --surface-2:  #1F2823;
+    --ink:        #E3E8E4;
+    --ink-2:      #B2BDB7;
+    --ink-3:      #869089;
+    --rule:       #2B352F;
+    --rule-soft:  #222B26;
+    --accent:     #5FBFA8;
+    --accent-2:   #7FD3BE;
+    --accent-wash:#1B2E29;
+    --signal:     #E4885F;
+    --signal-2:   #F0A17C;
+    --signal-wash:#2E1F17;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--f-body);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: var(--pad);
+    display: flex;
+    flex-direction: column;
+    gap: 4.5rem;
+  }
+
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  :focus-visible { outline: 2px solid var(--accent-2); outline-offset: 3px; border-radius: 2px; }
+
+  code, .mono { font-family: var(--f-mono); font-size: 0.855em; font-variant-ligatures: none; }
+
+  /* ---------- Masthead ---------- */
+  .mast { display: flex; flex-direction: column; gap: 1.5rem; }
+  .eyebrow {
+    font-family: var(--f-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  h1 {
+    font-family: var(--f-display);
+    font-weight: 600;
+    font-size: clamp(2.1rem, 5.2vw, 3.3rem);
+    line-height: 1.08;
+    letter-spacing: -0.015em;
+    margin: 0;
+    text-wrap: balance;
+  }
+  .standfirst {
+    font-family: var(--f-display);
+    font-style: italic;
+    font-weight: 400;
+    font-size: clamp(1.05rem, 2.1vw, 1.28rem);
+    line-height: 1.5;
+    color: var(--ink-2);
+    max-width: var(--measure);
+    margin: 0;
+  }
+  .mast-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 1.75rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--rule);
+    font-family: var(--f-mono);
+    font-size: 0.76rem;
+    color: var(--ink-3);
+  }
+  .mast-meta b { color: var(--ink-2); font-weight: 500; }
+
+  /* ---------- Section scaffolding ---------- */
+  section { display: flex; flex-direction: column; gap: 1.5rem; }
+  .sec-head { display: flex; flex-direction: column; gap: 0.4rem; }
+  .sec-head h2 {
+    font-family: var(--f-display);
+    font-weight: 600;
+    font-size: clamp(1.4rem, 3vw, 1.85rem);
+    line-height: 1.2;
+    margin: 0;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+  .sec-head p { margin: 0; color: var(--ink-2); max-width: var(--measure); }
+
+  /* ---------- Findings tiles ---------- */
+  .tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+  }
+  .tile { background: var(--surface); padding: 1.15rem 1.25rem; display: flex; flex-direction: column; gap: 0.3rem; }
+  .tile .n {
+    font-family: var(--f-mono);
+    font-size: 1.85rem;
+    font-weight: 500;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+  }
+  .tile .n.alarm { color: var(--signal); }
+  .tile .k { font-size: 0.85rem; color: var(--ink-2); }
+  .tile .s { font-family: var(--f-mono); font-size: 0.7rem; color: var(--ink-3); }
+
+  /* ---------- Boundary diagram ---------- */
+  .diagram-frame {
+    border: 1px solid var(--rule);
+    background: var(--surface);
+    padding: 1.5rem 1.25rem 1rem;
+    overflow-x: auto;
+  }
+  .diagram-frame svg { display: block; min-width: 620px; width: 100%; height: auto; }
+  .cap {
+    font-family: var(--f-mono);
+    font-size: 0.72rem;
+    color: var(--ink-3);
+    margin: 0.9rem 0 0;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--rule-soft);
+  }
+
+  /* ---------- Egress call list ---------- */
+  .calls { display: flex; flex-direction: column; border: 1px solid var(--rule); background: var(--surface); }
+  .call {
+    display: grid;
+    grid-template-columns: 2.5rem minmax(0, 1fr);
+    gap: 0 0.75rem;
+    padding: 0.95rem 1.15rem;
+    border-bottom: 1px solid var(--rule-soft);
+  }
+  .call:last-child { border-bottom: 0; }
+  .call .idx {
+    font-family: var(--f-mono);
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--signal);
+    font-variant-numeric: tabular-nums;
+    padding-top: 0.12rem;
+  }
+  .call .what { font-weight: 600; font-size: 0.95rem; }
+  .call .payload { color: var(--ink-2); font-size: 0.9rem; }
+  .call .ev { grid-column: 2; }
+
+  .ev {
+    font-family: var(--f-mono);
+    font-size: 0.715rem;
+    color: var(--ink-3);
+    margin: 0.35rem 0 0;
+    word-break: break-word;
+  }
+  .ev::before { content: "▸ "; color: var(--accent); }
+
+  /* ---------- Never-leaves panel ---------- */
+  .stays {
+    border: 1px solid var(--accent);
+    background: var(--accent-wash);
+    padding: 1.15rem 1.35rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  .stays h3 {
+    margin: 0;
+    font-family: var(--f-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .stays p { margin: 0; color: var(--ink-2); font-size: 0.93rem; max-width: var(--measure); }
+  .stays .list { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+  .stays .list span {
+    font-family: var(--f-mono);
+    font-size: 0.73rem;
+    padding: 0.18rem 0.5rem;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    background: var(--surface);
+  }
+
+  /* ---------- Register ---------- */
+  .group { display: flex; flex-direction: column; gap: 1rem; }
+  .group-head {
+    display: flex;
+    align-items: baseline;
+    gap: 0.85rem;
+    padding-bottom: 0.6rem;
+    border-bottom: 2px solid var(--ink);
+  }
+  .group-head .letter {
+    font-family: var(--f-mono);
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--paper);
+    background: var(--ink);
+    padding: 0.1rem 0.42rem;
+    flex: none;
+  }
+  .group-head h3 {
+    font-family: var(--f-display);
+    font-size: 1.18rem;
+    font-weight: 600;
+    margin: 0;
+    letter-spacing: -0.005em;
+  }
+  .group-head .count {
+    margin-left: auto;
+    font-family: var(--f-mono);
+    font-size: 0.72rem;
+    color: var(--ink-3);
+    flex: none;
+  }
+
+  .recs { display: flex; flex-direction: column; gap: 1px; background: var(--rule); border: 1px solid var(--rule); }
+
+  .rec {
+    background: var(--surface);
+    padding: 1.1rem 1.25rem 1.15rem;
+    border-left: 3px solid var(--rule);
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+  }
+  .rec[data-egress="extern"] { border-left-color: var(--signal); }
+  .rec[data-egress="rueck"]  { border-left-color: var(--accent-2); }
+
+  .rec-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.5rem 0.85rem; }
+  .rec-name { font-size: 1rem; font-weight: 600; margin: 0; letter-spacing: -0.005em; }
+  .rec-name .qual { font-weight: 400; color: var(--ink-3); font-size: 0.88rem; }
+
+  .chip {
+    font-family: var(--f-mono);
+    font-size: 0.665rem;
+    letter-spacing: 0.075em;
+    text-transform: uppercase;
+    padding: 0.16rem 0.46rem;
+    border: 1px solid currentColor;
+    flex: none;
+    margin-left: auto;
+    white-space: nowrap;
+  }
+  .chip.extern { color: var(--signal); background: var(--signal-wash); }
+  .chip.rueck  { color: var(--accent); background: var(--accent-wash); }
+  .chip.intern { color: var(--ink-3); }
+
+  .rec-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+    gap: 0.85rem 1.5rem;
+    margin: 0;
+  }
+  .rec-grid > div { display: flex; flex-direction: column; gap: 0.12rem; min-width: 0; }
+  .rec-grid dt {
+    font-family: var(--f-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .rec-grid dd { margin: 0; font-size: 0.875rem; color: var(--ink-2); overflow-wrap: anywhere; }
+  .rec-grid dd code { color: var(--ink); }
+  .rec-grid dd.forever { color: var(--signal); font-weight: 500; }
+
+  .rec-note {
+    margin: 0;
+    font-size: 0.885rem;
+    color: var(--ink-2);
+    max-width: var(--measure);
+    padding-left: 0.85rem;
+    border-left: 1px solid var(--rule);
+  }
+  .rec-note b { color: var(--ink); font-weight: 600; }
+
+  /* ---------- Gap findings ---------- */
+  .gaps { display: flex; flex-direction: column; gap: 1.25rem; }
+  .gap {
+    border: 1px solid var(--signal);
+    background: var(--surface);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .gap-head {
+    background: var(--signal-wash);
+    padding: 0.85rem 1.3rem;
+    border-bottom: 1px solid var(--signal);
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+  .gap-head .tag {
+    font-family: var(--f-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--signal);
+    flex: none;
+  }
+  .gap-head h3 {
+    font-family: var(--f-display);
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 0;
+    color: var(--ink);
+  }
+  .gap-body { padding: 1.15rem 1.3rem; display: flex; flex-direction: column; gap: 0.8rem; }
+  .gap-body p { margin: 0; max-width: var(--measure); color: var(--ink-2); }
+  .gap-body p b { color: var(--ink); font-weight: 600; }
+  .gap-body ul { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: 0.35rem; color: var(--ink-2); max-width: var(--measure); }
+
+  /* ---------- Scope footer ---------- */
+  .scope {
+    border-top: 2px solid var(--ink);
+    padding-top: 1.5rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1.5rem;
+  }
+  .scope h3 {
+    font-family: var(--f-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin: 0 0 0.5rem;
+  }
+  .scope p, .scope li { font-size: 0.865rem; color: var(--ink-2); margin: 0; }
+  .scope ul { margin: 0; padding-left: 1.05rem; display: flex; flex-direction: column; gap: 0.3rem; }
+
+
+  /* ---------- Was sich seit dem Audit geaendert hat ---------- */
+  .was { color: var(--ink-3); font-weight: 400; font-size: 0.92em; }
+  s.was { text-decoration: line-through; margin-right: 0.15em; }
+  .rec-grid dd.fixed { color: var(--accent); font-weight: 500; }
+
+  /* ---------- L2: Ewigkeits-Kategorien ---------- */
+  .evercats { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 1px; background: var(--rule); border: 1px solid var(--rule); }
+  .evercat { background: var(--surface); padding: 1.15rem 1.25rem; display: flex; flex-direction: column; gap: 0.5rem; border-top: 3px solid var(--rule); }
+  .evercat[data-cat="gruen"] { border-top-color: var(--accent-2); }
+  .evercat[data-cat="orange"] { border-top-color: var(--signal-2); }
+  .evercat[data-cat="rot"] { border-top-color: var(--ink-3); }
+  .evercat h4 { margin: 0; font-family: var(--f-mono); font-size: 0.73rem; letter-spacing: 0.11em; text-transform: uppercase; }
+  .evercat[data-cat="gruen"] h4 { color: var(--accent); }
+  .evercat[data-cat="orange"] h4 { color: var(--signal); }
+  .evercat[data-cat="rot"] h4 { color: var(--ink-3); }
+  .evercat .verdict { font-family: var(--f-display); font-size: 1.5rem; font-weight: 600; line-height: 1.1; color: var(--ink); }
+  .evercat p { margin: 0; font-size: 0.865rem; color: var(--ink-2); }
+
+  /* ---------- L2: Pruef-Fragen ---------- */
+  .checkwrap { overflow-x: auto; border: 1px solid var(--rule); background: var(--surface); }
+  table.checks { border-collapse: collapse; width: 100%; min-width: 520px; }
+  table.checks th, table.checks td { text-align: left; padding: 0.7rem 1.15rem; border-bottom: 1px solid var(--rule-soft); vertical-align: top; font-size: 0.885rem; }
+  table.checks th { font-family: var(--f-mono); font-size: 0.66rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); font-weight: 500; }
+  table.checks tr:last-child td { border-bottom: 0; }
+  table.checks td.verdict { color: var(--ink); font-weight: 500; white-space: nowrap; }
+  table.checks td.src { font-family: var(--f-mono); font-size: 0.72rem; white-space: nowrap; }
+  table.checks td.src[data-ok="code"] { color: var(--accent); }
+  table.checks td.src[data-ok="offen"] { color: var(--signal); }
+
+  /* ---------- L3: umgesetzte Grenzen (gruene Variante von .gap) ---------- */
+  .gap.fix { border-color: var(--accent); }
+  .gap.fix .gap-head { background: var(--accent-wash); border-bottom-color: var(--accent); }
+  .gap.fix .gap-head .tag { color: var(--accent); }
+  .beforeafter { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 1px; background: var(--rule); border: 1px solid var(--rule); }
+  .ba { background: var(--surface); padding: 0.85rem 1rem; display: flex; flex-direction: column; gap: 0.2rem; }
+  .ba dt { font-family: var(--f-mono); font-size: 0.64rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); }
+  .ba dd { margin: 0; font-size: 0.885rem; }
+  .ba.before dd { color: var(--signal); }
+  .ba.after dd { color: var(--accent); font-weight: 500; }
+
+  /* ---------- Erledigt-Marker an einem Befund ---------- */
+  .gap-head .done {
+    margin-left: auto;
+    font-family: var(--f-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    background: var(--surface);
+    padding: 0.14rem 0.44rem;
+    white-space: nowrap;
+    flex: none;
+  }
+  .gap-head .open {
+    margin-left: auto;
+    font-family: var(--f-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--signal);
+    flex: none;
+    white-space: nowrap;
+  }
+
+  /* ---------- L4: Threat Model ---------- */
+  .threat .call { grid-template-columns: 5.75rem minmax(0, 1fr); }
+  .threat .call .idx { color: var(--accent); letter-spacing: 0.1em; text-transform: uppercase; font-size: 0.7rem; padding-top: 0.25rem; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ============ MASTHEAD ============ -->
+  <header class="mast">
+    <div class="eyebrow">Modul 8 · Tag 1 — Lab-Abgabe · Codebeleg</div>
+    <h1>Welche Daten LearnFlow&nbsp;aufnimmt, hält und&nbsp;weitergibt</h1>
+    <p class="standfirst">Jede Datenart im System — Quelle, Speicherort, Aufbewahrung, Sichtbarkeit und
+      der Weg nach draussen. Dazu der Ewigkeits-Check, die drei Grenzen, die wir daraufhin eingezogen
+      haben, und ein Threat Model. Alles ausschliesslich aus dem Code belegt, nicht aus den
+      Entscheidungsdokumenten in <code>Docs/</code>.</p>
+    <div class="mast-meta">
+      <span><b>Repository</b> LearnFlow</span>
+      <span><b>Auditiert</b> main @ 75ce30f</span>
+      <span><b>Minimierungen</b> a8c823e</span>
+      <span><b>Geprüft</b> 9. September 2026</span>
+      <span><b>Umfang</b> src/backend · src/frontend · docker-compose</span>
+    </div>
+  </header>
+
+  <!-- ============ BEFUND ============ -->
+  <section>
+    <div class="sec-head">
+      <h2>Befund auf einen Blick</h2>
+      <p>Ein einziger PostgreSQL-Container hält alles. Genau ein externer Empfänger existiert:
+        der LLM-Provider über LiteLLM. Kein Objektspeicher, kein Cache-Dienst, kein Analytics.</p>
+    </div>
+    <div class="tiles">
+      <div class="tile">
+        <span class="n">9</span>
+        <span class="k">Tabellen im einzigen Datenspeicher</span>
+        <span class="s">Volume learnflow_pgdata</span>
+      </div>
+      <div class="tile">
+        <span class="n alarm">5</span>
+        <span class="k">Aufrufstellen senden an ein externes Modell</span>
+        <span class="s">alle über LiteLLM</span>
+      </div>
+      <div class="tile">
+        <span class="n"><s class="was">0</s> 2</span>
+        <span class="k">aktive Löschfristen</span>
+        <span class="s">L3 · 30 d Trennung · 90 d Löschung</span>
+      </div>
+      <div class="tile">
+        <span class="n">0</span>
+        <span class="k">Drittanbieter im Frontend</span>
+        <span class="s">kein Tracker, keine Fremd-Fonts</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ GRENZE ============ -->
+  <section>
+    <div class="sec-head">
+      <h2>Die Grenze</h2>
+      <p>Innerhalb der Docker-Netze bleibt alles. Zwei Container sprechen nach draussen — der
+        Worker beim Indexieren, die API bei jeder Frage. Was sie dabei mitschicken, steht darunter.</p>
+    </div>
+
+    <div class="diagram-frame">
+      <svg viewBox="0 0 860 336" role="img"
+           aria-label="Diagramm: webapp, api, worker und db liegen innerhalb der Docker-Netze; api und worker senden an den externen LLM-Provider.">
+        <defs>
+          <marker id="arw" viewBox="0 0 10 10" refX="9" refY="5"
+                  markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--signal)"></path>
+          </marker>
+          <marker id="arw-in" viewBox="0 0 10 10" refX="9" refY="5"
+                  markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--ink-3)"></path>
+          </marker>
+        </defs>
+
+        <!-- Vertrauensgrenze -->
+        <rect x="16" y="44" width="452" height="264" fill="none"
+              stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="6 5"></rect>
+        <text x="16" y="34" font-family="IBM Plex Mono, monospace" font-size="11.5"
+              letter-spacing="1.4" fill="var(--accent)">DOCKER-NETZE · KEIN EGRESS</text>
+
+        <!-- webapp -->
+        <rect x="42" y="70" width="168" height="52" fill="var(--surface-2)" stroke="var(--rule)"></rect>
+        <text x="126" y="94" text-anchor="middle" font-family="IBM Plex Sans, sans-serif"
+              font-size="14" font-weight="600" fill="var(--ink)">webapp</text>
+        <text x="126" y="111" text-anchor="middle" font-family="IBM Plex Mono, monospace"
+              font-size="10.5" fill="var(--ink-3)">nginx · React</text>
+
+        <!-- api -->
+        <rect x="42" y="152" width="168" height="52" fill="var(--surface-2)" stroke="var(--rule)"></rect>
+        <text x="126" y="176" text-anchor="middle" font-family="IBM Plex Sans, sans-serif"
+              font-size="14" font-weight="600" fill="var(--ink)">api</text>
+        <text x="126" y="193" text-anchor="middle" font-family="IBM Plex Mono, monospace"
+              font-size="10.5" fill="var(--ink-3)">FastAPI</text>
+
+        <!-- worker -->
+        <rect x="42" y="234" width="168" height="52" fill="var(--surface-2)" stroke="var(--rule)"></rect>
+        <text x="126" y="258" text-anchor="middle" font-family="IBM Plex Sans, sans-serif"
+              font-size="14" font-weight="600" fill="var(--ink)">worker</text>
+        <text x="126" y="275" text-anchor="middle" font-family="IBM Plex Mono, monospace"
+              font-size="10.5" fill="var(--ink-3)">pgqueuer</text>
+
+        <!-- db -->
+        <rect x="288" y="152" width="152" height="52" fill="var(--accent-wash)"
+              stroke="var(--accent)"></rect>
+        <text x="364" y="176" text-anchor="middle" font-family="IBM Plex Sans, sans-serif"
+              font-size="14" font-weight="600" fill="var(--ink)">db</text>
+        <text x="364" y="193" text-anchor="middle" font-family="IBM Plex Mono, monospace"
+              font-size="10.5" fill="var(--ink-3)">Postgres 17 · pgvector</text>
+
+        <!-- interne Kanten -->
+        <line x1="126" y1="122" x2="126" y2="150" stroke="var(--ink-3)" stroke-width="1.2"
+              marker-end="url(#arw-in)"></line>
+        <line x1="210" y1="178" x2="286" y2="178" stroke="var(--ink-3)" stroke-width="1.2"
+              marker-end="url(#arw-in)"></line>
+        <path d="M 210 260 L 364 260 L 364 206" fill="none" stroke="var(--ink-3)"
+              stroke-width="1.2" marker-end="url(#arw-in)"></path>
+
+        <!-- Provider -->
+        <rect x="600" y="122" width="244" height="94" fill="var(--signal-wash)"
+              stroke="var(--signal)" stroke-width="1.5"></rect>
+        <text x="722" y="152" text-anchor="middle" font-family="IBM Plex Sans, sans-serif"
+              font-size="14" font-weight="700" fill="var(--signal)">LLM-Provider</text>
+        <text x="722" y="173" text-anchor="middle" font-family="IBM Plex Mono, monospace"
+              font-size="10.5" fill="var(--ink-2)">Default: OpenAI Direct</text>
+        <text x="722" y="190" text-anchor="middle" font-family="IBM Plex Mono, monospace"
+              font-size="10.5" fill="var(--ink-2)">Ziel: Azure OpenAI EU</text>
+        <text x="722" y="207" text-anchor="middle" font-family="IBM Plex Mono, monospace"
+              font-size="10" fill="var(--ink-3)">via LiteLLM · ADR-004</text>
+
+        <!-- Egress-Kanten -->
+        <path d="M 210 166 C 400 138, 470 150, 598 150" fill="none" stroke="var(--signal)"
+              stroke-width="1.8" marker-end="url(#arw)"></path>
+        <text x="404" y="132" text-anchor="middle" font-family="IBM Plex Mono, monospace"
+              font-size="11" fill="var(--signal)">Frage · Chunks · Antwort</text>
+
+        <path d="M 210 248 C 420 250, 470 214, 598 192" fill="none" stroke="var(--signal)"
+              stroke-width="1.8" marker-end="url(#arw)"></path>
+        <text x="410" y="272" text-anchor="middle" font-family="IBM Plex Mono, monospace"
+              font-size="11" fill="var(--signal)">Chunk-Volltexte des Korpus</text>
+      </svg>
+      <p class="cap">api und worker teilen sich bewusst kein Netz — der Worker parst unvertraute Uploads
+        und erreicht die API nicht direkt. <code>src/docker-compose.yml</code></p>
+    </div>
+
+    <div class="calls">
+      <div class="call">
+        <span class="idx">01</span>
+        <div>
+          <div class="what">Dokument-Indexierung</div>
+          <div class="payload">Der <b>Volltext jedes Chunks</b> — in Summe der gesamte Fachkorpus — geht an <code>/embeddings</code>.</div>
+          <p class="ev">src/backend/worker/main.py:102 → app/services/embedding.py · embed_texts</p>
+        </div>
+      </div>
+      <div class="call">
+        <span class="idx">02</span>
+        <div>
+          <div class="what">Jede einzelne Query</div>
+          <div class="payload">Der <b>Fragetext im Klartext</b> geht an <code>/embeddings</code>, um den Suchvektor zu bilden.</div>
+          <p class="ev">src/backend/app/services/retrieval.py:197</p>
+        </div>
+      </div>
+      <div class="call">
+        <span class="idx">03</span>
+        <div>
+          <div class="what">Antwortgenerierung</div>
+          <div class="payload">System-Prompt, <b>Volltext der Top-Chunks</b> und die Frage gehen an <code>/chat/completions</code>.</div>
+          <p class="ev">src/backend/app/services/generation.py · generate_answer</p>
+        </div>
+      </div>
+      <div class="call">
+        <span class="idx">04</span>
+        <div>
+          <div class="what">Self-Check — nur im Trigger-Band</div>
+          <div class="payload">Die erzeugte Antwort plus dieselben Chunks, ein zweites Mal an <code>/chat/completions</code>.</div>
+          <p class="ev">src/backend/app/services/self_check.py · ADR-008 Stufe 3</p>
+        </div>
+      </div>
+      <div class="call">
+        <span class="idx">05</span>
+        <div>
+          <div class="what">Quiz-Generierung</div>
+          <div class="payload">Der <b>Volltext der Quell-Chunks</b> geht an <code>/chat/completions</code>.</div>
+          <p class="ev">src/backend/app/services/quiz.py:147</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="stays">
+      <h3>Was nachweislich nicht mitgeht</h3>
+      <p>Die fünf Aufrufe übergeben ausschliesslich <code>model</code>, <code>messages</code> bzw.
+        <code>input</code>, Sampling-Parameter, <code>api_base</code>, <code>api_version</code>,
+        <code>api_key</code>, <code>timeout</code> und <code>num_retries</code>. Kein
+        <code>user=</code>-Parameter, keine Metadaten.</p>
+      <div class="list">
+        <span>E-Mail</span><span>user_id</span><span>session_id</span><span>Rolle</span>
+        <span>Client-IP</span><span>Feedback-Kommentare</span><span>Roh-Bytes der Dokumente</span>
+      </div>
+      <p>Weitere Egress-Quellen existieren nicht: kein <code>httpx</code>, <code>requests</code> oder
+        <code>urllib</code> im Anwendungscode, und im Frontend nur react, react-dom, react-router und
+        openapi-fetch. <code>litellm.telemetry</code> steht per Default auf <code>True</code>, hat in der
+        installierten Version aber keinen Konsumenten mehr — es findet kein Telemetrie-Versand statt.</p>
+    </div>
+  </section>
+
+  <!-- ============ L2 · EWIGKEITS-CHECK ============ -->
+  <section>
+    <div class="sec-head">
+      <h2>Der Ewigkeits-Check</h2>
+      <p>Daten sind löschbar, Gewichte nicht. Jede Datenart in eine der drei Kategorien —
+        und die entscheidende Frage: gibt es bei LearnFlow einen Punkt ohne Rückkehr?</p>
+    </div>
+
+    <div class="evercats">
+      <div class="evercat" data-cat="gruen">
+        <h4>🟢 Löschbar</h4>
+        <span class="verdict">22 von 24</span>
+        <p>Liegt in DB, Datei oder Log. Bis zu den Änderungen aus L3 war das eine reine
+          Möglichkeit — jetzt löscht zweimal wirklich etwas.</p>
+      </div>
+      <div class="evercat" data-cat="orange">
+        <h4>🟠 Extern</h4>
+        <span class="verdict">2</span>
+        <p>Chunk-Volltext und Fragetext gehen an eine fremde API. Kontrollverlust, aber
+          kein Training — siehe die Prüfung unten.</p>
+      </div>
+      <div class="evercat" data-cat="rot">
+        <h4>🔴 Ewig</h4>
+        <span class="verdict">keine</span>
+        <p>Nichts fliesst in Fine-Tuning, Training oder einen dauerhaften fremden
+          Modell-Kontext. Vier Belege, alle im Code.</p>
+      </div>
+    </div>
+
+    <div class="checkwrap">
+      <table class="checks">
+        <thead>
+          <tr><th>Prüf-Frage aus dem Lab</th><th>Befund</th><th>Belegbar?</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Nutzt das Projekt Fine-Tuning oder Training auf eigenen Daten?</td>
+            <td class="verdict">Nein</td>
+            <td class="src" data-ok="code">im Code</td>
+          </tr>
+          <tr>
+            <td>Sendet ihr Daten an einen Anbieter, der auf Eingaben trainiert?</td>
+            <td class="verdict">OpenAI API: per Default nein</td>
+            <td class="src" data-ok="offen">Policy</td>
+          </tr>
+          <tr>
+            <td>Landen Nutzer-Daten in einem dauerhaften Vektor-Store, der Teil des Modell-Kontexts wird?</td>
+            <td class="verdict">Nein, pgvector ist lokal</td>
+            <td class="src" data-ok="code">im Code</td>
+          </tr>
+          <tr>
+            <td>Gibt es „opt out of training" beim Anbieter — ist es aktiv?</td>
+            <td class="verdict">Nicht im Repository abbildbar</td>
+            <td class="src" data-ok="offen">Konto</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="calls">
+      <div class="call">
+        <span class="idx">01</span>
+        <div>
+          <div class="what">Kein Fine-Tuning, kein Training</div>
+          <div class="payload">Eine Suche nach <code>fine-tun</code>, <code>training</code>,
+            <code>distill</code> und <code>files.create</code> über <code>app/</code>,
+            <code>worker/</code> und <code>eval/</code> liefert null Treffer.</div>
+        </div>
+      </div>
+      <div class="call">
+        <span class="idx">02</span>
+        <div>
+          <div class="what">Kein <code>store=True</code></div>
+          <div class="payload">Das ist der entscheidende Parameter: mit ihm blieben die Prompts
+            in OpenAIs Distillation- und Eval-Store liegen. Keiner der vier Aufrufe setzt ihn.</div>
+          <p class="ev">generation.py · self_check.py · quiz.py · embedding.py</p>
+        </div>
+      </div>
+      <div class="call">
+        <span class="idx">03</span>
+        <div>
+          <div class="what">Kein <code>user=</code>, kein <code>metadata=</code></div>
+          <div class="payload">Der Anbieter kann die Aufrufe keinem Konto und keiner Sitzung
+            zuordnen — es gibt auf seiner Seite nichts zu profilieren.</div>
+        </div>
+      </div>
+      <div class="call">
+        <span class="idx">04</span>
+        <div>
+          <div class="what">Der Vektor-Store ist lokal</div>
+          <div class="payload"><code>chunks.embedding</code> liegt in pgvector im eigenen
+            Container, ist per <code>CASCADE</code> löschbar und wird nie Teil eines fremden
+            Modell-Kontexts.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="gap">
+      <div class="gap-head">
+        <span class="tag">Die eigentliche Pointe</span>
+        <h3>Das Risiko ist nicht der Punkt ohne Rückkehr</h3>
+      </div>
+      <div class="gap-body">
+        <p>Die 🔴-Spalte ist leer, und das ist ein gutes Ergebnis. Es verschiebt die Frage aber
+          nur: <b>die 🟢-Kategorie sagt „löschbar, Frist setzbar" — bei LearnFlow löschte zum
+          Zeitpunkt des Audits null Zeilen Code irgendetwas.</b> „Löschbar" beschrieb eine
+          Möglichkeit, die niemand wahrnahm. Genau dort setzt L3 an.</p>
+        <p>Dazu eine Irreversibilität, die im Dreier-Raster sonst durchfällt:
+          <code>quiz_questions.source_excerpt</code> überlebt die Chunk-Löschung <b>bewusst</b>
+          (Migration 0016). Wer ein Dokument löscht, löscht seinen Text nicht vollständig —
+          Auszüge bleiben in den Quizfragen stehen. Nicht „ewig" im Sinne des Labs, aber eine
+          Löschung, die nicht durchgreift.</p>
+        <p>Und die zwei ⚠️ oben sind nicht nachlässig recherchiert, sondern grundsätzlich nicht
+          im Repository prüfbar: <b>ob eure Daten ewig werden, hängt an einer Kontoeinstellung,
+          die kein Test grün oder rot machen kann.</b> Das ist der stille Default aus dem
+          Vormittag — und der einzige Teil dieses Audits, den man nicht automatisieren kann.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ REGISTER ============ -->
+  <section>
+    <div class="sec-head">
+      <h2>Das Register</h2>
+      <p>Sechs Kategorien, geordnet nach Herkunft. Der farbige Balken links an jedem Eintrag zeigt
+        die Grenzüberschreitung: <b>rostrot</b> geht an ein externes Modell, <b>grün</b> kommt von dort
+        zurück, <b>grau</b> verlässt das System nie.</p>
+    </div>
+
+    <!-- A -->
+    <div class="group">
+      <div class="group-head">
+        <span class="letter">A</span>
+        <h3>Identitäts- und Kontodaten</h3>
+        <span class="count">4 Datenarten</span>
+      </div>
+      <div class="recs">
+
+        <article class="rec" data-egress="intern">
+          <div class="rec-head">
+            <h4 class="rec-name">E-Mail-Adresse</h4>
+            <span class="chip intern">bleibt intern</span>
+          </div>
+          <dl class="rec-grid">
+            <div><dt>Quelle</dt><dd>Seed-Skript, später Admin-Anlage</dd></div>
+            <div><dt>Gespeichert</dt><dd><code>users.email</code>, unique</dd></div>
+            <div><dt>Aufbewahrung</dt><dd class="forever">unbegrenzt</dd></div>
+            <div><dt>Sichtbar für</dt><dd>eigenes Konto · jeder knowledge_owner in der Dokumentliste</dd></div>
+          </dl>
+          <p class="rec-note">Die Dokumentliste ersetzt die rohe <code>uploaded_by</code>-UUID durch
+            die E-Mail des Hochladenden — jeder knowledge_owner sieht damit die Adressen aller anderen.</p>
+          <p class="ev">app/models/tables.py · User.email — app/routers/documents.py:131 (outerjoin User)</p>
+        </article>
+
+        <article class="rec" data-egress="intern">
+          <div class="rec-head">
+            <h4 class="rec-name">Passwort-Hash</h4>
+            <span class="chip intern">bleibt intern</span>
+          </div>
+          <dl class="rec-grid">
+            <div><dt>Quelle</dt><dd>Login-Setup</dd></div>
+            <div><dt>Gespeichert</dt><dd><code>users.hashed_password</code> · bcrypt, cost 12</dd></div>
+            <div><dt>Aufbewahrung</dt><dd class="forever">unbegrenzt</dd></div>
+            <div><dt>Sichtbar für</dt><dd>über keinen API-Endpoint</dd></div>
+          </dl>
+          <p class="rec-note">Die Seed-Konten tragen Klartext-Passwörter im Repository
+            (<code>changeme1</code> … <code>changeme6</code>). Als Entwicklungs-Fixture vertretbar —
+            vor dem Pilotstart zu rotieren.</p>
+          <p class="ev">app/auth/jwt.py:13 · backend/seed_users.py:14</p>
+        </article>
+
+        <article class="rec" data-egress="intern">
+          <div class="rec-head">
+            <h4 class="rec-name">Rolle, Aktivstatus, Anlagedatum</h4>
+            <span class="chip intern">bleibt intern</span>
+          </div>
+          <dl class="rec-grid">
+            <div><dt>Quelle</dt><dd>Seed-Skript</dd></div>
+            <div><dt>Gespeichert</dt><dd><code>users.role</code>, <code>is_active</code>, <code>created_at</code></dd></div>
+            <div><dt>Aufbewahrung</dt><dd class="forever">unbegrenzt</dd></div>
+            <div><dt>Sichtbar für</dt><dd>eigenes Konto über <code>GET /auth/me</code></dd></div>
+          </dl>
+          <p class="ev">app/models/tables.py · UserRole — app/auth/dependencies.py:42–51</p>
+        </article>
+
+        <article class="rec" data-egress="intern">
+          <div class="rec-head">
+            <h4 class="rec-name">JWT <span class="qual">sub, role, exp</span></h4>
+            <span class="chip intern">bleibt intern</span>
+          </div>
+          <dl class="rec-grid">
+            <div><dt>Quelle</dt><dd>erfolgreicher Login</dd></div>
+            <div><dt>Gespeichert</dt><dd><b>nur im Browser-RAM</b> — bewusst kein localStorage</dd></div>
+            <div><dt>Aufbewahrung</dt><dd>1 Stunde bzw. bis Reload</dd></div>
+            <div><dt>Sichtbar für</dt><dd>den Client selbst</dd></div>
+          </dl>
+          <p class="rec-note">Das Token trägt nur die User-UUID, die Rolle und den Ablauf — keine E-Mail.
+            Ein Rückfall auf <code>localStorage</code> ist durch einen Test abgesichert.</p>
+          <p class="ev">app/auth/jwt.py:36–39 · frontend/src/App.tsx:13 · frontend/src/auth.test.tsx:52</p>
+        </article>
+
+      </div>
+    </div>
+
+    <!-- B -->
+    <div class="group">
+      <div class="group-head">
+        <span class="letter">B</span>
+        <h3>Dokumente des Fachkorpus</h3>
+        <span class="count">6 Datenarten</span>
+      </div>
+      <div class="recs">
+
+        <article class="rec" data-egress="intern">
+          <div class="rec-head">
+            <h4 class="rec-name">Roh-Bytes <span class="qual">PDF, DOCX, Markdown · max. 10 MB</span></h4>
+            <span class="chip intern">bleibt intern</span>
+          </div>
+          <dl class="rec-grid">
+            <div><dt>Quelle</dt><dd>Upload durch knowledge_owner</dd></div>
+            <div><dt>Gespeichert</dt><dd><code>documents.content</code> als <code>bytea</code></dd></div>
+            <div><dt>Aufbewahrung</dt><dd>bis Ersetzung oder Löschung</dd></div>
+            <div><dt>Sichtbar für</dt><dd><b>keinen API-Endpoint</b> — nur Worker und DB-Zugriff</dd></div>
+          </dl>
+          <p class="rec-note">Die Originaldatei selbst wird nie wieder ausgeliefert. An das Modell geht
+            nicht sie, sondern der daraus geparste Chunk-Text.</p>
+          <p class="ev">app/models/tables.py · Document.content — app/routers/documents.py:38 (MAX_UPLOAD_BYTES)</p>
+        </article>
+
+        <article class="rec" data-egress="intern">
+          <div class="rec-head">
+            <h4 class="rec-name">Dokument-Metadaten</h4>
+            <span class="chip intern">bleibt intern</span>
+          </div>
+          <dl class="rec-grid">
+            <div><dt>Quelle</dt><dd>Upload und Worker-Lauf</dd></div>
+            <div><dt>Gespeichert</dt><dd>filename, content_type, area, status, error_message, chunk_count, index_version, index_attempts, Zeitstempel</dd></div>
+            <div><dt>Aufbewahrung</dt><dd class="forever">unbegrenzt</dd></div>
+            <div><dt>Sichtbar für</dt><dd>knowledge_owner und admin</dd></div>
+          </dl>
+          <p class="ev">app/models/tables.py · Document — app/routers/documents.py:121 (require_knowledge_owner)</p>
+        </article>
+
+        <article class="rec" data-egress="intern">
+          <div class="rec-head">
+            <h4 class="rec-name">Hochladende Person</h4>
+            <span class="chip intern">bleibt intern</span>
+          </div>
+          <dl class="rec-grid">
+            <div><dt>Quelle</dt><dd>authentifizierter Upload</dd></div>
+            <div><dt>Gespeichert</dt><dd><code>documents.uploaded_by</code> → FK <code>users.id</code></dd></div>
+            <div><dt>Aufbewahrung</dt><dd>bis Kontolöschung (<code>SET NULL</code>)</dd></div>
+            <div><dt>Sichtbar für</dt><dd>knowledge_owner, als E-Mail aufgelöst</dd></div>
+          </dl>
+          <p class="rec-note">Auch die Ersetzung eines Dokuments setzt das Feld neu — es benennt stets
+            den letzten Upload, nicht den ersten.</p>
+          <p class="ev">app/routers/documents.py:190 und :308</p>
+        </article>
+
+        <article class="rec" data-egress="extern">
+          <div class="rec-head">
+            <h4 class="rec-name">Chunk-Volltext <span class="qual">mit Seite und Überschrift</span></h4>
+            <span class="chip extern">geht an Modell</span>
+          </div>
+          <dl class="rec-grid">
+            <div><dt>Quelle</dt><dd>Parsing im Worker (pypdf, python-docx, Markdown)</dd></div>
+            <div><dt>Gespeichert</dt><dd><code>chunks.content</code>, <code>page</code>, <code>heading</code></dd></div>
+            <div><dt>Aufbewahrung</dt><dd>bis Dokumentlöschung (<code>CASCADE</code>)</dd></div>
+            <div><dt>Sichtbar für</dt><dd><b>jede authentifizierte Rolle</b>, fensterweise</dd></div>
+          </dl>
+          <p class="rec-note">Dies ist die eigentliche Nutzlast Richtung Provider: beim Indexieren als
+            Embedding-Input, bei jeder Antwort und jedem Quiz als Prompt-Kontext. Zur Sichtbarkeit
+            siehe den Befund unten — der Fenster-Endpoint ist begrenzt, aber verkettbar.</p>
+          <p class="ev">app/services/parsing.py · worker/main.py:102 · app/routers/documents.py:327</p>
+        </article>
+
+        <article class="rec" data-egress="rueck">
+          <div class="rec-head">
+            <h4 class="rec-name">Embedding-Vektor <span class="qual">1536 Dimensionen</span></h4>
+            <span class="chip rueck">Rückfluss</span>
+          </div>
+          <dl class="rec-grid">
+            <div><dt>Quelle</dt><dd>Antwort des Embedding-Modells</dd></div>
+            <div><dt>Gespeichert</dt><dd><code>chunks.embedding</code> · pgvector, HNSW</dd></div>
+            <div><dt>Aufbewahrung</dt><dd>wie der Chunk</dd></div>
+            <div><dt>Sichtbar für</dt><dd>niemanden über die API</dd></div>
+          </dl>
+          <p class="rec-note">Die Spaltenauswahl der Content-Abfrage lässt <code>embedding</code> und
+            <code>tsv</code> bewusst weg — der Vektor verlässt die Datenbank nicht.</p>
+          <p class="ev">app/models/tables.py · Chunk.embedding — app/routers/documents.py:355</p>
+        </article>
+
+        <article class="rec" data-egress="intern">
+          <div class="rec-head">
+            <h4 class="rec-name">Volltext-Index <span class="qual">tsvector, deutsch</span></h4>
+            <span class="chip intern">bleibt intern</span>
+          </div>
+          <dl class="rec-grid">
+            <div><dt>Quelle</dt><dd>PostgreSQL beim Schreiben des Chunks</dd></div>
+            <div><dt>Gespeichert</dt><dd><code>chunks.tsv</code> · GIN-Index</dd></div>
+            <div><dt>Aufbewahrung</dt><dd>wie der Chunk</dd></div>
+            <div><dt>Sichtbar für</dt><dd>niemanden über die API</dd></div>
+          </dl>
+          <p class="ev">app/models/tables.py · Chunk.tsv — worker/main.py (INSERT INTO chunks)</p>
+        </article>
+
+      </div>
+    </div>
+
+    <!-- C -->
+    <div class="group">
+      <div class="group-head">
+        <span class="letter">C</span>
+        <h3>Nutzungsdaten — die sensibelste Kategorie</h3>
+        <span class="count">5 Datenarten</span>
+      </div>
+      <div class="recs">
+
+        <article class="rec" data-egress="extern">
+          <div class="rec-head">
+            <h4 class="rec-name">Frage im Klartext</h4>
+            <span class="chip extern">geht an Modell</span>
+          </div>
+          <dl class="rec-grid">
+            <div><dt>Quelle</dt><dd>Eingabe der lernenden Person</dd></div>
+            <div><dt>Gespeichert</dt><dd><code>answers.question</code></dd></div>
+            <div><dt>Aufbewahrung</dt><dd class="fixed">90 Tage <span class="was">(vorher unbegrenzt)</span></dd></div>
+            <div><dt>Sichtbar für</dt><dd>keinen Leseendpoint — nur DB-Zugriff</dd></div>
+          </dl>
+          <p class="rec-note">Wird zweifach übermittelt: einmal als Embedding-Input für die Suche, einmal
+            im Prompt der Generierung. <b>Auch unterdrückte Fragen werden gespeichert</b> — jeder Ausgang
+            des Endpoints schreibt eine Zeile, weil <code>answer_id</code> Pflichtfeld und Ziel des
+            Feedback-Fremdschlüssels ist.</p>
+          <p class="ev">app/models/tables.py · Answer.question — app/routers/query.py:596 · retrieval.py:197</p>
+        </article>
+
+        <article class="rec" data-egress="rueck">
+          <div class="rec-head">
+            <h4 class="rec-name">Antworttext</h4>
+            <span class="chip rueck">Rückfluss</span>
+          </div>
+          <dl class="rec-grid">
+            <div><dt>Quelle</dt><dd>Generierung durch das LLM</dd></div>
+            <div><dt>Gespeichert</dt><dd><code>answers.answer_text</code></dd></div>
+            <div><dt>Aufbewahrung</dt><dd class="fixed">90 Tage <span class="was">(vorher unbegrenzt)</span></dd></div>
+            <div><dt>Sichtbar für</dt><dd>die fragende Person zur Laufzeit</dd></div>
+          </dl>
+          <p class="rec-note">Bleibt bei jeder Unterdrückung <code>NULL</code>: die Spalte gilt als
+            „das, was die Pipeline produziert hat“, und eine zurückgehaltene Antwort wurde nicht
+            produziert. Der standardisierte Hinweistext landet nicht in der Spalte.</p>
+          <p class="ev">app/routers/query.py:596 · Kommentar bei answer_text</p>
+        </article>
+
+        <article class="rec" data-egress="intern">
+          <div class="rec-head">
+            <h4 class="rec-name">Konfidenz-Metriken</h4>
+            <span class="chip intern">bleibt intern</span>
+          </div>
+          <dl class="rec-grid">
+            <div><dt>Quelle</dt><dd>Pipeline-Stufen 1 bis 3, ADR-008</dd></div>
+            <div><dt>Gespeichert</dt><dd>confidence_score, citation_coverage, retrieval_confidence, self_check_passed, suppressed</dd></div>
+            <div><dt>Aufbewahrung</dt><dd class="fixed">90 Tage <span class="was">(mit der Antwort)</span></dd></div>
+            <div><dt>Sichtbar für</dt><dd>Client sieht den Score, admin die Detailstufen</dd></div>
+          </dl>
+          <p class="rec-note">Nicht gelaufene Stufen bleiben <code>NULL</code> statt <code>0.0</code> —
+            sonst läse die Evaluation ein „nicht gemessen“ als „gemessen, nichts gedeckt“.</p>
+          <p class="ev">app/models/tables.py · Answer — app/services/confidence.py</p>
+        </article>
+
+        <article class="rec" data-egress="intern">
+          <div class="rec-head">
+            <h4 class="rec-name">Verknüpfung Frage ↔ Person</h4>
+            <span class="chip intern">bleibt intern</span>
+          </div>
+          <dl class="rec-grid">
+            <div><dt>Quelle</dt><dd>Sitzung beim ersten Aufruf</dd></div>
+            <div><dt>Gespeichert</dt><dd><code>query_sessions.user_id</code> → FK <code>users.id</code></dd></div>
+            <div><dt>Aufbewahrung</dt><dd class="fixed">30 Tage bis zur Trennung <span class="was">(vorher unbegrenzt)</span></dd></div>
+            <div><dt>Sichtbar für</dt><dd>keinen Endpoint — nur DB-Zugriff</dd></div>
+          </dl>
+          <p class="rec-note">Eine fremde <code>session_id</code> wird nicht übernommen: eine Sitzung ist
+            der Fragefaden genau einer Person. Genau diese Spalte macht aber die
+            Feedback-Pseudonymisierung auf Speicherebene rückführbar — siehe unten.</p>
+          <p class="ev">app/routers/query.py:648 · _resolve_session</p>
+        </article>
+
+        <article class="rec" data-egress="intern">
+          <div class="rec-head">
+            <h4 class="rec-name">Feedback <span class="qual">inkl. Freitext bis 500 Zeichen</span></h4>
+            <span class="chip intern">bleibt intern</span>
+          </div>
+          <dl class="rec-grid">
+            <div><dt>Quelle</dt><dd>Bewertung durch die lernende Person</dd></div>
+            <div><dt>Gespeichert</dt><dd><code>feedback</code> · helpful, category, comment</dd></div>
+            <div><dt>Aufbewahrung</dt><dd class="fixed">90 Tage <span class="was">(per CASCADE mit der Antwort)</span></dd></div>
+            <div><dt>Sichtbar für</dt><dd>jeder knowledge_owner über <code>GET /feedback</code></dd></div>
+          </dl>
+          <p class="rec-note">Geht <b>nie</b> an ein Modell. Die Tabelle führt bewusst keine
+            Nutzerreferenz, und <code>FeedbackItem</code> gibt weder <code>answer_id</code> noch
+            irgendetwas aus <code>answers</code> heraus. Ein Unique-Constraint auf
+            <code>answer_id</code> verhindert Doppelzeilen.</p>
+          <p class="ev">app/routers/feedback.py · FeedbackItem, list_feedback · Migration 0011</p>
+        </article>
+
+      </div>
+    </div>
+
+    <!-- D -->
+    <div class="group">
+      <div class="group-head">
+        <span class="letter">D</span>
+        <h3>Quiz</h3>
+        <span class="count">3 Datenarten</span>
+      </div>
+      <div class="recs">
+
+        <article class="rec" data-egress="rueck">
+          <div class="rec-head">
+            <h4 class="rec-name">Generierte Fragen <span class="qual">Optionen, Lösung, Erklärung</span></h4>
+            <span class="chip rueck">Rückfluss</span>
+          </div>
+          <dl class="rec-grid">
+            <div><dt>Quelle</dt><dd>LLM-Generierung aus Chunks</dd></div>
+            <div><dt>Gespeichert</dt><dd><code>quiz_questions</code> · question, options (JSONB), correct_answer, explanation</dd></div>
+            <div><dt>Aufbewahrung</dt><dd class="forever">unbegrenzt</dd></div>
+            <div><dt>Sichtbar für</dt><dd>Lernende nur im Status <code>approved</code></dd></div>
+          </dl>
+          <p class="rec-note">Der Default-Status ist <code>pending</code>, damit eine ungeprüfte Frage
+            nie als freigegeben durchgeht. Wird das Quelldokument ersetzt, fällt die Frage dorthin zurück.</p>
+          <p class="ev">app/models/tables.py · QuizQuestion — app/routers/quiz.py:220 (visible_statuses)</p>
+        </article>
+
+        <article class="rec" data-egress="intern">
+          <div class="rec-head">
+            <h4 class="rec-name">Quell-Exzerpt <span class="qual">Kopie aus dem Korpus</span></h4>
+            <span class="chip intern">bleibt intern</span>
+          </div>
+          <dl class="rec-grid">
+            <div><dt>Quelle</dt><dd>der Chunk, aus dem generiert wurde</dd></div>
+            <div><dt>Gespeichert</dt><dd><code>quiz_questions.source_excerpt</code></dd></div>
+            <div><dt>Aufbewahrung</dt><dd><b>überlebt die Chunk-Löschung bewusst</b></dd></div>
+            <div><dt>Sichtbar für</dt><dd>knowledge_owner im Review</dd></div>
+          </dl>
+          <p class="rec-note">Absichtliche Doppelspeicherung: <code>chunk_id</code> ist der lebende
+            Verweis, das Exzerpt die Kopie, die ihn überdauert. Korpustext bleibt damit auch dann
+            gespeichert, wenn das Ursprungsdokument längst ersetzt wurde.</p>
+          <p class="ev">app/models/tables.py · QuizQuestion Docstring · Migration 0016</p>
+        </article>
+
+        <article class="rec" data-egress="intern">
+          <div class="rec-head">
+            <h4 class="rec-name">Antworten der Lernenden im Quiz</h4>
+            <span class="chip intern">nicht gespeichert</span>
+          </div>
+          <dl class="rec-grid">
+            <div><dt>Quelle</dt><dd>Klick in der Quiz-Oberfläche</dd></div>
+            <div><dt>Gespeichert</dt><dd><b>nirgends</b> — keine Tabelle, kein Endpoint</dd></div>
+            <div><dt>Aufbewahrung</dt><dd>bis zum Verlassen der Seite</dd></div>
+            <div><dt>Sichtbar für</dt><dd>niemanden ausser der Person selbst</dd></div>
+          </dl>
+          <p class="rec-note">Bleibt vollständig im React-State. Es existiert weder eine
+            Versuchs-Tabelle noch ein Endpoint, der ein Ergebnis entgegennähme — wer wie
+            abgeschnitten hat, ist im System nicht rekonstruierbar.</p>
+          <p class="ev">frontend/src — kein POST auf Quiz-Antworten · app/routers/quiz.py (nur generate, list, sample, patch)</p>
+        </article>
+
+      </div>
+    </div>
+
+    <!-- E -->
+    <div class="group">
+      <div class="group-head">
+        <span class="letter">E</span>
+        <h3>Betrieb: Konfiguration, Queue, Protokolle</h3>
+        <span class="count">5 Datenarten</span>
+      </div>
+      <div class="recs">
+
+        <article class="rec" data-egress="intern">
+          <div class="rec-head">
+            <h4 class="rec-name">Konfigurationsänderungen <span class="qual">mit Urheber</span></h4>
+            <span class="chip intern">bleibt intern</span>
+          </div>
+          <dl class="rec-grid">
+            <div><dt>Quelle</dt><dd><code>PUT /admin/config</code></dd></div>
+            <div><dt>Gespeichert</dt><dd><code>config</code> · key, value, changed_by → users, changed_at</dd></div>
+            <div><dt>Aufbewahrung</dt><dd class="forever">unbegrenzt</dd></div>
+            <div><dt>Sichtbar für</dt><dd>nur admin</dd></div>
+          </dl>
+          <p class="rec-note">Faktisch ein Änderungsprotokoll über Personen: wer welche Schwelle wann
+            verstellt hat, bleibt dauerhaft an der Zeile.</p>
+          <p class="ev">app/models/tables.py · Config — app/routers/admin.py:95</p>
+        </article>
+
+        <article class="rec" data-egress="intern">
+          <div class="rec-head">
+            <h4 class="rec-name">Job-Warteschlange</h4>
+            <span class="chip intern">bleibt intern</span>
+          </div>
+          <dl class="rec-grid">
+            <div><dt>Quelle</dt><dd>Upload stösst Indexierung an</dd></div>
+            <div><dt>Gespeichert</dt><dd>pgqueuer-Tabelle · Payload <code>{"document_id": …}</code></dd></div>
+            <div><dt>Aufbewahrung</dt><dd>bis zur Abarbeitung</dd></div>
+            <div><dt>Sichtbar für</dt><dd>Worker und DB-Zugriff</dd></div>
+          </dl>
+          <p class="rec-note">Die Queue trägt ausschliesslich eine ID — keine Dokumentinhalte, keine
+            Nutzerreferenz.</p>
+          <p class="ev">app/queue.py:10</p>
+        </article>
+
+        <article class="rec" data-egress="intern">
+          <div class="rec-head">
+            <h4 class="rec-name">Anwendungsprotokoll</h4>
+            <span class="chip intern">bleibt intern</span>
+          </div>
+          <dl class="rec-grid">
+            <div><dt>Quelle</dt><dd>Fehlerpfade der Pipeline</dd></div>
+            <div><dt>Gespeichert</dt><dd>stdout des Containers → <code>docker logs</code></dd></div>
+            <div><dt>Aufbewahrung</dt><dd>Docker-Default, unbegrenzt rotierend</dd></div>
+            <div><dt>Sichtbar für</dt><dd>wer Container-Logs lesen darf</dd></div>
+          </dl>
+          <p class="rec-note">Durchgehend diszipliniert: protokolliert wird <code>user_id=&lt;UUID&gt;</code>,
+            <b>nie der Fragetext, nie die E-Mail</b>. Einschränkung: <code>logger.exception</code> gibt
+            LiteLLM-Tracebacks aus; deren Inhalt bestimmt die Bibliothek, nicht dieser Code.</p>
+          <p class="ev">app/routers/query.py:341, 371, 534, 561 · app/routers/quiz.py:164, 174</p>
+        </article>
+
+        <article class="rec" data-egress="intern">
+          <div class="rec-head">
+            <h4 class="rec-name">nginx-Zugriffsprotokoll <span class="qual">Client-IP</span></h4>
+            <span class="chip intern">bleibt intern</span>
+          </div>
+          <dl class="rec-grid">
+            <div><dt>Quelle</dt><dd>jeder HTTP-Request</dd></div>
+            <div><dt>Gespeichert</dt><dd class="fixed">eigenes <code>minimal</code>-Format → stdout <span class="was">(vorher <code>combined</code>)</span></dd></div>
+            <div><dt>Aufbewahrung</dt><dd>Docker-Default</dd></div>
+            <div><dt>Sichtbar für</dt><dd>wer Container-Logs lesen darf</dd></div>
+          </dl>
+          <p class="rec-note">In <code>nginx.conf</code> steht keine <code>access_log</code>-Direktive,
+            also gilt der Default: <b>IP, URL und User-Agent werden protokolliert</b>. Fragetexte liegen
+            im POST-Body und erscheinen dort nicht.</p>
+          <p class="ev">frontend/nginx.conf — keine access_log-Direktive</p>
+        </article>
+
+        <article class="rec" data-egress="intern">
+          <div class="rec-head">
+            <h4 class="rec-name">Rate-Limit-Zähler</h4>
+            <span class="chip intern">bleibt intern</span>
+          </div>
+          <dl class="rec-grid">
+            <div><dt>Quelle</dt><dd>slowapi je Request</dd></div>
+            <div><dt>Gespeichert</dt><dd>nur im Arbeitsspeicher der API</dd></div>
+            <div><dt>Aufbewahrung</dt><dd>bis zum Neustart</dd></div>
+            <div><dt>Sichtbar für</dt><dd>niemanden</dd></div>
+          </dl>
+          <p class="rec-note">Login zählt je IP (es gibt noch kein Konto), authentifizierte Endpoints je
+            Konto — sonst legte im Pilot ein einzelner Vielfrager hinter dem gemeinsamen NAT das ganze
+            Büro lahm.</p>
+          <p class="ev">app/limiter.py · account_key</p>
+        </article>
+
+      </div>
+    </div>
+
+    <!-- F -->
+    <div class="group">
+      <div class="group-head">
+        <span class="letter">F</span>
+        <h3>Geheimnisse</h3>
+        <span class="count">1 Datenart</span>
+      </div>
+      <div class="recs">
+        <article class="rec" data-egress="intern">
+          <div class="rec-head">
+            <h4 class="rec-name">API-Schlüssel und Secrets</h4>
+            <span class="chip intern">bleibt intern</span>
+          </div>
+          <dl class="rec-grid">
+            <div><dt>Quelle</dt><dd><code>.env</code> über <code>env_file</code></dd></div>
+            <div><dt>Gespeichert</dt><dd>Prozessumgebung · <b>nie in der Datenbank</b></dd></div>
+            <div><dt>Aufbewahrung</dt><dd>Lebensdauer des Containers</dd></div>
+            <div><dt>Sichtbar für</dt><dd>Prozess und Betriebspersonal</dd></div>
+          </dl>
+          <p class="rec-note"><code>OPENAI_API_KEY</code>, <code>JWT_SECRET</code>,
+            <code>DB_PASSWORD</code>. Die Prüfung <code>validate_secrets()</code> umgeht bewusst
+            pydantic: eine <code>ValidationError</code> bettet den rohen Settings-Dict als
+            <code>input_value</code> ein und schriebe damit Fragmente von
+            <code>DATABASE_URL</code> und <code>OPENAI_API_KEY</code> in jedes fehlgeschlagene
+            Startprotokoll.</p>
+          <p class="ev">app/config.py · Settings.validate_secrets</p>
+        </article>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ============ LÜCKEN ============ -->
+  <section>
+    <div class="sec-head">
+      <h2>Drei Befunde, die im Code fehlen</h2>
+      <p>Nicht Fehler im Sinne kaputter Funktion, sondern Stellen, an denen der Code eine Zusage
+        nicht einlöst, die anderswo im Projekt gemacht wird. Zwei davon sind inzwischen
+        geschlossen — wie, steht im Abschnitt darunter.</p>
+    </div>
+
+    <div class="gaps">
+
+      <div class="gap">
+        <div class="gap-head">
+          <span class="tag">Befund 01</span>
+          <h3>Es gab keinerlei Aufbewahrungsbegrenzung</h3>
+          <span class="done">behoben · Grenze 1</span>
+        </div>
+        <div class="gap-body">
+          <p>Eine Suche nach <code>retention</code>, <code>cleanup</code>, <code>purge</code>,
+            <code>anonymi</code>, <code>ttl</code> oder <code>löschen</code> über <code>app/</code> und
+            <code>worker/</code> liefert <b>null Treffer</b>. Gelöscht wird ausschliesslich per
+            Fremdschlüssel-Kaskade, wenn ein Dokument verschwindet.</p>
+          <p>Unbegrenzt wachsen damit:</p>
+          <ul>
+            <li><code>answers</code> — mit jeder je gestellten Frage im Klartext, auch den unterdrückten</li>
+            <li><code>feedback</code> — mit jedem Freitext-Kommentar</li>
+            <li><code>query_sessions</code> — mit der Zuordnung zur Person</li>
+          </ul>
+          <p>Dazu fehlen die Vorgänge, welche die <code>ondelete</code>-Regeln der Tabellen bereits
+            voraussetzen: <b>es existiert kein Endpoint, um ein Konto zu löschen</b>, und keiner, um die
+            eigene Fragehistorie oder das eigene Feedback zu entfernen. Die
+            <code>SET NULL</code>-Klauseln an <code>uploaded_by</code>, <code>user_id</code> und
+            <code>changed_by</code> beschreiben ein Ereignis, das im Code nicht ausgelöst werden kann.</p>
+          <p><b>Stand jetzt:</b> Grenze 1 und 2 setzen Fristen auf <code>answers</code>,
+            <code>feedback</code> und den Personenbezug der Sitzungen. Was weiterhin fehlt, ist die
+            Kontolöschung selbst und ein Weg für Nutzende, ihre eigene Historie zu entfernen — das
+            wäre ein eigener Endpoint und damit nach ADR-010 zuerst eine Spec-Frage.</p>
+        </div>
+      </div>
+
+      <div class="gap">
+        <div class="gap-head">
+          <span class="tag">Befund 02</span>
+          <h3>Die Feedback-Pseudonymisierung galt an der API, nicht im Speicher</h3>
+          <span class="done">behoben · Grenze 2</span>
+        </div>
+        <div class="gap-body">
+          <p>Die API hält die Zusage sauber durch: <code>FeedbackItem</code> gibt weder
+            <code>answer_id</code> noch irgendetwas aus <code>answers</code> oder
+            <code>query_sessions</code> heraus, und die <code>feedback</code>-Tabelle selbst führt
+            keine Nutzerreferenz.</p>
+          <p>Auf Speicherebene ist die Kette dennoch geschlossen — zwei Joins genügen:</p>
+          <p><code>feedback.answer_id → answers.session_id → query_sessions.user_id → users.email</code></p>
+          <p>Wer Zugriff auf die Datenbank hat, konnte also <b>jeden Freitext-Kommentar einer Person
+            zuordnen</b>. Die Pseudonymisierung war eine Zusicherung der Schnittstelle, keine
+            Eigenschaft der Ablage. Für ein Verarbeitungsverzeichnis ist das der massgebliche Unterschied.</p>
+          <p><b>Stand jetzt:</b> Grenze 2 kappt das erste Glied der Kette nach 30 Tagen. Innerhalb
+            dieses Fensters besteht die Zuordnung weiterhin vollständig — die Pseudonymisierung ist
+            damit keine Eigenschaft der Ablage geworden, sondern eine ihres Alters.</p>
+        </div>
+      </div>
+
+      <div class="gap">
+        <div class="gap-head">
+          <span class="tag">Befund 03</span>
+          <h3>Zwei Rollen sehen mehr Korpustext als erwartet</h3>
+          <span class="open">offen</span>
+        </div>
+        <div class="gap-body">
+          <p><b>Lernende.</b> <code>GET /documents/{id}/content</code> ist bewusst für jede
+            authentifizierte Rolle offen, begrenzt auf ein Fenster von höchstens ±10 Chunks um eine
+            gültige <code>around</code>-Chunk-ID. Die Begründung im Code: das Zitat wurde ohnehin schon
+            belegt. Die Antwort liefert jedoch die IDs der Nachbar-Chunks mit — wer eine ID aus einem
+            Zitat hat, kann durch Nachziehen dieser IDs schrittweise durch das Dokument laufen.
+            „Lernende sehen nur Zitate“ gilt damit faktisch nicht. Die Roh-Bytes bleiben unerreichbar.</p>
+          <p><b>Admins.</b> Bei <code>role == "admin"</code> liefert <code>/query</code> zusätzlich
+            <code>DebugInfo</code> mit den <b>vollständigen gerenderten Prompts samt komplettem
+            Chunk-Text</b> — deutlich mehr als die gekürzten Zitat-Exzerpte. Das ist im Code als
+            bewusste Entscheidung vermerkt, gehört aber in jede Rollenbeschreibung.</p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============ L3 · UMGESETZTE GRENZEN ============ -->
+  <section>
+    <div class="sec-head">
+      <h2>Die Grenzen, die wir eingezogen haben</h2>
+      <p>Drei Änderungen im Code, nicht auf Papier — Commit <code>a8c823e</code>. Zwei davon
+        adressieren den gefährlichsten Fluss aus dem Threat Model unten, die dritte einen
+        Nebenschauplatz, der niemandem nützte.</p>
+    </div>
+
+    <div class="gaps">
+
+      <div class="gap fix">
+        <div class="gap-head">
+          <span class="tag">Grenze 1 · Kürzer halten</span>
+          <h3>Der Fragen-Log bekommt eine Lebensdauer</h3>
+        </div>
+        <div class="gap-body">
+          <dl class="beforeafter">
+            <div class="ba before"><dt>Vorher</dt><dd>unbegrenzt, kein Löschcode</dd></div>
+            <div class="ba after"><dt>Nachher</dt><dd>90 Tage, stündlich durchgesetzt</dd></div>
+            <div class="ba"><dt>Stellschraube</dt><dd><code>answer_retention_days</code></dd></div>
+          </dl>
+          <p>Ein <code>retention_loop</code> neben dem vorhandenen <code>reaper_loop</code>, in
+            derselben Form: stündlicher Durchlauf, Fristen pro Durchlauf aus <code>config</code>
+            gelesen, Fehler geloggt und geschluckt — eine kaputte Löschung darf den
+            Job-Consumer nicht mitreissen. Das Feedback folgt der Antwort über
+            <code>ON DELETE CASCADE</code>.</p>
+          <p>Antworten verfallen auf ihrem <b>eigenen</b> Zeitstempel, nicht dem ihrer Sitzung:
+            eine wochenlang offene Sitzung darf keine Frage mitnehmen, die vor Minuten gestellt
+            wurde.</p>
+          <p class="ev">src/backend/worker/main.py · alembic/versions/0019_retention.py</p>
+        </div>
+      </div>
+
+      <div class="gap fix">
+        <div class="gap-head">
+          <span class="tag">Grenze 2 · Trennen</span>
+          <h3>Die Frage verliert ihren Namen, bevor sie verschwindet</h3>
+        </div>
+        <div class="gap-body">
+          <dl class="beforeafter">
+            <div class="ba before"><dt>Vorher</dt><dd>Personenbezug für immer</dd></div>
+            <div class="ba after"><dt>Nachher</dt><dd>gekappt nach 30 Tagen</dd></div>
+            <div class="ba"><dt>Stellschraube</dt><dd><code>session_pseudonymise_days</code></dd></div>
+          </dl>
+          <p><code>query_sessions.user_id</code> wird auf <code>NULL</code> gesetzt. Die Frage
+            bleibt für die Evaluation nach ADR-009 erhalten — dort misst sie das Retrieval
+            genauso gut ohne Fragesteller — verliert aber die Zuordnung. Damit bricht die Kette
+            <code>feedback → answers → query_sessions → users</code> aus Befund 02.</p>
+          <p>Die Trennung läuft <b>vor</b> der Löschung, nicht danach: so kann nichts den
+            Durchlauf verlassen, das noch einen Personenbezug trägt, wie kurz die Aufbewahrung
+            auch gesetzt wird.</p>
+          <p>Beide Werte stehen unter dem CHECK aus 0009/0012/0014/0017/0018. Eine 0 lässt sich
+            nicht speichern, die Löschung also <b>nicht per Konfiguration abschalten</b> — nur
+            verkürzen oder verlängern. Eine fehlende Zeile fällt auf einen Default zurück, der
+            ebenfalls löscht. Ein Datenschutz-Mechanismus, den ein Tippfehler stilllegt, ist
+            keiner.</p>
+          <p class="ev">src/backend/worker/main.py · purge_expired</p>
+        </div>
+      </div>
+
+      <div class="gap fix">
+        <div class="gap-head">
+          <span class="tag">Grenze 3 · Weglassen</span>
+          <h3>Die IP verschwindet aus dem Zugriffslog</h3>
+        </div>
+        <div class="gap-body">
+          <dl class="beforeafter">
+            <div class="ba before"><dt>Vorher</dt><dd>IP, User, Referer, User-Agent</dd></div>
+            <div class="ba after"><dt>Nachher</dt><dd>nichts davon, dafür <code>rt=</code></dd></div>
+            <div class="ba"><dt>Stellschraube</dt><dd><code>log_format minimal</code></dd></div>
+          </dl>
+          <p>Der <code>combined</code>-Default von nginx schrieb Client-IP, User, Referer und
+            User-Agent nach stdout — im Container also unbegrenzt in <code>docker logs</code>.
+            Für den Zweck, den dieses Log hat (kam der Request an, mit welchem Status, wie
+            langsam), wurde nichts davon gebraucht. Übrig bleiben Zeit, Request, Status, Grösse
+            und die Bearbeitungsdauer, die <code>combined</code> nicht einmal enthielt:
+            <b>weniger Personenbezug und gleichzeitig mehr Nutzen.</b></p>
+          <p>Das Rate-Limiting ist nicht betroffen — es liest die Adresse zur Laufzeit aus
+            <code>X-Real-IP</code> / <code>X-Forwarded-For</code>, nicht aus dem Log.</p>
+          <p class="ev">src/frontend/nginx.conf</p>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="stays">
+      <h3>Wie das überprüft wurde</h3>
+      <p>588 Backend-Tests, <code>ruff</code> und <code>mypy</code> sauber. Die Migration lief
+        hoch <b>und</b> runter gegen eine echte Datenbank, wobei jeder bestehende
+        CHECK-Zweig erneut getestet wurde — genau die Regression, vor der Migration 0017
+        ausdrücklich warnt.</p>
+      <p>Weil Unit-Tests gegen Mocks laufen und Postgres das SQL dort nie zu sehen bekommt,
+        wurden die drei Purge-Statements zusätzlich <b>gegen echtes Postgres in einer
+        zurückgerollten Transaktion</b> ausgeführt: eine 200 Tage alte Zeile verschwand samt
+        ihrem Feedback, eine 40 Tage alte blieb, verlor aber ihren Personenbezug. Für nginx
+        <code>nginx -t</code> plus ein echter Request, dessen Log-Zeile keine Adresse mehr
+        enthält.</p>
+    </div>
+  </section>
+
+  <!-- ============ L4 · THREAT MODEL ============ -->
+  <section>
+    <div class="sec-head">
+      <h2>Threat Model</h2>
+      <p>Ein Angreifer, ein Weg, eine Grenze — für den gefährlichsten Fluss der Karte:
+        <b><code>answers.question</code></b>, jede je gestellte Frage im Klartext,
+        personenbeziehbar.</p>
+    </div>
+
+    <div class="calls threat">
+      <div class="call">
+        <span class="idx">Wer?</span>
+        <div>
+          <div class="what">Der Insider — und wer an ein Backup kommt</div>
+          <div class="payload">Ein Konto mit DB-Zugriff (admin, knowledge_owner mit
+            <code>psql</code>) oder wer das Volume <code>learnflow_pgdata</code> bzw. einen Dump
+            erlangt. Wertvoll, weil Fragen verraten, was eine <b>namentlich bekannte Person nicht
+            weiss</b>: ein Längsschnitt über die Wissenslücken einzelner Mitarbeitender, und bei
+            diesem Korpus zugleich eine Landkarte, wo die Organisation beim EU AI Act unsicher
+            ist. Verwertbar für Leistungsbeurteilung, Social Engineering und als Zielhilfe.</div>
+        </div>
+      </div>
+      <div class="call">
+        <span class="idx">Wie?</span>
+        <div>
+          <div class="what">Kein Exploit nötig — zwei Joins genügen</div>
+          <div class="payload"><code>docker-compose.yml</code> definiert weder Verschlüsselung
+            at rest noch getrennte Backups; das Volume ist der Angriffspunkt. Von dort führt
+            <code>feedback.answer_id → answers.session_id → query_sessions.user_id →
+            users.email</code> zu einem Namen an jeder Frage und jedem Freitext-Kommentar. Die
+            Pseudonymisierung der API greift hier nicht — sie gilt nur für den Endpoint, nicht
+            für die Ablage.</div>
+        </div>
+      </div>
+      <div class="call">
+        <span class="idx">Grenze?</span>
+        <div>
+          <div class="what">Die Beute wertlos machen, statt die Tür zu bewachen</div>
+          <div class="payload">Die Sicherheit des Anbieters und die Disziplin jedes
+            Konto-Inhabers sind nicht kontrollierbar — was in der Datenbank liegt, schon. Die
+            zwei Schnitte aus L3 greifen genau hier: nach 30 Tagen hängt an keiner Frage mehr
+            ein Name, nach 90 Tagen ist sie fort. Ein Dump, der früher die gesamte Historie
+            preisgab, enthält jetzt ein Quartal ohne Personenbezug. <b>Die stärkste Grenze ist
+            die erste: Daten, die es nicht mehr gibt, kann niemand stehlen.</b></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="gap">
+      <div class="gap-head">
+        <span class="tag">Was offen bleibt</span>
+        <h3>Drei Dinge, die diese Grenze nicht abdeckt</h3>
+      </div>
+      <div class="gap-body">
+        <ul>
+          <li><b>Die ersten 30 Tage.</b> Innerhalb des Fensters ist die Zuordnung vollständig
+            vorhanden. Das ist der Preis dafür, die Sitzung überhaupt als Faden zu führen.</li>
+          <li><b>Befund 03 ist unberührt.</b> Lernende können sich über die Nachbar-Chunk-IDs
+            weiterhin durch ein Dokument hangeln, und Admins sehen im Debug-Modus den
+            vollständigen Prompt. Bewusst nicht angefasst: das ändert die API-Antwort und
+            bräuchte nach ADR-010 zuerst die Spec.</li>
+          <li><b>Verschlüsselung at rest.</b> Nicht angefasst, weil sie zum Betrieb gehört, nicht
+            zum Code — gehört auf die Pilotstart-Checkliste, nicht in dieses Repository.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ GELTUNGSBEREICH ============ -->
+  <footer class="scope">
+    <div>
+      <h3>Was geprüft wurde</h3>
+      <ul>
+        <li>Alle Tabellendefinitionen und Alembic-Migrationen 0001–0018</li>
+        <li>Sämtliche Router, Services und der Worker</li>
+        <li>Jede LiteLLM-Aufrufstelle und ihre Parameterliste</li>
+        <li>Frontend-Speicherung, Abhängigkeiten und Egress</li>
+        <li>docker-compose, nginx-Konfiguration, Settings</li>
+        <li>Fine-Tuning sowie die <code>store</code>- und <code>user</code>-Parameter der LLM-Aufrufe</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Was nicht geprüft wurde</h3>
+      <ul>
+        <li>Die Entscheidungsdokumente in <code>Docs/</code> — bewusst ausgeklammert</li>
+        <li>Ob der Provider seinerseits speichert oder trainiert</li>
+        <li>Tatsächliche Log-Aufbewahrung der Betriebsumgebung</li>
+        <li>Spike-Verzeichnisse und <code>Artefakten/</code></li>
+      </ul>
+    </div>
+    <div>
+      <h3>Scharfe Vorbedingung</h3>
+      <p>Sobald echte interne Dokumente hochgeladen werden, geht ihr <b>vollständiger</b> Inhalt an den
+        konfigurierten Provider. Der Wechsel auf Azure OpenAI EU ist reine Konfiguration
+        (<code>litellm_base_url</code>, <code>litellm_api_version</code>) und erfordert keine
+        Codeänderung — der Default in <code>app/config.py</code> ist jedoch OpenAI Direct.</p>
+    </div>
+  </footer>
+
+</div>
+</body>
+</html>
