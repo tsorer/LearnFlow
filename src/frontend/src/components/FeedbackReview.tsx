@@ -2,15 +2,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { AuthUser } from "../types";
 import { api, type FeedbackCategory, type FeedbackItem } from "../api/client";
 import { CATEGORY_META } from "./MessageBubble";
-import Layout from "./Layout";
+import Layout, { type SidebarPanelState } from "./Layout";
 
 const PAGE_SIZE = 50;
 
 const CATEGORY_OPTIONS = Object.entries(CATEGORY_META) as [FeedbackCategory, { label: string; helpful: boolean }][];
 
-interface Props { user: AuthUser; onLogout: () => void }
+interface Props extends SidebarPanelState { user: AuthUser; onLogout: () => void }
 
-export default function FeedbackReview({ user, onLogout }: Props) {
+export default function FeedbackReview({ user, onLogout, showUpload, setShowUpload, showParams, setShowParams }: Props) {
   const [items, setItems] = useState<FeedbackItem[]>([]);
   const [total, setTotal] = useState(0);
   const [helpfulFilter, setHelpfulFilter] = useState<"" | "true" | "false">("");
@@ -81,7 +81,14 @@ export default function FeedbackReview({ user, onLogout }: Props) {
   };
 
   return (
-    <Layout user={user} onLogout={onLogout}>
+    <Layout
+      user={user}
+      onLogout={onLogout}
+      showUpload={showUpload}
+      setShowUpload={setShowUpload}
+      showParams={showParams}
+      setShowParams={setShowParams}
+    >
       <div style={{ flex: 1, overflowY: "auto", padding: "var(--space-4) var(--space-6)" }}>
         <div style={{ fontWeight: "var(--font-black)", fontSize: "var(--text-xl)", color: "var(--text-primary)", marginBottom: "var(--space-4)" }}>
           Feedback-Übersicht
