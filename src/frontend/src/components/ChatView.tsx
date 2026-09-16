@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import type { AuthUser, Message } from "../types";
 import { api, ApiError, type ConfigMap } from "../api/client";
 import { getRoleFlags } from "../roles";
-import Layout from "./Layout";
+import Layout, { type SidebarPanelState } from "./Layout";
 import Upload from "./Upload";
 import MessageBubble from "./MessageBubble";
 import {
@@ -146,7 +146,7 @@ function failureMessage(err: unknown): string {
   return "Fehler beim Abrufen der Antwort. Bitte versuche es erneut.";
 }
 
-interface Props {
+interface Props extends SidebarPanelState {
   user: AuthUser;
   onLogout: () => void;
   // Liegen in App (T-36): /quiz und /quiz-review unmounten ChatView, ein
@@ -165,11 +165,12 @@ interface Props {
   setBusy: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-export default function ChatView({ user, onLogout, messages, setMessages, sessionId, setSessionId, busy, setBusy }: Props) {
+export default function ChatView({
+  user, onLogout, messages, setMessages, sessionId, setSessionId, busy, setBusy,
+  showUpload, setShowUpload, showParams, setShowParams,
+}: Props) {
   const [input, setInput] = useState("");
   const [inputError, setInputError] = useState("");
-  const [showUpload, setShowUpload] = useState(false);
-  const [showParams, setShowParams] = useState(false);
   const [params, setParams] = useState<ConfigMap>({});
   const [paramSaved, setParamSaved] = useState(false);
   const [paramError, setParamError] = useState("");
@@ -279,19 +280,10 @@ export default function ChatView({ user, onLogout, messages, setMessages, sessio
     <Layout
       user={user}
       onLogout={onLogout}
-      workspaceExtra={canUpload && (
-        <button className={`nav-item${showUpload ? " active" : ""}`} onClick={() => setShowUpload(v => !v)}>
-          {showUpload ? "Chat" : "Dokumente"}
-        </button>
-      )}
-      // Hidden in the document view, because it acts on nothing there: the
-      // parameter panel lives in the chat branch, so from here the button
-      // only flipped an arrow.
-      adminExtra={isAdmin && !showUpload && (
-        <button className={`nav-item${showParams ? " active" : ""}`} onClick={() => setShowParams(v => !v)}>
-          {showParams ? "⚙ Parameter ▲" : "⚙ Parameter ▼"}
-        </button>
-      )}
+      showUpload={showUpload}
+      setShowUpload={setShowUpload}
+      showParams={showParams}
+      setShowParams={setShowParams}
     >
       {showUpload && canUpload ? (
         <Upload user={user} />

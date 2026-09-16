@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { AuthUser } from "../types";
 import { api, type QuizQuestion } from "../api/client";
-import Layout from "./Layout";
+import Layout, { type SidebarPanelState } from "./Layout";
 import DocumentViewer from "./DocumentViewer";
 
 const OPTION_LETTERS = ["A", "B", "C", "D"] as const;
@@ -12,7 +12,7 @@ type Letter = (typeof OPTION_LETTERS)[number];
 // die Runde ist dann entsprechend kürzer (siehe Hinweis unten).
 const TARGET_LENGTH = 5;
 
-interface Props { user: AuthUser; onLogout: () => void }
+interface Props extends SidebarPanelState { user: AuthUser; onLogout: () => void }
 
 /** Frage-ID → gewählter Buchstabe. Nur im Browser-State, nie an ein Backend
  * gemeldet (US-08: "nicht personenbezogen gespeichert oder ausgewertet"). */
@@ -26,7 +26,7 @@ export function scoreOf(questions: QuizQuestion[], answers: Answers): number {
  * ganzen Frage, die zufällig auch eine davon trägt. */
 interface ViewerTarget { documentId: string; chunkId: string }
 
-export default function QuizRun({ user, onLogout }: Props) {
+export default function QuizRun({ user, onLogout, showUpload, setShowUpload, showParams, setShowParams }: Props) {
   const token = user.token;
   const [questions, setQuestions] = useState<QuizQuestion[] | null>(null);
   // `total` ist die Poolgröße laut Endpoint (openapi.yaml, app/routers/quiz.py
@@ -75,7 +75,14 @@ export default function QuizRun({ user, onLogout }: Props) {
   };
 
   return (
-    <Layout user={user} onLogout={onLogout}>
+    <Layout
+      user={user}
+      onLogout={onLogout}
+      showUpload={showUpload}
+      setShowUpload={setShowUpload}
+      showParams={showParams}
+      setShowParams={setShowParams}
+    >
       <div style={{ flex: 1, overflowY: "auto", padding: "var(--space-6)", display: "flex", justifyContent: "center" }}>
         <div style={{ width: "min(560px, 100%)", display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
           {error && (

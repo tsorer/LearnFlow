@@ -27,6 +27,14 @@ export default function App() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // Dokumente-/Parameter-Ansicht liegen ebenfalls hier statt in ChatView
+  // (T-58 Review-Folge): die Sidebar zeigt "Dokumente"/"Parameter" auf jeder
+  // Seite an (rollenbasiert, nicht mehr nur innerhalb von ChatView) und muss
+  // sie deshalb von jeder Seite aus öffnen können — ein dort lokaler State
+  // wäre ausserhalb von ChatView gar nicht erreichbar.
+  const [showUpload, setShowUpload] = useState(false);
+  const [showParams, setShowParams] = useState(false);
+
   // Ein 401 auf einer authentifizierten Anfrage beendet die Sitzung. Der leere
   // User-State laesst ProtectedRoute auf /login umleiten (T-40).
   useEffect(() => {
@@ -36,6 +44,8 @@ export default function App() {
       setMessages([]);
       setSessionId(null);
       setBusy(false);
+      setShowUpload(false);
+      setShowParams(false);
     });
     return () => setUnauthorizedHandler(null);
   }, []);
@@ -53,6 +63,8 @@ export default function App() {
     setMessages([]);
     setSessionId(null);
     setBusy(false);
+    setShowUpload(false);
+    setShowParams(false);
   };
 
   return (
@@ -80,6 +92,10 @@ export default function App() {
                   setSessionId={setSessionId}
                   busy={busy}
                   setBusy={setBusy}
+                  showUpload={showUpload}
+                  setShowUpload={setShowUpload}
+                  showParams={showParams}
+                  setShowParams={setShowParams}
                 />
               )}
             </ProtectedRoute>
@@ -89,7 +105,16 @@ export default function App() {
           path="/quiz-review"
           element={
             <ProtectedRoute user={user} roles={["knowledge_owner", "admin"]}>
-              {u => <QuizReview user={u} onLogout={logout} />}
+              {u => (
+                <QuizReview
+                  user={u}
+                  onLogout={logout}
+                  showUpload={showUpload}
+                  setShowUpload={setShowUpload}
+                  showParams={showParams}
+                  setShowParams={setShowParams}
+                />
+              )}
             </ProtectedRoute>
           }
         />
@@ -97,7 +122,16 @@ export default function App() {
           path="/quiz"
           element={
             <ProtectedRoute user={user}>
-              {u => <QuizRun user={u} onLogout={logout} />}
+              {u => (
+                <QuizRun
+                  user={u}
+                  onLogout={logout}
+                  showUpload={showUpload}
+                  setShowUpload={setShowUpload}
+                  showParams={showParams}
+                  setShowParams={setShowParams}
+                />
+              )}
             </ProtectedRoute>
           }
         />
@@ -105,7 +139,16 @@ export default function App() {
           path="/feedback"
           element={
             <ProtectedRoute user={user} roles={["knowledge_owner", "admin"]}>
-              {u => <FeedbackReview user={u} onLogout={logout} />}
+              {u => (
+                <FeedbackReview
+                  user={u}
+                  onLogout={logout}
+                  showUpload={showUpload}
+                  setShowUpload={setShowUpload}
+                  showParams={showParams}
+                  setShowParams={setShowParams}
+                />
+              )}
             </ProtectedRoute>
           }
         />

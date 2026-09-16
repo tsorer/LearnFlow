@@ -615,10 +615,12 @@ describe("Frage-UI", () => {
     expect(await screen.findByText(/SKOS verlangt je Sprache genau ein prefLabel/)).toBeInTheDocument();
   });
 
-  it("hides the chat-only controls while the document view is open", async () => {
-    // Both used to sit in the header regardless: "Neuer Chat" cleared a
-    // transcript nobody could see, and "⚙ Parameter" flipped its arrow over a
-    // panel that only renders in the chat branch.
+  it("hides Neuer Chat but keeps Parameter visible while the document view is open", async () => {
+    // "Neuer Chat" only exists in the chat body's own title row, which the
+    // document view replaces entirely. "⚙ Parameter" is a static, role-based
+    // Sidebar item (T-58 review: the menu depends only on role, never on
+    // which page/view is open) — it stays visible here too, and clicking it
+    // switches back to chat with the panel open (covered separately).
     api.route("get", "/api/admin/config", 200, { config: { retrieval_top_k: "20" } });
     api.route("get", "/api/documents", 200, []);
     await openChat("admin");
@@ -628,7 +630,7 @@ describe("Frage-UI", () => {
 
     expect(await screen.findByRole("button", { name: /^chat$/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /neuer chat/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /parameter/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /parameter/i })).toBeInTheDocument();
   });
 
   it("falls back to a retryable message for any other failure", async () => {
