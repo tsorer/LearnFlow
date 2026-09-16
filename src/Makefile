@@ -180,7 +180,8 @@ eval:
 #   make calibrate
 #   make calibrate ARGS="--reuse-snapshot eval/out/calibrate/2026-09-15T10-00-00Z/snapshot.json"
 calibrate:
-	-docker exec src-api-1 python -m eval.calibrate $(ARGS)
+	rm -f backend/eval/out/calibrate/latest-report.md
+	docker exec src-api-1 python -m eval.calibrate $(ARGS); rc=$$?; [ $$rc -eq 0 ] || [ $$rc -eq 1 ] || exit $$rc
 	cp backend/eval/out/calibrate/latest-report.md ../Docs/10_Kalibrierungsbericht.md
 
 # --- query latency (T-22, #29, requires: make up && make seed && make seed-corpus) ---

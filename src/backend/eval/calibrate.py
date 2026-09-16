@@ -43,6 +43,7 @@ from eval.calibrate_grid import (
     COMBINED_TOP_N,
     K_FOLDS,
     CombinedCandidate,
+    a1_grid,
     pre_generation_outcome,
     rank_combined_candidates,
     select_a1_candidates,
@@ -84,9 +85,11 @@ logger = logging.getLogger(__name__)
 #: `Docs/10_Kalibrierungsbericht.md` nicht direkt schreiben. Es schreibt stattdessen hierher
 #: -- `eval/out/` ist ein Bind-Mount, landet also unverändert auf dem Host -- und `make
 #: calibrate` kopiert die feste Datei anschliessend host-seitig nach `Docs/`, auch wenn
-#: dieses Skript mit 1 endet (kein Parameter-Set erreicht die Constraints, AC 12) -- der
-#: `docker exec`-Aufruf im Makefile ist deshalb mit `-` markiert, sonst bricht Make vor der
-#: `cp`-Zeile ab und genau dieser Ausgang landet nie in `Docs/`.
+#: dieses Skript mit 1 endet (kein Parameter-Set erreicht die Constraints, AC 12). Das
+#: Makefile-Target löscht diese Datei vor jedem Lauf und toleriert nur die Exit-Codes 0/1,
+#: bevor es kopiert -- ein echter Absturz (Snapshot-Hash-Mismatch, Provider-Fehler) darf
+#: sonst nicht dazu führen, dass der Bericht eines *vorherigen* Laufs unbemerkt als neuer
+#: nach `Docs/` kopiert wird (Review-Befund).
 LATEST_REPORT_PATH = pathlib.Path(__file__).parent / "out" / "calibrate" / "latest-report.md"
 
 
@@ -112,9 +115,18 @@ async def _run_schicht_b(
     snapshot_by_id: dict[str, QuestionSnapshot],
     combined_candidates: Sequence[CombinedCandidate],
     question_ids: list[str],
+    out_dir: pathlib.Path,
 ) -> dict[tuple[str, tuple[str, ...]], RunResult]:
     """Echte Läufe für jede eindeutige `(question_id, context)`-Kombination, die mindestens
-    einer der `combined_candidates` erreicht (Dedup über alle Kandidaten hinweg, AC 4)."""
+    einer der `combined_candidates` erreicht (Dedup über alle Kandidaten hinweg, AC 4).
+
+    Schreibt `runs.json` in `out_dir` im `finally` -- auch bei einem Abbruch mitten in der
+    Schleife (Provider-Timeout, Rate-Limit; `generate_answer`/`run_self_check` reichen
+    Fehler bewusst weiter statt sie zu verschlucken). Ohne das wären bereits bezahlte
+    Generierungs- und Self-Check-Aufrufe beim nächsten Versuch verloren, weil `results` nur
+    im Prozessspeicher stand (Review-Befund). `eval.calibrate_run.load_runs()` liest die
+    Datei zurück, falls ein Lauf so fortgesetzt werden muss.
+    """
     to_run: dict[tuple[str, tuple[str, ...]], tuple[str, list[RetrievalHit]]] = {}
     for candidate in combined_candidates:
         for qid in question_ids:
@@ -130,11 +142,15 @@ async def _run_schicht_b(
     logger.info("Schicht B: %d eindeutige (Frage, Kontext)-Läufe", len(to_run))
 
     results: dict[tuple[str, tuple[str, ...]], RunResult] = {}
-    for key, (question_text, context) in to_run.items():
-        chunk_ids = [hit.chunk_id for hit in context]
-        contents = await chunk_contents(db, chunk_ids)
-        hydrated = hydrate_context(context, contents)
-        results[key] = await run_once(question_text, key[0], hydrated)
+    try:
+        for key, (question_text, context) in to_run.items():
+            chunk_ids = [hit.chunk_id for hit in context]
+            contents = await chunk_contents(db, chunk_ids)
+            hydrated = hydrate_context(context, contents)
+            results[key] = await run_once(question_text, key[0], hydrated)
+    finally:
+        if results:
+            write_runs(list(results.values()), out_dir)
     return results
 
 
@@ -206,6 +222,9 @@ async def _run(db: AsyncSession, args: argparse.Namespace) -> int:
     )
 
     logger.info("Schicht A2 (Vor-Generierungs-Gates)...")
+    # Für Schicht B bewusst nur die Top-A1_TOP_N A1-Kandidaten (nach F1) gekreuzt mit dem
+    # vollen A2-Gitter: Schicht B soll Schwellen für bereits gute Retrieval-Konfigurationen
+    # finden, nicht irgendeine Kombination mit zufällig niedriger Suppression.
     a1_candidates = [r.candidate for r in a1_ranked]
     a2_ranked = rank_combined_candidates(
         snapshot.questions,
@@ -214,10 +233,24 @@ async def _run(db: AsyncSession, args: argparse.Namespace) -> int:
         in_corpus_train_ids=[q.id for q in in_corpus_train],
     )
     combined = [r.combined for r in a2_ranked[:COMBINED_TOP_N]]
-    degenerate = worst_case_candidate(a2_ranked)
+
+    # Der entartete Referenzpunkt (AC 7) ist eine andere Frage als "was geht in Schicht B" --
+    # er soll den schlechtesten Kandidaten im *ganzen* A1×A2-Gitter zeigen, nicht nur unter
+    # den fünf von Schicht A1 vorselektierten. Ein zweiter, eigener Aufruf über `a1_grid()`
+    # (alle 100 Kandidaten statt der Top-5) bleibt offline und günstig -- kein LLM-Aufruf,
+    # nur Arithmetik auf dem Snapshot (Review-Befund: der Bericht behauptete zuvor "gesamtes
+    # A1×A2-Gitter", geprüft wurden aber nur die Top-5 aus A1).
+    logger.info("Entarteter Referenzpunkt (volles A1×A2-Gitter, offline)...")
+    full_a1_a2_ranked = rank_combined_candidates(
+        snapshot.questions,
+        a1_grid(),
+        out_of_corpus_train_ids=[q.id for q in ooc_train],
+        in_corpus_train_ids=[q.id for q in in_corpus_train],
+    )
+    degenerate = worst_case_candidate(full_a1_a2_ranked)
     logger.info(
-        "%d kombinierte Kandidaten gehen in Schicht B; entarteter Referenzpunkt: "
-        "Suppression=%.1f%%, Refusal=%.1f%%",
+        "%d kombinierte Kandidaten gehen in Schicht B; entarteter Referenzpunkt (volles "
+        "Gitter): Suppression=%.1f%%, Refusal=%.1f%%",
         len(combined),
         degenerate.in_corpus_pre_generation_suppression_rate * 100,
         degenerate.out_of_corpus_refusal_rate * 100,
@@ -227,8 +260,7 @@ async def _run(db: AsyncSession, args: argparse.Namespace) -> int:
         [q.id for q in in_corpus_train] + adversarial_scored_train + [q.id for q in ooc_train]
     )
     logger.info("Schicht B (Train, echte Läufe)...")
-    run_results = await _run_schicht_b(db, snapshot_by_id, combined, train_ids)
-    write_runs(list(run_results.values()), out_dir)
+    run_results = await _run_schicht_b(db, snapshot_by_id, combined, train_ids, out_dir)
 
     logger.info("Schicht C (Bandschwellen-Gitter, offline)...")
     train_reports: list[CandidateReport] = evaluate_full_grid(
@@ -270,8 +302,9 @@ async def _run(db: AsyncSession, args: argparse.Namespace) -> int:
         + adversarial_scored_holdout
         + [q.id for q in ooc_holdout]
     )
-    holdout_runs = await _run_schicht_b(db, snapshot_by_id, [winner_combined], holdout_ids)
-    write_runs(list(holdout_runs.values()), out_dir / "holdout")
+    holdout_runs = await _run_schicht_b(
+        db, snapshot_by_id, [winner_combined], holdout_ids, out_dir / "holdout"
+    )
 
     holdout_report = evaluate_candidate(
         winner_full,

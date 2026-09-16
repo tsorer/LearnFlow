@@ -61,10 +61,22 @@ def test_in_corpus_holdout_is_five_questions_per_corpus() -> None:
 
 
 def test_adversarial_and_out_of_corpus_splits_partition_without_overlap() -> None:
-    for train, holdout in (split_adversarial(), split_out_of_corpus()):
+    """Train und Holdout zusammen decken jede Frage der Kategorie genau einmal ab.
+
+    `train_ids | holdout_ids == train_ids.union(holdout_ids)` (die vorherige Fassung dieses
+    Tests) ist dieselbe Operation zweimal geschrieben und deshalb immer wahr -- geprüft wurde
+    damit nichts. Der Vergleich muss gegen die *unabhängige* Quelle gehen (der volle
+    Fragensatz aus dem Dataset), sonst fiele eine Frage, die in keinem der beiden Splits
+    landet, nicht auf (Review-Befund).
+    """
+    for train, holdout, all_questions in (
+        (*split_adversarial(), load_adversarial_questions()),
+        (*split_out_of_corpus(), load_out_of_corpus_questions()),
+    ):
         train_ids = {q.id for q in train}
         holdout_ids = {q.id for q in holdout}
+        all_ids = {q.id for q in all_questions}
         assert not train_ids & holdout_ids
-        assert train_ids | holdout_ids == train_ids.union(holdout_ids)
+        assert train_ids | holdout_ids == all_ids
         assert len(holdout) > 0
         assert len(train) > len(holdout)

@@ -1,6 +1,6 @@
 # Kalibrierungsbericht (T-57)
 
-Lauf vom 2026-09-15T19-03-53Z. Erzeugt von `eval/calibrate.py` (`make calibrate`) — Rohdaten und Snapshot in `eval/out/calibrate/`.
+Lauf vom 2026-09-16T14-47-13Z. Erzeugt von `eval/calibrate.py` (`make calibrate`) — Rohdaten und Snapshot in `eval/out/calibrate/`.
 
 ## Empfohlenes Parameter-Set
 
@@ -25,8 +25,8 @@ Holdout: 15 `in_corpus`-Fragen, 7 `out_of_corpus`-Fragen (stratifiziert nach `(c
 
 | Metrik | Holdout | Gate | erreicht | Auflösung (1 Frage) |
 |---|---|---|---|---|
-| Halluzinationsrate | 0.0% | = 0 % | ja | 7.7 pp |
-| False-Suppression-Rate (in_corpus) | 26.7% | Zielgrösse, minimiert; CI-Gate ≤ 15% (`eval/test_in_corpus_quality.py`) | nein | 6.7 pp |
+| Halluzinationsrate | 0.0% | = 0 % | ja | 9.1 pp |
+| False-Suppression-Rate (in_corpus) | 33.3% | Zielgrösse, minimiert; CI-Gate ≤ 15% (`eval/test_in_corpus_quality.py`) | nein | 6.7 pp |
 | Out-of-Corpus-Refusal-Rate | 85.7% | ≥ 90 % | nein | 14.3 pp |
 
 **Das empfohlene Set würde ausserdem das bestehende CI-Gate (`FALSE_SUPPRESSION_RATE_GATE = 15%`, `eval/test_in_corpus_quality.py`) nicht bestehen** — ein zweiter, vom Refusal-Gate unabhängiger Befund dieses Laufs.
@@ -39,7 +39,7 @@ Halluzinationsrate 0.0%, False-Suppression-Rate 40.0%, Out-of-Corpus-Refusal-Rat
 
 ## Der ausgeschlossene entartete Punkt
 
-Der Kandidat mit der höchsten In-Corpus-Vor-Generierungs-Suppression im gesamten A1×A2-Gitter (`retrieval_top_k=10, rrf_k=20, context_top_n=3, similarity_threshold=0.4, min_retrieval_confidence=0.6`) unterdrückt 16.7% der In-Corpus-Trainingsfragen bereits **vor** der Generierung — geschätzt direkt aus Schicht A2 (offline), da eine derart unterdrückende Kombination ohnehin für fast keine Frage eine Antwort generiert. Seine Out-of-Corpus-Refusal-Rate liegt bei 20.0%. Eine Halluzinationsrate ist für ihn nicht definiert (keine ausgelieferte Antwort, an der sie gemessen werden könnte) — nicht 0 %, auch wenn 0 von 0 rechnerisch so aussähe. Dieser Kandidat wird hier ausdrücklich benannt und ausgeschlossen, nicht stillschweigend gefiltert (ADR-009: die Gates sind Constraints, nicht die Zielfunktion) — `select_candidates_for_schicht_b()` wählt gezielt die niedrigste Suppression für echte Läufe, ein derart entarteter Kandidat erreicht Schicht B deshalb nie und wird nicht mit echten Antworten bewertet.
+Der Kandidat mit der höchsten In-Corpus-Vor-Generierungs-Suppression im gesamten A1×A2-Gitter (`retrieval_top_k=10, rrf_k=20, context_top_n=10, similarity_threshold=0.4, min_retrieval_confidence=0.6`) unterdrückt 23.3% der In-Corpus-Trainingsfragen bereits **vor** der Generierung — geschätzt direkt aus Schicht A2 (offline), da eine derart unterdrückende Kombination ohnehin für fast keine Frage eine Antwort generiert. Seine Out-of-Corpus-Refusal-Rate liegt bei 46.7%. Eine Halluzinationsrate ist für ihn nicht definiert (keine ausgelieferte Antwort, an der sie gemessen werden könnte) — nicht 0 %, auch wenn 0 von 0 rechnerisch so aussähe. Dieser Kandidat wird hier ausdrücklich benannt und ausgeschlossen, nicht stillschweigend gefiltert (ADR-009: die Gates sind Constraints, nicht die Zielfunktion) — `select_candidates_for_schicht_b()` wählt gezielt die niedrigste Suppression für echte Läufe, ein derart entarteter Kandidat erreicht Schicht B deshalb nie und wird nicht mit echten Antworten bewertet.
 
 ## Methodische Hinweise
 

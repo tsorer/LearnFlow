@@ -383,15 +383,23 @@ def select_candidates_for_schicht_b(
 
 
 def worst_case_candidate(ranked: Sequence[CombinedRanked]) -> CombinedRanked:
-    """Der Kandidat mit der höchsten In-Corpus-Vor-Generierungs-Suppression im ganzen
-    Gitter — der entartete Punkt "alles unterdrücken" aus AC 7, geschätzt direkt aus
-    Schicht A2 (offline, ohne echten Lauf: eine fast vollständig unterdrückende
-    Parameterkombination generiert ohnehin für fast keine Frage eine Antwort).
+    """Der Kandidat mit der höchsten In-Corpus-Vor-Generierungs-Suppression in `ranked` —
+    der entartete Punkt "alles unterdrücken" aus AC 7, geschätzt direkt aus Schicht A2
+    (offline, ohne echten Lauf: eine fast vollständig unterdrückende Parameterkombination
+    generiert ohnehin für fast keine Frage eine Antwort).
+
+    Nur so stark, wie `ranked` es ist: um wirklich "der schlechteste Punkt im ganzen
+    A1×A2-Gitter" zu sein, muss der Aufrufer `rank_combined_candidates()` mit `a1_grid()`
+    (allen A1-Kandidaten) gefüttert haben, nicht nur den Top-N aus `select_a1_candidates()`
+    (Review-Befund: `eval/calibrate.py` rief diese Funktion zuerst mit dem für Schicht B
+    bereits auf die Top-5 vorgefilterten Ergebnis auf — der gefundene "entartete" Punkt war
+    dadurch nur der schlechteste unter den fünf besten A1-Kandidaten, nicht im ganzen Gitter,
+    obwohl der Bericht genau das behauptete).
 
     `select_candidates_for_schicht_b()` wählt genau die *niedrigste* Suppression für Schicht
     B aus — der entartete Punkt liegt damit strukturell ausserhalb der Top-N und würde nie
-    in einen `CandidateReport` gelangen, wenn er nicht hier separat aus dem vollständigen
-    `rank_combined_candidates()`-Ergebnis gezogen würde (Review-Befund: der Bericht schrieb
-    zuvor "liegt ausserhalb des gesweepten Bereichs", obwohl er nie geprüft wurde).
+    in einen `CandidateReport` gelangen, wenn er nicht hier separat aus einem vollständigeren
+    `rank_combined_candidates()`-Ergebnis gezogen würde (früherer Review-Befund: der Bericht
+    schrieb zuvor "liegt ausserhalb des gesweepten Bereichs", obwohl er nie geprüft wurde).
     """
     return max(ranked, key=lambda r: r.in_corpus_pre_generation_suppression_rate)

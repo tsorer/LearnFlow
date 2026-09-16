@@ -263,7 +263,17 @@ class CandidateReport:
 
 
 def _aggregate(full: FullCandidate, outcomes: list[QuestionOutcome]) -> CandidateReport:
-    hallucination_pool = [o for o in outcomes if o.suppression_reason is None]
+    # Nur in_corpus/adversarial: eine ausgelieferte out_of_corpus-Antwort trägt
+    # `hallucinated=None` (PreGenState.score_for_hallucination=False dort), weil H1/H2 nie
+    # gegen sie liefen. Ohne den Kategorie-Filter hier würde sie trotzdem in den Nenner
+    # einfliessen -- die Rate liest sich dann niedriger und die Auflösung feiner, als beides
+    # tatsächlich sind (Review-Befund; spiegelt jetzt, was `eval/test_in_corpus_quality.py`
+    # ohnehin schon als Geltungsbereich der Halluzinationsprüfung dokumentiert).
+    hallucination_pool = [
+        o
+        for o in outcomes
+        if o.suppression_reason is None and o.category in ("in_corpus", "adversarial")
+    ]
     hallucinated = sum(1 for o in hallucination_pool if o.hallucinated)
     hallucination_rate = hallucinated / len(hallucination_pool) if hallucination_pool else 0.0
 
