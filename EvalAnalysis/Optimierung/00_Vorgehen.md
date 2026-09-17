@@ -159,7 +159,7 @@ Erwartung des Gold-Datasets wird von Hand einer Klasse zugeordnet und kurz begr�
 | Klasse | Bedeutung | Typischer Hebel |
 |---|---|---|
 | **P3** Sentinel im Fliesstext | `WEISS_NICHT` mitten in oder am Ende einer Antwort statt allein | Prompt Regel 3, Erkennung `_is_refusal` |
-| **D** Gold-Erwartung strittig | Dataset-Erwartung fachlich falsch oder widersprüchlich zur Referenzantwort | fachliche Prüfung des Gold-Datasets (T-48) — nicht in dieser Optimierung ändern |
+| **D** Gold-Erwartung strittig | Dataset-Erwartung fachlich falsch oder widersprüchlich zur Referenzantwort | fachliche Prüfung des Gold-Datasets (T-48; die bisher gefundenen Fälle in #142) — nicht in dieser Optimierung ändern |
 
 Daraus ergeben sich zwei Achsen je Modell, die die Leitthese sichtbar machen:
 

@@ -218,9 +218,9 @@ Zwei weitere Fälle sind strittig: `SKOS-ADV-01` erwartet eine Antwort, die Refe
 erlaubt aber ausdrücklich «Weiss ich nicht»; `SKOS-IPV-02` erwartet Verweigerung, obwohl
 qwen3 und gemma4 nur die laut Notiz belegbare Aussage machen.
 
-**Folge:** Die drei Fragen gehen zur fachlichen Prüfung an die Person, die das
-Gold-Dataset abgenommen hat (Issue T-48). In dieser Optimierung wird das Dataset nicht
-geändert.
+**Folge:** Die drei Fragen sind als **Issue #142** mit Belegstellen aus dem Korpus an die
+fachliche Abnahme gemeldet (T-48/#96 war zu diesem Zeitpunkt bereits geschlossen). In
+dieser Optimierung wird das Dataset nicht geändert.
 
 ### 5.2 Stufe 2 unterdrückt korrekt belegte Antworten
 

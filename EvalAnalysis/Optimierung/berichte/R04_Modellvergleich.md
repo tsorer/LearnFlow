@@ -307,7 +307,7 @@ Konfidenz 0,5968 (Band «mittel»), Citation-Coverage 0,5, Self-Check: GEDECKT.
 
 Konfidenz 0,8514 (Band «hoch»), Citation-Coverage 1,0, Self-Check: nicht gelaufen.
 
-**Einschätzung Claude (KI-Assistent) — Meinung, keine Messung:** inhaltlich **gedeckt**. Fristen und Zuständigkeiten stehen in [1].
+**Einschätzung Claude (KI-Assistent) — Meinung, keine Messung:** inhaltlich **gedeckt**. Fristen und Zuständigkeiten stehen in [1]. Von allen fünf Profilen die genaueste Lesart: nennt beide Fristen und sagt ausdrücklich, dass der Kontext das Unterscheidungskriterium nicht hergibt — was stimmt, weil die Spaltensemantik der Tabelle im Textlayer verloren geht.
 
 
 ### `gpt-oss-local` — ollama_chat/gpt-oss:20b
@@ -335,5 +335,5 @@ Konfidenz 0,5968 (Band «mittel»), Citation-Coverage 0,5, Self-Check: GEDECKT.
 
 Konfidenz 0,8514 (Band «hoch»), Citation-Coverage 1,0, Self-Check: nicht gelaufen.
 
-**Einschätzung Claude (KI-Assistent) — Meinung, keine Messung:** inhaltlich **gedeckt**. Beide Fristen stehen in der Meldefristen-Tabelle von [1].
+**Einschätzung Claude (KI-Assistent) — Meinung, keine Messung:** inhaltlich **eher gedeckt**. Beide Fristen (7 und 15 Tage) stehen in der Meldefristen-Tabelle von [1]. Die Zuordnung «Todesfolge → 7 Tage» steht dort aber nur in der SAE-Zeile darüber; die SUSAR-Zeile nennt bloss zwei gleich beschriftete Spalten. Ministral schliesst das aus der Nachbarzeile — inhaltlich vermutlich richtig, aus dem flachgezogenen Tabellentext nicht belegbar.
 

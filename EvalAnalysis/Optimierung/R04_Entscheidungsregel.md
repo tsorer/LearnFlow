@@ -137,8 +137,10 @@ Der Verlust von ministral (100 % → 95,5 %) ist **eine einzige Frage**: `SAMW-O
 («Innert welcher Frist müssen SUSAR der Ethikkommission gemeldet werden?»). Diese Frage
 ist ein bekannter **Gold-Fehler** — die Fristen 7 und 15 Tage stehen wörtlich im
 SAMW-Leitfaden (PDF-S. 83), die erwartete Verweigerung ist also fachlich falsch (gemeldet
-an T-48, Dataset absichtlich nicht geändert). Ministral hat sie in R04 vollständig und
-korrekt belegt beantwortet. Als Verschlechterung zählt das nur gegen das Dataset.
+als **Issue #142** gemeldet, Dataset absichtlich nicht geändert). Ministral hat sie in R04
+mit beiden Fristen beantwortet — die Zuordnung «Todesfolge → 7 Tage» schliesst es allerdings
+aus der Nachbarzeile der Tabelle, deren Spaltensemantik im Textlayer verloren geht. Als
+Verschlechterung zählt das nur gegen das Dataset.
 
 ### 3.2 Entwicklungs-Set (58 Fragen)
 
@@ -386,8 +388,8 @@ Kürzungsrisiko. Dieselbe Korrektur wie am 2026-09-14 bei `max_verdict_tokens`
   Ausserhalb des Scope dieser Optimierung, aber die Obergrenze dessen, was Prompt-Arbeit
   hier erreichen kann.
 - **Gold-Erwartungen (D):** 7 Abweichungen über vier Profile betreffen drei Fragen, deren
-  Erwartung fachlich strittig ist (`SAMW-OOC-03`, `SKOS-ADV-01`, `SKOS-IPV-02`). Gemeldet
-  an T-48, Dataset absichtlich unverändert.
+  Erwartung fachlich strittig ist (`SAMW-OOC-03`, `SKOS-ADV-01`, `SKOS-IPV-02`). Gemeldet als
+  **Issue #142** mit Belegstellen, Dataset absichtlich unverändert.
 
 ---
 
