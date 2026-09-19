@@ -1,0 +1,697 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LearnFlow – Technischer Aufbau</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap">
+  <style>
+    /* ── Layout und Tokens aus Christophs Folien (learnflow_learnings.html) ── */
+    :root {
+      --paper: #f7f5f0;
+      --paper-deep: #eee9df;
+      --ink: #101e36;
+      --text: #253247;
+      --muted: #6f7886;
+      --line: #ded9ce;
+      --teal: #0fa8a0;
+      --teal-dark: #087d78;
+      --teal-pale: #e4f6f4;
+      --white: #fffefb;
+      --amber: #bf8830;
+      --amber-dark: #8a5f1e;
+      --amber-pale: #f7edd9;
+      --coral: #cf665c;
+      --coral-dark: #a8453c;
+      --coral-pale: #fae8e5;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 100%; height: 100%; margin: 0; overflow: hidden;
+      background: #dcd8d0;
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+    }
+    body { display: grid; place-items: center; }
+
+    .deck { position: fixed; top: 50%; left: 50%; width: 1600px; height: 900px; transform-origin: center center; }
+
+    .slide {
+      position: absolute; inset: 0; display: none; overflow: hidden;
+      background:
+        radial-gradient(circle at 88% 16%, rgba(15, 168, 160, .10), transparent 25%),
+        linear-gradient(112deg, var(--paper) 0%, var(--paper) 62%, #f3f0e9 100%);
+      box-shadow: 0 30px 80px rgba(16, 30, 54, .18);
+    }
+    .slide.active { display: block; }
+
+    .topbar {
+      position: absolute; z-index: 5; top: 50px; left: 70px; right: 70px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .brand { display: flex; align-items: center; gap: 13px; color: var(--ink); font-size: 22px; font-weight: 820; letter-spacing: -.04em; }
+    .brand-mark {
+      display: grid; place-items: center; width: 34px; height: 34px; border-radius: 9px;
+      background: var(--ink); color: var(--white); font-size: 15px; letter-spacing: -.02em;
+    }
+    .context { color: var(--muted); font-size: 15px; font-weight: 720; letter-spacing: .12em; text-transform: uppercase; }
+
+    .content {
+      position: absolute; inset: 124px 70px 62px;
+      display: grid; grid-template-columns: .88fr 1.12fr; gap: 62px; align-items: center;
+    }
+    .content.wide { grid-template-columns: .62fr 1.38fr; gap: 50px; }
+    .story { min-width: 0; align-self: center; }
+
+    .eyebrow {
+      display: flex; align-items: center; gap: 12px; margin-bottom: 21px;
+      color: var(--teal-dark); font-size: 15px; font-weight: 790; letter-spacing: .11em; text-transform: uppercase;
+    }
+    .eyebrow::before { content: ""; width: 42px; height: 3px; border-radius: 3px; background: var(--teal); }
+
+    h1 { max-width: 650px; margin: 0; color: var(--ink); font-size: 48px; font-weight: 790; line-height: 1.06; letter-spacing: -.052em; }
+    h1 .accent { position: relative; display: inline-block; color: var(--teal-dark); }
+    h1 .accent::after {
+      content: ""; position: absolute; left: 1px; right: -4px; bottom: -6px; height: 7px; border-radius: 8px;
+      background: var(--teal); opacity: .20; transform: rotate(-1.1deg);
+    }
+    .lead { max-width: 600px; margin: 26px 0 0; color: #566173; font-size: 20px; line-height: 1.48; letter-spacing: -.014em; }
+
+    .learning {
+      max-width: 620px; margin-top: 24px; padding: 16px 0 16px 22px; border-left: 4px solid var(--teal);
+      color: var(--ink); font-size: 18px; font-weight: 660; line-height: 1.42;
+    }
+    .learning strong {
+      display: block; margin-bottom: 5px; color: var(--teal-dark);
+      font-size: 15px; font-weight: 820; letter-spacing: .10em; text-transform: uppercase;
+    }
+
+    .panel {
+      position: relative; align-self: center; min-height: 620px; padding: 38px 42px 34px;
+      border: 1px solid rgba(16, 30, 54, .10); border-radius: 30px; background: rgba(255, 254, 251, .88);
+      box-shadow: 0 30px 68px rgba(16, 30, 54, .13), 0 4px 12px rgba(16, 30, 54, .05); backdrop-filter: blur(9px);
+    }
+    .panel::after {
+      content: ""; position: absolute; z-index: -1; inset: 24px -24px -24px 34px;
+      border: 1px solid rgba(15, 168, 160, .14); border-radius: 30px;
+    }
+    .panel-label {
+      display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;
+      color: var(--muted); font-size: 15px; font-weight: 770; letter-spacing: .08em; text-transform: uppercase;
+    }
+    .status { display: flex; align-items: center; gap: 8px; color: var(--teal-dark); letter-spacing: .02em; text-transform: none; }
+    .status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--teal); box-shadow: 0 0 0 5px var(--teal-pale); }
+    .status.warn { color: var(--coral-dark); }
+    .status.warn::before { background: var(--coral); box-shadow: 0 0 0 5px var(--coral-pale); }
+
+    .comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .comparison section { min-width: 0; padding: 23px 23px 20px; border-radius: 20px; background: var(--paper); }
+    .comparison section.filtered { background: var(--amber-pale); }
+    .comparison section.good { background: var(--teal-pale); }
+    .comparison h2 { margin: 0 0 15px; color: var(--ink); font-size: 19px; font-weight: 790; line-height: 1.25; }
+    .comparison .metric { color: var(--ink); font-size: 18px; font-weight: 680; line-height: 1.35; }
+    .comparison .metric strong { color: var(--teal-dark); font-size: 31px; letter-spacing: -.04em; }
+    .comparison .filtered .metric strong { color: var(--amber-dark); }
+    .comparison .outcome { margin-top: 8px; color: var(--muted); font-size: 15px; font-weight: 640; line-height: 1.35; }
+
+    .scores { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+    .score {
+      min-width: 49px; padding: 8px 9px; border-radius: 10px; background: var(--teal-pale);
+      color: var(--teal-dark); text-align: center; font-size: 16px; font-weight: 770; line-height: 1.15;
+    }
+    .score small { display: block; font-size: 12px; font-weight: 650; opacity: .8; }
+    .score.weak { background: var(--amber-pale); color: var(--amber-dark); outline: 1px solid rgba(191, 136, 48, .28); }
+    .score.bad { background: var(--coral-pale); color: var(--coral-dark); outline: 1px solid rgba(207, 102, 92, .28); }
+    .score.gone { background: transparent; color: var(--muted); outline: 1px dashed var(--line); text-decoration: line-through; }
+
+    .finding {
+      margin-top: 22px; padding: 19px 21px; border-left: 4px solid var(--amber); border-radius: 0 14px 14px 0;
+      background: #fcf8ef; color: var(--text); font-size: 18px; line-height: 1.48;
+    }
+    .finding strong { color: var(--ink); }
+    .finding.good { border-left-color: var(--teal); background: #f1faf8; }
+
+    .criteria { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; margin-top: 18px; }
+    .criterion {
+      padding: 12px 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--white);
+      color: var(--ink); text-align: center; font-size: 15px; font-weight: 710; line-height: 1.3;
+    }
+
+    .claim {
+      margin-bottom: 20px; padding: 18px 20px; border-radius: 16px; background: var(--ink); color: var(--white);
+      font-size: 18px; font-weight: 650; line-height: 1.42;
+    }
+    .claim small { display: block; margin-bottom: 6px; color: #a8e7e2; font-size: 13px; font-weight: 780; letter-spacing: .1em; text-transform: uppercase; }
+    .code-block {
+      margin: 0; padding: 15px 16px; border-radius: 12px; background: rgba(255, 254, 251, .82); color: var(--ink);
+      font: 600 15px/1.5 var(--mono); white-space: pre-wrap;
+    }
+    .code-block .k { color: var(--muted); font-weight: 500; }
+    .code-block .hl { color: var(--coral-dark); font-weight: 800; }
+    .code-block .ok { color: var(--teal-dark); font-weight: 800; }
+
+    .page-number { position: absolute; right: 70px; bottom: 32px; z-index: 6; color: var(--muted); font-size: 15px; font-weight: 760; letter-spacing: .08em; }
+    .nav { position: fixed; z-index: 20; left: 50%; bottom: 18px; display: flex; gap: 10px; transform: translateX(-50%); }
+    .nav button { width: 11px; height: 11px; padding: 0; border: 0; border-radius: 50%; background: rgba(16, 30, 54, .28); cursor: pointer; }
+    .nav button.active { background: var(--teal-dark); }
+
+    /* ── Ergänzungen für Block 2, in derselben Formensprache ─────────────── */
+
+    /* Architektur-Diagramm */
+    .arch { width: 100%; height: auto; display: block; }
+    .arch .box { fill: var(--white); stroke: var(--line); stroke-width: 1.5; }
+    .arch .box.db { fill: var(--teal-pale); stroke: rgba(15, 168, 160, .35); }
+    .arch .box.ext { fill: #fcf8ef; stroke: var(--amber); stroke-dasharray: 7 5; }
+    .arch .t { fill: var(--ink); font: 790 19px Inter, sans-serif; letter-spacing: -.02em; text-anchor: middle; }
+    .arch .s { fill: var(--muted); font: 600 14px Inter, sans-serif; text-anchor: middle; }
+    .arch .edge { stroke: var(--muted); stroke-width: 2; fill: none; }
+    .arch .lbl { fill: var(--muted); font: 650 13px Inter, sans-serif; }
+    .arch .lbl.c { text-anchor: middle; }
+    .arch .no { fill: var(--coral-dark); font: 750 14px Inter, sans-serif; text-anchor: middle; }
+    .arch .leg-h { fill: var(--ink); font: 790 15px Inter, sans-serif; }
+    .arch .leg { fill: var(--text); font: 600 14px Inter, sans-serif; }
+    .arch .leg b { font-weight: 800; }
+    .arch .note { fill: var(--amber-dark); font: 700 13px Inter, sans-serif; text-anchor: middle; }
+
+    /* Lara-Fragen */
+    .asker { display: grid; grid-template-columns: 200px 1fr; gap: 30px; align-items: start; }
+    .portrait {
+      width: 200px; height: 200px; border-radius: 26px; overflow: hidden;
+      background: var(--teal-pale); box-shadow: 0 14px 30px rgba(16, 30, 54, .14);
+    }
+    .portrait img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .asks { display: grid; gap: 30px; }
+    .ask-label { color: var(--muted); font-size: 14px; font-weight: 780; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 8px; }
+    .ask-label .q { color: var(--teal-dark); }
+    .bubble {
+      padding: 22px 26px; border-radius: 20px; background: var(--ink); color: var(--white);
+      font-size: 27px; font-weight: 700; line-height: 1.3; letter-spacing: -.025em;
+      box-shadow: 0 14px 28px rgba(16, 30, 54, .16);
+    }
+    .bubble .typo { text-decoration: underline wavy var(--coral); text-underline-offset: 5px; }
+    .panel-foot { margin-top: 44px; padding-top: 24px; border-top: 1px solid var(--line); color: var(--muted); font-size: 16px; font-weight: 620; line-height: 1.45; }
+    .panel-foot strong { color: var(--ink); }
+
+    /* Workflow-Tabelle */
+    .flow { display: grid; grid-template-columns: 36px 1.25fr 1fr 1fr; gap: 5px 12px; align-items: stretch; }
+    .flow .h { color: var(--muted); font-size: 13px; font-weight: 790; letter-spacing: .1em; text-transform: uppercase; padding-bottom: 4px; }
+    .flow .h.q { color: var(--teal-dark); }
+    .flow .n { color: var(--muted); font-size: 14px; font-weight: 760; text-align: right; padding-top: 8px; }
+    .flow .step { padding: 6px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--white); color: var(--ink); font-size: 16px; font-weight: 720; line-height: 1.25; }
+    .flow .step.gate { border-left: 4px solid var(--ink); }
+    .flow .step.llm { border-color: rgba(16, 30, 54, .35); background: #eef0f4; }
+    .flow .r { padding: 6px 12px; border-radius: 10px; font-size: 15px; font-weight: 700; line-height: 1.25; display: flex; align-items: center; }
+    .flow .r.ok { background: var(--teal-pale); color: var(--teal-dark); }
+    .flow .r.warn { background: var(--amber-pale); color: var(--amber-dark); }
+    .flow .r.bad { background: var(--coral-pale); color: var(--coral-dark); }
+    .flow .r.info { background: var(--paper); color: var(--muted); }
+    .flow .r.llm { background: #eef0f4; color: var(--ink); }
+    .flow .r.skip { border: 1px dashed var(--line); color: var(--muted); font-weight: 620; }
+
+    /* Ranglisten */
+    .rank { width: 100%; border-collapse: collapse; font-size: 16px; }
+    .rank th { padding: 0 8px 8px; color: var(--muted); font-size: 12.5px; font-weight: 790; letter-spacing: .08em; text-transform: uppercase; text-align: left; }
+    .rank td { padding: 8px; border-top: 1px solid var(--line); color: var(--text); font-weight: 620; white-space: nowrap; }
+    .rank td.num { font-variant-numeric: tabular-nums; }
+    .rank tr.gt td { background: var(--teal-pale); color: var(--teal-dark); font-weight: 800; }
+    .rank tr.cut td { border-bottom: 3px solid var(--ink); }
+    .rank tr.out td { color: #9aa1ac; }
+    .src { display: inline-block; padding: 2px 8px; border-radius: 7px; font-size: 13.5px; font-weight: 780; }
+    .src.obv { background: var(--teal-pale); color: var(--teal-dark); }
+    .src.fremd { background: var(--coral-pale); color: var(--coral-dark); }
+    .rank tr.gt .src.obv { background: var(--white); }
+
+    /* Kategorien Gold-Dataset */
+    .cats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 18px; }
+    .cat { padding: 16px 16px 15px; border-radius: 16px; background: var(--paper); }
+    .cat b { display: block; color: var(--teal-dark); font-size: 34px; font-weight: 840; letter-spacing: -.05em; line-height: 1; }
+    .cat span { display: block; margin: 6px 0 6px; color: var(--ink); font: 700 14px var(--mono); }
+    .cat p { margin: 0; color: var(--text); font-size: 15px; font-weight: 600; line-height: 1.38; }
+    .sub-label { margin: 0 0 8px; color: var(--muted); font-size: 13px; font-weight: 790; letter-spacing: .1em; text-transform: uppercase; }
+
+    /* Schrittkette in einer Vergleichsspalte */
+    .steps { display: grid; gap: 10px; }
+    .steps div { display: flex; justify-content: space-between; gap: 10px; padding-bottom: 9px; border-bottom: 1px solid rgba(16, 30, 54, .08); font-size: 16px; font-weight: 620; color: var(--text); }
+    .steps div:last-child { border-bottom: 0; padding-bottom: 0; }
+    .steps div b { color: var(--ink); font-weight: 800; font-variant-numeric: tabular-nums; text-align: right; }
+    .steps div b.warn { color: var(--amber-dark); }
+    .steps div b.skip { color: var(--muted); font-weight: 600; }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="deck" aria-label="LearnFlow Technischer Aufbau">
+
+    <!-- ═══ 1 · Architektur ═══════════════════════════════════════════ -->
+    <section class="slide active" aria-label="Architektur">
+      <header class="topbar">
+        <div class="brand"><span class="brand-mark" aria-hidden="true">LF</span><span>LearnFlow</span></div>
+        <div class="context" data-title="Technischer Aufbau"></div>
+      </header>
+      <div class="content">
+        <div class="story">
+          <div class="eyebrow">Architektur</div>
+          <h1>Vier Container. Ein <span class="accent">Weg nach aussen.</span></h1>
+          <p class="lead">Ein modularer Monolith in Docker Compose. Fragen laufen synchron durch die API, Dokumente verarbeitet ein Worker im Hintergrund. Nur der Sprachmodell-Anbieter liegt ausserhalb.</p>
+          <div class="learning">
+            <strong>Bewusst getrennt</strong>
+            API und Worker teilen kein Netzwerk. Der Worker verarbeitet fremde Uploads und kann die API technisch nicht erreichen.
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-label"><span>Container und Netze</span><span class="status">Docker Compose</span></div>
+          <svg class="arch" viewBox="0 0 740 470" role="img" aria-label="Browser, Web App, API und Datenbank untereinander; Worker neben der Datenbank; LLM-Provider extern neben der API">
+            <defs>
+              <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0 0 L10 5 L0 10 z" fill="#6f7886"/>
+              </marker>
+            </defs>
+
+            <!-- Legende: Netze -->
+            <text class="leg-h" x="470" y="34">Drei Docker-Netze</text>
+            <text class="leg" x="470" y="62"><tspan font-weight="800">edge</tspan> — Browser · Web App · API</text>
+            <text class="leg" x="470" y="88"><tspan font-weight="800">api-db</tspan> — API · Datenbank</text>
+            <text class="leg" x="470" y="114"><tspan font-weight="800">worker-db</tspan> — Worker · Datenbank</text>
+
+            <!-- Boxen -->
+            <rect class="box" x="30" y="14" width="260" height="60" rx="14"/>
+            <text class="t" x="160" y="40">Browser</text>
+            <text class="s" x="160" y="61">Lara · Stefan · Admin</text>
+
+            <rect class="box" x="30" y="126" width="260" height="60" rx="14"/>
+            <text class="t" x="160" y="152">Web App</text>
+            <text class="s" x="160" y="173">React 18 · Nginx</text>
+
+            <rect class="box" x="30" y="238" width="260" height="64" rx="14"/>
+            <text class="t" x="160" y="266">API</text>
+            <text class="s" x="160" y="287">FastAPI · Python 3.13</text>
+
+            <rect class="box db" x="30" y="378" width="260" height="72" rx="14"/>
+            <text class="t" x="160" y="407">Datenbank</text>
+            <text class="s" x="160" y="429">PostgreSQL 17 · pgvector · Volltext</text>
+
+            <rect class="box" x="460" y="378" width="250" height="72" rx="14"/>
+            <text class="t" x="585" y="407">Worker</text>
+            <text class="s" x="585" y="429">pgqueuer · Dokumente indexieren</text>
+
+            <rect class="box ext" x="460" y="220" width="250" height="96" rx="14"/>
+            <text class="t" x="585" y="250">LLM-Provider</text>
+            <text class="s" x="585" y="272">via LiteLLM</text>
+            <text class="s" x="585" y="294">gpt-4o-mini · text-embedding-3-small</text>
+            <text class="note" x="585" y="206">extern · Pilot: Azure OpenAI EU</text>
+
+            <!-- Kanten -->
+            <line class="edge" x1="160" y1="74" x2="160" y2="124" marker-end="url(#ah)"/>
+            <text class="lbl" x="172" y="104">HTTPS</text>
+            <line class="edge" x1="160" y1="186" x2="160" y2="236" marker-end="url(#ah)"/>
+            <text class="lbl" x="172" y="216">REST · JSON</text>
+            <line class="edge" x1="160" y1="302" x2="160" y2="376" marker-end="url(#ah)"/>
+            <text class="lbl" x="148" y="344" text-anchor="end">SQL · Hybrid-Suche</text>
+
+            <line class="edge" x1="290" y1="268" x2="458" y2="268" marker-end="url(#ah)"/>
+            <text class="lbl c" x="374" y="258">Embedding · Antwort</text>
+            <text class="lbl c" x="374" y="290">Self-Check</text>
+
+            <line class="edge" x1="292" y1="414" x2="458" y2="414" marker-start="url(#ah)" marker-end="url(#ah)"/>
+            <text class="lbl c" x="374" y="404">Job via NOTIFY</text>
+            <text class="lbl c" x="374" y="436">Chunks zurück</text>
+
+            <line class="edge" x1="585" y1="378" x2="585" y2="318" marker-end="url(#ah)"/>
+            <text class="lbl" x="597" y="352">Embeddings</text>
+
+            <!-- keine Verbindung API ↔ Worker -->
+            <text class="no" x="374" y="344">✕ API ↔ Worker: kein gemeinsames Netz</text>
+          </svg>
+        </div>
+      </div>
+      <div class="page-number"></div>
+    </section>
+
+    <!-- ═══ 2 · Das Beispiel ══════════════════════════════════════════ -->
+    <section class="slide" aria-label="Das Beispiel">
+      <header class="topbar">
+        <div class="brand"><span class="brand-mark" aria-hidden="true">LF</span><span>LearnFlow</span></div>
+        <div class="context" data-title="Technischer Aufbau"></div>
+      </header>
+      <div class="content">
+        <div class="story">
+          <div class="eyebrow">Die Pipeline an einem Beispiel</div>
+          <h1>Eine Frage. <span class="accent">Zwei Formulierungen.</span></h1>
+          <p class="lead">Dieselbe Sache, wörtlich so gestellt – Tippfehler inklusive. Wir verfolgen beide Fragen durch jeden Schritt der Pipeline.</p>
+        </div>
+        <div class="panel">
+          <div class="panel-label"><span>Beispiel</span><span class="status">gegen den laufenden Stack</span></div>
+          <div class="asker">
+            <div class="portrait"><img src="assets/lara-portrait-v1.png" alt="Lara, neue Mitarbeiterin"></div>
+            <div class="asks">
+              <div>
+                <div class="ask-label"><span class="q">Q1</span> · formal</div>
+                <div class="bubble">Ich fahre innerorts 6 Km/h zu schnell wie hoch ist die Busse?</div>
+              </div>
+              <div>
+                <div class="ask-label"><span class="q">Q2</span> · umgangssprachlich</div>
+                <div class="bubble">Ich wurde innerorts mit 6 <span class="typo">zuschnell</span> <span class="typo">gebliztz</span> was kostet mich das?</div>
+              </div>
+            </div>
+          </div>
+          <div class="panel-foot">
+            <strong>Korpus:</strong> SKOS-Richtlinien · EU AI Act · SAMW-Leitfaden · Ordnungsbussenverordnung (OBV) – 1017 Chunks.<br>
+            Die Antwort steht in der OBV, Anhang 1, Ziffer 303.1 b.
+          </div>
+        </div>
+      </div>
+      <div class="page-number"></div>
+    </section>
+
+    <!-- ═══ 3 · Workflow ══════════════════════════════════════════════ -->
+    <section class="slide" aria-label="Workflow">
+      <header class="topbar">
+        <div class="brand"><span class="brand-mark" aria-hidden="true">LF</span><span>LearnFlow</span></div>
+        <div class="context" data-title="Technischer Aufbau"></div>
+      </header>
+      <div class="content wide">
+        <div class="story">
+          <div class="eyebrow">Der Weg durch die Pipeline</div>
+          <h1>13 Schritte, <span class="accent">zwei Modell&shy;aufrufe</span></h1>
+          <p class="lead">Grün läuft wie gedacht. Gelb und Rot: Hier trennen sich die beiden Fragen.</p>
+          <div class="learning">
+            <strong>Fail-closed</strong>
+            Acht Stellen können mit «Weiss ich nicht» abbrechen. Nur zwei Schritte rufen ein Sprachmodell auf – alle anderen prüfen ohne Modell.
+          </div>
+        </div>
+        <div class="panel" style="padding: 30px 34px 28px">
+          <div class="flow">
+            <span></span><span class="h">Schritt</span><span class="h q">Q1 · formal</span><span class="h q">Q2 · umgangssprachlich</span>
+
+            <span class="n">1</span><div class="step">Frage zerlegen</div><div class="r info">6 Suchbegriffe · «km/h» zerrissen</div><div class="r warn">6 Suchbegriffe · 2 Tippfehler</div>
+            <span class="n">2</span><div class="step">Embedding</div><div class="r info">19 Tokens → 1536 Zahlen</div><div class="r info">20 Tokens → 1536 Zahlen</div>
+            <span class="n">3</span><div class="step">Bedeutungssuche</div><div class="r ok">Antwort auf Platz 1</div><div class="r ok">Antwort auf Platz 2</div>
+            <span class="n">4</span><div class="step">Wortsuche</div><div class="r warn">Antwort auf Platz 22 – raus</div><div class="r bad">kein OBV-Treffer in den Top 20</div>
+            <span class="n">5</span><div class="step">Fusion</div><div class="r warn">Antwort: Platz 1 → 5</div><div class="r info">Antwort: Platz 3</div>
+            <span class="n">6</span><div class="step">Kontext · 5 Stücke</div><div class="r ok">5 × OBV</div><div class="r bad">3 × OBV · 2 × EU AI Act</div>
+            <span class="n">7</span><div class="step gate">Gate · Stufe 0</div><div class="r ok">✓ 5 von 5 ähnlich genug</div><div class="r ok">✓ 3 von 5 ähnlich genug</div>
+            <span class="n">8</span><div class="step gate">Konfidenz · Stufe 1</div><div class="r ok">✓ 0.60</div><div class="r warn">✓ 0.44 – knapp über 0.40</div>
+            <span class="n">9</span><div class="step llm">Antwort · Modellaufruf 1</div><div class="r llm">«… 120 Franken [5]»</div><div class="r llm">«… 120 Franken [3]»</div>
+            <span class="n">10</span><div class="step gate">Belegprüfung · Stufe 2</div><div class="r ok">✓ 1 von 1 Satz belegt</div><div class="r ok">✓ 1 von 1 Satz belegt</div>
+            <span class="n">11</span><div class="step gate">Konfidenzband</div><div class="r ok">0.80 → hoch</div><div class="r warn">0.72 → mittel</div>
+            <span class="n">12</span><div class="step llm gate">Self-Check · Modellaufruf 2</div><div class="r skip">läuft nicht</div><div class="r llm">läuft → GEDECKT</div>
+            <span class="n">13</span><div class="step">Antwort an Lara</div><div class="r ok">120 Fr. · Konfidenz hoch</div><div class="r warn">120 Fr. · Konfidenz mittel</div>
+          </div>
+        </div>
+      </div>
+      <div class="page-number"></div>
+    </section>
+
+    <!-- ═══ 4 · Wortsuche ═════════════════════════════════════════════ -->
+    <section class="slide" aria-label="Wortsuche">
+      <header class="topbar">
+        <div class="brand"><span class="brand-mark" aria-hidden="true">LF</span><span>LearnFlow</span></div>
+        <div class="context" data-title="Technischer Aufbau"></div>
+      </header>
+      <div class="content">
+        <div class="story">
+          <div class="eyebrow">Schritt 1 und 4 · Wortsuche</div>
+          <h1>Die Wortsuche sucht im <span class="accent">falschen Gesetz</span></h1>
+          <p class="lead">Aus der Frage werden Suchbegriffe. Füllwörter fliegen raus – aber «wurde» steht nicht auf der Liste und kommt in jedem Rechtstext vor.</p>
+          <div class="learning">
+            <strong>Beobachtung</strong>
+            Die präzisesten Begriffe fallen zuerst weg: «6» ist zu kurz, «km/h» wird am Schrägstrich zerrissen.
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-label"><span>Suchbegriffe · Treffer im Korpus</span><span class="status">Volltextsuche</span></div>
+          <div class="comparison">
+            <section>
+              <h2>Q1 · formal</h2>
+              <div class="scores">
+                <span class="score">fahr<small>15</small></span>
+                <span class="score">innerort<small>5</small></span>
+                <span class="score weak">km<small>2</small></span>
+                <span class="score">schnell<small>4</small></span>
+                <span class="score">hoch<small>13</small></span>
+                <span class="score">buss<small>1</small></span>
+                <span class="score gone">6</span>
+                <span class="score gone">h</span>
+              </div>
+              <div class="metric">Richtige Stelle<br><strong>Platz 22</strong></div>
+              <div class="outcome">zwei Plätze zu tief für die Top 20</div>
+            </section>
+            <section class="filtered">
+              <h2>Q2 · umgangssprachlich</h2>
+              <div class="scores">
+                <span class="score bad">wurd<small>161</small></span>
+                <span class="score">innerort<small>5</small></span>
+                <span class="score weak">zuschnell<small>0</small></span>
+                <span class="score weak">gebliztz<small>0</small></span>
+                <span class="score weak">kostet<small>0</small></span>
+                <span class="score gone">6</span>
+              </div>
+              <div class="metric">OBV-Treffer in den Top 20<br><strong>0</strong></div>
+              <div class="outcome">nur EU AI Act, SKOS und SAMW</div>
+            </section>
+          </div>
+          <div class="finding good">
+            <strong>Die Bedeutungssuche findet beide:</strong> Die richtige Stelle steht bei Q1 auf Platz 1, bei Q2 auf Platz 2. Tippfehler verschieben den Sinn kaum – deshalb sucht LearnFlow auf beiden Wegen.
+          </div>
+        </div>
+      </div>
+      <div class="page-number"></div>
+    </section>
+
+    <!-- ═══ 5 · Fusion ════════════════════════════════════════════════ -->
+    <section class="slide" aria-label="Fusion">
+      <header class="topbar">
+        <div class="brand"><span class="brand-mark" aria-hidden="true">LF</span><span>LearnFlow</span></div>
+        <div class="context" data-title="Technischer Aufbau"></div>
+      </header>
+      <div class="content">
+        <div class="story">
+          <div class="eyebrow">Schritt 5 · Fusion</div>
+          <h1>Die Fusion zählt <span class="accent">Plätze</span>, nicht Ähnlichkeit</h1>
+          <p class="lead">Beide Ranglisten werden zu einer gemischt. Wer in beiden Listen vorkommt, zieht vorbei – egal, wie gut er passt.</p>
+          <div class="learning">
+            <strong>Beobachtung</strong>
+            Nur die ersten fünf sieht das Modell. Bei Q1 rutscht die Antwort von Platz 1 auf Platz 5 – den letzten.
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-label"><span>Gemischte Rangliste · Schnitt nach Platz 5</span><span class="status">★ = Antwort</span></div>
+          <div class="comparison">
+            <section style="background:var(--white); padding: 18px 16px">
+              <h2>Q1</h2>
+              <table class="rank">
+                <thead><tr><th>#</th><th>Quelle</th><th>Bedeutung</th><th>Wort</th></tr></thead>
+                <tbody>
+                  <tr><td class="num">1</td><td><span class="src obv">OBV S.12</span></td><td class="num">5</td><td class="num">4</td></tr>
+                  <tr><td class="num">2</td><td><span class="src obv">OBV S.16</span></td><td class="num">8</td><td class="num">9</td></tr>
+                  <tr><td class="num">3</td><td><span class="src obv">OBV S.19</span></td><td class="num">18</td><td class="num">2</td></tr>
+                  <tr><td class="num">4</td><td><span class="src obv">OBV S.18</span></td><td class="num">19</td><td class="num">10</td></tr>
+                  <tr class="gt cut"><td class="num">5</td><td><span class="src obv">★ OBV S.12</span></td><td class="num">1</td><td class="num">–</td></tr>
+                  <tr class="out"><td class="num">6</td><td><span class="src obv">OBV S.17</span></td><td class="num">–</td><td class="num">1</td></tr>
+                </tbody>
+              </table>
+            </section>
+            <section style="background:var(--white); padding: 18px 16px">
+              <h2>Q2</h2>
+              <table class="rank">
+                <thead><tr><th>#</th><th>Quelle</th><th>Bedeutung</th><th>Wort</th></tr></thead>
+                <tbody>
+                  <tr><td class="num">1</td><td><span class="src obv">OBV S.24</span></td><td class="num">1</td><td class="num">–</td></tr>
+                  <tr><td class="num">2</td><td><span class="src fremd">AI Act S.109</span></td><td class="num">–</td><td class="num">1</td></tr>
+                  <tr class="gt"><td class="num">3</td><td><span class="src obv">★ OBV S.12</span></td><td class="num">2</td><td class="num">–</td></tr>
+                  <tr><td class="num">4</td><td><span class="src fremd">AI Act S.121</span></td><td class="num">–</td><td class="num">2</td></tr>
+                  <tr class="cut"><td class="num">5</td><td><span class="src obv">OBV S.20</span></td><td class="num">3</td><td class="num">–</td></tr>
+                  <tr class="out"><td class="num">6</td><td><span class="src fremd">SKOS S.130</span></td><td class="num">–</td><td class="num">3</td></tr>
+                </tbody>
+              </table>
+            </section>
+          </div>
+          <div class="finding">
+            <strong>Bei Q2 verzahnt die Fusion die Listen:</strong> OBV, AI Act, OBV, AI Act, OBV. Die beiden AI-Act-Abschnitte haben mit der Frage kaum etwas zu tun – sie stehen nur vorne in der Wortsuche.
+          </div>
+        </div>
+      </div>
+      <div class="page-number"></div>
+    </section>
+
+    <!-- ═══ 6 · Prüfstufen ════════════════════════════════════════════ -->
+    <section class="slide" aria-label="Prüfstufen">
+      <header class="topbar">
+        <div class="brand"><span class="brand-mark" aria-hidden="true">LF</span><span>LearnFlow</span></div>
+        <div class="context" data-title="Technischer Aufbau"></div>
+      </header>
+      <div class="content">
+        <div class="story">
+          <div class="eyebrow">Schritt 7 bis 13 · Prüfstufen</div>
+          <h1>Beide kommen durch. <span class="accent">Q2 wird geprüft.</span></h1>
+          <p class="lead">Die fremden Abschnitte drücken die Konfidenz. Die Pipeline traut Q2 weniger und holt ein zweites Urteil ein.</p>
+          <div class="learning">
+            <strong>Learning</strong>
+            Fail-closed heisst hier nicht unterdrücken, sondern genauer hinschauen, wenn die Grundlage dünner ist.
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-label"><span>Gleiche Antwort, anderer Weg</span><span class="status">beide: 120 Franken</span></div>
+          <div class="comparison">
+            <section class="good">
+              <h2>Q1 · formal</h2>
+              <div class="steps">
+                <div>Konfidenz Stufe 1 <b>0.60</b></div>
+                <div>Sätze belegt <b>1 von 1</b></div>
+                <div>Konfidenzband <b>hoch · 0.80</b></div>
+                <div>Self-Check <b class="skip">nicht nötig</b></div>
+                <div>Modellaufrufe <b>1</b></div>
+              </div>
+            </section>
+            <section class="filtered">
+              <h2>Q2 · umgangssprachlich</h2>
+              <div class="steps">
+                <div>Konfidenz Stufe 1 <b class="warn">0.44</b></div>
+                <div>Sätze belegt <b>1 von 1</b></div>
+                <div>Konfidenzband <b class="warn">mittel · 0.72</b></div>
+                <div>Self-Check <b>GEDECKT</b></div>
+                <div>Modellaufrufe <b>2</b></div>
+              </div>
+            </section>
+          </div>
+          <div class="finding">
+            <strong>Knapp:</strong> Die Schwelle von Stufe 1 liegt bei 0.40. Wäre statt des letzten OBV-Abschnitts der nächste Kandidat nachgerückt (SKOS), läge Q2 bei 0.39 – «Weiss ich nicht», obwohl die Antwort im Kontext steht.
+          </div>
+        </div>
+      </div>
+      <div class="page-number"></div>
+    </section>
+
+    <!-- ═══ 7 · Eval und Gold-Dataset ═════════════════════════════════ -->
+    <section class="slide" aria-label="Eval und Gold-Dataset">
+      <header class="topbar">
+        <div class="brand"><span class="brand-mark" aria-hidden="true">LF</span><span>LearnFlow</span></div>
+        <div class="context" data-title="Technischer Aufbau"></div>
+      </header>
+      <div class="content">
+        <div class="story">
+          <div class="eyebrow">Eval · Gold-Dataset</div>
+          <h1>Ein Beispiel ist eine Anekdote. <span class="accent">Das Eval ist der Beleg.</span></h1>
+          <p class="lead">80 Fragen mit bekannter richtiger Antwort, gestellt an die echte Pipeline – vor jedem Release.</p>
+          <div class="learning">
+            <strong>Über alle 80 Fragen</strong>
+            In 13 von 15 Fällen, in denen die Quelle fehlte, lag sie in der Kandidatenliste – dasselbe Rangproblem wie bei Q1.
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-label"><span>Gold-Dataset</span><span class="status">80 Fragen · 3 Korpora</span></div>
+          <div class="cats">
+            <div class="cat"><b>45</b><span>in_corpus</span><p>Antwort steht im Korpus → beantworten und belegen</p></div>
+            <div class="cat"><b>22</b><span>out_of_corpus</span><p>Antwort steht nicht drin → «Weiss ich nicht»</p></div>
+            <div class="cat"><b>13</b><span>adversarial</span><p>Fangfragen, falsche Annahmen → korrigieren statt bestätigen</p></div>
+          </div>
+          <p class="sub-label">Ein Eintrag</p>
+          <div class="code-block"><span class="k">id:</span>              SKOS-PRINZ-02
+<span class="k">question:</span>        Was bedeutet das Bedarfsdeckungsprinzip?
+<span class="k">category:</span>        in_corpus
+<span class="k">expected_refusal:</span> <span class="ok">false</span>
+<span class="k">expected_source:</span>  Seiten 6–8 · A.3 Prinzipien der Sozialhilfe</div>
+          <div class="criteria">
+            <div class="criterion">Halluzination = 0 %</div>
+            <div class="criterion">Out-of-Corpus-Refusal ≥ 90 %</div>
+            <div class="criterion">Fälschlich unterdrückt ≤ 15 %</div>
+          </div>
+        </div>
+      </div>
+      <div class="page-number"></div>
+    </section>
+
+    <!-- ═══ 8 · Gold muss Gold sein ═══════════════════════════════════ -->
+    <section class="slide" aria-label="Gold muss Gold sein">
+      <header class="topbar">
+        <div class="brand"><span class="brand-mark" aria-hidden="true">LF</span><span>LearnFlow</span></div>
+        <div class="context" data-title="Technischer Aufbau"></div>
+      </header>
+      <div class="content">
+        <div class="story">
+          <div class="eyebrow">Eval · Wenn der Massstab falsch ist</div>
+          <h1>Gold muss <span class="accent">Gold</span> sein</h1>
+          <p class="lead">Ein falscher Eintrag bestraft korrektes Verhalten – dauerhaft und unbemerkt. Nach der Abnahme prüft niemand mehr gegen den Korpus.</p>
+          <div class="learning">
+            <strong>Learning</strong>
+            Das Gold-Dataset braucht dieselbe Prüfung wie der Code: gegen die Quelle, nicht gegen die Erinnerung.
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-label"><span>Eintrag SAMW-OOC-03</span><span class="status warn">einer von drei Fällen</span></div>
+          <div class="claim"><small>Frage</small>Innert welcher Frist müssen schwerwiegende unerwünschte Ereignisse (SUSAR) der Ethikkommission gemeldet werden?</div>
+          <div class="comparison">
+            <section class="filtered">
+              <h2>Das Gold sagt</h2>
+              <div class="code-block"><span class="k">category:</span> out_of_corpus
+<span class="k">expected_refusal:</span> <span class="hl">true</span></div>
+              <div class="outcome" style="margin-top:12px">«Konkrete Meldefristen sind nicht im Leitfaden enthalten → Weiss ich nicht.»</div>
+            </section>
+            <section class="good">
+              <h2>Der Korpus sagt</h2>
+              <div class="metric">SAMW-Leitfaden, S. 83<br><strong>7 bzw. 15 Tage</strong></div>
+              <div class="outcome">«Verdacht auf eine unerwartete Arzneimittelwirkung (SUSAR) … Innerhalb von 7 Tagen · Innerhalb von 15 Tagen»</div>
+            </section>
+          </div>
+          <div class="finding">
+            <strong>Die Folge:</strong> Ein Modell, das richtig mit der Frist antwortet, zählt als Fehler. Das Gold belohnt die falsche Verweigerung.
+          </div>
+        </div>
+      </div>
+      <div class="page-number"></div>
+    </section>
+
+  </main>
+
+  <nav class="nav" aria-label="Foliennavigation"></nav>
+
+  <script>
+    const deck = document.querySelector('.deck');
+    const slides = [...document.querySelectorAll('.slide')];
+    const nav = document.querySelector('.nav');
+    let current = 0;
+
+    slides.forEach((slide, i) => {
+      const ctx = slide.querySelector('.context');
+      if (ctx) ctx.textContent = `${ctx.dataset.title} · ${i + 1}/${slides.length}`;
+      const num = slide.querySelector('.page-number');
+      if (num) num.textContent = String(i + 1).padStart(2, '0');
+      const dot = document.createElement('button');
+      dot.type = 'button';
+      dot.setAttribute('aria-label', `Folie ${i + 1} anzeigen`);
+      dot.addEventListener('click', () => showSlide(i));
+      nav.appendChild(dot);
+    });
+    const dots = [...nav.querySelectorAll('button')];
+
+    function fitDeck() {
+      const scale = Math.min(window.innerWidth / 1600, window.innerHeight / 900);
+      deck.style.transform = `translate(-50%, -50%) scale(${scale})`;
+    }
+
+    function showSlide(index) {
+      current = (index + slides.length) % slides.length;
+      slides.forEach((slide, i) => slide.classList.toggle('active', i === current));
+      dots.forEach((dot, i) => dot.classList.toggle('active', i === current));
+    }
+
+    window.addEventListener('keydown', event => {
+      if (['ArrowRight', 'ArrowDown', 'PageDown', ' '].includes(event.key)) showSlide(current + 1);
+      if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(event.key)) showSlide(current - 1);
+      if (event.key === 'Home') showSlide(0);
+      if (event.key === 'End') showSlide(slides.length - 1);
+    });
+    window.addEventListener('resize', fitDeck);
+    fitDeck();
+    showSlide(0);
+  </script>
+</body>
+</html>
