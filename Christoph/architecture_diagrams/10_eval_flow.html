@@ -1,0 +1,309 @@
+<title>LearnFlow-Eval-Flow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F5F3EE;
+    --surface: #FFFFFF;
+    --surface-2: #FBFAF6;
+    --ink: #20242B;
+    --muted: #5B6472;
+    --line: #D9D4C8;
+    --line-strong: #B9B2A2;
+    --neutral: #5B6472;
+    --error: #A23B3B;
+    --warn: #8C7A4E;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14171B;
+      --surface: #1B1F25;
+      --surface-2: #20252B;
+      --ink: #E7E9EE;
+      --muted: #9AA3B0;
+      --line: #333A44;
+      --line-strong: #454E5A;
+      --neutral: #9AA3B0;
+      --error: #E2726B;
+      --warn: #D0B77A;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14171B;
+    --surface: #1B1F25;
+    --surface-2: #20252B;
+    --ink: #E7E9EE;
+    --muted: #9AA3B0;
+    --line: #333A44;
+    --line-strong: #454E5A;
+    --neutral: #9AA3B0;
+    --error: #E2726B;
+    --warn: #D0B77A;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+    padding: 0 20px; padding-block: 40px 64px;
+  }
+  main { max-width: 1080px; margin: 0 auto; }
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px;
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px;
+  }
+  h1 {
+    font-size: clamp(28px, 4vw, 38px); font-weight: 700; margin: 0 0 10px;
+    text-wrap: balance; letter-spacing: -0.01em;
+  }
+  .dek { font-size: 16px; color: var(--muted); max-width: 700px; line-height: 1.55; margin: 0 0 24px; }
+  .dek code {
+    font-family: "IBM Plex Mono", monospace; font-size: 0.92em; background: var(--surface-2);
+    border: 1px solid var(--line); padding: 1px 5px; border-radius: 4px;
+  }
+
+  .banner {
+    display: flex; gap: 12px; align-items: flex-start;
+    background: var(--surface-2); border: 1px solid var(--warn); border-radius: 12px;
+    padding: 14px 16px; margin: 0 0 36px; font-size: 13.5px; line-height: 1.55;
+  }
+  .banner .tag {
+    font-family: "IBM Plex Mono", monospace; font-size: 11px; font-weight: 700;
+    color: var(--warn); border: 1px solid var(--warn); border-radius: 6px;
+    padding: 2px 7px; white-space: nowrap; flex-shrink: 0;
+  }
+  .banner span.body { color: var(--muted); }
+  .banner code { font-family: "IBM Plex Mono", monospace; font-size: 0.95em; color: var(--ink); }
+
+  h2.section {
+    font-size: 12px; font-family: "IBM Plex Mono", monospace; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--muted); margin: 0 0 4px; font-weight: 600;
+  }
+  h3.section-title { font-size: 21px; font-weight: 600; margin: 0 0 16px; }
+
+  figure { margin: 0 0 40px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 8px; }
+  svg { display: block; width: 100%; height: auto; }
+  figcaption { font-size: 13.5px; color: var(--muted); line-height: 1.6; padding: 16px 14px 6px; }
+  figcaption strong { color: var(--ink); font-weight: 600; }
+  figcaption code { font-family: "IBM Plex Mono", monospace; font-size: 0.95em; }
+
+  .table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 6px 6px 2px; margin-bottom: 46px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; min-width: 680px; }
+  thead th {
+    text-align: left; padding: 12px 14px; font-family: "IBM Plex Mono", monospace;
+    font-size: 11.5px; letter-spacing: 0.03em; color: var(--muted); font-weight: 600;
+    border-bottom: 2px solid var(--line);
+  }
+  tbody td { padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: top; font-size: 13px; }
+  tbody tr:last-child td { border-bottom: none; }
+  td.metric { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; font-weight: 600; white-space: nowrap; }
+  td.gate { white-space: nowrap; font-family: "IBM Plex Mono", monospace; font-size: 12.5px; }
+  td.gate.hard { color: var(--error); font-weight: 700; }
+  td.gate.soft { color: var(--warn); font-weight: 600; }
+  td.gate.none { color: var(--muted); }
+  .table-caption { font-size: 13px; color: var(--muted); padding: 2px 14px 14px; line-height: 1.6; }
+
+  .notes { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 8px; }
+  @media (max-width: 640px) { .notes { grid-template-columns: 1fr; } }
+  .note h2 {
+    font-size: 12px; font-family: "IBM Plex Mono", monospace; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--muted); margin: 0 0 4px; font-weight: 600;
+  }
+  .note h3 { font-size: 19px; font-weight: 600; margin: 0 0 16px; }
+  .note ul { list-style: none; margin: 0; padding: 0; border-left: 2px solid var(--line); }
+  .note li { position: relative; padding: 0 0 18px 22px; font-size: 14.5px; line-height: 1.55; }
+  .note li:last-child { padding-bottom: 0; }
+  .note li::before {
+    content: ""; position: absolute; left: -5px; top: 6px; width: 8px; height: 8px;
+    border-radius: 50%; background: var(--surface); border: 2px solid var(--line-strong);
+  }
+  .note .mono { font-family: "IBM Plex Mono", monospace; font-size: 0.9em; color: var(--muted); }
+
+  footer {
+    margin-top: 52px; padding-top: 18px; border-top: 1px solid var(--line);
+    font-size: 12.5px; color: var(--muted); font-family: "IBM Plex Mono", monospace;
+  }
+
+  .box-fill { fill: var(--surface); }
+  .box-stroke { stroke: var(--line-strong); stroke-width: 1.5; }
+  .box-title { fill: var(--ink); font-weight: 700; }
+  .desc { fill: var(--muted); font-size: 12px; }
+  .pill-neutral { fill: var(--neutral); }
+  .pill-text { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; fill: var(--surface); font-weight: 600; }
+  .conn { stroke: var(--line-strong); stroke-width: 1.6; fill: none; }
+  .arrow-neutral { fill: var(--line-strong); }
+  .arrow-error { fill: var(--error); }
+  .branch-error { stroke: var(--error); stroke-width: 1.7; fill: none; }
+  .exit-box-error { fill: var(--surface); stroke: var(--error); stroke-width: 1.8; }
+  .exit-title-error { fill: var(--error); font-family: "IBM Plex Mono", monospace; font-weight: 700; }
+  .exit-desc { fill: var(--muted); font-size: 11px; }
+  .step-no { fill: var(--muted); font-family: "IBM Plex Mono", monospace; font-size: 13px; font-weight: 600; }
+</style>
+
+<main>
+  <p class="eyebrow">Eval-Flow · Stand main, 16.09.2026</p>
+  <h1>Wie die RAG-Qualität gemessen wird</h1>
+  <p class="dek">Zwei Testsuiten gegen ein Gold-Dataset von 80 Fragen, beide seit T-55 <strong style="color:var(--ink)">in-process</strong> gegen die echte Pipeline — ohne dabei die Entwicklungsdatenbank oder die kalibrierten Schwellen zu berühren.</p>
+
+  <div class="banner">
+    <span class="tag">Kein CI-Job</span>
+    <span class="body"><code>make eval</code> ist ein manuelles Release-Gate (T-53, #110) — es fehlt ein <code>OPENAI_API_KEY</code>-Secret im Repo. Bis das gelöst ist, läuft nur <code>backend</code>/<code>frontend</code>/<code>e2e</code> automatisch in der CI; der Eval-Lauf ist vor jedem Release von Hand auszuführen.</span>
+  </div>
+
+  <figure>
+    <svg viewBox="0 0 1280 940" role="img" aria-label="Flussdiagramm: make eval wählt ein Profil, richtet einen In-Process-Lauf in einer zurückgerollten Transaktion mit gepinnten Seed-Schwellen ein, stellt 80 Gold-Fragen durch den echten Route-Handler, berechnet reine Metrikfunktionen darüber, und prüft Gates nur für das ausgelieferte Profil. Ein Konfigurationsfehler bricht den Lauf ab statt eine ungültige Messung zu zählen, ein gerissenes Gate lässt nur das Produktivprofil fehlschlagen. Am Ende steht ein Report, aus dem ein generierter Modellvergleich und von Hand geschriebene Befunde entstehen.">
+      <defs>
+        <marker id="e-neutral" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <polygon points="0,0 10,5 0,10" class="arrow-neutral" />
+        </marker>
+        <marker id="e-error" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <polygon points="0,0 10,5 0,10" class="arrow-error" />
+        </marker>
+      </defs>
+
+      <!-- 1 -->
+      <g>
+        <rect x="140" y="50" width="460" height="105" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="76" class="step-no">1</text>
+        <text x="186" y="76" class="box-title" font-size="15">make eval [EVAL_PROFILE=...]</text>
+        <rect x="460" y="59" width="128" height="16" rx="8" class="pill-neutral" /><text x="524" y="70.5" text-anchor="middle" class="pill-text">nicht in CI</text>
+        <text x="164" y="100" class="desc">ohne Angabe: PRODUCTION-Profil</text>
+        <text x="164" y="115.5" class="desc">(gpt-4o-mini) — das einzige mit gated=true</text>
+      </g>
+      <line x1="370" y1="155" x2="370" y2="195" class="conn" marker-end="url(#e-neutral)" />
+
+      <!-- 2 -->
+      <g>
+        <rect x="140" y="195" width="460" height="125" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="221" class="step-no">2</text>
+        <text x="186" y="221" class="box-title" font-size="15.5">In-Process-Setup</text>
+        <rect x="480" y="204" width="108" height="16" rx="8" class="pill-neutral" /><text x="534" y="215.5" text-anchor="middle" class="pill-text">1 Transaktion</text>
+        <text x="164" y="245" class="desc">ASGI-App, am Ende zurückgerollt — keine</text>
+        <text x="164" y="260.5" class="desc">answers-Zeile bleibt. Rate-Limiter aus,</text>
+        <text x="164" y="276" class="desc">Schwellen auf Seed-Defaults gepinnt</text>
+      </g>
+      <line x1="370" y1="320" x2="370" y2="360" class="conn" marker-end="url(#e-neutral)" />
+
+      <!-- 3 -->
+      <g>
+        <rect x="140" y="360" width="460" height="125" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="386" class="step-no">3</text>
+        <text x="186" y="386" class="box-title" font-size="15.5">80 Gold-Fragen stellen</text>
+        <rect x="480" y="369" width="108" height="16" rx="8" class="pill-neutral" /><text x="534" y="380.5" text-anchor="middle" class="pill-text">22 · 45 · 13</text>
+        <text x="164" y="410" class="desc">out_of_corpus + in_corpus + adversarial —</text>
+        <text x="164" y="425.5" class="desc">durch den echten Handler: Auth, Retrieval,</text>
+        <text x="164" y="441" class="desc">alle drei Konfidenz-Stufen, Persistenz</text>
+      </g>
+      <line x1="370" y1="485" x2="370" y2="525" class="conn" marker-end="url(#e-neutral)" />
+
+      <!-- 4 -->
+      <g>
+        <rect x="140" y="525" width="460" height="105" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="551" class="step-no">4</text>
+        <text x="186" y="551" class="box-title" font-size="15.5">Metriken berechnen</text>
+        <rect x="480" y="534" width="108" height="16" rx="8" class="pill-neutral" /><text x="534" y="545.5" text-anchor="middle" class="pill-text">reine Fkt.</text>
+        <text x="164" y="575" class="desc">eval/metrics.py — kein HTTP, DB oder LLM;</text>
+        <text x="164" y="590.5" class="desc">Details in der Tabelle unten</text>
+      </g>
+      <line x1="370" y1="630" x2="370" y2="670" class="conn" marker-end="url(#e-neutral)" />
+
+      <!-- 5 -->
+      <g>
+        <rect x="140" y="670" width="460" height="125" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="696" class="step-no">5</text>
+        <text x="186" y="696" class="box-title" font-size="15.5">Gates prüfen</text>
+        <rect x="480" y="679" width="108" height="16" rx="8" class="pill-neutral" /><text x="534" y="690.5" text-anchor="middle" class="pill-text">nur PRODUCTION</text>
+        <text x="164" y="720" class="desc">Ollama-Vergleichsläufe (qwen3-local,</text>
+        <text x="164" y="735.5" class="desc">gemma4-local) messen nur — nie ein</text>
+        <text x="164" y="751" class="desc">gerissenes Gate</text>
+      </g>
+      <line x1="370" y1="795" x2="370" y2="835" class="conn" marker-end="url(#e-neutral)" />
+
+      <!-- final -->
+      <g>
+        <rect x="140" y="835" width="460" height="90" rx="10" class="box-fill" style="stroke:var(--ink);stroke-width:1.5" />
+        <text x="164" y="867" class="box-title" font-size="15.5">Report geschrieben</text>
+        <text x="164" y="889" class="desc">out/ (lokal) → compare.py → Modellvergleich</text>
+      </g>
+
+      <!-- exit: configuration_error -->
+      <line x1="600" y1="422.5" x2="760" y2="422.5" class="branch-error" marker-end="url(#e-error)" />
+      <rect x="760" y="370" width="380" height="105" rx="10" class="exit-box-error" />
+      <text x="776" y="394" class="exit-title-error" font-size="13.5">Lauf abgebrochen · configuration_error</text>
+      <text x="776" y="414" class="exit-desc">zählt NICHT als False-Suppression —</text>
+      <text x="776" y="428.5" class="exit-desc">eine ungültige Messung ist keine Messung</text>
+
+      <!-- exit: gate failed -->
+      <line x1="600" y1="732.5" x2="760" y2="732.5" class="branch-error" marker-end="url(#e-error)" />
+      <rect x="760" y="680" width="380" height="105" rx="10" class="exit-box-error" />
+      <text x="776" y="704" class="exit-title-error" font-size="13.5">Gate gerissen (nur PRODUCTION)</text>
+      <text x="776" y="724" class="exit-desc">Halluzination &gt; 0 % · False-Suppression</text>
+      <text x="776" y="738.5" class="exit-desc">&gt; 15 % · Refusal &lt; 90 % → Lauf rot</text>
+    </svg>
+    <figcaption>
+      Ein Vergleichslauf gegen ein lokales Modell ist ein <strong>Messergebnis</strong>, kein gerissenes Release-Gate — beides in dieselbe rote Meldung zu giessen nähme dem Gate seine Aussage. Nur das ausgelieferte Profil (<code>gpt-4o-mini</code>) kann den Lauf scheitern lassen.
+    </figcaption>
+  </figure>
+
+  <h2 class="section">Metriken</h2>
+  <h3 class="section-title">Was gemessen wird, worüber, mit welchem Gate</h3>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Metrik</th><th>Basis</th><th>Gate</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="metric">Refusal-Rate</td>
+          <td>22 out_of_corpus-Fragen (T-28)</td>
+          <td class="gate hard">≥ 90 %</td>
+        </tr>
+        <tr>
+          <td class="metric">Halluzinationsrate (H1/H2)</td>
+          <td>45 in_corpus + 11 adversarial (expected_refusal=false) — nur ausgelieferte Antworten</td>
+          <td class="gate hard">= 0 %</td>
+        </tr>
+        <tr>
+          <td class="metric">False-Suppression-Rate</td>
+          <td>45 in_corpus-Fragen — jede Unterdrückung, auch generation_truncated</td>
+          <td class="gate soft">≤ 15 % (Startwert)</td>
+        </tr>
+        <tr>
+          <td class="metric">Adversarial-Refusal</td>
+          <td>2 adversarial-Fragen mit expected_refusal=true</td>
+          <td class="gate none">kein Gate (n=2)</td>
+        </tr>
+        <tr>
+          <td class="metric">Context-Recall/Precision/MRR</td>
+          <td>56 Fragen mit expected_source — top-k UND Kontext (in_top_n), je zwei Schnitte</td>
+          <td class="gate none">kein Gate</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="table-caption">Halluzinationsrate ist bewusst ein hartes 0-%-Gate (ADR-009, Gruppe A); die anderen beiden gegateten Metriken erlauben einen Startwert, der sich mit echten Messreihen kalibrieren lässt.</p>
+  </div>
+
+  <div class="notes">
+    <div class="note">
+      <h2>In-Process statt e2e</h2>
+      <h3>Was T-55 löst</h3>
+      <ul>
+        <li>Vorher schrieb der Eval per echtem HTTP in die Entwicklungsdatenbank — ein Nachmittag Testläufe hinterliess 52 <span class="mono">answers</span>-Zeilen. Jetzt hängt die Session an einer äusseren Transaktion, die am Ende zurückgerollt wird</li>
+        <li>Derselbe Korpus ergab 90,9 % oder 95,5 %, je nachdem, wie die Schwellen gerade kalibriert waren — der Lauf pinnt sie jetzt in der Transaktion auf die Seed-Defaults</li>
+        <li>Was nicht wegfällt: der gemessene Pfad selbst — Auth, Retrieval, alle drei Stufen laufen unverändert; nur uvicorn und nginx sind draussen (dafür ist <span class="mono">e2e/</span> zuständig)</li>
+      </ul>
+    </div>
+    <div class="note">
+      <h2>Halluzination ≠ Wahrheit</h2>
+      <h3>H1/H2 sind rein mechanisch</h3>
+      <ul>
+        <li>Geprüft wird eine erfundene Referenz (H1) oder eine Antwort, deren tatsächlich benutzte Zitate aus dem falschen Korpusdokument stammen (H2) — nicht, ob die Aussage inhaltlich stimmt (Faithfulness bleibt bewusst ausserhalb der harten Gates, ADR-009)</li>
+        <li>Realer Fund (<span class="mono">EvalAnalysis</span>, AIA-OOC-07): eine vom Self-Check mit GEDECKT bestätigte Antwort — aber aus dem falschen Rechtsdokument. H2 fängt genau das, ohne einen LLM-Judge zu brauchen</li>
+        <li>Recall zählt Seiten, nicht Chunks: fünf Treffer von derselben erwarteten Seite sähen sonst wie voller Recall aus, obwohl eine zweite erwartete Seite komplett fehlt</li>
+      </ul>
+    </div>
+  </div>
+
+  <footer>Quellen: eval/conftest.py, metrics.py, profiles.py, test_out_of_corpus_refusal.py, test_in_corpus_quality.py · Ops/09_CI-Runbook.md · EvalAnalysis/README.md — Stand main, 16.09.2026</footer>
+</main>

@@ -1,0 +1,377 @@
+<title>LearnFlow-Architektur</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F5F3EE;
+    --surface: #FFFFFF;
+    --surface-2: #FBFAF6;
+    --ink: #20242B;
+    --muted: #5B6472;
+    --line: #D9D4C8;
+    --line-strong: #B9B2A2;
+    --edge: #2E6C8E;
+    --apidb: #6B4F94;
+    --workerdb: #3F7A5C;
+    --external: #B85A2A;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14171B;
+      --surface: #1B1F25;
+      --surface-2: #20252B;
+      --ink: #E7E9EE;
+      --muted: #9AA3B0;
+      --line: #333A44;
+      --line-strong: #454E5A;
+      --edge: #6FB3D8;
+      --apidb: #B79FE0;
+      --workerdb: #7FC49E;
+      --external: #E0895A;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14171B;
+    --surface: #1B1F25;
+    --surface-2: #20252B;
+    --ink: #E7E9EE;
+    --muted: #9AA3B0;
+    --line: #333A44;
+    --line-strong: #454E5A;
+    --edge: #6FB3D8;
+    --apidb: #B79FE0;
+    --workerdb: #7FC49E;
+    --external: #E0895A;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+    padding: 0 20px;
+    padding-block: 40px 64px;
+  }
+  main {
+    max-width: 980px;
+    margin: 0 auto;
+  }
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 10px;
+  }
+  h1 {
+    font-size: clamp(28px, 4vw, 38px);
+    font-weight: 700;
+    margin: 0 0 10px;
+    text-wrap: balance;
+    letter-spacing: -0.01em;
+  }
+  .dek {
+    font-size: 16px;
+    color: var(--muted);
+    max-width: 640px;
+    line-height: 1.55;
+    margin: 0 0 36px;
+  }
+  .dek code {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.92em;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+
+  figure {
+    margin: 0;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 8px;
+  }
+  svg { display: block; width: 100%; height: auto; }
+  figcaption {
+    font-size: 13.5px;
+    color: var(--muted);
+    line-height: 1.6;
+    padding: 16px 14px 6px;
+  }
+  figcaption strong { color: var(--ink); font-weight: 600; }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 22px;
+    margin: 18px 2px 46px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+  .legend span.dot {
+    display: inline-block;
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    margin-right: 7px;
+    vertical-align: middle;
+    position: relative;
+    top: -1px;
+  }
+  .legend .item { white-space: nowrap; }
+
+  .flows {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+    margin-top: 8px;
+  }
+  @media (max-width: 640px) {
+    .flows { grid-template-columns: 1fr; }
+  }
+  .flow h2 {
+    font-size: 12px;
+    font-family: "IBM Plex Mono", monospace;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 4px;
+    font-weight: 600;
+  }
+  .flow h3 {
+    font-size: 19px;
+    font-weight: 600;
+    margin: 0 0 16px;
+  }
+  .flow ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border-left: 2px solid var(--line);
+  }
+  .flow li {
+    position: relative;
+    padding: 0 0 20px 22px;
+    font-size: 14.5px;
+    line-height: 1.5;
+  }
+  .flow li:last-child { padding-bottom: 0; }
+  .flow li::before {
+    content: attr(data-n);
+    position: absolute;
+    left: -2px;
+    top: 0;
+    transform: translateX(-50%);
+    width: 20px;
+    height: 20px;
+    background: var(--surface);
+    border: 2px solid var(--line-strong);
+    border-radius: 50%;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10.5px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+  }
+  .flow li.gate::before { border-color: var(--external); color: var(--external); }
+  .flow .tag {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11.5px;
+    color: var(--muted);
+  }
+  .flow .file {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px;
+    color: var(--muted);
+    opacity: 0.85;
+  }
+
+  footer {
+    margin-top: 52px;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+    font-size: 12.5px;
+    color: var(--muted);
+    font-family: "IBM Plex Mono", monospace;
+  }
+
+  /* --- SVG element classes --- */
+  .box-fill { fill: var(--surface); }
+  .box-fill-2 { fill: var(--surface-2); }
+  .box-stroke { stroke: var(--line-strong); stroke-width: 1.5; }
+  .box-title { fill: var(--ink); font-weight: 600; }
+  .box-sub { fill: var(--muted); font-weight: 400; }
+  .lbl { fill: var(--muted); }
+  .lbl-strong { fill: var(--ink); }
+  .conn { stroke: var(--line-strong); stroke-width: 1.6; fill: none; }
+  .conn-arrow { fill: var(--line-strong); }
+  .ext-conn { stroke: var(--external); stroke-width: 1.6; fill: none; stroke-dasharray: 5 4; }
+  .ext-arrow { fill: var(--external); }
+  .wdb-conn { stroke: var(--workerdb); stroke-width: 1.6; fill: none; }
+  .wdb-arrow { fill: var(--workerdb); }
+  .gap-line { stroke: var(--muted); stroke-width: 1.2; stroke-dasharray: 2 4; opacity: 0.7; }
+  .pill-edge { fill: var(--edge); }
+  .pill-apidb { fill: var(--apidb); }
+  .pill-workerdb { fill: var(--workerdb); }
+  .pill-text { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; fill: var(--surface); font-weight: 600; }
+  .ext-box { fill: var(--surface); stroke: var(--external); stroke-width: 1.5; stroke-dasharray: 6 4; }
+  .mono { font-family: "IBM Plex Mono", monospace; }
+</style>
+
+<main>
+  <p class="eyebrow">System-Architektur · Stand main, 16.09.2026</p>
+  <h1>Wie LearnFlow aufgebaut ist</h1>
+  <p class="dek">Vier Docker-Container, drei getrennte Netzwerke und genau ein Übergang nach aussen — zum LLM-Provider via <code>LiteLLM</code>. Die Grafik zeigt nicht nur, wer mit wem spricht, sondern auch, wer bewusst <strong style="color:var(--ink)">nicht</strong> direkt miteinander spricht.</p>
+
+  <figure>
+    <svg viewBox="0 0 1000 900" role="img" aria-label="Architekturdiagramm: Browser spricht über HTTPS mit der Web App, die Web App ruft den API Server auf. API Server und Background Worker teilen sich kein Netzwerk und haben keine direkte Verbindung; beide erreichen die Datenbank getrennt, der Worker wird von der Datenbank per pg_notify benachrichtigt statt vom API Server direkt aufgerufen. API Server und Worker rufen unabhängig voneinander einen externen LLM-Provider über LiteLLM auf.">
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <polygon points="0,0 10,5 0,10" class="conn-arrow" />
+        </marker>
+        <marker id="arrow-ext" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <polygon points="0,0 10,5 0,10" class="ext-arrow" />
+        </marker>
+        <marker id="arrow-wdb" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <polygon points="0,0 10,5 0,10" class="wdb-arrow" />
+        </marker>
+      </defs>
+
+      <!-- Browser -->
+      <g>
+        <rect x="380" y="28" width="240" height="62" rx="10" class="box-fill box-stroke" />
+        <text x="500" y="55" text-anchor="middle" class="box-title" font-size="15">Browser</text>
+        <text x="500" y="75" text-anchor="middle" class="box-sub mono" font-size="11">Lara · Stefan · Admin</text>
+      </g>
+      <line x1="500" y1="90" x2="500" y2="148" class="conn" marker-end="url(#arrow)" />
+      <text x="514" y="123" class="lbl mono" font-size="11.5">HTTPS</text>
+
+      <!-- Web App -->
+      <g>
+        <rect x="355" y="150" width="290" height="76" rx="10" class="box-fill box-stroke" />
+        <text x="500" y="176" text-anchor="middle" class="box-title" font-size="15.5">Web App</text>
+        <text x="500" y="194" text-anchor="middle" class="box-sub mono" font-size="11">React 18 / TS · Nginx</text>
+        <rect x="465" y="204" width="70" height="16" rx="8" class="pill-edge" />
+        <text x="500" y="215.5" text-anchor="middle" class="pill-text">edge</text>
+      </g>
+
+      <!-- Webapp -> API elbow -->
+      <polyline points="500,226 500,262 230,262 230,308" class="conn" marker-end="url(#arrow)" />
+      <text x="365" y="255" text-anchor="middle" class="lbl mono" font-size="11">REST/JSON · Batch-Response</text>
+
+      <!-- API Server -->
+      <g>
+        <rect x="90" y="310" width="280" height="90" rx="10" class="box-fill box-stroke" />
+        <text x="230" y="336" text-anchor="middle" class="box-title" font-size="15.5">API Server</text>
+        <text x="230" y="354" text-anchor="middle" class="box-sub mono" font-size="11">FastAPI · Python 3.13</text>
+        <rect x="150" y="366" width="70" height="16" rx="8" class="pill-edge" />
+        <text x="185" y="377.5" text-anchor="middle" class="pill-text">edge</text>
+        <rect x="230" y="366" width="80" height="16" rx="8" class="pill-apidb" />
+        <text x="270" y="377.5" text-anchor="middle" class="pill-text">api-db</text>
+      </g>
+
+      <!-- Background Worker -->
+      <g>
+        <rect x="630" y="310" width="280" height="90" rx="10" class="box-fill box-stroke" />
+        <text x="770" y="336" text-anchor="middle" class="box-title" font-size="15.5">Background Worker</text>
+        <text x="770" y="354" text-anchor="middle" class="box-sub mono" font-size="11">pgqueuer</text>
+        <rect x="725" y="366" width="90" height="16" rx="8" class="pill-workerdb" />
+        <text x="770" y="377.5" text-anchor="middle" class="pill-text">worker-db</text>
+      </g>
+
+      <!-- gap indicator API <-> Worker -->
+      <line x1="372" y1="355" x2="628" y2="355" class="gap-line" />
+      <rect x="405" y="341" width="190" height="28" rx="6" class="box-fill-2" opacity="0.9" />
+      <text x="500" y="352" text-anchor="middle" class="lbl mono" font-size="10.5">kein gemeinsames Netzwerk</text>
+      <text x="500" y="364" text-anchor="middle" class="lbl mono" font-size="10.5">kein direkter Kontakt</text>
+
+      <!-- API -> DB -->
+      <polyline points="230,400 230,432 400,432 400,558" class="conn" marker-end="url(#arrow)" />
+      <text x="315" y="425" text-anchor="middle" class="lbl mono" font-size="11">SQL: lesen/schreiben</text>
+      <text x="315" y="440" text-anchor="middle" class="lbl mono" font-size="11">+ Job-Zeile schreiben</text>
+
+      <!-- Worker <-> DB (single channel, two events) -->
+      <polyline points="680,400 680,480 600,480 600,558" class="wdb-conn" marker-start="url(#arrow-wdb)" marker-end="url(#arrow-wdb)" />
+      <text x="618" y="466" class="lbl mono" font-size="11">① db → worker: NOTIFY (pg_notify)</text>
+      <text x="618" y="488" class="lbl mono" font-size="11">② worker → db: Chunks + Embeddings</text>
+
+      <!-- Database -->
+      <g>
+        <rect x="350" y="560" width="300" height="110" rx="10" class="box-fill box-stroke" />
+        <text x="500" y="588" text-anchor="middle" class="box-title" font-size="15.5">Datenbank</text>
+        <text x="500" y="606" text-anchor="middle" class="box-sub mono" font-size="11">PostgreSQL 17 + pgvector</text>
+        <text x="500" y="622" text-anchor="middle" class="box-sub mono" font-size="10.5">HNSW · tsvector/GIN · bytea ≤10MB</text>
+        <rect x="405" y="634" width="80" height="16" rx="8" class="pill-apidb" />
+        <text x="445" y="645.5" text-anchor="middle" class="pill-text">api-db</text>
+        <rect x="490" y="634" width="90" height="16" rx="8" class="pill-workerdb" />
+        <text x="535" y="645.5" text-anchor="middle" class="pill-text">worker-db</text>
+      </g>
+
+      <!-- API -> LLM -->
+      <polyline points="230,400 230,730 350,730 350,758" class="ext-conn" marker-end="url(#arrow-ext)" />
+      <text x="240" y="723" class="lbl mono" font-size="11">HTTPS via LiteLLM</text>
+      <text x="240" y="738" class="lbl mono" font-size="11">Antwort · Self-Check · Quiz</text>
+
+      <!-- Worker -> LLM -->
+      <polyline points="770,400 770,730 650,730 650,758" class="ext-conn" marker-end="url(#arrow-ext)" />
+      <text x="760" y="723" text-anchor="end" class="lbl mono" font-size="11">HTTPS via LiteLLM</text>
+      <text x="760" y="738" text-anchor="end" class="lbl mono" font-size="11">Embeddings</text>
+
+      <!-- LLM Provider -->
+      <g>
+        <rect x="300" y="760" width="400" height="92" rx="10" class="ext-box" />
+        <text x="500" y="790" text-anchor="middle" class="box-title" font-size="15.5">LLM-Provider</text>
+        <text x="500" y="808" text-anchor="middle" class="box-sub mono" font-size="11">gpt-4o-mini · text-embedding-3-small</text>
+        <text x="500" y="824" text-anchor="middle" class="box-sub mono" font-size="10.5">MVP: OpenAI Direct → Produktion: Azure OpenAI EU</text>
+        <text x="500" y="842" text-anchor="middle" fill="var(--external)" class="mono" font-size="10.5" font-weight="600">extern · Trust-Grenze</text>
+      </g>
+    </svg>
+    <figcaption>
+      Die drei Docker-Netzwerke (<span class="mono">edge</span>, <span class="mono">api-db</span>, <span class="mono">worker-db</span>) sind so geschnitten, dass <strong>API Server und Worker sich kein Netzwerk teilen</strong>: der Worker verarbeitet nicht vertrauenswürdige Uploads und kann den API Server deshalb technisch nicht erreichen. Das ist auch der Grund, warum <span class="mono">--forwarded-allow-ips='*'</span> auf dem API-Container sicher ist — nur Nginx sitzt am Edge und kann Header setzen, denen der API Server vertraut.
+    </figcaption>
+  </figure>
+
+  <div class="legend">
+    <span class="item"><span class="dot" style="background:var(--edge)"></span>edge — Browser ↔ Web App ↔ API</span>
+    <span class="item"><span class="dot" style="background:var(--apidb)"></span>api-db — API Server ↔ Datenbank</span>
+    <span class="item"><span class="dot" style="background:var(--workerdb)"></span>worker-db — Worker ↔ Datenbank</span>
+    <span class="item"><span class="dot" style="background:var(--external);border-radius:2px"></span>gestrichelt — Grenze zum externen LLM-Provider</span>
+  </div>
+
+  <div class="flows">
+    <div class="flow">
+      <h2>Synchron · Frage &amp; Antwort</h2>
+      <h3>Q&amp;A-Request</h3>
+      <ol>
+        <li data-n="1">Browser sendet <span class="tag">POST /api/query</span>, JWT im Header <span class="file">app/routers/query.py</span></li>
+        <li data-n="2">API generiert Query-Embedding → LLM-Provider</li>
+        <li data-n="3">Hybrid-Retrieval gegen die DB: pgvector HNSW + Volltext, RRF-Fusion (ADR-007)</li>
+        <li data-n="4" class="gate">Retrieval-Gate: kein Chunk über Schwelle → „Weiss ich nicht", kein LLM-Aufruf</li>
+        <li data-n="5">Prompt an LLM-Provider, Antwort generieren</li>
+        <li data-n="6" class="gate">Grounding-Check, ggf. Self-Check bei Grenzfällen (ADR-008, fail-closed)</li>
+        <li data-n="7">Batch-Response (JSON) an Browser: Antwort + Quellen + Konfidenz</li>
+      </ol>
+    </div>
+    <div class="flow">
+      <h2>Asynchron · Hintergrund-Verarbeitung</h2>
+      <h3>Dokument-Upload</h3>
+      <ol>
+        <li data-n="1">Stefan lädt Dokument hoch, <span class="tag">POST /api/documents</span> <span class="file">app/routers/documents.py</span></li>
+        <li data-n="2">API speichert Datei (bytea, ≤10 MB) + schreibt Job-Zeile, bestätigt sofort</li>
+        <li data-n="3">DB benachrichtigt Worker per <span class="tag">pg_notify</span> — kein Aufruf durch die API selbst</li>
+        <li data-n="4">Worker extrahiert Text, chunked strukturbewusst (~512 Token / 64 Overlap)</li>
+        <li data-n="5">Worker embedded jeden Chunk → LLM-Provider</li>
+        <li data-n="6">Worker schreibt Chunks + Embeddings zurück, Status → „verfügbar" (SLA: 5 Min. / ≤50 Seiten)</li>
+      </ol>
+    </div>
+  </div>
+
+  <footer>Quellen: src/docker-compose.yml · Docs/04_ADR-001 bis 010 · Docs/05_C4-C2_Container.md · aktueller Code-Stand app/routers, app/services, app/queue.py — Stand main, 16.09.2026</footer>
+</main>

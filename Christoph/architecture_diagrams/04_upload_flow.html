@@ -1,0 +1,329 @@
+<title>LearnFlow-Upload-Flow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F5F3EE;
+    --surface: #FFFFFF;
+    --surface-2: #FBFAF6;
+    --ink: #20242B;
+    --muted: #5B6472;
+    --line: #D9D4C8;
+    --line-strong: #B9B2A2;
+    --neutral: #5B6472;
+    --accent: #6B4F94;
+    --error: #A23B3B;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14171B;
+      --surface: #1B1F25;
+      --surface-2: #20252B;
+      --ink: #E7E9EE;
+      --muted: #9AA3B0;
+      --line: #333A44;
+      --line-strong: #454E5A;
+      --neutral: #9AA3B0;
+      --accent: #B79FE0;
+      --error: #E2726B;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14171B;
+    --surface: #1B1F25;
+    --surface-2: #20252B;
+    --ink: #E7E9EE;
+    --muted: #9AA3B0;
+    --line: #333A44;
+    --line-strong: #454E5A;
+    --neutral: #9AA3B0;
+    --accent: #B79FE0;
+    --error: #E2726B;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+    padding: 0 20px; padding-block: 40px 64px;
+  }
+  main { max-width: 1080px; margin: 0 auto; }
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px;
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px;
+  }
+  h1 {
+    font-size: clamp(28px, 4vw, 38px); font-weight: 700; margin: 0 0 10px;
+    text-wrap: balance; letter-spacing: -0.01em;
+  }
+  .dek { font-size: 16px; color: var(--muted); max-width: 700px; line-height: 1.55; margin: 0 0 36px; }
+  .dek code {
+    font-family: "IBM Plex Mono", monospace; font-size: 0.92em; background: var(--surface-2);
+    border: 1px solid var(--line); padding: 1px 5px; border-radius: 4px;
+  }
+
+  figure { margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 8px; }
+  svg { display: block; width: 100%; height: auto; }
+  figcaption { font-size: 13.5px; color: var(--muted); line-height: 1.6; padding: 16px 14px 6px; }
+  figcaption strong { color: var(--ink); font-weight: 600; }
+  figcaption code { font-family: "IBM Plex Mono", monospace; font-size: 0.95em; }
+
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 18px 2px 46px;
+    font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--muted);
+  }
+  .legend .item { white-space: nowrap; display: inline-flex; align-items: center; gap: 7px; }
+  .legend .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; }
+  .legend .ln { display: inline-block; width: 20px; height: 0; border-top: 2px solid var(--line-strong); }
+  .legend .ln.dashed { border-top-style: dashed; }
+
+  .notes { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 8px; }
+  @media (max-width: 640px) { .notes { grid-template-columns: 1fr; } }
+  .note h2 {
+    font-size: 12px; font-family: "IBM Plex Mono", monospace; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--muted); margin: 0 0 4px; font-weight: 600;
+  }
+  .note h3 { font-size: 19px; font-weight: 600; margin: 0 0 16px; }
+  .note ul { list-style: none; margin: 0; padding: 0; border-left: 2px solid var(--line); }
+  .note li { position: relative; padding: 0 0 18px 22px; font-size: 14.5px; line-height: 1.55; }
+  .note li:last-child { padding-bottom: 0; }
+  .note li::before {
+    content: ""; position: absolute; left: -5px; top: 6px; width: 8px; height: 8px;
+    border-radius: 50%; background: var(--surface); border: 2px solid var(--line-strong);
+  }
+  .note .mono { font-family: "IBM Plex Mono", monospace; font-size: 0.9em; color: var(--muted); }
+
+  footer {
+    margin-top: 52px; padding-top: 18px; border-top: 1px solid var(--line);
+    font-size: 12.5px; color: var(--muted); font-family: "IBM Plex Mono", monospace;
+  }
+
+  .box-fill { fill: var(--surface); }
+  .box-stroke { stroke: var(--line-strong); stroke-width: 1.5; }
+  .box-title { fill: var(--ink); font-weight: 700; }
+  .desc { fill: var(--muted); font-size: 12px; }
+  .desc-mono { fill: var(--muted); font-family: "IBM Plex Mono", monospace; font-size: 11px; }
+  .pill-neutral { fill: var(--neutral); }
+  .pill-text { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; fill: var(--surface); font-weight: 600; }
+  .conn { stroke: var(--line-strong); stroke-width: 1.6; fill: none; }
+  .conn-dashed { stroke: var(--line-strong); stroke-width: 1.6; fill: none; stroke-dasharray: 5 4; }
+  .arrow-neutral { fill: var(--line-strong); }
+  .arrow-error { fill: var(--error); }
+  .arrow-accent { fill: var(--accent); }
+  .branch-error { stroke: var(--error); stroke-width: 1.8; fill: none; }
+  .branch-neutral-dashed { stroke: var(--neutral); stroke-width: 1.6; fill: none; stroke-dasharray: 5 4; }
+  .branch-accent-dashed { stroke: var(--accent); stroke-width: 1.6; fill: none; stroke-dasharray: 5 4; }
+  .exit-box-neutral { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1.5; stroke-dasharray: 6 4; }
+  .exit-box-error { fill: var(--surface); stroke: var(--error); stroke-width: 2; }
+  .exit-title-neutral { fill: var(--neutral); font-family: "IBM Plex Mono", monospace; font-weight: 700; }
+  .exit-title-error { fill: var(--error); font-family: "IBM Plex Mono", monospace; font-weight: 700; }
+  .exit-desc { fill: var(--muted); font-size: 11px; }
+  .reaper-box { fill: var(--surface-2); stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 7 5; }
+  .step-no { fill: var(--muted); font-family: "IBM Plex Mono", monospace; font-size: 13px; font-weight: 600; }
+</style>
+
+<main>
+  <p class="eyebrow">Dokument-Upload-Flow · Stand main, 16.09.2026</p>
+  <h1>Wie ein Dokument durchsuchbar wird</h1>
+  <p class="dek">Vom <code>POST /api/documents</code> bis <code>status = available</code>. Der interessante Teil ist nicht der Glücksfall, sondern was passiert, wenn <strong style="color:var(--ink)">zwei Läufe gleichzeitig um dasselbe Dokument konkurrieren</strong> — eine Ersetzung während der Indexierung, oder ein Worker, der mitten im Lauf abstürzt.</p>
+
+  <figure>
+    <svg viewBox="0 0 1280 1600" role="img" aria-label="Flussdiagramm des Dokument-Upload-Flows: Upload-Validierung, Neuanlage oder Ersetzung mit Zeilensperre, Einreihen in die Warteschlange, Worker übernimmt den Job unter einem Versions-Wächter, parst und chunked das Dokument in einem eigenen Thread mit Fortschrittsmeldungen, embedded in Batches, schreibt Chunks und Status in einer Transaktion. Jeder Schreibzugriff ab der Übernahme prüft dieselbe gelesene index_version — schlägt die Prüfung fehl, bricht der Lauf lautlos als Superseded ab, ohne Fehler. Ein separater Reaper-Hintergrundprozess beobachtet hängende Läufe anhand ihres Fortschritts-Zeitstempels und reiht sie erneut ein oder gibt sie nach einer Anzahl Versuche auf.">
+      <defs>
+        <marker id="au-neutral" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <polygon points="0,0 10,5 0,10" class="arrow-neutral" />
+        </marker>
+        <marker id="au-error" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <polygon points="0,0 10,5 0,10" class="arrow-error" />
+        </marker>
+        <marker id="au-accent" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <polygon points="0,0 10,5 0,10" class="arrow-accent" />
+        </marker>
+      </defs>
+
+      <text x="140" y="30" class="desc-mono">POST /api/documents · Rolle: knowledge_owner</text>
+
+      <!-- 1 Upload validieren -->
+      <g>
+        <rect x="140" y="50" width="460" height="125" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="76" class="step-no">1</text>
+        <text x="186" y="76" class="box-title" font-size="15.5">Upload validieren</text>
+        <text x="164" y="100" class="desc">Bereich, Dateityp (PDF/DOCX/MD),</text>
+        <text x="164" y="115.5" class="desc">Grösse ≤10MB — geprüft an file.size,</text>
+        <text x="164" y="131" class="desc">nicht am fälschbaren Content-Length</text>
+      </g>
+      <line x1="370" y1="175" x2="370" y2="220" class="conn" marker-end="url(#au-neutral)" />
+
+      <!-- 2 Neu oder Ersetzung -->
+      <g>
+        <rect x="140" y="220" width="460" height="125" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="246" class="step-no">2</text>
+        <text x="186" y="246" class="box-title" font-size="15.5">Neu oder Ersetzung?</text>
+        <rect x="480" y="229" width="108" height="16" rx="8" class="pill-neutral" /><text x="534" y="240.5" text-anchor="middle" class="pill-text">FOR UPDATE</text>
+        <text x="164" y="270" class="desc">Lock auf (area, filename) — Ersetzung:</text>
+        <text x="164" y="285.5" class="desc">Chunks löschen, freigegebene Quiz-Fragen</text>
+        <text x="164" y="301" class="desc">→ pending, index_version += 1</text>
+      </g>
+      <line x1="370" y1="345" x2="370" y2="390" class="conn" marker-end="url(#au-neutral)" />
+
+      <!-- 3 Enqueue -->
+      <g>
+        <rect x="140" y="390" width="460" height="105" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="416" class="step-no">3</text>
+        <text x="186" y="416" class="box-title" font-size="15.5">Enqueue</text>
+        <rect x="480" y="399" width="108" height="16" rx="8" class="pill-neutral" /><text x="534" y="410.5" text-anchor="middle" class="pill-text">status: pending</text>
+        <text x="164" y="438" class="desc">alte queued Jobs derselben Payload</text>
+        <text x="164" y="453.5" class="desc">verworfen (Dedupe) — eine Transaktion</text>
+      </g>
+      <line x1="370" y1="495" x2="370" y2="540" class="conn" marker-end="url(#au-neutral)" />
+
+      <!-- 4 fetch + mark_processing -->
+      <g>
+        <rect x="140" y="540" width="460" height="105" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="566" class="step-no">4</text>
+        <text x="186" y="566" class="box-title" font-size="14.5">Worker: fetch + mark_processing</text>
+        <rect x="480" y="549" width="108" height="16" rx="8" class="pill-neutral" /><text x="534" y="560.5" text-anchor="middle" class="pill-text">status: processing</text>
+        <text x="164" y="588" class="desc">index_version aus der Zeile gelesen —</text>
+        <text x="164" y="603.5" class="desc">Uhr (index_progress_at) startet hier</text>
+      </g>
+      <line x1="370" y1="645" x2="370" y2="690" class="conn" marker-end="url(#au-neutral)" />
+
+      <!-- 5 Parsing + Chunking -->
+      <g>
+        <rect x="140" y="690" width="460" height="125" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="716" class="step-no">5</text>
+        <text x="186" y="716" class="box-title" font-size="15.5">Parsing + Chunking</text>
+        <rect x="480" y="699" width="108" height="16" rx="8" class="pill-neutral" /><text x="534" y="710.5" text-anchor="middle" class="pill-text">eig. Thread</text>
+        <text x="164" y="740" class="desc">pypdf / python-docx, tiktoken</text>
+        <text x="164" y="755.5" class="desc">cl100k_base — meldet Fortschritt nach</text>
+        <text x="164" y="771" class="desc">jeder Phase (Parsing, Chunking)</text>
+      </g>
+      <line x1="370" y1="815" x2="370" y2="860" class="conn" marker-end="url(#au-neutral)" />
+
+      <!-- 6 Embedding -->
+      <g>
+        <rect x="140" y="860" width="460" height="105" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="886" class="step-no">6</text>
+        <text x="186" y="886" class="box-title" font-size="15.5">Embedding in Batches</text>
+        <rect x="480" y="869" width="108" height="16" rx="8" class="pill-neutral" /><text x="534" y="880.5" text-anchor="middle" class="pill-text">Ping/Batch</text>
+        <text x="164" y="908" class="desc">via LiteLLM — geschrieben wird erst,</text>
+        <text x="164" y="923.5" class="desc">wenn alle Chunks embedded sind</text>
+      </g>
+      <line x1="370" y1="965" x2="370" y2="1010" class="conn" marker-end="url(#au-neutral)" />
+
+      <!-- 7 Transaktion -->
+      <g>
+        <rect x="140" y="1010" width="460" height="125" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="1036" class="step-no">7</text>
+        <text x="186" y="1036" class="box-title" font-size="14.5">Chunks schreiben + mark_available</text>
+        <rect x="480" y="1019" width="108" height="16" rx="8" class="pill-neutral" /><text x="534" y="1030.5" text-anchor="middle" class="pill-text">Transaktion</text>
+        <text x="164" y="1060" class="desc">eine Transaktion: alte Chunks ersetzt,</text>
+        <text x="164" y="1075.5" class="desc">Version passt noch? → available,</text>
+        <text x="164" y="1091" class="desc">index_attempts = 0</text>
+      </g>
+      <line x1="370" y1="1135" x2="370" y2="1180" class="conn" marker-end="url(#au-neutral)" />
+
+      <!-- final: available -->
+      <g>
+        <rect x="140" y="1180" width="460" height="90" rx="10" class="box-fill" style="stroke:var(--ink);stroke-width:1.5" />
+        <text x="164" y="1210" class="box-title" font-size="15.5">status = available</text>
+        <text x="164" y="1232" class="desc">Chunks sichtbar für Retrieval (nur</text>
+        <text x="164" y="1247.5" class="desc">Dokumente mit diesem Status)</text>
+      </g>
+
+      <!-- Superseded guard bracket -->
+      <line x1="650" y1="540" x2="650" y2="1135" class="branch-neutral-dashed" />
+      <line x1="650" y1="833" x2="760" y2="833" class="branch-neutral-dashed" marker-end="url(#au-neutral)" />
+      <g transform="rotate(-90 664 837)">
+        <text x="664" y="833" text-anchor="middle" class="desc-mono">Versions-Guard bei jedem Schreibzugriff (4–7)</text>
+      </g>
+      <rect x="760" y="763" width="380" height="140" rx="10" class="exit-box-neutral" />
+      <text x="776" y="789" class="exit-title-neutral" font-size="13.5">Superseded</text>
+      <text x="776" y="810" class="exit-desc">kein Fehler: eine Ersetzung oder der Reaper</text>
+      <text x="776" y="824.5" class="exit-desc">hat index_version schon weitergezählt —</text>
+      <text x="776" y="839" class="exit-desc">dieser Lauf endet lautlos, ohne Antwort</text>
+      <text x="776" y="853.5" class="exit-desc">an den Nutzer, ohne weitere Provider-Calls</text>
+
+      <!-- HTTP 4xx from step 1 -->
+      <line x1="600" y1="112.5" x2="760" y2="112.5" class="branch-error" marker-end="url(#au-error)" />
+      <rect x="760" y="65" width="380" height="95" rx="10" class="exit-box-error" />
+      <text x="776" y="89" class="exit-title-error" font-size="13">HTTP 400 · 413 · 415</text>
+      <text x="776" y="109" class="exit-desc">Bereich unbekannt · Format nicht erlaubt ·</text>
+      <text x="776" y="123.5" class="exit-desc">&gt;10MB — synchron, kein Queue-Eintrag</text>
+
+      <!-- real exceptions from 5/6 -> failed -->
+      <line x1="600" y1="752.5" x2="690" y2="752.5" class="branch-error" />
+      <line x1="600" y1="912.5" x2="690" y2="912.5" class="branch-error" />
+      <line x1="690" y1="752.5" x2="690" y2="1225" class="branch-error" />
+      <line x1="690" y1="1225" x2="760" y2="1225" class="branch-error" marker-end="url(#au-error)" />
+      <text x="702" y="1000" class="desc-mono" fill="var(--error)" transform="rotate(-90 702 1000)" text-anchor="middle">Parsing/Embedding wirft Exception</text>
+
+      <!-- exit: failed, paired with "available" -->
+      <rect x="760" y="1175" width="380" height="100" rx="10" class="exit-box-error" />
+      <text x="776" y="1199" class="exit-title-error" font-size="14">status = failed</text>
+      <text x="776" y="1219" class="exit-desc">error_message nur bei UserFacingError —</text>
+      <text x="776" y="1233.5" class="exit-desc">sonst „Verarbeitung fehlgeschlagen"</text>
+      <text x="776" y="1250" class="exit-desc" font-style="italic">(oder vom Reaper aufgegeben, s.u.)</text>
+
+      <!-- Reaper box -->
+      <rect x="140" y="1320" width="1000" height="230" rx="12" class="reaper-box" />
+      <text x="164" y="1350" class="box-title" font-size="16" fill="var(--accent)">Reaper-Loop — periodisch im Hintergrund</text>
+      <text x="164" y="1374" class="desc">Bedingung: status = processing UND index_progress_at älter als processing_stall_seconds</text>
+      <text x="164" y="1396" class="desc">① Versuche &lt; max_attempts → index_version += 1, status = pending, erneut eingereiht (attempts += 1)</text>
+      <text x="164" y="1418" class="desc">② Versuche ≥ max_attempts → status = failed, „aufgegeben nach N Versuchen"</text>
+      <text x="164" y="1440" class="desc" font-style="italic">separat: räumt verwaiste 'picked'-Warteschlangenzeilen älter als processing_timeout_seconds auf</text>
+      <text x="164" y="1454.5" class="desc" font-style="italic">(anderes Mass: pgqueuer.heartbeat statt index_progress_at)</text>
+
+      <!-- watch arrow: processing zone -> reaper -->
+      <polyline points="140,592.5 115,592.5 115,1320 210,1320" class="branch-accent-dashed" marker-end="url(#au-accent)" />
+      <g transform="rotate(-90 100 950)">
+        <text x="100" y="946" text-anchor="middle" class="desc-mono" fill="var(--accent)">beobachtet: index_progress_at</text>
+      </g>
+
+      <!-- requeue feedback: reaper -> step 4 -->
+      <polyline points="210,1380 60,1380 60,610 140,610" class="branch-accent-dashed" marker-end="url(#au-accent)" />
+      <g transform="rotate(-90 45 1000)">
+        <text x="45" y="996" text-anchor="middle" class="desc-mono" fill="var(--accent)">① erneut eingereiht</text>
+      </g>
+
+      <!-- giveup: reaper -> exit failed -->
+      <line x1="950" y1="1320" x2="950" y2="1275" class="branch-error" marker-end="url(#au-error)" />
+      <text x="966" y="1305" class="desc-mono" fill="var(--error)">② aufgeben</text>
+    </svg>
+    <figcaption>
+      <strong>Gestrichelt (grau) = kein Fehler:</strong> <code>Superseded</code> ist der normale Ausgang, wenn eine neuere Version das Dokument schon übernommen hat. <strong style="color:var(--accent)">Gestrichelt (violett) = Hintergrundprozess:</strong> der Reaper läuft unabhängig vom Request-Zyklus. <strong style="color:var(--error)">Durchgezogen (rot) = sichtbarer Fehler</strong> — bis zu <code>status = failed</code> mit einer Meldung, die der Knowledge Owner sieht.
+    </figcaption>
+  </figure>
+
+  <div class="legend">
+    <span class="item"><span class="dot" style="background:var(--neutral)"></span>Superseded — kein Fehler</span>
+    <span class="item"><span class="dot" style="background:var(--accent)"></span>Reaper — Hintergrundprozess</span>
+    <span class="item"><span class="dot" style="background:var(--error)"></span>sichtbarer Fehler</span>
+    <span class="item"><span class="ln"></span>Pipeline-Fortsetzung</span>
+    <span class="item"><span class="ln dashed"></span>Guard / Feedback-Schleife</span>
+  </div>
+
+  <div class="notes">
+    <div class="note">
+      <h2>Nebenläufigkeit</h2>
+      <h3>Warum lautlos, nicht laut</h3>
+      <ul>
+        <li><span class="mono">Superseded</span> ist bewusst kein Fehler: eine Ersetzung oder der Reaper hat <span class="mono">index_version</span> schon weitergezählt — dieser Lauf hat nichts mehr beizutragen und bricht an der nächsten Schreib-Prüfung einfach ab</li>
+        <li>Derselbe Guard sitzt an drei Stellen mit derselben gelesenen Version: <span class="mono">mark_processing</span>, jeder Fortschritts-Ping, <span class="mono">mark_available</span> — ein bereits entzogener Lauf darf keine weiteren Provider-Aufrufe mehr verbrauchen</li>
+        <li><span class="mono">mark_available</span> liegt in derselben Transaktion wie das Schreiben der Chunks: schlägt der Guard dort fehl, nimmt der Rollback die gerade geschriebenen Chunks gleich mit</li>
+      </ul>
+    </div>
+    <div class="note">
+      <h2>Ausfallsicherheit</h2>
+      <h3>Der Reaper</h3>
+      <ul>
+        <li>Zwei verschiedene Uhren: <span class="mono">index_progress_at</span> (vom Worker selbst geschrieben) entscheidet über „abgebrochen", <span class="mono">pgqueuer.heartbeat</span> über „Warteschlangen-Zeile aufräumen" (T-51/T-52) — unterschiedliche Fragen, unterschiedliche Masse</li>
+        <li><span class="mono">index_attempts</span> zählt seit der letzten <em>erfolgreichen</em> Indexierung, nicht pro Dokument — ein Absturz Wochen später bekommt wieder den vollen Versuchsvorrat</li>
+        <li>Erneutes Verarbeiten ist idempotent (DELETE + INSERT der Chunks) — deshalb ist ein Requeue immer sicher, auch wenn der ursprüngliche Lauf doch noch aufwacht: er verliert einfach den Versions-Guard</li>
+      </ul>
+    </div>
+  </div>
+
+  <footer>Quellen: app/routers/documents.py · app/queue.py · worker/main.py (process_document, reap_stuck_documents) — Stand main, 16.09.2026</footer>
+</main>

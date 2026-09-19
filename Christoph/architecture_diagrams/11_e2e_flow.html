@@ -1,0 +1,288 @@
+<title>LearnFlow-e2e-Flow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F5F3EE;
+    --surface: #FFFFFF;
+    --surface-2: #FBFAF6;
+    --ink: #20242B;
+    --muted: #5B6472;
+    --line: #D9D4C8;
+    --line-strong: #B9B2A2;
+    --neutral: #5B6472;
+    --good: #3F7A5C;
+    --warn: #8C7A4E;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14171B;
+      --surface: #1B1F25;
+      --surface-2: #20252B;
+      --ink: #E7E9EE;
+      --muted: #9AA3B0;
+      --line: #333A44;
+      --line-strong: #454E5A;
+      --neutral: #9AA3B0;
+      --good: #7FC49E;
+      --warn: #D0B77A;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14171B;
+    --surface: #1B1F25;
+    --surface-2: #20252B;
+    --ink: #E7E9EE;
+    --muted: #9AA3B0;
+    --line: #333A44;
+    --line-strong: #454E5A;
+    --neutral: #9AA3B0;
+    --good: #7FC49E;
+    --warn: #D0B77A;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+    padding: 0 20px; padding-block: 40px 64px;
+  }
+  main { max-width: 1080px; margin: 0 auto; }
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px;
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px;
+  }
+  h1 {
+    font-size: clamp(28px, 4vw, 38px); font-weight: 700; margin: 0 0 10px;
+    text-wrap: balance; letter-spacing: -0.01em;
+  }
+  .dek { font-size: 16px; color: var(--muted); max-width: 700px; line-height: 1.55; margin: 0 0 36px; }
+  .dek code {
+    font-family: "IBM Plex Mono", monospace; font-size: 0.92em; background: var(--surface-2);
+    border: 1px solid var(--line); padding: 1px 5px; border-radius: 4px;
+  }
+  h2.section {
+    font-size: 12px; font-family: "IBM Plex Mono", monospace; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--muted); margin: 0 0 4px; font-weight: 600;
+  }
+  h3.section-title { font-size: 21px; font-weight: 600; margin: 0 0 16px; }
+
+  figure { margin: 0 0 40px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 8px; }
+  svg { display: block; width: 100%; height: auto; }
+  figcaption { font-size: 13.5px; color: var(--muted); line-height: 1.6; padding: 16px 14px 6px; }
+  figcaption strong { color: var(--ink); font-weight: 600; }
+  figcaption code { font-family: "IBM Plex Mono", monospace; font-size: 0.95em; }
+
+  .table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 6px 6px 2px; margin-bottom: 46px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; min-width: 640px; }
+  thead th {
+    text-align: left; padding: 12px 14px; font-family: "IBM Plex Mono", monospace;
+    font-size: 11.5px; letter-spacing: 0.03em; color: var(--muted); font-weight: 600;
+    border-bottom: 2px solid var(--line);
+  }
+  thead th.col { text-align: left; }
+  tbody td { padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: top; font-size: 13px; }
+  tbody tr:last-child td { border-bottom: none; }
+  td.aspect { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--muted); white-space: nowrap; }
+  .table-caption { font-size: 13px; color: var(--muted); padding: 2px 14px 14px; line-height: 1.6; }
+
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 18px 2px 46px;
+    font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--muted);
+  }
+  .legend .item { white-space: nowrap; display: inline-flex; align-items: center; gap: 7px; }
+  .legend .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; }
+
+  .notes { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 8px; }
+  @media (max-width: 640px) { .notes { grid-template-columns: 1fr; } }
+  .note h2 {
+    font-size: 12px; font-family: "IBM Plex Mono", monospace; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--muted); margin: 0 0 4px; font-weight: 600;
+  }
+  .note h3 { font-size: 19px; font-weight: 600; margin: 0 0 16px; }
+  .note ul { list-style: none; margin: 0; padding: 0; border-left: 2px solid var(--line); }
+  .note li { position: relative; padding: 0 0 18px 22px; font-size: 14.5px; line-height: 1.55; }
+  .note li:last-child { padding-bottom: 0; }
+  .note li::before {
+    content: ""; position: absolute; left: -5px; top: 6px; width: 8px; height: 8px;
+    border-radius: 50%; background: var(--surface); border: 2px solid var(--line-strong);
+  }
+  .note .mono { font-family: "IBM Plex Mono", monospace; font-size: 0.9em; color: var(--muted); }
+
+  footer {
+    margin-top: 52px; padding-top: 18px; border-top: 1px solid var(--line);
+    font-size: 12.5px; color: var(--muted); font-family: "IBM Plex Mono", monospace;
+  }
+
+  .box-fill { fill: var(--surface); }
+  .box-stroke { stroke: var(--line-strong); stroke-width: 1.5; }
+  .box-title { fill: var(--ink); font-weight: 700; }
+  .desc { fill: var(--muted); font-size: 12px; }
+  .pill-neutral { fill: var(--neutral); }
+  .pill-text { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; fill: var(--surface); font-weight: 600; }
+  .conn { stroke: var(--line-strong); stroke-width: 1.6; fill: none; }
+  .arrow-neutral { fill: var(--line-strong); }
+  .arrow-good { fill: var(--good); }
+  .arrow-warn { fill: var(--warn); }
+  .fork-good { stroke: var(--good); stroke-width: 1.7; fill: none; }
+  .fork-warn { stroke: var(--warn); stroke-width: 1.7; fill: none; }
+  .box-good { fill: var(--surface); stroke: var(--good); stroke-width: 1.8; }
+  .box-warn { fill: var(--surface); stroke: var(--warn); stroke-width: 1.8; }
+  .step-no { fill: var(--muted); font-family: "IBM Plex Mono", monospace; font-size: 13px; font-weight: 600; }
+</style>
+
+<main>
+  <p class="eyebrow">e2e-Flow · Stand main, 16.09.2026</p>
+  <h1>Wie der ausgelieferte Stack getestet wird</h1>
+  <p class="dek">Derselbe Auslöser wie beim Eval — eine gemeinsame, sich verschmutzende Entwicklungsdatenbank (T-55/#123) — aber die <strong style="color:var(--ink)">genau entgegengesetzte Lösung</strong>: der Eval ging in-process, e2e bleibt zwingend echtes HTTP durch einen eigenen, kompletten Stack. Beides ist richtig, weil beide etwas anderes prüfen.</p>
+
+  <figure>
+    <svg viewBox="0 0 1280 810" role="img" aria-label="Flussdiagramm: make e2e fährt zuerst den vorherigen e2e-Stack herunter, startet dann ein eigenes Compose-Projekt mit tmpfs-Datenbank und ohne Host-Port für webapp, seedet sechs Nutzer im Container, und lässt pytest durch nginx gegen den echten Stack laufen. Bei Erfolg räumt make e2e den Stack selbst ab, bei einem Fehlschlag bleibt er absichtlich stehen, damit Logs und Zustand nachträglich untersucht werden können.">
+      <defs>
+        <marker id="x-neutral" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <polygon points="0,0 10,5 0,10" class="arrow-neutral" />
+        </marker>
+        <marker id="x-good" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <polygon points="0,0 10,5 0,10" class="arrow-good" />
+        </marker>
+        <marker id="x-warn" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <polygon points="0,0 10,5 0,10" class="arrow-warn" />
+        </marker>
+      </defs>
+
+      <text x="140" y="30" class="desc" font-family="IBM Plex Mono, monospace">make e2e</text>
+
+      <!-- 1 -->
+      <g>
+        <rect x="140" y="50" width="460" height="90" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="76" class="step-no">1</text>
+        <text x="186" y="76" class="box-title" font-size="15.5">down --remove-orphans</text>
+        <text x="164" y="100" class="desc">sauberer Start, unabhängig vom Vorzustand</text>
+      </g>
+      <line x1="370" y1="140" x2="370" y2="175" class="conn" marker-end="url(#x-neutral)" />
+
+      <!-- 2 -->
+      <g>
+        <rect x="140" y="175" width="460" height="125" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="201" class="step-no">2</text>
+        <text x="186" y="201" class="box-title" font-size="15">up -d --build --wait (webapp)</text>
+        <rect x="440" y="184" width="148" height="16" rx="8" class="pill-neutral" /><text x="514" y="195.5" text-anchor="middle" class="pill-text">eigenes Projekt</text>
+        <text x="164" y="225" class="desc">-p learnflow-e2e — db auf tmpfs statt</text>
+        <text x="164" y="240.5" class="desc">Volume, webapp ohne Host-Port. Der Dev-</text>
+        <text x="164" y="256" class="desc">Stack läuft daneben unberührt weiter</text>
+      </g>
+      <line x1="370" y1="300" x2="370" y2="335" class="conn" marker-end="url(#x-neutral)" />
+
+      <!-- 3 -->
+      <g>
+        <rect x="140" y="335" width="460" height="105" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="361" class="step-no">3</text>
+        <text x="186" y="361" class="box-title" font-size="15.5">seed_users.py im Container</text>
+        <text x="164" y="385" class="desc">sechs Nutzer, echter bcrypt-Hash — Kosten</text>
+        <text x="164" y="400.5" class="desc">4 statt 12 in CI, getestet wird die Kette</text>
+      </g>
+      <line x1="370" y1="440" x2="370" y2="475" class="conn" marker-end="url(#x-neutral)" />
+
+      <!-- 4 -->
+      <g>
+        <rect x="140" y="475" width="460" height="125" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="501" class="step-no">4</text>
+        <text x="186" y="501" class="box-title" font-size="15.5">pytest e2e -q</text>
+        <rect x="480" y="484" width="108" height="16" rx="8" class="pill-neutral" /><text x="534" y="495.5" text-anchor="middle" class="pill-text">echtes HTTP</text>
+        <text x="164" y="525" class="desc">durch nginx, E2E_BASE_URL=http://webapp —</text>
+        <text x="164" y="540.5" class="desc">dieselben Seams wie ein echter Browser:</text>
+        <text x="164" y="556" class="desc">/api-Rewrite, SPA-Fallback, echte DB</text>
+      </g>
+
+      <text x="370" y="640" text-anchor="middle" class="desc" font-family="IBM Plex Mono, monospace" font-style="italic">Exit-Code?</text>
+      <path d="M 370,600 C 370,615 260,620 260,660" class="fork-good" marker-end="url(#x-good)" />
+      <path d="M 370,600 C 370,615 480,620 480,660" class="fork-warn" marker-end="url(#x-warn)" />
+
+      <!-- 5a success -->
+      <g>
+        <rect x="140" y="660" width="220" height="110" rx="10" class="box-good" />
+        <text x="250" y="686" text-anchor="middle" class="box-title" fill="var(--good)" font-size="14.5">0 · Erfolg</text>
+        <text x="250" y="706" text-anchor="middle" class="desc">down --remove-orphans</text>
+        <text x="250" y="722" text-anchor="middle" class="desc">make e2e räumt selbst auf</text>
+      </g>
+
+      <!-- 5b failure -->
+      <g>
+        <rect x="380" y="660" width="220" height="110" rx="10" class="box-warn" />
+        <text x="490" y="686" text-anchor="middle" class="box-title" fill="var(--warn)" font-size="14.5">≠ 0 · Fehlschlag</text>
+        <text x="490" y="706" text-anchor="middle" class="desc">Stack bleibt absichtlich stehen</text>
+        <text x="490" y="722" text-anchor="middle" class="desc" font-family="IBM Plex Mono, monospace" font-size="10.5">e2e-logs · e2e-down</text>
+      </g>
+    </svg>
+    <figcaption>
+      Der <code>CI</code>-Job führt <strong>wörtlich denselben Befehl</strong> aus wie ein Entwickler lokal (<code>make e2e</code>) — vorher war der lokale Ablauf ein anderer als der in der CI, und nur einer von beiden war je getestet.
+    </figcaption>
+  </figure>
+
+  <h2 class="section">Vergleich</h2>
+  <h3 class="section-title">Zwei T-55-Antworten auf dasselbe Problem</h3>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th class="col">Aspekt</th><th class="col">eval</th><th class="col">e2e</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="aspect">Isolationsstrategie</td>
+          <td>in-process (ASGI-App), eine zurückgerollte Transaktion</td>
+          <td>eigenes Compose-Projekt, Datenbank auf tmpfs</td>
+        </tr>
+        <tr>
+          <td class="aspect">Warum</td>
+          <td>misst die LLM-Pipeline — Infrastruktur ist Rauschen</td>
+          <td>misst genau die Infrastruktur (nginx, SPA-Fallback, echter Hash)</td>
+        </tr>
+        <tr>
+          <td class="aspect">Spricht HTTP?</td>
+          <td>nein — direkt gegen die ASGI-App</td>
+          <td>ja, zwingend — durch nginx, wie ein echter Browser</td>
+        </tr>
+        <tr>
+          <td class="aspect">Rate-Limiter</td>
+          <td>abgeschaltet</td>
+          <td>aktiv — in T-45 sogar selbst der Testgegenstand</td>
+        </tr>
+        <tr>
+          <td class="aspect">Nach dem Lauf</td>
+          <td>Rollback — nichts bleibt</td>
+          <td>bei Erfolg abgeräumt, bei Fehlschlag stehen gelassen</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="table-caption">Beide Suiten lösen dasselbe Ausgangsproblem (eine gemeinsame, sich verschmutzende Dev-Datenbank) — mit entgegengesetzten Mitteln, weil sie unterschiedliche Dinge beweisen sollen.</p>
+  </div>
+
+  <div class="legend">
+    <span class="item"><span class="dot" style="background:var(--good)"></span>Erfolg — aufgeräumt</span>
+    <span class="item"><span class="dot" style="background:var(--warn)"></span>Fehlschlag — Stack bleibt für Nachschau</span>
+  </div>
+
+  <div class="notes">
+    <div class="note">
+      <h2>Warum nicht in-process</h2>
+      <h3>Die Seams, die nur echtes HTTP zeigt</h3>
+      <ul>
+        <li>nginx' <span class="mono">/api</span>-Rewrite und der SPA-Fallback existieren nicht innerhalb der ASGI-App allein — ein Reload auf <span class="mono">/login</span> muss <span class="mono">index.html</span> liefern, sonst endet ein Redirect in 404 (T-09)</li>
+        <li>Ein FK-<span class="mono">CASCADE</span> (<span class="mono">DELETE /documents/{id}</span> → chunks) ist nur gegen die echte Datenbank prüfbar — keine HTTP-Antwort zeigt, ob er wirklich gefeuert hat</li>
+        <li>Ein Tippfehler im <span class="mono">&lt;=&gt;</span>-Operator oder in <span class="mono">to_tsvector('german', ...)</span> besteht jeden gemockten Unit-Test (<span class="mono">db.execute</span> läuft dort durch ein <span class="mono">AsyncMock</span>) und fiele erst als 503 vor einem echten Nutzer auf</li>
+      </ul>
+    </div>
+    <div class="note">
+      <h2>Ein Stack, kein Prozess</h2>
+      <h3>Isoliert wird das Ganze</h3>
+      <ul>
+        <li>Eigenes Compose-Projekt, tmpfs-Datenbank, kein Host-Port für webapp — der Dev-Stack daneben bleibt unberührt, ein Absturz kann ihn nicht verbiegen</li>
+        <li>e2e- und eval-Module teilen sich eine Datenbank und schreiben dieselben <span class="mono">config</span>-Zeilen — ein Guard in <span class="mono">e2e/conftest.py</span> verweigert deshalb jeden Start mit <span class="mono">pytest-xdist</span>, statt später unerklärlich rot zu werden</li>
+        <li><span class="mono">make check</span> validiert beide Compose-Dateien (Dev und e2e) — ein Syntaxfehler in der zweiten fiele sonst erst im nächsten <span class="mono">make e2e</span>-Lauf auf, also genau dem, dessen Ergebnis gerade gebraucht wird</li>
+      </ul>
+    </div>
+  </div>
+
+  <footer>Quellen: src/Makefile (e2e, e2e-logs, e2e-down, check) · docker-compose.e2e.yml · .github/workflows/ci.yml · e2e/conftest.py, test_login_flow.py, test_retrieval_sql.py, test_documents_cascade.py, test_query_rate_limit.py — Stand main, 16.09.2026</footer>
+</main>

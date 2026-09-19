@@ -1,0 +1,266 @@
+<title>LearnFlow-Query-Flow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F5F3EE;
+    --surface: #FFFFFF;
+    --surface-2: #FBFAF6;
+    --ink: #20242B;
+    --muted: #5B6472;
+    --line: #D9D4C8;
+    --line-strong: #B9B2A2;
+    --neutral: #5B6472;
+    --error: #A23B3B;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14171B;
+      --surface: #1B1F25;
+      --surface-2: #20252B;
+      --ink: #E7E9EE;
+      --muted: #9AA3B0;
+      --line: #333A44;
+      --line-strong: #454E5A;
+      --neutral: #9AA3B0;
+      --error: #E2726B;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14171B;
+    --surface: #1B1F25;
+    --surface-2: #20252B;
+    --ink: #E7E9EE;
+    --muted: #9AA3B0;
+    --line: #333A44;
+    --line-strong: #454E5A;
+    --neutral: #9AA3B0;
+    --error: #E2726B;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+    padding: 0 20px; padding-block: 40px 64px;
+  }
+  main { max-width: 1080px; margin: 0 auto; }
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px;
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px;
+  }
+  h1 {
+    font-size: clamp(28px, 4vw, 38px); font-weight: 700; margin: 0 0 10px;
+    text-wrap: balance; letter-spacing: -0.01em;
+  }
+  .dek { font-size: 16px; color: var(--muted); max-width: 700px; line-height: 1.55; margin: 0 0 36px; }
+  .dek code {
+    font-family: "IBM Plex Mono", monospace; font-size: 0.92em; background: var(--surface-2);
+    border: 1px solid var(--line); padding: 1px 5px; border-radius: 4px;
+  }
+  h2.section {
+    font-size: 12px; font-family: "IBM Plex Mono", monospace; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--muted); margin: 0 0 4px; font-weight: 600;
+  }
+  h3.section-title { font-size: 21px; font-weight: 600; margin: 0 0 16px; }
+
+  figure { margin: 0 0 40px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 8px; }
+  svg { display: block; width: 100%; height: auto; }
+  figcaption { font-size: 13.5px; color: var(--muted); line-height: 1.6; padding: 16px 14px 6px; }
+  figcaption strong { color: var(--ink); font-weight: 600; }
+  figcaption code { font-family: "IBM Plex Mono", monospace; font-size: 0.95em; }
+
+  .table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 6px 6px 2px; margin-bottom: 46px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; min-width: 560px; }
+  thead th {
+    text-align: left; padding: 12px 14px; font-family: "IBM Plex Mono", monospace;
+    font-size: 11.5px; letter-spacing: 0.03em; color: var(--muted); font-weight: 600;
+    border-bottom: 2px solid var(--line);
+  }
+  tbody td { padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: top; font-size: 13px; }
+  tbody tr:last-child td { border-bottom: none; }
+  td.field { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; white-space: nowrap; font-weight: 600; }
+  td.api { color: var(--ink); }
+  td.dbcol { color: var(--ink); }
+  .table-caption { font-size: 13px; color: var(--muted); padding: 2px 14px 14px; line-height: 1.6; }
+
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 18px 2px 46px;
+    font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--muted);
+  }
+  .legend .item { white-space: nowrap; display: inline-flex; align-items: center; gap: 7px; }
+  .legend .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; }
+
+  .notes { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 8px; }
+  @media (max-width: 640px) { .notes { grid-template-columns: 1fr; } }
+  .note h2 {
+    font-size: 12px; font-family: "IBM Plex Mono", monospace; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--muted); margin: 0 0 4px; font-weight: 600;
+  }
+  .note h3 { font-size: 19px; font-weight: 600; margin: 0 0 16px; }
+  .note ul { list-style: none; margin: 0; padding: 0; border-left: 2px solid var(--line); }
+  .note li { position: relative; padding: 0 0 18px 22px; font-size: 14.5px; line-height: 1.55; }
+  .note li:last-child { padding-bottom: 0; }
+  .note li::before {
+    content: ""; position: absolute; left: -5px; top: 6px; width: 8px; height: 8px;
+    border-radius: 50%; background: var(--surface); border: 2px solid var(--line-strong);
+  }
+  .note .mono { font-family: "IBM Plex Mono", monospace; font-size: 0.9em; color: var(--muted); }
+
+  footer {
+    margin-top: 52px; padding-top: 18px; border-top: 1px solid var(--line);
+    font-size: 12.5px; color: var(--muted); font-family: "IBM Plex Mono", monospace;
+  }
+
+  .box-fill { fill: var(--surface); }
+  .box-stroke { stroke: var(--line-strong); stroke-width: 1.5; }
+  .box-title { fill: var(--ink); font-weight: 700; }
+  .desc { fill: var(--muted); font-size: 12px; }
+  .pill-neutral { fill: var(--neutral); }
+  .pill-text { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; fill: var(--surface); font-weight: 600; }
+  .conn { stroke: var(--line-strong); stroke-width: 1.6; fill: none; }
+  .arrow-neutral { fill: var(--line-strong); }
+  .arrow-error { fill: var(--error); }
+  .branch-error { stroke: var(--error); stroke-width: 1.7; fill: none; }
+  .exit-box-error { fill: var(--surface); stroke: var(--error); stroke-width: 1.8; }
+  .exit-title-error { fill: var(--error); font-family: "IBM Plex Mono", monospace; font-weight: 700; }
+  .exit-desc { fill: var(--muted); font-size: 11px; }
+  .step-no { fill: var(--muted); font-family: "IBM Plex Mono", monospace; font-size: 13px; font-weight: 600; }
+</style>
+
+<main>
+  <p class="eyebrow">Query-Flow · Stand main, 16.09.2026</p>
+  <h1>Was um die Konfidenz-Pipeline herum passiert</h1>
+  <p class="dek">Die acht Stufen selbst (Retrieval, Gate, Konfidenz, Generierung, Citation-Check, Band, Self-Check) stehen im <strong style="color:var(--ink)">Retrieval-Pipeline-Diagramm</strong>. Hier geht es um das Drumherum: <strong style="color:var(--ink)">welche Session eine Frage bekommt, und was von einer Antwort tatsächlich in der Datenbank landet</strong> — das ist nicht dasselbe wie das, was der Browser sieht.</p>
+
+  <figure>
+    <svg viewBox="0 0 1280 800" role="img" aria-label="Flussdiagramm: Auth und Rate-Limit prüfen, dann die Session auflösen (eine unbekannte oder fremde Session-ID schlägt nie fehl, sondern startet eine neue Session), dann die Konfidenz-Pipeline ausführen. Ein echter Ausfall von Retrieval oder Generierung verzweigt zu HTTP 503 ohne jede Persistenz. Jeder der acht Unterdrückungsgründe der Pipeline dagegen schreibt eine Answer-Zeile, bevor die Antwort zusammengesetzt wird.">
+      <defs>
+        <marker id="qf-neutral" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <polygon points="0,0 10,5 0,10" class="arrow-neutral" />
+        </marker>
+        <marker id="qf-error" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <polygon points="0,0 10,5 0,10" class="arrow-error" />
+        </marker>
+      </defs>
+
+      <text x="140" y="30" class="desc" font-family="IBM Plex Mono, monospace">POST /api/query</text>
+
+      <!-- A -->
+      <g>
+        <rect x="140" y="50" width="460" height="105" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="76" class="box-title" font-size="15.5">Auth + Rate-Limit</text>
+        <rect x="480" y="59" width="108" height="16" rx="8" class="pill-neutral" /><text x="534" y="70.5" text-anchor="middle" class="pill-text">10/min · Account</text>
+        <text x="164" y="100" class="desc">get_current_user, dann account_key —</text>
+        <text x="164" y="115.5" class="desc">Details im Auth/RBAC-Diagramm</text>
+      </g>
+      <line x1="370" y1="155" x2="370" y2="195" class="conn" marker-end="url(#qf-neutral)" />
+
+      <!-- B -->
+      <g>
+        <rect x="140" y="195" width="460" height="125" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="221" class="box-title" font-size="15.5">Session auflösen</text>
+        <rect x="480" y="204" width="108" height="16" rx="8" class="pill-neutral" /><text x="534" y="215.5" text-anchor="middle" class="pill-text">kein 404</text>
+        <text x="164" y="245" class="desc">session_id angegeben, existiert, gehört</text>
+        <text x="164" y="260.5" class="desc">mir? → weiterführen. Sonst (fehlt,</text>
+        <text x="164" y="276" class="desc">unbekannt, fremd): neue Session</text>
+      </g>
+      <line x1="370" y1="320" x2="370" y2="360" class="conn" marker-end="url(#qf-neutral)" />
+
+      <!-- C -->
+      <g>
+        <rect x="140" y="360" width="460" height="125" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="386" class="box-title" font-size="15.5">Konfidenz-Pipeline ausführen</text>
+        <rect x="480" y="369" width="108" height="16" rx="8" class="pill-neutral" /><text x="534" y="380.5" text-anchor="middle" class="pill-text">8 Ausgänge</text>
+        <text x="164" y="410" class="desc">Retrieval → Gate → Konfidenz →</text>
+        <text x="164" y="425.5" class="desc">Generierung → Citation-Check → Band →</text>
+        <text x="164" y="441" class="desc">Self-Check — siehe eigenes Diagramm</text>
+      </g>
+      <line x1="370" y1="485" x2="370" y2="525" class="conn" marker-end="url(#qf-neutral)" />
+
+      <!-- D -->
+      <g>
+        <rect x="140" y="525" width="460" height="125" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="551" class="box-title" font-size="15.5">Answer-Zeile schreiben</text>
+        <rect x="480" y="534" width="108" height="16" rx="8" class="pill-neutral" /><text x="534" y="545.5" text-anchor="middle" class="pill-text">jeder Ausgang</text>
+        <text x="164" y="575" class="desc">auch bei configuration_error — answer_id</text>
+        <text x="164" y="590.5" class="desc">ist das FK-Ziel für POST .../feedback,</text>
+        <text x="164" y="606" class="desc">jede Antwort braucht eine echte Zeile</text>
+      </g>
+      <line x1="370" y1="650" x2="370" y2="690" class="conn" marker-end="url(#qf-neutral)" />
+
+      <!-- final -->
+      <g>
+        <rect x="140" y="690" width="460" height="105" rx="10" class="box-fill" style="stroke:var(--ink);stroke-width:1.5" />
+        <text x="164" y="722" class="box-title" font-size="15.5">Antwort zusammensetzen</text>
+        <text x="164" y="744" class="desc">confidence immer gefüllt, citations leer</text>
+        <text x="164" y="759.5" class="desc">bei Gate-Fehlschlag, debug nur für admin</text>
+      </g>
+
+      <!-- exit: 503, bypasses persistence -->
+      <line x1="600" y1="422.5" x2="760" y2="422.5" class="branch-error" marker-end="url(#qf-error)" />
+      <rect x="760" y="370" width="380" height="105" rx="10" class="exit-box-error" />
+      <text x="776" y="394" class="exit-title-error" font-size="13.5">HTTP 503 · Retrieval/Generierung</text>
+      <text x="776" y="414" class="exit-desc">Provider oder DB nicht erreichbar —</text>
+      <text x="776" y="428.5" class="exit-desc" font-weight="600" fill="var(--error)">KEINE Answer-Zeile, kein answer_id</text>
+      <text x="776" y="446" class="exit-desc" font-style="italic">läuft nie durch Schritt „Answer-Zeile schreiben"</text>
+    </svg>
+    <figcaption>
+      Der Unterschied zum <code>503</code> ist der Punkt: alle <strong>acht</strong> fail-closed-Unterdrückungen der Pipeline (inklusive <code>configuration_error</code>) laufen durch die Persistenz — nur ein <strong>echter Ausfall</strong> von Retrieval oder Generierung überspringt sie ganz. Es gibt dafür nichts Sinnvolles festzuhalten, und keinen <code>answer_id</code>, den ein Client später fürs Feedback bräuchte.
+    </figcaption>
+  </figure>
+
+  <h2 class="section">Divergenz</h2>
+  <h3 class="section-title">Was der Browser sieht, ist nicht, was die Zeile hält</h3>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Feld</th><th>API-Antwort (immer sichtbar)</th><th>answers-Zeile (DB)</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="field">citation_coverage</td>
+          <td class="api">0.0, wenn Stufe 2 nie lief — die Spec führt das Feld nicht-nullable</td>
+          <td class="dbcol">NULL, wenn Stufe 2 nie lief — sonst würde „nie gemessen" als „0 % belegt" in die Kalibrierung (ADR-009) einfliessen</td>
+        </tr>
+        <tr>
+          <td class="field">self_check_passed</td>
+          <td class="api">— kein Teil von ConfidenceInfo, nur in debug.stages (admin)</td>
+          <td class="dbcol">NULL, wenn Stufe 3 nie lief (Normalfall) — ein Default false sähe wie eine gescheiterte Prüfung aus</td>
+        </tr>
+        <tr>
+          <td class="field">answer_text</td>
+          <td class="api">message — Klartext, bei Unterdrückung der standardisierte „Weiss ich nicht"-Text</td>
+          <td class="dbcol">NULL bei jeder Unterdrückung — die Spalte hält nur, was die Pipeline tatsächlich produziert hat</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="table-caption">Alle drei Divergenzen sind absichtlich: eine API-Antwort darf laut Spec kein <code>null</code> führen, aber eine Auswertung über <code>answers</code> muss „nie gemessen" von „als 0 gemessen" unterscheiden können.</p>
+  </div>
+
+  <div class="legend">
+    <span class="item"><span class="dot" style="background:var(--error)"></span>sichtbarer Fehler, keine Persistenz</span>
+  </div>
+
+  <div class="notes">
+    <div class="note">
+      <h2>Session-Handling</h2>
+      <h3>Kulant, mit Absicht</h3>
+      <ul>
+        <li>Eine unbekannte oder fremde <span class="mono">session_id</span> schlägt nie mit 404 fehl — der Vertrag kennt keinen; eine Frage zu beantworten ist nützlicher als eine veraltete Client-ID abzulehnen</li>
+        <li>Fremde IDs werden trotzdem nicht übernommen — eine Session ist der Gesprächsfaden einer Person, kein globaler Schlüssel, den man sich leihen kann</li>
+      </ul>
+    </div>
+    <div class="note">
+      <h2>Persistenz ist Vertrag, nicht Log</h2>
+      <h3>Warum jede Unterdrückung schreibt</h3>
+      <ul>
+        <li>Jede der 8 fail-closed-Unterdrückungen schreibt eine echte <span class="mono">Answer</span>-Zeile — auch <span class="mono">configuration_error</span>, weil <span class="mono">answer_id</span> ein Pflichtfeld der Antwort und das FK-Ziel für <span class="mono">POST /answers/{id}/feedback</span> ist</li>
+        <li>Ein echter <span class="mono">503</span> schreibt dagegen nichts — es gibt keinen <span class="mono">answer_id</span>, den ein Client später fürs Feedback bräuchte</li>
+      </ul>
+    </div>
+  </div>
+
+  <footer>Quellen: app/routers/query.py (create_query, _resolve_session, _persist_and_respond) — Stand main, 16.09.2026</footer>
+</main>

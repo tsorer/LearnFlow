@@ -1,0 +1,228 @@
+<title>LearnFlow-Retention-Flow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F5F3EE;
+    --surface: #FFFFFF;
+    --surface-2: #FBFAF6;
+    --ink: #20242B;
+    --muted: #5B6472;
+    --line: #D9D4C8;
+    --line-strong: #B9B2A2;
+    --neutral: #5B6472;
+    --accent: #6B4F94;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14171B;
+      --surface: #1B1F25;
+      --surface-2: #20252B;
+      --ink: #E7E9EE;
+      --muted: #9AA3B0;
+      --line: #333A44;
+      --line-strong: #454E5A;
+      --neutral: #9AA3B0;
+      --accent: #B79FE0;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14171B;
+    --surface: #1B1F25;
+    --surface-2: #20252B;
+    --ink: #E7E9EE;
+    --muted: #9AA3B0;
+    --line: #333A44;
+    --line-strong: #454E5A;
+    --neutral: #9AA3B0;
+    --accent: #B79FE0;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+    padding: 0 20px; padding-block: 40px 64px;
+  }
+  main { max-width: 1080px; margin: 0 auto; }
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px;
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px;
+  }
+  h1 {
+    font-size: clamp(28px, 4vw, 38px); font-weight: 700; margin: 0 0 10px;
+    text-wrap: balance; letter-spacing: -0.01em;
+  }
+  .dek { font-size: 16px; color: var(--muted); max-width: 720px; line-height: 1.55; margin: 0 0 36px; }
+  .dek code {
+    font-family: "IBM Plex Mono", monospace; font-size: 0.92em; background: var(--surface-2);
+    border: 1px solid var(--line); padding: 1px 5px; border-radius: 4px;
+  }
+
+  figure { margin: 0 0 40px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 8px; }
+  svg { display: block; width: 100%; height: auto; }
+  figcaption { font-size: 13.5px; color: var(--muted); line-height: 1.6; padding: 16px 14px 6px; }
+  figcaption strong { color: var(--ink); font-weight: 600; }
+  figcaption code { font-family: "IBM Plex Mono", monospace; font-size: 0.95em; }
+
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 18px 2px 46px;
+    font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--muted);
+  }
+  .legend .item { white-space: nowrap; display: inline-flex; align-items: center; gap: 7px; }
+  .legend .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; }
+  .legend .ln { display: inline-block; width: 20px; height: 0; border-top: 2px solid var(--line-strong); }
+  .legend .ln.dashed { border-top-style: dashed; }
+
+  .notes { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 8px; }
+  @media (max-width: 640px) { .notes { grid-template-columns: 1fr; } }
+  .note h2 {
+    font-size: 12px; font-family: "IBM Plex Mono", monospace; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--muted); margin: 0 0 4px; font-weight: 600;
+  }
+  .note h3 { font-size: 19px; font-weight: 600; margin: 0 0 16px; }
+  .note ul { list-style: none; margin: 0; padding: 0; border-left: 2px solid var(--line); }
+  .note li { position: relative; padding: 0 0 18px 22px; font-size: 14.5px; line-height: 1.55; }
+  .note li:last-child { padding-bottom: 0; }
+  .note li::before {
+    content: ""; position: absolute; left: -5px; top: 6px; width: 8px; height: 8px;
+    border-radius: 50%; background: var(--surface); border: 2px solid var(--line-strong);
+  }
+  .note .mono { font-family: "IBM Plex Mono", monospace; font-size: 0.9em; color: var(--muted); }
+
+  footer {
+    margin-top: 52px; padding-top: 18px; border-top: 1px solid var(--line);
+    font-size: 12.5px; color: var(--muted); font-family: "IBM Plex Mono", monospace;
+  }
+
+  .box-fill { fill: var(--surface); }
+  .box-stroke { stroke: var(--line-strong); stroke-width: 1.5; }
+  .box-title { fill: var(--ink); font-weight: 700; }
+  .desc { fill: var(--muted); font-size: 12px; }
+  .pill-neutral { fill: var(--neutral); }
+  .pill-text { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; fill: var(--surface); font-weight: 600; }
+  .conn { stroke: var(--line-strong); stroke-width: 1.6; fill: none; }
+  .arrow-neutral { fill: var(--line-strong); }
+  .arrow-accent { fill: var(--accent); }
+  .loop-line { stroke: var(--accent); stroke-width: 1.7; fill: none; stroke-dasharray: 6 4; }
+  .tx-bracket { fill: none; stroke: var(--accent); stroke-width: 1.4; stroke-dasharray: 4 5; }
+  .tx-label { fill: var(--accent); font-family: "IBM Plex Mono", monospace; font-size: 11px; font-weight: 600; }
+</style>
+
+<main>
+  <p class="eyebrow">Retention-Flow · Stand main, 16.09.2026</p>
+  <h1>Wie alte Daten unzuordenbar werden, dann verschwinden</h1>
+  <p class="dek">Der zweite Hintergrund-Loop im Worker, neben dem Reaper — gleiche Bauform, andere Absicht: kein hängender Job wird hier befreit, sondern eine <strong style="color:var(--ink)">Datenschutz-Police</strong> durchgesetzt (M8T1, Migration 0019). Die Reihenfolge der drei Schritte <em>ist</em> hier der Schutz, nicht nur ein Implementierungsdetail.</p>
+
+  <figure>
+    <svg viewBox="0 0 1280 1010" role="img" aria-label="Zyklisches Flussdiagramm: die Retention-Schleife schläft eine feste Stunde, liest zwei Konfigurationswerte weich validiert, und führt dann in einer Transaktion drei Schritte in fester Reihenfolge aus: Sessions jenseits der Pseudonymisierungsfrist vom Nutzer entkoppeln, Antworten jenseits der Aufbewahrungsfrist löschen, und leere Sessions jenseits derselben Frist löschen. Geloggt werden nur Zahlen, nie Kennungen. Danach beginnt die Schleife von vorn.">
+      <defs>
+        <marker id="rt-neutral" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <polygon points="0,0 10,5 0,10" class="arrow-neutral" />
+        </marker>
+        <marker id="rt-accent" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <polygon points="0,0 10,5 0,10" class="arrow-accent" />
+        </marker>
+      </defs>
+
+      <!-- A: sleep -->
+      <g>
+        <rect x="140" y="50" width="1000" height="105" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="76" class="box-title" font-size="16">sleep(3600s)</text>
+        <rect x="940" y="59" width="180" height="18" rx="9" class="pill-neutral" /><text x="1030" y="72" text-anchor="middle" class="pill-text">fest, nicht abgeleitet</text>
+        <text x="164" y="100" class="desc">anders als der Reaper: 1 Tag Frist und 1 Jahr Frist wollen dieselbe</text>
+        <text x="164" y="115.5" class="desc">Taktung — es zählt, dass der Lauf passiert, nicht wie kurz nach Mitternacht</text>
+      </g>
+      <line x1="640" y1="155" x2="640" y2="195" class="conn" marker-end="url(#rt-neutral)" />
+
+      <!-- B: config -->
+      <g>
+        <rect x="140" y="195" width="1000" height="140" rx="10" class="box-fill box-stroke" />
+        <text x="164" y="221" class="box-title" font-size="16">Config lesen — 2 Schlüssel</text>
+        <rect x="900" y="204" width="220" height="18" rx="9" class="pill-neutral" /><text x="1010" y="217" text-anchor="middle" class="pill-text">weich, wie der Reaper</text>
+        <text x="164" y="245" class="desc">unlesbar oder ausserhalb [1, 36500] Tage → Default + Warnung —</text>
+        <text x="164" y="260.5" class="desc">eine Löschroutine, die wegen eines Tippfehlers aussetzt, wäre der</text>
+        <text x="164" y="276" class="desc">grössere Schaden. Auch zu hoch ist ein Fehler: das schaltet die</text>
+        <text x="164" y="291.5" class="desc">Löschung faktisch ab, ist keine mildere Einstellung</text>
+      </g>
+      <line x1="640" y1="335" x2="640" y2="375" class="conn" marker-end="url(#rt-neutral)" />
+
+      <!-- transaction bracket -->
+      <rect x="120" y="358" width="1040" height="400" rx="14" class="tx-bracket" />
+      <text x="140" y="350" class="tx-label">eine Transaktion — feste Reihenfolge</text>
+
+      <!-- C1 -->
+      <g>
+        <rect x="150" y="378" width="980" height="105" rx="10" class="box-fill box-stroke" />
+        <text x="174" y="404" class="box-title" font-size="15.5">1 · Sessions pseudonymisieren</text>
+        <rect x="820" y="387" width="150" height="18" rx="9" class="pill-neutral" /><text x="895" y="400" text-anchor="middle" class="pill-text">30 Tage · Start</text>
+        <text x="174" y="428" class="desc">UPDATE query_sessions SET user_id = NULL —</text>
+        <text x="174" y="443.5" class="desc">älter als session_pseudonymise_days</text>
+      </g>
+      <line x1="640" y1="483" x2="640" y2="508" class="conn" marker-end="url(#rt-neutral)" />
+
+      <!-- C2 -->
+      <g>
+        <rect x="150" y="508" width="980" height="105" rx="10" class="box-fill box-stroke" />
+        <text x="174" y="534" class="box-title" font-size="15.5">2 · Alte Antworten löschen</text>
+        <rect x="820" y="517" width="150" height="18" rx="9" class="pill-neutral" /><text x="895" y="530" text-anchor="middle" class="pill-text">90 Tage · Start</text>
+        <text x="174" y="558" class="desc">auf der eigenen Zeit der Antwort, nicht der Session —</text>
+        <text x="174" y="573.5" class="desc">feedback kaskadiert automatisch (ON DELETE CASCADE)</text>
+      </g>
+      <line x1="640" y1="613" x2="640" y2="638" class="conn" marker-end="url(#rt-neutral)" />
+
+      <!-- C3 -->
+      <g>
+        <rect x="150" y="638" width="980" height="105" rx="10" class="box-fill box-stroke" />
+        <text x="174" y="664" class="box-title" font-size="15.5">3 · Leere Sessions löschen</text>
+        <rect x="820" y="647" width="150" height="18" rx="9" class="pill-neutral" /><text x="895" y="660" text-anchor="middle" class="pill-text">nur ohne Antworten</text>
+        <text x="174" y="688" class="desc">keine Antworten mehr UND selbst über der Frist —</text>
+        <text x="174" y="703.5" class="desc">nie eine noch genutzte Unterhaltung</text>
+      </g>
+      <line x1="640" y1="758" x2="640" y2="800" class="conn" marker-end="url(#rt-neutral)" />
+
+      <!-- final -->
+      <g>
+        <rect x="140" y="800" width="1000" height="90" rx="10" class="box-fill" style="stroke:var(--ink);stroke-width:1.5" />
+        <text x="164" y="832" class="box-title" font-size="15.5">Nur Zahlen geloggt</text>
+        <text x="164" y="854" class="desc">nie eine ID — sonst schriebe der Schutz die Kennung zurück ins Log</text>
+      </g>
+
+      <!-- loop back -->
+      <line x1="640" y1="890" x2="640" y2="925" class="conn" />
+      <polyline points="640,925 60,925 60,102 140,102" class="loop-line" marker-end="url(#rt-accent)" />
+      <text x="72" y="520" class="desc" fill="var(--accent)" transform="rotate(-90 72 520)" text-anchor="middle">nächste Passage in 3600 Sekunden</text>
+    </svg>
+    <figcaption>
+      Die Reihenfolge <strong>ist</strong> die Police, nicht nur Implementierung: erst entkoppeln, dann löschen, in einer Transaktion — eine verkürzte Aufbewahrungsfrist kann so nie eine Zeile löschen, die noch einen Nutzerbezug trägt, weil sie ihn zu diesem Zeitpunkt schon verloren hat.
+    </figcaption>
+  </figure>
+
+  <div class="legend">
+    <span class="item"><span class="ln dashed" style="border-color:var(--accent)"></span>Schleife — kein Request, kein Ende</span>
+  </div>
+
+  <div class="notes">
+    <div class="note">
+      <h2>Reihenfolge ist die Police</h2>
+      <h3>Warum eine Transaktion, warum diese Reihenfolge</h3>
+      <ul>
+        <li>Erst entkoppeln, dann löschen: eine verkürzte Aufbewahrungsfrist kann so nie eine Zeile löschen, die noch einen Nutzerbezug trägt — jede Zeile, die diesen Schritt verlässt, hat den ersten schon hinter sich</li>
+        <li>Eine Transaktion auch aus einem zweiten Grund: ein Lauf, der entkoppelt, aber vor dem Löschen abbricht, würde eine Stunde später wiederholt — und darf dabei keinen halb angewendeten Zustand vorfinden</li>
+        <li>Antworten altern auf der eigenen Zeit, nicht auf der ihrer Session: eine wochenlang offene Session soll nicht Fragen von vor Minuten mitreissen, nur weil die Session selbst die Frist überschritten hat</li>
+      </ul>
+    </div>
+    <div class="note">
+      <h2>Ein Bruder des Reapers, zwei Unterschiede</h2>
+      <h3>Gleiche Bauform, andere Absicht</h3>
+      <ul>
+        <li>Gleiches Muster wie der Reaper — schlafen, Config weich lesen, Fehler loggen und schlucken (siehe Reaper-Flow) — aber ein <strong>fester</strong> statt abgeleiteter Takt: stündlich, unabhängig von der konfigurierten Frist</li>
+        <li>Wo der Reaper zwei <strong>unabhängige</strong> Aktionen parallel fährt, verkettet die Retention drei <strong>abhängige</strong> Schritte in fester Reihenfolge — hier ändert die Reihenfolge das Ergebnis, beim Reaper nicht</li>
+        <li>Geloggt werden ausschliesslich Zählungen: die Zeilen, die dieser Lauf gerade unzuordenbar gemacht hat, tauchen nicht als IDs im selben Log wieder auf</li>
+      </ul>
+    </div>
+  </div>
+
+  <footer>Quellen: worker/main.py (purge_expired, retention_loop, read_retention_config) · Migration 0019 — Stand main, 16.09.2026</footer>
+</main>
