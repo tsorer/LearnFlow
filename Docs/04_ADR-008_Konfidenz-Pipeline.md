@@ -168,6 +168,8 @@ Nächster Schritt, nicht Teil von T-57: ein zweiter, unabhängiger Lauf zur Best
 
 **Bekannte Kollision mit T-62 (#136, parallele RAG-Optimierung).** T-62 hält 22 Fragen als Holdout zurück, dieser Lauf 26 — nur 8 sind beiden gemeinsam. Übernimmt eine Seite Schwellen aus der anderen, ist ihr eigener Holdout nicht mehr unberührt. Ausserdem lief dieser Kalibrierungslauf vor T-62s Korrektur der Satzzerlegung in `check_citations` (R01: `check_citations` zerlegte korrekt belegte Antworten teils falsch und unterdrückte sie fälschlich) — der hier gefundene Kandidat `min_citation_coverage = 0.3` gleicht damit möglicherweise einen Messfehler aus, statt echtes Signal zu sein. Bevor einer der beiden Kandidaten als „Accepted" erwogen wird, braucht es einen gemeinsamen Holdout und einen Lauf auf dem korrigierten Stand — reine Team-Koordination, nicht Teil von T-57 oder T-62 einzeln.
 
+T-62s R04-Lauf (Entwicklungs-Set, 58 Fragen, Produktivmodell) liefert zusätzliche Evidenz gegen den gefundenen `self_check_band_high = 0.6`: unter den *heutigen* Schwellen (`min_citation_coverage = 0.5`, nicht dem Kandidatenwert 0.3 — die Komposit-Scores fielen unter dem Kandidaten-Set anders aus, das ist kein Beweis, nur ein Indiz aus einer benachbarten Messung) lief Stufe 3 sechzehnmal, davon elf mit einem Score ≥ 0,6. Bei `self_check_band_high = 0.6` liefen diese elf nicht mehr — darunter der einzige der sechzehn Fälle, in dem Stufe 3 tatsächlich etwas unterdrückt hat (eine korrekt zurückgehaltene Out-of-Corpus-Antwort, Score 0,6802). Ein engeres Band spart hier nicht nur Aufrufe, sondern den einen Treffer, den Stufe 3 im Beobachtungszeitraum hatte.
+
 ---
 
 ## Konsequenzen
