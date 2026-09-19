@@ -208,10 +208,12 @@ async def retrieve(
     # job. "Parallel" in ADR-007 means both searches contribute, not that they
     # run concurrently; at k=20 over <10k chunks the second query is noise next
     # to the embedding round-trip that precedes both.
-    dense_rows = await _fetch(db, DENSE_SQL, params)
+    dense_rows = await fetch_rows(db, DENSE_SQL, params)
 
     tsquery = to_tsquery_terms(question)
-    sparse_rows = await _fetch(db, SPARSE_SQL, {**params, "tsquery": tsquery}) if tsquery else []
+    sparse_rows = (
+        await fetch_rows(db, SPARSE_SQL, {**params, "tsquery": tsquery}) if tsquery else []
+    )
 
     candidates = fuse(dense_rows, sparse_rows, config.rrf_k)
     return RetrievalOutcome(
@@ -229,7 +231,7 @@ async def sample_chunks(db: AsyncSession, area: str, limit: int) -> list[SourceC
     what it holds. An empty list means there is nothing to generate from, and
     the caller says so instead of asking the model to invent material.
     """
-    rows = await _fetch(
+    rows = await fetch_rows(
         db, SAMPLE_SQL, {"area": area, "limit": limit, "status": DocumentStatus.available}
     )
     return [
@@ -311,9 +313,18 @@ def _rrf_score(dense_rank: int | None, sparse_rank: int | None, rrf_k: int) -> f
     return sum(1.0 / (rrf_k + rank) for rank in ranks)
 
 
-async def _fetch(
+async def fetch_rows(
     db: AsyncSession, statement: Any, params: dict[str, Any]
 ) -> list[Mapping[str, Any]]:
+    """Run one of the SQL statements above and materialise the rows.
+
+    Public seam (T-57): the calibration sweep (`eval/calibrate_snapshot.py`) calls this
+    directly with a large `top_k` to freeze the raw dense/sparse rows once per question,
+    then replays `fuse()` over slices of them for many `(retrieval_top_k, rrf_k)`
+    candidates without a second round-trip per candidate. Because `retrieve()` above is
+    built from this same function, the replay is per construction the same code as the
+    live pipeline, not a second implementation that could drift from it.
+    """
     result = await db.execute(statement, params)
     # Materialised as plain dicts: a RowMapping stays bound to the result set,
     # and fuse() should work on rows, not on a driver type.

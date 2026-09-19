@@ -67,6 +67,7 @@ import httpx
 import pytest
 
 from eval.conftest import _out_dir
+from eval.gates import FALSE_SUPPRESSION_RATE_GATE, HALLUCINATION_RATE_GATE
 from eval.gold_dataset import (
     AdversarialQuestion,
     InCorpusQuestion,
@@ -77,9 +78,6 @@ from eval.gold_dataset import (
 )
 from eval.metrics import check_hallucination, retrieval_metrics
 from eval.profiles import Profile
-
-HALLUCINATION_RATE_GATE = 0.0  # ADR-009 Gruppe A, hartes Gate
-FALSE_SUPPRESSION_RATE_GATE = 0.15  # ADR-009 Gruppe A, Startwert
 
 # Dieselbe Ausnahme wie im Refusal-Test: ein infrastruktureller Fehlschlag,
 # kein fachliches Ergebnis.

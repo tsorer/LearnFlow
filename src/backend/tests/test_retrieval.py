@@ -10,7 +10,10 @@ import pytest
 from app.models.tables import DocumentStatus
 from app.services.config import PipelineConfig
 from app.services.retrieval import (
+    DENSE_SQL,
     RANK_ABSENT,
+    SPARSE_SQL,
+    fetch_rows,
     fuse,
     retrieve,
     to_tsquery_terms,
@@ -201,3 +204,48 @@ async def test_retrieve_binds_the_embedding_as_a_json_literal(
     # The visibility filter binds the status instead of spelling it into the
     # SQL — only fully indexed documents are searchable (ADR-007/ADR-008).
     assert params["status"] == DocumentStatus.available
+
+
+# --- fetch_rows seam (T-57) -------------------------------------------------
+
+
+async def test_retrieve_calls_the_public_fetch_rows_seam(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`retrieve()` must stay assembled from `fetch_rows()` + `fuse()`.
+
+    The calibration sweep (T-57) replays `fuse()` over `fetch_rows()` results it fetched
+    itself, with a larger `top_k`, and relies on that being *the same* code path
+    `retrieve()` uses — not a second implementation that could drift from it.
+
+    A structural comparison (build the same candidates a second way, check they match)
+    would pass even if `retrieve()` stopped calling `fetch_rows()` and went back to a
+    private, inline fetch — nothing about the comparison depends on which function actually
+    ran. A spy is the only way to check the real claim: that `retrieve()`'s two SQL
+    round-trips *are* calls to the public seam, not a second implementation that happens to
+    produce the same rows.
+    """
+    monkeypatch.setattr(
+        "app.services.retrieval.embed_texts", AsyncMock(return_value=[[0.1, 0.2, 0.3]])
+    )
+    real_fetch_rows = fetch_rows
+    calls: list[Any] = []
+
+    async def spy(db: Any, statement: Any, params: dict[str, Any]) -> Any:
+        calls.append(statement)
+        return await real_fetch_rows(db, statement, params)
+
+    monkeypatch.setattr("app.services.retrieval.fetch_rows", spy)
+
+    dense_row, sparse_row = make_row(0.9), make_row(0.6)
+    outcome = await retrieve(
+        make_db([dense_row], [sparse_row]), "Was regelt der EU AI Act", CONFIG, "default"
+    )
+
+    assert calls == [DENSE_SQL, SPARSE_SQL]
+    # Beide Zeilen liegen bei gleichem RRF-Score (je Rang 1 in ihrer eigenen Suche); der
+    # Tie-Break auf `score` setzt die dense-Zeile (0.9) vor die sparse-Zeile (0.6).
+    assert [hit.chunk_id for hit in outcome.candidates] == [
+        dense_row["chunk_id"],
+        sparse_row["chunk_id"],
+    ]
