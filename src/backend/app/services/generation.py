@@ -21,6 +21,7 @@ from typing import Any, Protocol
 import litellm
 
 from app.config import settings
+from app.services.llm import provider_args
 from app.services.retrieval import RetrievalHit
 
 # What the model answers when the context does not cover the question. A sentinel
@@ -162,12 +163,9 @@ async def generate_answer(question: str, context: Sequence[RetrievalHit]) -> Gen
         ],
         temperature=TEMPERATURE,
         max_tokens=MAX_ANSWER_TOKENS,
-        # The same four arguments as embedding.py, for the same reasons: "" is not
-        # None to LiteLLM and would be used as the api_base, and pydantic-settings
-        # never exports the key into the environment LiteLLM would otherwise read.
-        api_base=settings.litellm_base_url or None,
-        api_version=settings.litellm_api_version or None,
-        api_key=settings.litellm_api_key or settings.openai_api_key,
+        # Endpunkt und Schlüssel aus app/services/llm.py, wie in embedding.py,
+        # quiz.py und self_check.py — die Begründung steht dort (T-63).
+        **provider_args(),
         timeout=TIMEOUT_SECONDS,
         num_retries=MAX_RETRIES,
     )

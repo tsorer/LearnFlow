@@ -79,6 +79,42 @@ Drei Gruppen, abgeleitet aus den NFAs (Schwellen als Spike-kalibrierte Startwert
 - **CI — Regressionsgate:** Bei jeder Änderung an der RAG-Pipeline läuft der Eval gegen das Gold-Dataset und die fixe Produktivkonfiguration. **Build bricht**, wenn die Halluzinationsrate > 0 % ist oder die Refusal-Quote unter die NFA fällt. (Testability-NFA, vgl. C4.)
 - **Produktion — Monitoring:** Nutzer-Feedback (US-03) und unterdrückte/niedrig-konfidente Antworten werden geloggt und fliessen als reale Stichprobe zurück ins Gold-Dataset (kontinuierliche Erweiterung).
 
+### Nachtrag 2026-09-15 — Das Gate ist heute manuell, nicht in der CI (T-53, Issue #110; festgestellt in T-63)
+
+Abschnitt 4 oben beschreibt das Regressionsgate als CI-Job, und die Alternativen-Tabelle
+verwirft „Nur Offline-Eval, kein CI-Gate" ausdrücklich. **Der Ist-Zustand ist genau diese
+verworfene Alternative**, und zwar seit dem ersten lauffähigen Eval: Die CI
+(`.github/workflows/ci.yml`) kennt die drei Jobs `backend`, `frontend` und `e2e`. Der Eval
+läuft als `make eval` von Hand.
+
+Der Grund ist nicht Nachlässigkeit, sondern eine Voraussetzung, die dieses ADR beim
+Schreiben nicht hatte: Ein Eval-Lauf braucht einen **echten Provider-Schlüssel** und
+verursacht Token-Kosten pro Lauf. Ein `OPENAI_API_KEY` als GitHub-Secret ist ein
+Betriebsentscheid mit eigener Sicherheitsfrage (wer darf Workflows auf Forks ausführen),
+kein Implementierungsschritt — er hängt an T-53 (#110) und ist dort offen.
+
+Was stattdessen gilt, bis T-53 abgeschlossen ist:
+
+- `make eval` ist ein **Release-Gate von Hand**, nicht pro Commit. Vor einem Merge, der die
+  RAG-Pipeline berührt, läuft es lokal; die DoD-Zeile „Eval-Gate nicht verschlechtert"
+  verweist genau darauf.
+- Nur das ausgelieferte Profil (`PRODUCTION` in `eval/profiles.py`, `gated=True`) lässt den
+  Lauf rot werden. Vergleichsläufe gegen lokale Modelle sind Messergebnisse, keine Gates.
+- Die deterministische Hälfte, die **ohne** Provider auskommt, läuft sehr wohl in jedem
+  CI-Lauf mit: `tests/test_gold_eval_dataset.py` prüft Schema und Konsistenz des Datasets,
+  `tests/test_eval_metrics.py` die Metrik-Berechnung. Was fehlt, ist der Lauf gegen den
+  echten Korpus, nicht die Prüfung des Harness.
+
+Der Entscheid des ADR bleibt damit unverändert — das CI-Gate ist weiterhin das Ziel und
+der eigentliche Schutz über die Projektlaufzeit. Dieser Nachtrag hält nur fest, dass es
+zum Zeitpunkt des Pilotstarts **noch nicht** greift, damit niemand aus dem Titel dieses
+Dokuments eine Zusicherung liest, die der Betrieb nicht einlöst.
+
+Offen und hier bewusst nur vermerkt statt miterledigt: `Ops/07_Pilotstart-Checkliste.md`
+führt den Eval-Lauf bislang gar nicht auf — weder als CI-Gate noch als manuellen Schritt.
+Solange das Gate von Hand läuft, gehört es dort als Vorbedingung hin; das ist ein eigener
+Schnitt und gehört zu T-53 (#110).
+
 ---
 
 ## Konsequenzen

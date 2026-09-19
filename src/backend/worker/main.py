@@ -13,6 +13,7 @@ from pgqueuer.models import Job
 
 from app.config import settings
 from app.exceptions import EmbeddingConfigError, UserFacingError
+from app.logging_config import configure_logging
 from app.models.tables import DocumentStatus
 from app.services.chunking import (
     DEFAULT_CHUNK_OVERLAP,
@@ -29,7 +30,6 @@ from app.services.embedding_config import (
 )
 from app.services.parsing import parse_document
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger(__name__)
 
 # The heading is indexed alongside the content: DOCX and Markdown headings are
@@ -901,6 +901,22 @@ def make_job_handler(pool: asyncpg.Pool) -> Callable[[Job], Awaitable[None]]:
 
 
 async def main() -> None:
+    # Seit T-63 dieselbe Konfiguration wie die API (app/logging_config.py), damit
+    # beide Container im gemischten `docker compose logs` gleich aussehen. Neu
+    # dabei: LOG_LEVEL wirkt jetzt auch hier, vorher stand INFO fest.
+    #
+    # Zum zweiten Argument: dieser Prozess stand vorher über `basicConfig` auf
+    # Root-INFO und sah damit auch die Zeilen von pgqueuer & Co. Der Default ist
+    # jetzt leiser, aber `LOG_LEVEL_THIRD_PARTY=DEBUG` holt genau diese Sicht
+    # zurück — ohne Code-Änderung, was der Punkt ist, wenn ein Job nicht
+    # angenommen wird (Review zu PR #140).
+    #
+    # Im Start und nicht beim Import, aus demselben Grund wie im Lifespan der API
+    # (Review zu PR #140): `configure_logging` entfernt mit `force=True` bestehende
+    # Root-Handler, und ein Import dieses Moduls ist nicht dasselbe wie ein
+    # startender Worker.
+    configure_logging(settings.log_level, settings.log_level_third_party)
+
     log.info("Worker starting — connecting to database")
     conn = await asyncpg.connect(settings.asyncpg_dsn)
 

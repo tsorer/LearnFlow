@@ -41,7 +41,7 @@ Frank/ Christoph/
 - **ADR-006** Worker pgqueuer · 
 - **ADR-007** Hybrid-Retrieval (Dense + Sparse, RRF)
 - **ADR-008** Fail-closed Konfidenz-Pipeline · 
-- **ADR-009** Eval (Gold-Dataset, RAGAS, CI-Gate)
+- **ADR-009** Eval (Gold-Dataset, RAGAS; Gate heute manuell via `make eval` — CI-Gate offen, T-53)
 - **ADR-010** API-First (OpenAPI 3.0)
 
 Details: `Docs/04_ADR-00X_*.md`, `Docs/05_C4-*`, `Docs/06_Architecture-Draft.md`.

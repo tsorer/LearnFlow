@@ -28,6 +28,7 @@ import litellm
 
 from app.config import settings
 from app.services.generation import render_context
+from app.services.llm import provider_args
 from app.services.retrieval import SourceChunk
 
 logger = logging.getLogger(__name__)
@@ -159,12 +160,9 @@ async def generate_quiz(sources: Sequence[SourceChunk]) -> list[GeneratedQuestio
         response_format={"type": "json_object"},
         temperature=TEMPERATURE,
         max_tokens=MAX_TOKENS,
-        # The same four arguments as generation.py, for the same reasons: "" is
-        # not None to LiteLLM and would be used as the api_base, and
-        # pydantic-settings never exports the key into the environment.
-        api_base=settings.litellm_base_url or None,
-        api_version=settings.litellm_api_version or None,
-        api_key=settings.litellm_api_key or settings.openai_api_key,
+        # Endpunkt und Schlüssel aus app/services/llm.py, wie in generation.py —
+        # die Begründung steht dort (T-63).
+        **provider_args(),
         timeout=TIMEOUT_SECONDS,
         num_retries=MAX_RETRIES,
     )

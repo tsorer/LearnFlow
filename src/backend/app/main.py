@@ -13,6 +13,7 @@ from app.config import settings
 from app.database import AsyncSessionLocal
 from app.exceptions import EmbeddingConfigError
 from app.limiter import limiter
+from app.logging_config import configure_logging
 from app.models.tables import Config
 from app.routers import admin, auth, documents, feedback, query, quiz
 from app.services.embedding_config import (
@@ -36,6 +37,15 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     `app/services/embedding_config.py` for why this is a hard abort rather
     than a silent continue or an automatic re-index.
     """
+    # Hier und nicht beim Import dieses Moduls (Review zu PR #140): das Logging
+    # wird eingerichtet, wenn wirklich ein Server hochfährt. `configure_logging`
+    # arbeitet mit `force=True` und entfernt dabei bestehende Root-Handler — ein
+    # Import von `app.main`, der keinen Server startet (pytest-Collection, ein
+    # künftiger Entry-Point, der sein Logging vorher selbst konfiguriert), soll
+    # das nicht auslösen. Der Abbruch unten ist trotzdem gedeckt: er liegt in
+    # derselben Funktion, ein paar Zeilen weiter.
+    configure_logging(settings.log_level, settings.log_level_third_party)
+
     async with AsyncSessionLocal() as db:
         result = await db.execute(
             select(Config.key, Config.value).where(Config.key.in_(EMBEDDING_CONFIG_KEYS))
@@ -106,13 +116,26 @@ def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded) -> Res
 # the general Exception type — safe, dispatch is by the registered class.
 app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)  # type: ignore[arg-type]
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Nur registrieren, wenn tatsächlich eine fremde Origin zugelassen ist (T-63).
+# Die Liste ist normalerweise leer, und zwar in *beiden* Betriebsarten: nginx
+# liefert SPA und API unter derselben Origin aus, und der Vite-Dev-Server proxyt
+# `/api` seinerseits auf nginx (`frontend/vite.config.ts`), während der Client
+# gegen `window.location.origin` spricht. Auch in der Entwicklung entsteht also
+# kein Cross-Origin-Zugriff — CORS_ALLOW_ORIGINS zu setzen wäre dort wirkungslos.
+#
+# Die Einstellung existiert für den Fall, den es heute nicht gibt: ein Frontend,
+# das unter einer eigenen Origin ausgeliefert wird. Bis dahin ist eine
+# Middleware, die nichts erlaubt, ehrlicher als eine, die alles erlaubt — und
+# genau Letzteres stand hier vorher (`allow_origins=["*"]` mit
+# `allow_credentials=True`).
+if settings.cors_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 app.include_router(auth.router)
 app.include_router(documents.router)

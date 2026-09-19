@@ -9,9 +9,9 @@ from sqlalchemy.dialects import postgresql
 
 from app.auth.dependencies import get_current_user
 from app.database import get_db
+from app.domain import PILOT_AREA
 from app.main import app
 from app.models.tables import User
-from app.routers.documents import PILOT_AREA
 
 
 def make_db(existing: object | None = None) -> AsyncMock:

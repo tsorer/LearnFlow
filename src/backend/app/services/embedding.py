@@ -16,6 +16,7 @@ import litellm
 
 from app.config import settings
 from app.exceptions import UserFacingError
+from app.services.llm import provider_args
 
 # OpenAI caps one embeddings request at 300k tokens. At the ADR-007 chunk size
 # of 512 tokens, 64 inputs are ~33k — enough headroom that raising chunk_size
@@ -59,16 +60,10 @@ async def embed_texts(
             # Dropping is safe here because _vectors_from rejects a vector of
             # unexpected length anyway.
             drop_params=True,
-            # The defaults are "", and an empty string is not None to LiteLLM —
-            # it would be used as the api_base and break the OpenAI Direct path.
-            api_base=settings.litellm_base_url or None,
-            api_version=settings.litellm_api_version or None,
-            # Passed explicitly instead of relying on LiteLLM reading
-            # OPENAI_API_KEY from the environment: pydantic-settings loads .env
-            # into Settings without exporting to os.environ, so a worker started
-            # outside docker compose (which does export it via env_file) would
-            # fail to authenticate although the key sits in .env.
-            api_key=settings.litellm_api_key or settings.openai_api_key,
+            # Endpunkt und Schlüssel aus app/services/llm.py — dort steht auch,
+            # warum die leeren Defaults zu None werden müssen und warum der
+            # Schlüssel explizit mitgeht statt über die Umgebung (T-63).
+            **provider_args(),
             timeout=TIMEOUT_SECONDS,
             num_retries=MAX_RETRIES,
         )
