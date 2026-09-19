@@ -48,7 +48,7 @@ function doc(
 
 let api: ApiStub;
 
-const show = () => render(<Upload user={user} onClose={() => {}} />);
+const show = () => render(<Upload user={user} />);
 
 /**
  * The label carrying the drop handlers, found via the format hint: the headline
