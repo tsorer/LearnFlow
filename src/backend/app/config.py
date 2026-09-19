@@ -17,9 +17,17 @@ class Settings(BaseSettings):
     bcrypt_rounds: int = Field(default=12, ge=4, le=14)
 
     # Ausführlichkeit des Logs in API und Worker (T-63). Nicht als Enum typisiert:
-    # ein unbekannter Wert soll auf INFO zurückfallen und das sagen, nicht den
-    # Start verhindern — die Begründung steht in app/logging_config.py.
+    # ein unbekannter Wert soll auf den Default zurückfallen und das sagen, nicht
+    # den Start verhindern — die Begründung steht in app/logging_config.py.
     log_level: str = "INFO"
+
+    # Dasselbe für die Logger der Abhängigkeiten, getrennt einstellbar (Review zu
+    # PR #140). Getrennt, weil die beiden gegenläufig sind: auf INFO schriebe
+    # httpx eine Zeile pro Provider-Aufruf, also mehrere pro /query — deshalb der
+    # leisere Default. Einstellbar und nicht fest, weil man genau diese Zeilen
+    # braucht, wenn ein Worker-Job nicht angenommen wird, und dafür kein Deploy
+    # nötig sein soll.
+    log_level_third_party: str = "WARNING"
 
     # Kommagetrennte CORS-Origins (T-63). Der Default ist leer und meint „gar
     # keine": nginx liefert SPA und API unter derselben Origin aus

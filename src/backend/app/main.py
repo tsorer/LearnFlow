@@ -44,7 +44,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     # künftiger Entry-Point, der sein Logging vorher selbst konfiguriert), soll
     # das nicht auslösen. Der Abbruch unten ist trotzdem gedeckt: er liegt in
     # derselben Funktion, ein paar Zeilen weiter.
-    configure_logging(settings.log_level)
+    configure_logging(settings.log_level, settings.log_level_third_party)
 
     async with AsyncSessionLocal() as db:
         result = await db.execute(

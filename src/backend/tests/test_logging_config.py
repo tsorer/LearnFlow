@@ -16,9 +16,9 @@ import pytest
 
 from app.logging_config import (
     DEFAULT_LEVEL,
+    DEFAULT_THIRD_PARTY_LEVEL,
     FORMAT,
     OWN_LOGGERS,
-    THIRD_PARTY_LEVEL,
     configure_logging,
 )
 
@@ -85,7 +85,7 @@ def test_a_third_party_warning_still_gets_through(capsys: pytest.CaptureFixture[
     logging.getLogger("httpx").warning("Verbindung wird wiederholt")
 
     assert "Verbindung wird wiederholt" in capsys.readouterr().err
-    assert logging.getLogger().level == THIRD_PARTY_LEVEL
+    assert logging.getLogger().level == logging.getLevelNamesMapping()[DEFAULT_THIRD_PARTY_LEVEL]
 
 
 def test_level_is_applied(capsys: pytest.CaptureFixture[str]) -> None:
@@ -144,6 +144,49 @@ def test_second_call_is_not_silently_ignored(capsys: pytest.CaptureFixture[str])
     logging.getLogger("app.routers.query").info("nach dem zweiten Aufruf")
 
     assert "nach dem zweiten Aufruf" in capsys.readouterr().err
+
+
+def test_third_party_level_is_configurable(capsys: pytest.CaptureFixture[str]) -> None:
+    """Der Kern des zweiten Review-Durchgangs: die Bibliotheks-Zeilen sind über
+    eine Einstellung erreichbar, nicht nur über einen Code-Change. Vor T-63 sah
+    der Worker sie (Root stand auf INFO); mit einer festen Konstante hätte er
+    diese Sicht verloren."""
+    configure_logging("INFO", "DEBUG")
+
+    logging.getLogger("pgqueuer.qm").debug("job not picked up")
+
+    assert "job not picked up" in capsys.readouterr().err
+
+
+def test_the_two_levels_are_independent(capsys: pytest.CaptureFixture[str]) -> None:
+    """Der Diagnosefall soll nicht erzwingen, dass auch das eigene Log lauter
+    wird — und umgekehrt.
+
+    Absichtlich `pgqueuer` und nicht `httpx`: Letzterer bekommt beim Import von
+    litellm einen *eigenen* Level verpasst und hört dann nicht mehr auf den Root
+    — siehe den Docstring von `app/logging_config.py`.
+    """
+    configure_logging("ERROR", "DEBUG")
+
+    logging.getLogger("app.routers.query").info("eigenes INFO, soll schweigen")
+    logging.getLogger("pgqueuer.qm").debug("fremdes DEBUG, soll durch")
+
+    err = capsys.readouterr().err
+    assert "eigenes INFO" not in err
+    assert "fremdes DEBUG" in err
+
+
+def test_unknown_third_party_level_falls_back_and_says_so(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Dieselbe Regel wie für LOG_LEVEL -- und die Meldung nennt den Namen der
+    Einstellung, damit klar ist, welche der beiden gemeint ist."""
+    configure_logging("INFO", "GESPRAECHIG")
+
+    err = capsys.readouterr().err
+    assert "LOG_LEVEL_THIRD_PARTY" in err
+    assert "GESPRAECHIG" in err
+    assert logging.getLogger().level == logging.getLevelNamesMapping()[DEFAULT_THIRD_PARTY_LEVEL]
 
 
 def test_importing_app_main_does_not_configure_logging() -> None:
