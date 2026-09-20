@@ -10,10 +10,7 @@ interface Props {
   // nav click on a narrow viewport lands on the new page with the drawer
   // still covering it.
   onNavigate: () => void;
-  onOpenSearch: () => void;
 }
-
-const isMac = typeof navigator !== "undefined" && /Mac/i.test(navigator.platform);
 
 /**
  * The persistent left navigation (T-58): one consistent set of destinations
@@ -27,7 +24,7 @@ const isMac = typeof navigator !== "undefined" && /Mac/i.test(navigator.platform
  * Mutating actions ("Neuer Chat", "Fragen generieren") are not nav items —
  * they live next to each page's own title as an action button, not here.
  */
-export default function Sidebar({ user, onLogout, mobileOpen, onNavigate, onOpenSearch }: Props) {
+export default function Sidebar({ user, onLogout, mobileOpen, onNavigate }: Props) {
   const navigate = useNavigate();
   const location = useLocation();
   const { canUpload, canReview, canViewFeedback, isAdmin } = getRoleFlags(user);
@@ -47,17 +44,12 @@ export default function Sidebar({ user, onLogout, mobileOpen, onNavigate, onOpen
         <span aria-hidden="true">📚</span> LearnFlow
       </div>
 
-      <button type="button" className="sidebar-search-btn" onClick={onOpenSearch}>
-        <span aria-hidden="true">🔍</span> Suche
-        <span className="cmdk-kbd" aria-hidden="true">{isMac ? "⌘K" : "Strg K"}</span>
-      </button>
-
       <nav style={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <div className="sidebar-group-label">Lernen</div>
-        <button className={`nav-item${isActive("/") ? " active" : ""}`} onClick={() => go("/")}>
+        <button className={`nav-item${isActive("/") ? " active" : ""}`} aria-current={isActive("/") ? "page" : undefined} onClick={() => go("/")}>
           KI-Chat
         </button>
-        <button className={`nav-item${isActive("/quiz") ? " active" : ""}`} onClick={() => go("/quiz")}>
+        <button className={`nav-item${isActive("/quiz") ? " active" : ""}`} aria-current={isActive("/quiz") ? "page" : undefined} onClick={() => go("/quiz")}>
           Quiz starten
         </button>
 
@@ -65,22 +57,22 @@ export default function Sidebar({ user, onLogout, mobileOpen, onNavigate, onOpen
             above the footer would read as if it belonged to nothing. */}
         {hasVerwaltung && <div className="sidebar-group-label">Verwaltung</div>}
         {canUpload && (
-          <button className={`nav-item${isActive("/dokumente") ? " active" : ""}`} onClick={() => go("/dokumente")}>
+          <button className={`nav-item${isActive("/dokumente") ? " active" : ""}`} aria-current={isActive("/dokumente") ? "page" : undefined} onClick={() => go("/dokumente")}>
             Dokumente
           </button>
         )}
         {canReview && (
-          <button className={`nav-item${isActive("/quiz-review") ? " active" : ""}`} onClick={() => go("/quiz-review")}>
+          <button className={`nav-item${isActive("/quiz-review") ? " active" : ""}`} aria-current={isActive("/quiz-review") ? "page" : undefined} onClick={() => go("/quiz-review")}>
             Quiz-Dashboard
           </button>
         )}
         {canViewFeedback && (
-          <button className={`nav-item${isActive("/feedback") ? " active" : ""}`} onClick={() => go("/feedback")}>
+          <button className={`nav-item${isActive("/feedback") ? " active" : ""}`} aria-current={isActive("/feedback") ? "page" : undefined} onClick={() => go("/feedback")}>
             Feedback
           </button>
         )}
         {isAdmin && (
-          <button className={`nav-item${isActive("/parameter") ? " active" : ""}`} onClick={() => go("/parameter")}>
+          <button className={`nav-item${isActive("/parameter") ? " active" : ""}`} aria-current={isActive("/parameter") ? "page" : undefined} onClick={() => go("/parameter")}>
             ⚙ Parameter
           </button>
         )}

@@ -1,7 +1,6 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import type { AuthUser } from "../types";
 import Sidebar from "./Sidebar";
-import CommandPalette from "./CommandPalette";
 
 interface Props {
   user: AuthUser;
@@ -12,24 +11,10 @@ interface Props {
 /** Replaces the four duplicated `background: var(--navy)` top bars with one
  *  left sidebar (T-58). `Login` stays outside this — it has no chrome.
  *
- *  Also owns the two pieces of chrome that sit above every page rather than
- *  belonging to one (UX pass 2026-09): the off-canvas toggle for narrow
- *  viewports, where the sidebar's fixed 236px would otherwise eat most of the
- *  screen, and the Strg/Cmd+K command palette. */
+ *  Also owns the off-canvas toggle for narrow viewports (UX pass 2026-09),
+ *  where the sidebar's fixed 236px would otherwise eat most of the screen. */
 export default function Layout({ user, onLogout, children }: Props) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [paletteOpen, setPaletteOpen] = useState(false);
-
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        setPaletteOpen(v => !v);
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
 
   return (
     <div className="app-shell">
@@ -48,10 +33,8 @@ export default function Layout({ user, onLogout, children }: Props) {
         onLogout={onLogout}
         mobileOpen={mobileNavOpen}
         onNavigate={() => setMobileNavOpen(false)}
-        onOpenSearch={() => setPaletteOpen(true)}
       />
       <main className="app-main">{children}</main>
-      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} user={user} onLogout={onLogout} />
     </div>
   );
 }
