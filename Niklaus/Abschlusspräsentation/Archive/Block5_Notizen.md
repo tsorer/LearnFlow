@@ -6,10 +6,10 @@ woher jede Zahl kommt, was noch offen ist.
 
 | Datei | Inhalt |
 |---|---|
-| [`Block5_Fazit-Ausblick.html`](../../Artefakten/Abschlusspräsentation/Block5_Fazit-Ausblick.html) | **die Folien** (6), Layout von Christoph wie Block 2 |
-| [`Pipeline-Trace/wortsuche_bilanz.py`](Pipeline-Trace/wortsuche_bilanz.py) | rechnet die Zahlen von Folie 3 nach |
+| [`Block5_Fazit-Ausblick.html`](Block5_Fazit-Ausblick.html) | **die Folien** (6), Layout von Christoph wie Block 2. Gebaut von [`../build/build_block5.py`](../build/build_block5.py) |
+| [`../Pipeline-Trace/wortsuche_bilanz.py`](../Pipeline-Trace/wortsuche_bilanz.py) | rechnet die Zahlen von Folie 3 nach |
 | [`Block2_Notizen.md`](Block2_Notizen.md) | Block 2 — die Befunde, auf die dieser Block aufbaut |
-| [`Inhalte_Abschlusspräsentation.md`](../../Artefakten/Abschlusspräsentation/Inhalte_Abschlusspräsentation.md) | Retos Gesamtgliederung |
+| [`Inhalte_Abschlusspräsentation.md`](../../../Artefakten/Abschlusspräsentation/Inhalte_Abschlusspräsentation.md) | Retos Gesamtgliederung |
 
 **Rolle des Blocks:** Block 2 zeigt am Beispiel und im Eval, was wir gemessen haben — und dass
 auch der Massstab selbst geprüft werden muss. Block 5 sagt, was daraus folgt: was wir gelernt

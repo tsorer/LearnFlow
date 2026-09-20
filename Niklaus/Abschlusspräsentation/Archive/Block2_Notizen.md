@@ -6,12 +6,13 @@ woher jede Zahl kommt, was noch offen ist.
 
 | Datei | Inhalt |
 |---|---|
-| [`Block2_Technischer-Aufbau_v2.html`](../../Artefakten/Abschlusspräsentation/Block2_Technischer-Aufbau_v2.html) | **die Folien, v2** (22): eine Aussage pro Folie, jeder Schritt erst erklärt, dann an Q1/Q2 gezeigt |
+| [`Block2_Technischer-Aufbau_v2.html`](Block2_Technischer-Aufbau_v2.html) | **die Folien, v2** (19): eine Aussage pro Folie, jeder Schritt erst erklärt, dann an Q1/Q2 gezeigt. Gebaut von [`../build/build_block2.py`](../build/build_block2.py) |
 | [`Block2_Technischer-Aufbau.html`](Block2_Technischer-Aufbau.html) | v1 (8), knappe Fassung — nicht mehr gezeigt, aber **Vorlage für die Build-Skripte** von Block 2 v2 und Block 5 (CSS, Navigation, Architektur-, Lara- und Gold-Folie). Nicht löschen. |
-| [`Block2_Backup_Pipeline-Detail.html`](../../Artefakten/Abschlusspräsentation/Block2_Backup_Pipeline-Detail.html) | Backup für Nachfragen: jeder Pipeline-Schritt einzeln (17 Folien, älteres Layout) |
-| [`Pipeline-Trace/`](Pipeline-Trace/README.md) | Rohdaten zum Beispiel Q1/Q2 |
+| [`Block2_Technischer-Aufbau_v2_01.html`](Block2_Technischer-Aufbau_v2_01.html) | Zwischenstand mit 22 Folien, vor den drei Kürzungen |
+| [`Block2_Backup_Pipeline-Detail.html`](Block2_Backup_Pipeline-Detail.html) | Backup für Nachfragen: jeder Pipeline-Schritt einzeln (17 Folien, älteres Layout) |
+| [`../Pipeline-Trace/`](../Pipeline-Trace/README.md) | Rohdaten zum Beispiel Q1/Q2 |
 | [`Block5_Notizen.md`](Block5_Notizen.md) | Block 5 — die Konsequenzen aus diesem Block |
-| [`Inhalte_Abschlusspräsentation.md`](../../Artefakten/Abschlusspräsentation/Inhalte_Abschlusspräsentation.md) | Retos Gesamtgliederung |
+| [`Inhalte_Abschlusspräsentation.md`](../../../Artefakten/Abschlusspräsentation/Inhalte_Abschlusspräsentation.md) | Retos Gesamtgliederung |
 
 **Leitidee:** Das Beispiel hat den Lead. Die Architektur ist die Landkarte davor, das Eval der
 Beleg danach — und das Gold-Dataset die ehrliche Grenze dieses Belegs.
@@ -405,7 +406,7 @@ Retrieval ist deterministisch, die Modellantwort war es in T-62 trotz Temperatur
 | Gold-Defekte | GitHub #142 (T-65) |
 | Halluzinationsrate 0 % | `EvalAnalysis/2026-09-11_In-Corpus-Befunde.md` |
 | Befunde über 80 Fragen | `EvalAnalysis/Optimierung/Pipeline-Review.md` (T-62-Branch) |
-| Beispiel Q1/Q2 | [`Pipeline-Trace/`](Pipeline-Trace/README.md) |
+| Beispiel Q1/Q2 | [`../Pipeline-Trace/`](../Pipeline-Trace/README.md) |
 | Folien-Layout | Christophs `learnflow_learnings.html` (Branch `docs/christoph-architecture-diagrams`) |
 
 **Bewusst nicht verwendet:** die externen Vergleichszahlen aus `Pipeline-Review.md` §2a — laut
