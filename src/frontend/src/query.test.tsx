@@ -603,7 +603,7 @@ describe("Frage-UI", () => {
 
     await userEvent.click(screen.getByRole("button", { name: /quiz starten/i }));
     await screen.findByText(/es sind noch keine quizfragen/i);
-    await userEvent.click(screen.getByRole("button", { name: /zurück zum chat/i }));
+    await userEvent.click(screen.getByRole("button", { name: /^ki-chat$/i }));
 
     expect(await screen.findByRole("button", { name: /neuer chat/i })).toBeDisabled();
 
@@ -615,10 +615,13 @@ describe("Frage-UI", () => {
     expect(await screen.findByText(/SKOS verlangt je Sprache genau ein prefLabel/)).toBeInTheDocument();
   });
 
-  it("hides the chat-only controls while the document view is open", async () => {
-    // Both used to sit in the header regardless: "Neuer Chat" cleared a
-    // transcript nobody could see, and "⚙ Parameter" flipped its arrow over a
-    // panel that only renders in the chat branch.
+  it("leaves Neuer Chat behind on /dokumente, while Parameter stays reachable", async () => {
+    // "Neuer Chat" only exists in the chat page's own title row — navigating
+    // to Dokumente (a real route since the UX pass of 2026-09; it used to be a
+    // boolean toggled inside ChatView, which kept Neuer Chat mounted but
+    // hidden) unmounts ChatView entirely. "Parameter" is a static,
+    // role-based Sidebar item (T-58 review: the menu depends only on role,
+    // never on which page is open) — it stays visible here too.
     api.route("get", "/api/admin/config", 200, { config: { retrieval_top_k: "20" } });
     api.route("get", "/api/documents", 200, []);
     await openChat("admin");
@@ -626,9 +629,9 @@ describe("Frage-UI", () => {
 
     await userEvent.click(screen.getByRole("button", { name: /^dokumente$/i }));
 
-    expect(await screen.findByRole("button", { name: /^chat$/i })).toBeInTheDocument();
+    expect(await screen.findByText(/Dateien hierher ziehen/i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /neuer chat/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /parameter/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /parameter/i })).toBeInTheDocument();
   });
 
   it("falls back to a retryable message for any other failure", async () => {

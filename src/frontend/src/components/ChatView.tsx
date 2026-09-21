@@ -1,84 +1,8 @@
-import { useState, useRef, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useRef, useEffect } from "react";
 import type { AuthUser, Message } from "../types";
-import { api, ApiError, type ConfigMap } from "../api/client";
-import Upload from "./Upload";
+import { api, ApiError } from "../api/client";
+import Layout from "./Layout";
 import MessageBubble from "./MessageBubble";
-import {
-  ANSWER_PARAM_DEFS,
-  READ_ONLY_PARAM_DEFS,
-  RETRIEVAL_PARAM_DEFS,
-  type ConfigKey,
-  type ParamDef,
-} from "../params";
-
-const GROUP_LABEL_STYLE = {
-  fontSize: 10,
-  fontWeight: 700,
-  color: "var(--muted)",
-  textTransform: "uppercase",
-  letterSpacing: ".06em",
-  marginBottom: 8,
-} as const;
-
-/** One labelled block of sliders. Declared outside ChatView so React keeps the
- *  inputs mounted across re-renders — a component defined inside the parent is
- *  a new type on every render and would drop focus after each keystroke. */
-function ParamGroup({
-  title,
-  defs,
-  params,
-  onChange,
-}: {
-  title: string;
-  defs: readonly ParamDef[];
-  // `ConfigMap`, nicht `Record<string, string>` (T-46): der Zustand oben ist es
-  // schon, und nur so sagt der Typ die Nullability richtig. `getConfig` fängt
-  // seinen Fehler ab und lässt `params` als `{}` stehen, und in `ConfigMap`
-  // ist jeder Schlüssel optional — `params[p.key]` ist zur Laufzeit also
-  // wirklich `undefined`. Unter `Record<string, string>` typisierte der
-  // Compiler es als `string`, womit das `?? ""` unten wie toter Defensivcode
-  // aussieht: wer es entfernt, rendert jeden Regler mit `value={undefined}`
-  // und macht die Inputs uncontrolled.
-  params: ConfigMap;
-  onChange: (key: ConfigKey, value: string) => void;
-}) {
-  return (
-    <div style={{ marginBottom: 12 }}>
-      <div style={GROUP_LABEL_STYLE}>{title}</div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "10px 20px" }}>
-        {defs.map(p => {
-          const raw = params[p.key] ?? "";
-          return (
-            <div key={p.key}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, fontWeight: 700, color: "var(--navy)", marginBottom: 3 }}>
-                <label htmlFor={`param-${p.key}`}>{p.label}</label>
-                <input
-                  id={`param-${p.key}`}
-                  type="number"
-                  value={raw}
-                  min={p.min} max={p.max} step={p.step}
-                  onChange={e => onChange(p.key, e.target.value)}
-                  style={{ width: 56, textAlign: "right", fontSize: 11, padding: "1px 4px", fontWeight: 700 }}
-                />
-              </div>
-              {p.type === "float" && (
-                <input
-                  type="range"
-                  aria-label={`${p.label} (Schieberegler)`}
-                  min={p.min} max={p.max} step={p.step}
-                  value={parseFloat(raw) || 0}
-                  onChange={e => onChange(p.key, e.target.value)}
-                  style={{ width: "100%", accentColor: "var(--blue)", height: 4 }}
-                />
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
 
 // Mirrors QueryRequest in openapi.yaml (question: minLength 3, maxLength 1000).
 // Checked here as well as there because the backend answers a violation with a
@@ -164,72 +88,16 @@ interface Props {
   setBusy: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-export default function ChatView({ user, onLogout, messages, setMessages, sessionId, setSessionId, busy, setBusy }: Props) {
-  const navigate = useNavigate();
+export default function ChatView({
+  user, onLogout, messages, setMessages, sessionId, setSessionId, busy, setBusy,
+}: Props) {
   const [input, setInput] = useState("");
   const [inputError, setInputError] = useState("");
-  const [showUpload, setShowUpload] = useState(false);
-  const [showParams, setShowParams] = useState(false);
-  const [params, setParams] = useState<ConfigMap>({});
-  const [paramSaved, setParamSaved] = useState(false);
-  const [paramError, setParamError] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
-  const isAdmin = user.role === "admin";
-
-  useEffect(() => {
-    if (!isAdmin) return;
-    api.getConfig(user.token).then(setParams).catch(() => {});
-  }, []);
-
-  // `ConfigKey`, nicht `string` (T-46): ein Schlüssel, den die config-Tabelle
-  // nicht kennt, ist damit ein tsc-Fehler statt einer 422 beim Speichern.
-  const updateParam = useCallback((key: ConfigKey, val: string) => {
-    setParams(prev => ({ ...prev, [key]: val }));
-    setParamSaved(false);
-    setParamError("");
-  }, []);
-
-  const saveParams = async () => {
-    setParamError("");
-    try {
-      await api.updateConfig(params, user.token);
-      // Confirmed only once the write actually returned. Swallowing the
-      // rejection showed the green check even when the config table never
-      // received it: the admin would go on believing a fail-closed threshold
-      // was stored that wasn't (ADR-008).
-      setParamSaved(true);
-      setTimeout(() => setParamSaved(false), 2000);
-    } catch (err) {
-      // The backend names the offending key and the rule it broke — a shape
-      // violation from `_validate_shape`, or the message of the deferred band
-      // trigger ("confidence_threshold_medium (0.8) darf nicht über
-      // confidence_threshold_high (0.75) liegen"), which `errorMessage` in the
-      // client lifts out of `detail`. Swallowing it left the admin with a panel
-      // of ten fields, an all-or-nothing PUT, and nothing to say which one
-      // broke — the failure this panel exists to end.
-      //
-      // `HTTP <status>` is what `errorMessage` returns when it found no usable
-      // `detail`, so it is the one message worth replacing: a bare status code
-      // helps an admin less than the sentence below.
-      const detail =
-        err instanceof ApiError && err.message !== `HTTP ${err.status}` ? err.message : null;
-      setParamError(detail ?? "Parameter konnten nicht gespeichert werden.");
-    }
-  };
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
-
-  const canUpload = user.role === "knowledge_owner" || user.role === "admin";
-  // Same role set as canUpload today, but a distinct permission (T-35's
-  // /quiz-review, not document upload) — kept separate so the two do not
-  // silently start meaning "one or the other" if they ever diverge.
-  const canReview = user.role === "knowledge_owner" || user.role === "admin";
-  // Same role set as canReview today, but T-32's own permission (Feedback-
-  // Übersicht, not Quiz-Review) — kept separate for the same reason canUpload
-  // and canReview are: no silent "one or the other" if they ever diverge.
-  const canViewFeedback = user.role === "knowledge_owner" || user.role === "admin";
 
   const send = async () => {
     if (busy) return;
@@ -286,177 +154,93 @@ export default function ChatView({ user, onLogout, messages, setMessages, sessio
   };
 
   return (
-    <div style={{ display: "flex", height: "100vh", flexDirection: "column" }}>
-      {/* Header */}
+    <Layout user={user} onLogout={onLogout}>
+      {/* Title + primary action, like every other page's header */}
       <div style={{
-        background: "var(--navy)", color: "#fff", padding: "0 24px",
-        height: 52, display: "flex", alignItems: "center", justifyContent: "space-between",
-        flexShrink: 0,
+        display: "flex", justifyContent: "space-between", alignItems: "center",
+        padding: "var(--space-4) var(--space-6) 0",
       }}>
-        <div style={{ fontWeight: 800, fontSize: 16, letterSpacing: "-.02em" }}>📚 LearnFlow</div>
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          {canUpload && (
-            <button className="secondary" style={{ fontSize: 12 }} onClick={() => setShowUpload(v => !v)}>
-              {showUpload ? "Chat" : "Dokumente"}
-            </button>
+        <div style={{ fontWeight: "var(--font-black)", fontSize: "var(--text-xl)", color: "var(--text-primary)" }}>KI-Chat</div>
+        {/* Disabled while an answer is on its way, like the textarea and the
+            send button: `send` holds `sessionId` and `messages` across the
+            await, so a reset in that window is undone when the response
+            lands — the old session id returns and the answer is appended to
+            a transcript that no longer holds its question. */}
+        <button className="primary" onClick={newChat} disabled={busy}>Neuer Chat</button>
+      </div>
+
+      {/* Messages */}
+      <div style={{ flex: 1, overflowY: "auto", padding: "var(--space-6) 0" }}>
+        <div style={{ maxWidth: 760, margin: "0 auto", padding: "0 var(--space-6)", display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
+          {messages.length === 0 && (
+            <div style={{ textAlign: "center", color: "var(--text-muted)", marginTop: 80 }}>
+              <div style={{ fontSize: 32, marginBottom: 12 }}>📚</div>
+              <div style={{ fontWeight: "var(--font-bold)", fontSize: "var(--text-xl)", color: "var(--text-primary)" }}>Stelle eine Frage</div>
+              <div style={{ fontSize: "var(--text-sm)", marginTop: 6 }}>Ich beantworte sie auf Basis der Dokumente im Korpus.</div>
+            </div>
           )}
-          <button className="secondary" style={{ fontSize: 12 }} onClick={() => navigate("/quiz")}>
-            Quiz starten
-          </button>
-          {canReview && (
-            <button className="secondary" style={{ fontSize: 12 }} onClick={() => navigate("/quiz-review")}>
-              Quiz-Review
-            </button>
+          {messages.map((m, i) => <MessageBubble key={i} message={m} token={user.token} />)}
+          {/* role="status" so the wait is announced rather than only
+              drawn — the answer takes seconds (NFA: p95 ≤ 10 s). */}
+          {busy && (
+            <div role="status" style={{ color: "var(--text-muted)", fontSize: "var(--text-sm)", padding: "8px 0" }}>
+              Suche im Korpus…
+            </div>
           )}
-          {canViewFeedback && (
-            <button className="secondary" style={{ fontSize: 12 }} onClick={() => navigate("/feedback")}>
-              Feedback
-            </button>
-          )}
-          {/* Both hidden in the document view, because neither acts on it: the
-              parameter panel and the transcript live in the chat branch, so
-              from here the buttons only flipped an arrow resp. cleared
-              something invisible. */}
-          {isAdmin && !showUpload && (
-            <button className="secondary" style={{ fontSize: 12 }} onClick={() => setShowParams(v => !v)}>
-              {showParams ? "⚙ Parameter ▲" : "⚙ Parameter ▼"}
-            </button>
-          )}
-          {/* Disabled while an answer is on its way, like the textarea and the
-              send button: `send` holds `sessionId` and `messages` across the
-              await, so a reset in that window is undone when the response
-              lands — the old session id returns and the answer is appended to
-              a transcript that no longer holds its question. */}
-          {!showUpload && (
-            <button className="secondary" style={{ fontSize: 12 }} onClick={newChat} disabled={busy}>
-              Neuer Chat
-            </button>
-          )}
-          <span style={{ fontSize: 12, color: "rgba(255,255,255,.5)" }}>{user.email}</span>
-          <button className="secondary" style={{ fontSize: 12 }} onClick={onLogout}>Abmelden</button>
+          <div ref={bottomRef} />
         </div>
       </div>
 
-      {showUpload && canUpload ? (
-        <Upload user={user} onClose={() => setShowUpload(false)} />
-      ) : (
-        <>
-          {/* Messages */}
-          <div style={{ flex: 1, overflowY: "auto", padding: "24px 0" }}>
-            <div style={{ maxWidth: 760, margin: "0 auto", padding: "0 24px", display: "flex", flexDirection: "column", gap: 16 }}>
-              {messages.length === 0 && (
-                <div style={{ textAlign: "center", color: "var(--muted)", marginTop: 80 }}>
-                  <div style={{ fontSize: 32, marginBottom: 12 }}>📚</div>
-                  <div style={{ fontWeight: 700, fontSize: 18, color: "var(--navy)" }}>Stelle eine Frage</div>
-                  <div style={{ fontSize: 13, marginTop: 6 }}>Ich beantworte sie auf Basis der Dokumente im Korpus.</div>
-                </div>
-              )}
-              {messages.map((m, i) => <MessageBubble key={i} message={m} token={user.token} />)}
-              {/* role="status" so the wait is announced rather than only
-                  drawn — the answer takes seconds (NFA: p95 ≤ 10 s). */}
-              {busy && (
-                <div role="status" style={{ color: "var(--muted)", fontSize: 13, padding: "8px 0" }}>
-                  Suche im Korpus…
-                </div>
-              )}
-              <div ref={bottomRef} />
-            </div>
+      {/* Input */}
+      <div style={{
+        borderTop: "1px solid var(--border)", padding: "var(--space-4) var(--space-6)",
+        background: "var(--surface)", flexShrink: 0,
+      }}>
+        <div style={{ maxWidth: 760, margin: "0 auto" }}>
+          <div style={{ display: "flex", gap: 10 }}>
+            <textarea
+              value={input}
+              // Deliberately no `maxLength`: the attribute truncates a
+              // pasted question silently, and US-01 asks for a hint rather
+              // than for the tail to disappear unremarked.
+              onChange={e => { setInput(e.target.value); setInputError(""); }}
+              onKeyDown={handleKey}
+              placeholder="Frage stellen… (Enter zum Senden)"
+              aria-label="Frage"
+              aria-invalid={inputError !== ""}
+              // role="alert" announces the hint once, when it appears.
+              // Returning to the field later would say nothing about why it
+              // is invalid, so the message is also its description.
+              aria-describedby={inputError ? INPUT_ERROR_ID : undefined}
+              disabled={busy}
+              rows={2}
+              style={{ resize: "none", flex: 1 }}
+            />
+            {/* Enabled for anything non-empty, not only for a valid
+                question: a disabled button rejects silently, and the whole
+                point of the criterion is that the user is told why. */}
+            <button className="primary" onClick={send} disabled={busy || !input.trim()}
+              style={{ alignSelf: "flex-end", padding: "10px 18px" }}>
+              Senden
+            </button>
           </div>
-
-          {/* RAG Parameter Panel */}
-          {showParams && isAdmin && (
-            <div style={{ borderTop: "1px solid var(--border)", background: "var(--blue-lt)", padding: "14px 24px", flexShrink: 0 }}>
-              <div style={{ maxWidth: 760, margin: "0 auto" }}>
-                <ParamGroup
-                  title="Retrieval · welche Quellen in den Kontext kommen"
-                  defs={RETRIEVAL_PARAM_DEFS}
-                  params={params}
-                  onChange={updateParam}
-                />
-                <ParamGroup
-                  title="Antwort · wann der Antwort getraut wird"
-                  defs={ANSWER_PARAM_DEFS}
-                  params={params}
-                  onChange={updateParam}
-                />
-
-                {/* Nur zur Ansicht. Eine Änderung wirkt erst nach vollständiger
-                    Re-Indexierung des Korpus, deshalb weist PUT sie zurück (T-42). */}
-                <div style={{ borderTop: "1px solid var(--border)", paddingTop: 10, marginTop: 2, marginBottom: 12 }}>
-                  <div style={GROUP_LABEL_STYLE}>Indexierung · erfordert Re-Indexierung, hier nicht änderbar</div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "10px 20px" }}>
-                    {READ_ONLY_PARAM_DEFS.map(p => (
-                      <div key={p.key} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, fontWeight: 700, color: "var(--muted)" }}>
-                        <span>{p.label}</span>
-                        <span>{params[p.key] ?? "—"}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                  <button className="primary" style={{ fontSize: 12, padding: "5px 14px" }} onClick={saveParams}>
-                    Speichern
-                  </button>
-                  {paramSaved && <span style={{ fontSize: 12, color: "var(--green)", fontWeight: 600 }}>✓ Gespeichert</span>}
-                  {paramError && <span style={{ fontSize: 12, color: "var(--red)", fontWeight: 600 }}>{paramError}</span>}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Input */}
-          <div style={{
-            borderTop: "1px solid var(--border)", padding: "16px 24px",
-            background: "var(--card)", flexShrink: 0,
-          }}>
-            <div style={{ maxWidth: 760, margin: "0 auto" }}>
-              <div style={{ display: "flex", gap: 10 }}>
-                <textarea
-                  value={input}
-                  // Deliberately no `maxLength`: the attribute truncates a
-                  // pasted question silently, and US-01 asks for a hint rather
-                  // than for the tail to disappear unremarked.
-                  onChange={e => { setInput(e.target.value); setInputError(""); }}
-                  onKeyDown={handleKey}
-                  placeholder="Frage stellen… (Enter zum Senden)"
-                  aria-label="Frage"
-                  aria-invalid={inputError !== ""}
-                  // role="alert" announces the hint once, when it appears.
-                  // Returning to the field later would say nothing about why it
-                  // is invalid, so the message is also its description.
-                  aria-describedby={inputError ? INPUT_ERROR_ID : undefined}
-                  disabled={busy}
-                  rows={2}
-                  style={{ resize: "none", flex: 1 }}
-                />
-                {/* Enabled for anything non-empty, not only for a valid
-                    question: a disabled button rejects silently, and the whole
-                    point of the criterion is that the user is told why. */}
-                <button className="primary" onClick={send} disabled={busy || !input.trim()}
-                  style={{ alignSelf: "flex-end", padding: "10px 18px" }}>
-                  Senden
-                </button>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginTop: 6, minHeight: 16 }}>
-                <span id={INPUT_ERROR_ID} role="alert" style={{ fontSize: 12, color: "var(--red)", fontWeight: 600 }}>
-                  {inputError}
-                </span>
-                {/* Counted the same way as the check that rejects it, or the
-                    counter would say 998 while the send is refused at 1001. */}
-                {questionLength(input.trim()) > COUNTER_VISIBLE_FROM && (
-                  <span style={{
-                    fontSize: 12, whiteSpace: "nowrap",
-                    color: questionLength(input.trim()) > MAX_QUESTION_CHARS ? "var(--red)" : "var(--muted)",
-                  }}>
-                    {questionLength(input.trim())} / {MAX_QUESTION_CHARS}
-                  </span>
-                )}
-              </div>
-            </div>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginTop: 6, minHeight: 16 }}>
+            <span id={INPUT_ERROR_ID} role="alert" style={{ fontSize: "var(--text-xs)", color: "var(--red)", fontWeight: "var(--font-semibold)" }}>
+              {inputError}
+            </span>
+            {/* Counted the same way as the check that rejects it, or the
+                counter would say 998 while the send is refused at 1001. */}
+            {questionLength(input.trim()) > COUNTER_VISIBLE_FROM && (
+              <span style={{
+                fontSize: "var(--text-xs)", whiteSpace: "nowrap",
+                color: questionLength(input.trim()) > MAX_QUESTION_CHARS ? "var(--red)" : "var(--text-muted)",
+              }}>
+                {questionLength(input.trim())} / {MAX_QUESTION_CHARS}
+              </span>
+            )}
           </div>
-        </>
-      )}
-    </div>
+        </div>
+      </div>
+    </Layout>
   );
 }

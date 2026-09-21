@@ -6,6 +6,8 @@ import ChatView from "./components/ChatView";
 import QuizReview from "./components/QuizReview";
 import QuizRun from "./components/QuizRun";
 import FeedbackReview from "./components/FeedbackReview";
+import DocumentsPage from "./components/DocumentsPage";
+import ParametersPage from "./components/ParametersPage";
 import { ProtectedRoute, GuestRoute } from "./components/RouteGuards";
 import { setUnauthorizedHandler } from "./api/client";
 
@@ -89,7 +91,7 @@ export default function App() {
           path="/quiz-review"
           element={
             <ProtectedRoute user={user} roles={["knowledge_owner", "admin"]}>
-              {u => <QuizReview user={u} />}
+              {u => <QuizReview user={u} onLogout={logout} />}
             </ProtectedRoute>
           }
         />
@@ -97,7 +99,7 @@ export default function App() {
           path="/quiz"
           element={
             <ProtectedRoute user={user}>
-              {u => <QuizRun token={u.token} />}
+              {u => <QuizRun user={u} onLogout={logout} />}
             </ProtectedRoute>
           }
         />
@@ -105,7 +107,28 @@ export default function App() {
           path="/feedback"
           element={
             <ProtectedRoute user={user} roles={["knowledge_owner", "admin"]}>
-              {u => <FeedbackReview user={u} />}
+              {u => <FeedbackReview user={u} onLogout={logout} />}
+            </ProtectedRoute>
+          }
+        />
+        {/* Reale Routen statt der beiden Booleans, die vorher innerhalb von
+            ChatView getoggelt wurden (T-58 UX-Nachbesserung 2026-09) —
+            "Dokumente" bleibt an die Upload-Rolle gebunden, "Parameter" bleibt
+            admin-only, beides deckungsgleich mit dem, was die Sidebar schon
+            anzeigt bzw. verbirgt. */}
+        <Route
+          path="/dokumente"
+          element={
+            <ProtectedRoute user={user} roles={["knowledge_owner", "admin"]}>
+              {u => <DocumentsPage user={u} onLogout={logout} />}
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/parameter"
+          element={
+            <ProtectedRoute user={user} roles={["admin"]}>
+              {u => <ParametersPage user={u} onLogout={logout} />}
             </ProtectedRoute>
           }
         />
