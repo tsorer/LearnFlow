@@ -619,7 +619,7 @@ describe("Frage-UI", () => {
     // "Neuer Chat" only exists in the chat page's own title row — navigating
     // to Dokumente (a real route since the UX pass of 2026-09; it used to be a
     // boolean toggled inside ChatView, which kept Neuer Chat mounted but
-    // hidden) unmounts ChatView entirely. "⚙ Parameter" is a static,
+    // hidden) unmounts ChatView entirely. "Parameter" is a static,
     // role-based Sidebar item (T-58 review: the menu depends only on role,
     // never on which page is open) — it stays visible here too.
     api.route("get", "/api/admin/config", 200, { config: { retrieval_top_k: "20" } });

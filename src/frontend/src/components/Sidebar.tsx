@@ -73,7 +73,7 @@ export default function Sidebar({ user, onLogout, mobileOpen, onNavigate }: Prop
         )}
         {isAdmin && (
           <button className={`nav-item${isActive("/parameter") ? " active" : ""}`} aria-current={isActive("/parameter") ? "page" : undefined} onClick={() => go("/parameter")}>
-            ⚙ Parameter
+            Parameter
           </button>
         )}
       </nav>
