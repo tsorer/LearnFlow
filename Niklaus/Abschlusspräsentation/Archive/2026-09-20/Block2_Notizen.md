@@ -6,10 +6,10 @@ absehbare Nachfragen, offene Entscheide.
 | | |
 |---|---|
 | Folien | [`Block2_Technischer-Aufbau.html`](Block2_Technischer-Aufbau.html) — 17 Folien |
-| Gebaut von | [`build/build_block2_v3.py`](build/build_block2_v3.py) · `python build/build_block2_v3.py` |
+| Gebaut von | [`build/build_block2_v3.py`](../../build/build_block2_v3.py) · `python build/build_block2_v3.py` |
 | Themenentscheid dahinter | [`Block2_Themen.md`](Block2_Themen.md) |
-| Rohdaten zum Beispiel | [`Pipeline-Trace/`](Pipeline-Trace/README.md) |
-| Vorherige Fassung | [`Archive/`](Archive/) — 19 Folien, nur Antwort-Pipeline |
+| Rohdaten zum Beispiel | [`Pipeline-Trace/`](../../Pipeline-Trace/README.md) |
+| Vorherige Fassung | [`Archive/`](../) — 19 Folien, nur Antwort-Pipeline |
 
 ## Die Idee dieses Blocks
 

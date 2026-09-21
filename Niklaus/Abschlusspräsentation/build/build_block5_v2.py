@@ -3,7 +3,7 @@
 Fünf Fragen, eine pro Folie: Hält es? · Wo ist noch Luft? · Warum nicht sofort? ·
 Geht das auch lokal? · Was kommt als Nächstes? Bewusst gestrichen (20.09.): die zwei
 wirkungslosen Prüfstufen (zu sehr Innensicht) und der Re-Ranker als eigene Folie — er
-steht als Punkt bei den nächsten Schritten. Beides in ../Block5_Notizen.md.
+steht als Punkt bei den nächsten Schritten. Beides in ../Archive/2026-09-20/Block5_Notizen.md.
 
 Ablösung von `build_block5.py` (Stand 19.09., 6 Folien): Die Wortsuche hatte dort drei
 Folien und ist inzwischen in Block 2 erzählt. Vier Abschnitte: was hält · was wir gelernt
@@ -13,17 +13,17 @@ Sprachregel für diesen Block (Entscheid Niklaus, 20.09.2026): **positiv formuli
 nicht, was wir nicht gemacht haben, sondern was sich damit machen lässt. Beispiel Folie 2:
 Die Schwellenwerte wurden nie optimiert; das steht als unbenutzter Hebel da, nicht als
 Versäumnis. Das «durchgefallene» Ergebnis des ersten Kalibrierungslaufs steht deshalb nicht
-auf den Folien, sondern in ../Block5_Notizen.md. Der Kalibrierungslauf hat seit dem
+auf den Folien, sondern in ../Archive/2026-09-20/Block5_Notizen.md. Der Kalibrierungslauf hat seit dem
 20.09. keine eigene Folie mehr — er steht als Halbsatz im Kasten von Folie 2, damit der
 Block weniger Punkte hat.
 
 Bewusst **nicht** enthalten (Entscheid Niklaus, 20.09.2026): die strenge Neuberechnung
 der Halluzinationsrate über ausgelieferte Out-of-Corpus-Antworten (2,9 %). Begründung und
-Antwort für den Fall einer Nachfrage stehen in ../Block5_Notizen.md.
+Antwort für den Fall einer Nachfrage stehen in ../Archive/2026-09-20/Block5_Notizen.md.
 
 Ordner (relativ zu dieser Datei):
     ../Archive/Block2_Technischer-Aufbau.html   Vorlage: CSS und Foliennavigation
-    ../Block5_Fazit-Ausblick.html               Ergebnis
+    ../Archive/2026-09-20/Block5_Fazit-Ausblick.html   Ergebnis (archiviert 20.09.)
 
 Belege: Docs/10_Kalibrierungsbericht.md · EvalAnalysis/Optimierung/kennzahlen.csv und
 Pipeline-Review.md (T-62-Branch) · ADR-008/009 · GitHub #142, #110, #138, #136.
@@ -36,7 +36,7 @@ from pathlib import Path
 
 BASE = Path(__file__).resolve().parents[1]
 TEMPLATE = BASE / "Archive" / "Block2_Technischer-Aufbau.html"
-OUT = BASE / "Block5_Fazit-Ausblick.html"
+OUT = BASE / "Archive" / "2026-09-20" / "Block5_Fazit-Ausblick.html"
 
 v1 = TEMPLATE.read_text(encoding="utf-8")
 head, rest = v1.split('  <main class="deck"', 1)

@@ -6,11 +6,11 @@ absehbare Nachfragen, bewusste Auslassungen, offene Entscheide.
 | | |
 |---|---|
 | Folien | [`Block5_Fazit-Ausblick.html`](Block5_Fazit-Ausblick.html) — **5 Folien**, rund 4:55 |
-| Gebaut von | [`build/build_block5_v2.py`](build/build_block5_v2.py) |
-| Sprachliche Leitlinie | **Positiv formulieren und Alltagssprache.** Nicht, was wir nicht gemacht haben, sondern was sich damit machen lässt. Begriffe nach dem Glossar im [README](README.md) |
+| Gebaut von | [`build/build_block5_v2.py`](../../build/build_block5_v2.py) |
+| Sprachliche Leitlinie | **Positiv formulieren und Alltagssprache.** Nicht, was wir nicht gemacht haben, sondern was sich damit machen lässt. Begriffe nach dem Glossar im [README](../../README.md) |
 | Themenentscheid dahinter | [`Block5_Themen.md`](Block5_Themen.md) |
 | Baut auf | [`Block2_Notizen.md`](Block2_Notizen.md) — dieselben Grenzen, dasselbe Gold-Dataset |
-| Vorherige Fassungen | [`Archive/`](Archive/) (19.09., 6 Folien); die Zwischenstände mit 9 und 8 Folien sind im Build-Skript dokumentiert |
+| Vorherige Fassungen | [`Archive/`](../) (19.09., 6 Folien); die Zwischenstände mit 9 und 8 Folien sind im Build-Skript dokumentiert |
 
 ## Die Idee dieses Blocks
 
@@ -248,6 +248,6 @@ Beleg dafür, dass es hält, ist die eigentliche Arbeit.» Danach Übergabe an d
 2. **Folie 3 mit Frank abstimmen** — er hat das Gold-Dataset abgenommen (T-48). Die Folie soll
    als gemeinsamer Befund klingen, nicht als Kritik; Formulierung dafür steht oben.
 3. **Christophs Learnings-Folie 2 (T-28)** — zwei Ungenauigkeiten, Details in
-   [`Archive/Block5_Notizen.md`](Archive/Block5_Notizen.md), Abschnitt «Offene Entscheide».
+   [`Archive/Block5_Notizen.md`](../Block5_Notizen.md), Abschnitt «Offene Entscheide».
 4. **Wie viel Halluzinations-Ehrlichkeit?** Aktuell: nichts auf der Folie, saubere Antwort auf
    Nachfrage. Wenn Frank es anders sieht, ist Folie 1 die Stelle dafür.

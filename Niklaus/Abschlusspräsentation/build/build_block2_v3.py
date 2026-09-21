@@ -12,7 +12,7 @@ hat (`learning aha`, amber).
 
 Ordner (relativ zu dieser Datei):
     ../Archive/Block2_Technischer-Aufbau.html   Vorlage: CSS, Navigation, Architektur-SVG
-    ../Block2_Technischer-Aufbau.html           Ergebnis
+    ../Archive/2026-09-20/Block2_Technischer-Aufbau.html   Ergebnis (archiviert 20.09.)
     ../assets/                                  Bilder (bei Bedarf aus Archive kopiert)
 
 Alle Zahlen sind belegt: ../Pipeline-Trace/ (Q1.json, Q2.json, README.md),
@@ -27,7 +27,7 @@ from pathlib import Path
 
 BASE = Path(__file__).resolve().parents[1]
 TEMPLATE = BASE / "Archive" / "Block2_Technischer-Aufbau.html"
-OUT = BASE / "Block2_Technischer-Aufbau.html"
+OUT = BASE / "Archive" / "2026-09-20" / "Block2_Technischer-Aufbau.html"
 
 if not (BASE / "assets").exists() and (BASE / "Archive" / "assets").exists():
     shutil.copytree(BASE / "Archive" / "assets", BASE / "assets")
@@ -287,7 +287,7 @@ S.append(slide("Das Beispiel",
           </div>""",
     """<div class="panel-label"><span>Beispiel</span><span class="status">echter Lauf</span></div>
           <div class="asker">
-            <div class="portrait"><img src="assets/lara-portrait-v1.png" alt="Lara, neue Mitarbeiterin"></div>
+            <div class="portrait"><img src="../assets/lara-portrait-v1.png" alt="Lara, neue Mitarbeiterin"></div>
             <div class="asks">
               <div>
                 <div class="ask-label"><span class="q">Q1</span> · formal</div>

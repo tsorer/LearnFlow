@@ -4,13 +4,27 @@ Alles zu **Block 2 (Technischer Aufbau)** und **Block 5 (Fazit & Ausblick)**. Re
 Gesamtgliederung liegt weiterhin unter
 [`Artefakten/Abschlusspräsentation/`](../../Artefakten/Abschlusspräsentation/Inhalte_Abschlusspräsentation.md).
 
-## Aktueller Stand — Block 2
+## Aktueller Stand
+
+Der Arbeitsordner ist wieder frei für einen neuen Anlauf. Beide bisherigen Fassungen liegen
+vollständig und reproduzierbar im Archiv. Teile davon werden wiederverwendet:
+
+| Fassung | Ordner | Block 2 | Block 5 |
+|---|---|---|---|
+| 19.09.2026 | [`Archive/`](Archive/) | 19 Folien, nur Antwort-Pipeline · `build/build_block2.py` | 6 Folien · `build/build_block5.py` |
+| 20.09.2026 | [`Archive/2026-09-20/`](Archive/2026-09-20/) | 17 Folien, rund 9 Min. · `build/build_block2_v3.py` | 5 Folien, rund 4:55 · `build/build_block5_v2.py` |
+
+Alle vier Build-Skripte schreiben in ihren Archivordner zurück; die Ausgabe ist identisch mit
+dem archivierten Stand. Die Beschreibung der Fassung vom 20.09. folgt, weil sie die jüngere
+Grundlage ist.
+
+## Fassung 20.09. — Block 2
 
 | Datei | Inhalt |
 |---|---|
-| [`Block2_Technischer-Aufbau.html`](Block2_Technischer-Aufbau.html) | **die Folien** — 17 Stück, rund 9 Minuten |
-| [`Block2_Notizen.md`](Block2_Notizen.md) | Sprechtext je Folie, Belege mit Fundstelle, was bewusst nicht auf den Folien steht, offene Entscheide |
-| [`Block2_Themen.md`](Block2_Themen.md) | der Themenentscheid davor: welche Themen in den Block gehören und welche nicht |
+| [`Block2_Technischer-Aufbau.html`](Archive/2026-09-20/Block2_Technischer-Aufbau.html) | **die Folien** — 17 Stück, rund 9 Minuten |
+| [`Block2_Notizen.md`](Archive/2026-09-20/Block2_Notizen.md) | Sprechtext je Folie, Belege mit Fundstelle, was bewusst nicht auf den Folien steht, offene Entscheide |
+| [`Block2_Themen.md`](Archive/2026-09-20/Block2_Themen.md) | der Themenentscheid davor: welche Themen in den Block gehören und welche nicht |
 | [`build/build_block2_v3.py`](build/build_block2_v3.py) | baut die Folien |
 
 **Die Erzählung:** drei Wege durch dasselbe System — Wissen hinein (Parsen, Stückeln,
@@ -19,13 +33,13 @@ menschlicher Freigabe) — und zum Schluss die Belege. Roter Faden: *Maschine pr
 Mensch prüft die Frage, Messung prüft beides.* Auf fast jeder Folie steht ein farbiger Kasten
 mit «Funktioniert gut», «Funktioniert nicht» oder «Das hat uns überrascht».
 
-## Aktueller Stand — Block 5
+## Fassung 20.09. — Block 5
 
 | Datei | Inhalt |
 |---|---|
-| [`Block5_Fazit-Ausblick.html`](Block5_Fazit-Ausblick.html) | **die Folien** — 5 Stück, rund 4:55 |
-| [`Block5_Notizen.md`](Block5_Notizen.md) | Sprechtext, Belege, bewusste Auslassungen, offene Entscheide |
-| [`Block5_Themen.md`](Block5_Themen.md) | der Themenentscheid davor |
+| [`Block5_Fazit-Ausblick.html`](Archive/2026-09-20/Block5_Fazit-Ausblick.html) | **die Folien** — 5 Stück, rund 4:55 |
+| [`Block5_Notizen.md`](Archive/2026-09-20/Block5_Notizen.md) | Sprechtext, Belege, bewusste Auslassungen, offene Entscheide |
+| [`Block5_Themen.md`](Archive/2026-09-20/Block5_Themen.md) | der Themenentscheid davor |
 | [`build/build_block5_v2.py`](build/build_block5_v2.py) | baut die Folien |
 
 **Die Erzählung:** fünf Folien, fünf Fragen — Hält es? · Wo ist noch Luft? · Warum nicht
@@ -55,9 +69,9 @@ Nach dem Begriffs-Review vom 20.09. — ein Wort pro Sache, in beiden Decks glei
 | Ordner | Inhalt |
 |---|---|
 | `Pipeline-Trace/` | **Rohdaten**: zwei echte Läufe (Q1/Q2) mit jeder Zwischenstufe, lesbare Berichte dazu, plus `wortsuche_bilanz.py` (Wortsuche über 56 Gold-Fragen) |
-| `Archive/` | Stand vom 19.09.2026: alte Decks, deren Notizen, die Vorlage, `assets/` |
-| `assets/` | Lara-Portrait (aus `Archive/` kopiert, damit die Folien es finden) |
-| `build/` | die drei Build-Skripte |
+| `Archive/` | Fassung 19.09.2026: Decks, Notizen, die gemeinsame Vorlage (`Block2_Technischer-Aufbau.html`), `assets/` · darin `2026-09-20/`: Fassung 20.09. (Decks, Notizen, Themen) |
+| `assets/` | Lara-Portrait (Kopie aus `Archive/assets/` für neue Folien im Arbeitsordner) |
+| `build/` | die vier Build-Skripte (je zwei pro Fassung) |
 
 ## Belege, auf die sich die Folien stützen
 
