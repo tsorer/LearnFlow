@@ -113,18 +113,18 @@
 </head>
 <body>
   <div class="bar">
-    <button id="prevBtn" title="Vorheriger Block (Bracket-Taste [)">◀ Block</button>
+    <button id="prevBtn" title="Vorheriger Block (Taste ,)">◀ Block</button>
     <div class="title">
       <span id="blockLabel">Block 1 von 5</span>
       <small id="blockName"></small>
     </div>
-    <button id="nextBtn" title="Nächster Block (Bracket-Taste ])">Block ▶</button>
+    <button id="nextBtn" title="Nächster Block (Taste .)">Block ▶</button>
     <div class="dots" id="dots"></div>
   </div>
   <div class="stage-wrap">
     <iframe id="stageFrame" title="Präsentationsblock"></iframe>
   </div>
-  <div class="hint">Pfeiltasten/Space navigieren innerhalb des Blocks · [ ] wechselt den Block</div>
+  <div class="hint">Pfeiltasten/Space navigieren innerhalb des Blocks · , . wechselt den Block</div>
 
   <script>
     const blocks = [
@@ -172,8 +172,8 @@
     nextBtn.addEventListener('click', () => goTo(current + 1));
 
     window.addEventListener('keydown', event => {
-      if (event.key === ']') goTo(current + 1);
-      if (event.key === '[') goTo(current - 1);
+      if (event.key === '.') goTo(current + 1);
+      if (event.key === ',') goTo(current - 1);
     });
 
     window.addEventListener('message', event => {
