@@ -176,6 +176,11 @@
       if (event.key === '[') goTo(current - 1);
     });
 
+    window.addEventListener('message', event => {
+      if (!event.data || event.data.type !== 'learnflow-block-nav') return;
+      goTo(current + event.data.direction);
+    });
+
     render();
   </script>
 </body>
