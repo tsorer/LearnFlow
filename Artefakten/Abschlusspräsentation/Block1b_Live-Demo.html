@@ -150,6 +150,15 @@
     }
     window.addEventListener('resize', fitStage);
     fitStage();
+
+    window.addEventListener('keydown', event => {
+      if (['ArrowRight', 'ArrowDown', 'PageDown', ' '].includes(event.key)) {
+        window.parent.postMessage({ type: 'learnflow-block-nav', direction: 1 }, '*');
+      }
+      if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(event.key)) {
+        window.parent.postMessage({ type: 'learnflow-block-nav', direction: -1 }, '*');
+      }
+    });
   </script>
 </body>
 </html>
