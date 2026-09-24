@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LearnFlow — Danke &amp; Fragen</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400..900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --paper: #f7f5f0;
+      --ink: #101e36;
+      --text: #253247;
+      --muted: #6f7886;
+      --line: #ded9ce;
+      --teal: #0fa8a0;
+      --teal-dark: #087d78;
+      --teal-pale: #e4f6f4;
+      --white: #fffefb;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #dcd8d0;
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+    }
+
+    body {
+      display: grid;
+      place-items: center;
+    }
+
+    .stage {
+      position: relative;
+      width: 1600px;
+      height: 900px;
+      overflow: hidden;
+      transform-origin: center center;
+      background:
+        radial-gradient(circle at 88% 16%, rgba(15, 168, 160, .10), transparent 25%),
+        linear-gradient(112deg, var(--paper) 0%, var(--paper) 62%, #f3f0e9 100%);
+      box-shadow: 0 30px 80px rgba(16, 30, 54, .18);
+    }
+
+    .content {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      align-content: center;
+      justify-items: center;
+      gap: 56px;
+      padding: 90px 100px;
+    }
+
+    .brand {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 22px;
+      text-align: center;
+    }
+
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 76px;
+      height: 76px;
+      border-radius: 20px;
+      background: var(--ink);
+      color: var(--white);
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -.02em;
+    }
+
+    h1 {
+      margin: 0;
+      max-width: 1200px;
+      color: var(--ink);
+      font-size: 88px;
+      font-weight: 830;
+      line-height: 1.02;
+      letter-spacing: -.045em;
+      text-align: center;
+    }
+
+    .subtitle {
+      margin: 0;
+      color: var(--muted);
+      font-size: 20px;
+      font-weight: 650;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+
+    .questions {
+      display: flex;
+      align-items: baseline;
+      gap: 18px;
+      padding: 26px 54px;
+      border-radius: 26px;
+      background: var(--teal-pale);
+      color: var(--teal-dark);
+    }
+    .questions b {
+      font-size: 46px;
+      font-weight: 850;
+      letter-spacing: -.03em;
+    }
+    .questions span {
+      color: var(--text);
+      font-size: 20px;
+      font-weight: 650;
+    }
+
+    .team-line {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 14px 34px;
+      max-width: 1280px;
+      color: var(--muted);
+      font-size: 17px;
+      font-weight: 620;
+    }
+    .team-line b {
+      color: var(--ink);
+      font-weight: 790;
+      letter-spacing: -.01em;
+    }
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <section class="content">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">LF</div>
+        <p class="subtitle">LearnFlow</p>
+      </div>
+
+      <h1>Danke für die Aufmerksamkeit</h1>
+
+      <div class="questions">
+        <b>Fragen?</b>
+        <span>Wir antworten gern — gemeinsam oder pro Block.</span>
+      </div>
+
+      <div class="team-line">
+        <span><b>Frank Moritz</b> · Glaux Group AG</span>
+        <span><b>Niklaus Lüthi</b> · Lestra Engineering</span>
+        <span><b>Christoph Amstutz</b> · Kantonsspital Luzern</span>
+        <span><b>Reto Stucki</b> · Nowhow Solutions AG</span>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const stage = document.querySelector('.stage');
+    function fitStage() {
+      const scale = Math.min(window.innerWidth / 1600, window.innerHeight / 900);
+      stage.style.transform = `scale(${scale})`;
+    }
+    window.addEventListener('resize', fitStage);
+    fitStage();
+
+    window.addEventListener('keydown', event => {
+      if (['ArrowRight', 'ArrowDown', 'PageDown', ' '].includes(event.key)) {
+        window.parent.postMessage({ type: 'learnflow-block-nav', direction: 1 }, '*');
+      }
+      if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(event.key)) {
+        window.parent.postMessage({ type: 'learnflow-block-nav', direction: -1 }, '*');
+      }
+    });
+  </script>
+</body>
+</html>

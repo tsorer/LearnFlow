@@ -418,28 +418,30 @@
         <div class="story">
           <div class="wrail"><span class="done">Was hält</span><span class="on">Was wir gelernt haben</span><span class="">Ausblick</span></div>
           <div class="eyebrow">Optimierung und Potenzial</div>
-          <h1>Bei der dritten Grenze ist <span class="accent">noch Luft</span></h1>
-          <p class="lead">Der Wert ist von 31,1 auf 22,2 Prozent gefallen. Gedreht haben wir dabei am Prompt und an der Belegprüfung — an den Schwellenwerten selbst nie. Die drei Zahlen, ab denen unterdrückt wird, sind Schätzungen vom ersten Tag.</p>
+          <h1>Die Antwort ist gefunden — <span class="accent">sie wird nur nicht gezeigt</span></h1>
+          <p class="lead">Die Suche findet die richtige Stelle bei rund 95 von 100 Fragen. Aber nur bei 77 schafft sie es in die fünf Abschnitte, die das Modell zu sehen bekommt. Der Rest liegt in der langen Trefferliste und wird nie gezeigt.</p>
           <div class="learning aha">
-            <strong>Das Potenzial — und das Werkzeug dafür</strong>
-            Die naheliegendste Stellschraube ist also noch unbenutzt. Inzwischen muss sie auch niemand mehr schätzen: Ein Lauf rechnet tausende Kombinationen auf gespeicherten Suchergebnissen durch — ohne Modellaufruf — und schlägt Werte vor, die sich nachrechnen lassen.
+            <strong>Vorher ausrechnen, nicht ausprobieren</strong>
+            Alle drei Ideen lassen sich auf den gespeicherten Suchergebnissen durchrechnen, ohne das Sprachmodell zu fragen. Für die Schwellen macht das der Kalibrierungslauf heute schon: tausende Kombinationen pro Lauf.
           </div>
         </div>
         <div class="panel center">
-          <div class="panel-label"><span>Woran wir gedreht haben — und woran nicht</span></div>
-          <div class="stat">
-            <div><b>31,1 → 22,2 %</b><span>fälschlich abgelehnte Antworten, vorher und nachher</span><small>gemessen an denselben 80 Testfragen</small></div>
+          <div class="panel-label"><span>Drei Ansätze</span><span class="status">alle vorher ausrechenbar</span></div>
+          <div class="two-big">
+            <div class="hi">
+              <div class="lead-num">17<small>von 100</small></div>
+              <div><h3>Die richtigen fünf auswählen</h3><p>So viele Antworten liegen bereit, ohne dass das Modell sie je sieht. Statt Ranglisten zu verrechnen, würde ein günstiges Modell die 20 Treffer lesen und zur Frage bewerten.</p></div>
+            </div>
+            <div>
+              <div class="lead-num">77→85<small>von 100</small></div>
+              <div><h3>Zehn Abschnitte zeigen statt fünf</h3><p>So viel mehr käme an, nachgerechnet auf den gespeicherten Läufen. Der Prompt wird doppelt so lang, und längere Antworten belegen erfahrungsgemäss schlechter. Das ist der Haken und die nächste Messung.</p></div>
+            </div>
+            <div>
+              <div class="lead-num">3<small>Zahlen</small></div>
+              <div><h3>Die Schwellen nachrechnen</h3><p>Ähnlichkeit 0,35 · Fundlage 0,40 · Belege 0,50 — am ersten Tag geschätzt und seither nie überprüft.</p></div>
+            </div>
           </div>
-          <p class="listhead">Was wir dafür verändert haben</p>
-          <div class="pipe done">
-            <div><b>1</b><div><h3>Belegprüfung feiner schneiden</h3></div><span class="tag">gebracht</span></div>
-            <div><b>2</b><div><h3>Prompt schärfen</h3></div><span class="tag">gebracht</span></div>
-          </div>
-          <div class="spot">
-            <div class="h"><b>Die Schwellenwerte</b><em>nie angefasst</em></div>
-            <div class="v">Ähnlichkeit 0,35 · Fundlage 0,40 · Belege 0,50</div>
-            <div class="s">Startwerte vom ersten Tag — geschätzt, nie nachgerechnet.</div>
-          </div>
+          <div class="panel-foot" style="margin-top:16px">Bisher erreicht: fälschlich abgelehnt von 31,1 auf 22,2 Prozent, über Prompt und Belegprüfung.</div>
         </div>
       </div>
       <div class="page-number"></div>
@@ -498,7 +500,7 @@
             <tr><td class="l">gpt-oss · 20B · lokal</td><td class="v r ok">0 %</td><td class="v r ok">95,5 %</td><td class="v r bad">37,8 %</td></tr>
             <tr><td class="l">ministral · 14B · lokal</td><td class="v r ok">0 %</td><td class="v r ok">95,5 %</td><td class="v r bad">40,0 %</td></tr>
           </table>
-          <div class="hw"><b>24–48 GB<small>Grafikspeicher</small></b><span>Gemessen haben wir bewusst auf einer 8-GB-Karte — da läuft ein 18-GB-Modell teilweise auf der CPU. Mit einer passenden Workstation, Grössenordnung 3000 bis 6000 Franken, fällt dieser Engpass weg.</span></div>
+          <div class="hw"><span>Gemessen haben wir bewusst auf einer 8-GB-Karte — da läuft ein 18-GB-Modell teilweise auf der CPU.</span></div>
         </div>
       </div>
       <div class="page-number"></div>

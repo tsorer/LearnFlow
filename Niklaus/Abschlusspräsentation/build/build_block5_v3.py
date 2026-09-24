@@ -53,7 +53,49 @@ MODEL_TABLE = """\
 # (Quelle, Foliennummer 1-basiert, Korrekturen)
 SLIDES = [
     ("A20", 1, []),  # Zwei von drei selbst gesetzten Grenzen sind erreicht
-    ("A20", 2, []),  # Bei der dritten Grenze ist noch Luft
+    # Aus dem Rückblick wird ein Ausblick: der Befund (gefunden, aber nicht gezeigt) und drei
+    # Ansätze statt einer Stellschraube. Zahlen aus EvalAnalysis/Optimierung/Pipeline-Review.md
+    # (T-62-Branch, 56 Gold-Fragen mit Seitenanker): 0,945 gefunden · 0,772 gezeigt · +17 Punkte
+    # Abstand · context_top_n 5 → 10 hebt 0,772 auf 0,847. Prozente als «von 100» ausgeschrieben,
+    # Fachwörter (Recall, Re-Ranking, Kandidatenliste) bewusst vermieden.
+    ("A20", 2, [
+        ('<h1>Bei der dritten Grenze ist <span class="accent">noch Luft</span></h1>',
+         '<h1>Die Antwort ist gefunden — <span class="accent">sie wird nur nicht gezeigt</span></h1>'),
+        (re.compile(r'<p class="lead">Der Wert ist von 31,1.*?</p>', re.S),
+         '<p class="lead">Die Suche findet die richtige Stelle bei rund 95 von 100 Fragen. Aber nur '
+         'bei 77 schafft sie es in die fünf Abschnitte, die das Modell zu sehen bekommt. Der Rest '
+         'liegt in der langen Trefferliste und wird nie gezeigt.</p>'),
+        (re.compile(r'<div class="learning aha">.*?</div>', re.S),
+         '<div class="learning aha">\n'
+         '            <strong>Vorher ausrechnen, nicht ausprobieren</strong>\n'
+         '            Alle drei Ideen lassen sich auf den gespeicherten Suchergebnissen durchrechnen, '
+         'ohne das Sprachmodell zu fragen. Für die Schwellen macht das der Kalibrierungslauf heute '
+         'schon: tausende Kombinationen pro Lauf.\n'
+         '          </div>'),
+        (re.compile(r'<div class="panel-label"><span>Woran wir gedreht haben.*?<div class="spot">.*?\n          </div>\n', re.S),
+         '<div class="panel-label"><span>Drei Ansätze</span><span class="status">alle vorher ausrechenbar</span></div>\n'
+         '          <div class="two-big">\n'
+         '            <div class="hi">\n'
+         '              <div class="lead-num">17<small>von 100</small></div>\n'
+         '              <div><h3>Die richtigen fünf auswählen</h3><p>So viele Antworten liegen bereit, '
+         'ohne dass das Modell sie je sieht. Statt Ranglisten zu verrechnen, würde ein günstiges Modell '
+         'die 20 Treffer lesen und zur Frage bewerten.</p></div>\n'
+         '            </div>\n'
+         '            <div>\n'
+         '              <div class="lead-num">77→85<small>von 100</small></div>\n'
+         '              <div><h3>Zehn Abschnitte zeigen statt fünf</h3><p>So viel mehr käme an, '
+         'nachgerechnet auf den gespeicherten Läufen. Der Prompt wird doppelt so lang, und längere '
+         'Antworten belegen erfahrungsgemäss schlechter. Das ist der Haken und die nächste Messung.</p></div>\n'
+         '            </div>\n'
+         '            <div>\n'
+         '              <div class="lead-num">3<small>Zahlen</small></div>\n'
+         '              <div><h3>Die Schwellen nachrechnen</h3><p>Ähnlichkeit 0,35 · Fundlage 0,40 · '
+         'Belege 0,50 — am ersten Tag geschätzt und seither nie überprüft.</p></div>\n'
+         '            </div>\n'
+         '          </div>\n'
+         '          <div class="panel-foot" style="margin-top:16px">Bisher erreicht: fälschlich '
+         'abgelehnt von 31,1 auf 22,2 Prozent, über Prompt und Belegprüfung.</div>\n'),
+    ]),
     # F3 «Massstab» und F5 «Was als Nächstes» zusammengelegt zu «Gold muss Gold sein», zwei Punkte:
     # grösser werden und zu 100 % stimmen — als zwei Karten im rechten Kasten, ohne Detailbelege.
     # «Drei» Fragen nach Issue #142 (T-65, offen): SAMW-OOC-03, SKOS-ADV-01, SKOS-IPV-02.
@@ -101,6 +143,13 @@ SLIDES = [
          "«Weiss ich nicht» bei fremden Fragen: zwei der vier lokalen Modelle sind stärker als die "
          "Cloud-Referenz. Fälschlich abgelehnt: sehr unterschiedlich — vermutlich, weil jedes Modell "
          "anders mit einer dünnen Grundlage umgeht."),
+        # Hardware-Zeile gekürzt — von Hand in Artefakten/ geändert, hier nachgezogen, damit der
+        # nächste Build sie nicht zurücksetzt: Abzeichen «24–48 GB» und der Preisrahmen sind weg.
+        ('<div class="hw"><b>24–48 GB<small>Grafikspeicher</small></b><span>Gemessen haben wir bewusst '
+         'auf einer 8-GB-Karte — da läuft ein 18-GB-Modell teilweise auf der CPU. Mit einer passenden '
+         'Workstation, Grössenordnung 3000 bis 6000 Franken, fällt dieser Engpass weg.</span></div>',
+         '<div class="hw"><span>Gemessen haben wir bewusst auf einer 8-GB-Karte — da läuft ein '
+         '18-GB-Modell teilweise auf der CPU.</span></div>'),
         # Kasten «Näher dran als gedacht» ganz weg.
         (re.compile(r'[ \t]*<div class="learning">.*?</div>\n', re.S), ""),
         (re.compile(r'[ \t]*<table class="vs">.*?</table>\n', re.S), MODEL_TABLE),
@@ -175,4 +224,4 @@ def embed(m: re.Match) -> str:
 
 deck = re.sub(r'src="(assets/[^"]+\.png)"', embed, deck)
 OUT.write_text(deck, encoding="utf-8")
-print(f"Folien: {len(out_slides)} → {OUT.name}")
+print(f"Folien: {len(out_slides)} -> {OUT.name}")

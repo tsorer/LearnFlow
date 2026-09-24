@@ -261,6 +261,10 @@ SLIDES = [
          '            <text class="s" x="585" y="314">text-embedding-3-small</text>'),
         ('<line class="edge" x1="585" y1="378" x2="585" y2="318" marker-end="url(#ah)"/>',
          '<line class="edge" x1="585" y1="378" x2="585" y2="332" marker-end="url(#ah)"/>'),
+        # Der POC läuft über OpenAI Direct (ADR-004: MVP-Default); Azure OpenAI EU kommt erst,
+        # bevor echte interne Dokumente verarbeitet werden.
+        ('<text class="note" x="585" y="206">extern · Pilot: Azure OpenAI EU</text>',
+         '<text class="note" x="585" y="206">extern · POC: OpenAI Direct</text>'),
     ]),
     ("V2", 2, 2, [
         # Korpus-Aufzählung unten weg; der Fundort der Antwort bleibt.
@@ -415,4 +419,4 @@ if preview := os.environ.get("PREVIEW_OUT"):
 
 deck = re.sub(r'src="(assets/[^"]+\.png)"', embed, deck)
 OUT.write_text(deck, encoding="utf-8")
-print(f"Folien: {len(out_slides)} → {OUT.name}")
+print(f"Folien: {len(out_slides)} -> {OUT.name}")
