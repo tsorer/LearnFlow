@@ -18,6 +18,10 @@ docker run --rm -v "$(pwd):/w" -w /w python:3.13-slim python build/build_block2_
 docker run --rm -v "$(pwd):/w" -w /w python:3.13-slim python build/build_block5_v3.py
 ```
 
+Beide Skripte brauchen nur die Standardbibliothek. Läuft Docker nicht, tut es auch das Python
+auf dem Rechner (`py -3 build/build_block2_v4.py`); das Ergebnis ist dasselbe, nur mit LF statt
+CRLF als Zeilenende. Für alles unter `src/` gilt das **nicht**, dort bleibt es beim Container.
+
 ### Block 2 — 6 Folien
 
 [`Block2_Technischer-Aufbau.html`](Block2_Technischer-Aufbau.html) · gebaut von

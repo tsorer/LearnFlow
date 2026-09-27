@@ -62,9 +62,9 @@ SLIDES = [
         ('<h1>Bei der dritten Grenze ist <span class="accent">noch Luft</span></h1>',
          '<h1>Die Antwort ist gefunden — <span class="accent">sie wird nur nicht gezeigt</span></h1>'),
         (re.compile(r'<p class="lead">Der Wert ist von 31,1.*?</p>', re.S),
-         '<p class="lead">Die Suche findet die richtige Stelle bei rund 95 von 100 Fragen. Aber nur '
-         'bei 77 schafft sie es in die fünf Abschnitte, die das Modell zu sehen bekommt. Der Rest '
-         'liegt in der langen Trefferliste und wird nie gezeigt.</p>'),
+         '<p class="lead">Die Suche findet die richtige Stelle fast immer. Gezeigt werden dem Modell '
+         'aber nur fünf Abschnitte: Bei rund 17 von 100 Fragen liegt die Antwort bereit und wird nie '
+         'gezeigt.</p>'),
         (re.compile(r'<div class="learning aha">.*?</div>', re.S),
          '<div class="learning aha">\n'
          '            <strong>Vorher ausrechnen, nicht ausprobieren</strong>\n'
@@ -76,25 +76,31 @@ SLIDES = [
          '<div class="panel-label"><span>Drei Ansätze</span><span class="status">alle vorher ausrechenbar</span></div>\n'
          '          <div class="two-big">\n'
          '            <div class="hi">\n'
-         '              <div class="lead-num">17<small>von 100</small></div>\n'
+         '              <div class="lead-num">17<small>von 100 ungezeigt</small></div>\n'
          '              <div><h3>Die richtigen fünf auswählen</h3><p>So viele Antworten liegen bereit, '
+         # «20 Treffer» war falsch: 20 ist retrieval_top_k je Suche, die gemeinsame Liste hat bis zu 40.
          'ohne dass das Modell sie je sieht. Statt Ranglisten zu verrechnen, würde ein günstiges Modell '
-         'die 20 Treffer lesen und zur Frage bewerten.</p></div>\n'
+         'die gefundenen Treffer lesen und zur Frage bewerten.</p></div>\n'
          '            </div>\n'
          '            <div>\n'
-         '              <div class="lead-num">77→85<small>von 100</small></div>\n'
-         '              <div><h3>Zehn Abschnitte zeigen statt fünf</h3><p>So viel mehr käme an, '
-         'nachgerechnet auf den gespeicherten Läufen. Der Prompt wird doppelt so lang, und längere '
-         'Antworten belegen erfahrungsgemäss schlechter. Das ist der Haken und die nächste Messung.</p></div>\n'
+         '              <div class="lead-num">8<small>von 100 zusätzlich</small></div>\n'
+         '              <div><h3>Zehn Abschnitte zeigen statt fünf</h3><p>So vielen Fragen mehr würde '
+         'ihre Stelle gezeigt, nachgerechnet auf den gespeicherten Läufen. Der Prompt wird doppelt so '
+         'lang, und längere Antworten belegen erfahrungsgemäss schlechter. Das ist der Haken und die '
+         'nächste Messung.</p></div>\n'
          '            </div>\n'
          '            <div>\n'
-         '              <div class="lead-num">3<small>Zahlen</small></div>\n'
+         # Kein Gewinn zu beziffern: Der eine Lauf (T-57, Docs/10_Kalibrierungsbericht.md) lieferte
+         # einen Kandidaten, der auf dem Holdout schlechter lag (33,3 statt 22,2 fälschlich abgelehnt,
+         # 85,7 statt 90,9 Refusal) — «nie nachgerechnet» wäre falsch, eine 0 wäre irreführend.
+         '              <div class="lead-num">?<small>noch offen</small></div>\n'
          '              <div><h3>Die Schwellen nachrechnen</h3><p>Ähnlichkeit 0,35 · Fundlage 0,40 · '
-         'Belege 0,50 — am ersten Tag geschätzt und seither nie überprüft.</p></div>\n'
+         'Belege 0,50 sind seit Tag eins unverändert. Ein erster Lauf hat Werte vorgeschlagen, die auf '
+         'dem Prüf-Split aber schlechter waren. Wie viel hier drinsteckt, ist offen.</p></div>\n'
          '            </div>\n'
          '          </div>\n'
          '          <div class="panel-foot" style="margin-top:16px">Bisher erreicht: fälschlich '
-         'abgelehnt von 31,1 auf 22,2 Prozent, über Prompt und Belegprüfung.</div>\n'),
+         'abgelehnt von 31 auf 22 von 100 Fragen, über Prompt und Belegprüfung.</div>\n'),
     ]),
     # F3 «Massstab» und F5 «Was als Nächstes» zusammengelegt zu «Gold muss Gold sein», zwei Punkte:
     # grösser werden und zu 100 % stimmen — als zwei Karten im rechten Kasten, ohne Detailbelege.
