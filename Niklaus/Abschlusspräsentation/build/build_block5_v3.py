@@ -53,41 +53,41 @@ MODEL_TABLE = """\
 # (Quelle, Foliennummer 1-basiert, Korrekturen)
 SLIDES = [
     ("A20", 1, []),  # Zwei von drei selbst gesetzten Grenzen sind erreicht
-    # Aus dem Rückblick wird ein Ausblick: der Befund (gefunden, aber nicht gezeigt) und drei
-    # Ansätze statt einer Stellschraube. Zahlen aus EvalAnalysis/Optimierung/Pipeline-Review.md
-    # (T-62-Branch, 56 Gold-Fragen mit Seitenanker): 0,945 gefunden · 0,772 gezeigt · +17 Punkte
-    # Abstand · context_top_n 5 → 10 hebt 0,772 auf 0,847. Prozente als «von 100» ausgeschrieben,
-    # Fachwörter (Recall, Re-Ranking, Kandidatenliste) bewusst vermieden.
+    # Aus dem Rückblick wird ein Ausblick — und zwar entlang einer einzigen Grösse: «von 100
+    # beantwortbaren Fragen werden heute 27 zu Unrecht zurückgehalten». Die drei Karten zerlegen
+    # genau diese 27, damit Nenner, Einstieg und Titel dasselbe sagen.
+    #
+    # Zahlen aus Runde R06 (EvalAnalysis/Optimierung/R06_Kontextfenster.md, Lauf vom 27.09. mit
+    # Entwurfs-Mitschnitt, 45 beantwortbare Fragen):
+    #   12 von 45 unterdrückt          -> 27 von 100
+    #    7 davon inhaltlich richtig    -> 16 von 100 (Belegform; Rest wären 11 von 100)
+    #    2 davon Stelle nicht im Kontext -> 4 von 100 (Auswahl/Suche)
+    # Die 17 von 100 aus dem Pipeline-Review bleiben als Einordnung im Kartentext: so viel liegt
+    # in der Trefferliste bereit, gekostet haben heute aber nur die 4.
+    # Fachwörter (Recall, Re-Ranking, Kandidatenliste) weiterhin vermieden.
     ("A20", 2, [
         ('<h1>Bei der dritten Grenze ist <span class="accent">noch Luft</span></h1>',
-         '<h1>Die Antwort ist gefunden — <span class="accent">sie wird nur nicht gezeigt</span></h1>'),
+         '<h1>Nicht die Suche hält uns auf — <span class="accent">die Belegform</span></h1>'),
         (re.compile(r'<p class="lead">Der Wert ist von 31,1.*?</p>', re.S),
-         '<p class="lead">Die Suche findet die richtige Stelle fast immer. Gezeigt werden dem Modell '
-         'aber nur fünf Abschnitte: Bei rund 17 von 100 Fragen liegt die Antwort bereit und wird nie '
-         'gezeigt.</p>'),
-        (re.compile(r'<div class="learning aha">.*?</div>', re.S),
-         '<div class="learning aha">\n'
-         '            <strong>Vorher ausrechnen, nicht ausprobieren</strong>\n'
-         '            Alle drei Ideen lassen sich auf den gespeicherten Suchergebnissen durchrechnen, '
-         'ohne das Sprachmodell zu fragen. Für die Schwellen macht das der Kalibrierungslauf heute '
-         'schon: tausende Kombinationen pro Lauf.\n'
-         '          </div>'),
+         '<p class="lead">Von 100 beantwortbaren Fragen hält LearnFlow heute 27 zurück, obwohl die '
+         'Antwort im Korpus steht.</p>'),
+        # Kasten ganz weg: Wie wir zu den Zahlen gekommen sind (Entwürfe mitschneiden, Fälle lesen),
+        # interessiert das Publikum nicht — es gehört in die Sprechnotizen.
+        (re.compile(r'[ \t]*<div class="learning aha">.*?</div>\n', re.S), ""),
         (re.compile(r'<div class="panel-label"><span>Woran wir gedreht haben.*?<div class="spot">.*?\n          </div>\n', re.S),
-         '<div class="panel-label"><span>Drei Ansätze</span><span class="status">alle vorher ausrechenbar</span></div>\n'
+         '<div class="panel-label"><span>Woran die 27 hängen</span></div>\n'
          '          <div class="two-big">\n'
          '            <div class="hi">\n'
-         '              <div class="lead-num">17<small>von 100 ungezeigt</small></div>\n'
-         '              <div><h3>Die richtigen fünf auswählen</h3><p>So viele Antworten liegen bereit, '
-         # «20 Treffer» war falsch: 20 ist retrieval_top_k je Suche, die gemeinsame Liste hat bis zu 40.
-         'ohne dass das Modell sie je sieht. Statt Ranglisten zu verrechnen, würde ein günstiges Modell '
-         'die gefundenen Treffer lesen und zur Frage bewerten.</p></div>\n'
+         '              <div class="lead-num">16<small>von 100</small></div>\n'
+         '              <div><h3>Belege richtig zählen</h3><p>Die Antwort war richtig, nur '
+         'der Beleg steht am Ende einer Aufzählung statt hinter jedem Punkt. Diese Regel zu ändern '
+         'brächte 27 auf 11.</p></div>\n'
          '            </div>\n'
          '            <div>\n'
-         '              <div class="lead-num">8<small>von 100 zusätzlich</small></div>\n'
-         '              <div><h3>Zehn Abschnitte zeigen statt fünf</h3><p>So vielen Fragen mehr würde '
-         'ihre Stelle gezeigt, nachgerechnet auf den gespeicherten Läufen. Der Prompt wird doppelt so '
-         'lang, und längere Antworten belegen erfahrungsgemäss schlechter. Das ist der Haken und die '
-         'nächste Messung.</p></div>\n'
+         '              <div class="lead-num">4<small>von 100</small></div>\n'
+         '              <div><h3>Die richtigen fünf auswählen</h3><p>Nur so oft fehlte die Stelle im '
+         'Kontext. In der Trefferliste liegen 17 von 100 bereit — gekostet haben uns heute aber nur '
+         'diese vier.</p></div>\n'
          '            </div>\n'
          '            <div>\n'
          # Kein Gewinn zu beziffern: Der eine Lauf (T-57, Docs/10_Kalibrierungsbericht.md) lieferte
@@ -95,12 +95,15 @@ SLIDES = [
          # 85,7 statt 90,9 Refusal) — «nie nachgerechnet» wäre falsch, eine 0 wäre irreführend.
          '              <div class="lead-num">?<small>noch offen</small></div>\n'
          '              <div><h3>Die Schwellen nachrechnen</h3><p>Ähnlichkeit 0,35 · Fundlage 0,40 · '
-         'Belege 0,50 sind seit Tag eins unverändert. Ein erster Lauf hat Werte vorgeschlagen, die auf '
-         'dem Prüf-Split aber schlechter waren. Wie viel hier drinsteckt, ist offen.</p></div>\n'
+         'Belege 0,50 sind seit Tag eins unverändert. Ein erster Lauf schlug Werte vor, die auf dem '
+         'Prüf-Split schlechter waren.</p></div>\n'
          '            </div>\n'
          '          </div>\n'
-         '          <div class="panel-foot" style="margin-top:16px">Bisher erreicht: fälschlich '
-         'abgelehnt von 31 auf 22 von 100 Fragen, über Prompt und Belegprüfung.</div>\n'),
+         # Streuung statt Rückblick: «von 31 auf 22» stammt aus einer anderen Messreihe und störte
+         # die Rechnung 27 -> 11. Die zwei Fragen Streuung sind die Antwort auf «wie sicher ist das?»
+         # und leiten zu Folie 3 über.
+         '          <div class="panel-foot" style="margin-top:16px">Gemessen an 45 beantwortbaren '
+         'Testfragen. Zwei identische Läufe unterscheiden sich um zwei Fragen.</div>\n'),
     ]),
     # F3 «Massstab» und F5 «Was als Nächstes» zusammengelegt zu «Gold muss Gold sein», zwei Punkte:
     # grösser werden und zu 100 % stimmen — als zwei Karten im rechten Kasten, ohne Detailbelege.
@@ -142,13 +145,19 @@ SLIDES = [
          "Ausgabeprotokoll zu hundert Prozent ein — und lehnt weniger richtige Antworten fälschlich "
          "ab als unsere Cloud-Referenz.",
          # Lesart der Tabelle, Spalte für Spalte. «Stärker» gilt nur für gpt-oss und ministral
-         # (95,5 % gegenüber 90,9 %); gemma4 und qwen3 liegen darunter. Die Streuung bei
-         # «fälschlich abgelehnt» entsteht vollständig nach dem Modellaufruf (suppression_reason
-         # R04: Modell lehnt selbst ab, zu wenig Belege, Self-Check) — daher die Vermutung.
+         # (95,5 % gegenüber 90,9 %); gemma4 und qwen3 liegen darunter.
+         #
+         # Die Streuung bei «fälschlich abgelehnt» ist keine Vermutung mehr, sondern in den
+         # suppression_reason der R04-Läufe ausgezählt — und es sind zwei Eigenschaften, nicht eine:
+         #   gpt-oss   17 | 12 davon Belegform (10 Deckung, 2 ungültige Nummer)
+         #   gpt-4o-mini 10 | 6 davon Belegdeckung
+         #   ministral 18 | 8 davon Self-Check, nur 4 Belegform
+         #   gemma4     5 | keine Belegform (3 Selbstablehnung, 2 abgeschnittene Antworten)
+         #   qwen3      3 | antwortet fast immer — niedrig ist hier nicht gut, siehe Spalte davor
          "Fünf Modelle durch dieselbe Pipeline. Erfundene Belege: keines, alle gleich gut. "
          "«Weiss ich nicht» bei fremden Fragen: zwei der vier lokalen Modelle sind stärker als die "
-         "Cloud-Referenz. Fälschlich abgelehnt: sehr unterschiedlich — vermutlich, weil jedes Modell "
-         "anders mit einer dünnen Grundlage umgeht."),
+         "Cloud-Referenz. Fälschlich abgelehnt: sehr unterschiedlich — die Modelle belegen "
+         "unterschiedlich sorgfältig und prüfen sich unterschiedlich streng."),
         # Hardware-Zeile gekürzt — von Hand in Artefakten/ geändert, hier nachgezogen, damit der
         # nächste Build sie nicht zurücksetzt: Abzeichen «24–48 GB» und der Preisrahmen sind weg.
         ('<div class="hw"><b>24–48 GB<small>Grafikspeicher</small></b><span>Gemessen haben wir bewusst '

@@ -418,30 +418,26 @@
         <div class="story">
           <div class="wrail"><span class="done">Was hält</span><span class="on">Was wir gelernt haben</span><span class="">Ausblick</span></div>
           <div class="eyebrow">Optimierung und Potenzial</div>
-          <h1>Die Antwort ist gefunden — <span class="accent">sie wird nur nicht gezeigt</span></h1>
-          <p class="lead">Die Suche findet die richtige Stelle fast immer. Gezeigt werden dem Modell aber nur fünf Abschnitte: Bei rund 17 von 100 Fragen liegt die Antwort bereit und wird nie gezeigt.</p>
-          <div class="learning aha">
-            <strong>Vorher ausrechnen, nicht ausprobieren</strong>
-            Alle drei Ideen lassen sich auf den gespeicherten Suchergebnissen durchrechnen, ohne das Sprachmodell zu fragen. Für die Schwellen macht das der Kalibrierungslauf heute schon: tausende Kombinationen pro Lauf.
-          </div>
+          <h1>Nicht die Suche hält uns auf — <span class="accent">die Belegform</span></h1>
+          <p class="lead">Von 100 beantwortbaren Fragen hält LearnFlow heute 27 zurück, obwohl die Antwort im Korpus steht.</p>
         </div>
         <div class="panel center">
-          <div class="panel-label"><span>Drei Ansätze</span><span class="status">alle vorher ausrechenbar</span></div>
+          <div class="panel-label"><span>Woran die 27 hängen</span></div>
           <div class="two-big">
             <div class="hi">
-              <div class="lead-num">17<small>von 100 ungezeigt</small></div>
-              <div><h3>Die richtigen fünf auswählen</h3><p>So viele Antworten liegen bereit, ohne dass das Modell sie je sieht. Statt Ranglisten zu verrechnen, würde ein günstiges Modell die gefundenen Treffer lesen und zur Frage bewerten.</p></div>
+              <div class="lead-num">16<small>von 100</small></div>
+              <div><h3>Belege richtig zählen</h3><p>Die Antwort war richtig, nur der Beleg steht am Ende einer Aufzählung statt hinter jedem Punkt. Diese Regel zu ändern brächte 27 auf 11.</p></div>
             </div>
             <div>
-              <div class="lead-num">8<small>von 100 zusätzlich</small></div>
-              <div><h3>Zehn Abschnitte zeigen statt fünf</h3><p>So vielen Fragen mehr würde ihre Stelle gezeigt, nachgerechnet auf den gespeicherten Läufen. Der Prompt wird doppelt so lang, und längere Antworten belegen erfahrungsgemäss schlechter. Das ist der Haken und die nächste Messung.</p></div>
+              <div class="lead-num">4<small>von 100</small></div>
+              <div><h3>Die richtigen fünf auswählen</h3><p>Nur so oft fehlte die Stelle im Kontext. In der Trefferliste liegen 17 von 100 bereit — gekostet haben uns heute aber nur diese vier.</p></div>
             </div>
             <div>
               <div class="lead-num">?<small>noch offen</small></div>
-              <div><h3>Die Schwellen nachrechnen</h3><p>Ähnlichkeit 0,35 · Fundlage 0,40 · Belege 0,50 sind seit Tag eins unverändert. Ein erster Lauf hat Werte vorgeschlagen, die auf dem Prüf-Split aber schlechter waren. Wie viel hier drinsteckt, ist offen.</p></div>
+              <div><h3>Die Schwellen nachrechnen</h3><p>Ähnlichkeit 0,35 · Fundlage 0,40 · Belege 0,50 sind seit Tag eins unverändert. Ein erster Lauf schlug Werte vor, die auf dem Prüf-Split schlechter waren.</p></div>
             </div>
           </div>
-          <div class="panel-foot" style="margin-top:16px">Bisher erreicht: fälschlich abgelehnt von 31 auf 22 von 100 Fragen, über Prompt und Belegprüfung.</div>
+          <div class="panel-foot" style="margin-top:16px">Gemessen an 45 beantwortbaren Testfragen. Zwei identische Läufe unterscheiden sich um zwei Fragen.</div>
         </div>
       </div>
       <div class="page-number"></div>
@@ -487,7 +483,7 @@
           <div class="wrail"><span class="done">Was hält</span><span class="done">Was wir gelernt haben</span><span class="on">Ausblick</span></div>
           <div class="eyebrow">Ausblick</div>
           <h1>Lokale Modelle: <span class="accent">die Qualität ist da</span></h1>
-          <p class="lead">Fünf Modelle durch dieselbe Pipeline. Erfundene Belege: keines, alle gleich gut. «Weiss ich nicht» bei fremden Fragen: zwei der vier lokalen Modelle sind stärker als die Cloud-Referenz. Fälschlich abgelehnt: sehr unterschiedlich — vermutlich, weil jedes Modell anders mit einer dünnen Grundlage umgeht.</p>
+          <p class="lead">Fünf Modelle durch dieselbe Pipeline. Erfundene Belege: keines, alle gleich gut. «Weiss ich nicht» bei fremden Fragen: zwei der vier lokalen Modelle sind stärker als die Cloud-Referenz. Fälschlich abgelehnt: sehr unterschiedlich — die Modelle belegen unterschiedlich sorgfältig und prüfen sich unterschiedlich streng.</p>
         </div>
         <div class="panel center">
           <div class="panel-label"><span>Fünf Modelle, gleiche Pipeline</span><span class="status">dieselben 80 Fragen</span></div>

@@ -101,7 +101,7 @@ EXTRA_CSS = """
 # Werte aus Pipeline-Trace/Q2.json: Vertrauen 0,7202, Band mittel, Self-Check GEDECKT.
 # Der Pfad von Q2 ist durchgezogen (edge path), nicht durchlaufene Pfade gestrichelt (edge alt).
 SELFCHECK_SVG = """\
-          <svg class="arch flowd" viewBox="0 0 700 428" role="img" aria-label="Flussdiagramm Self-Check für Q2: Vertrauen 0,72 liegt im mittleren Band, also prüft das Modell seine Antwort gegen die fünf Abschnitte. Urteil gedeckt, die Antwort wird ausgeliefert. Nicht durchlaufen und gestrichelt: hohes Vertrauen direkt zur Antwort, tiefes Vertrauen oder nicht gedeckt zu «Weiss ich nicht».">
+          <svg class="arch flowd" viewBox="0 0 700 552" role="img" aria-label="Flussdiagramm der zwei Prüfungen nach der Antwort, am Beispiel Q2: Die Belegprüfung ergibt 1,0, zusammen mit der Fundlage 0,44 ein Vertrauen von 0,72. Das liegt im mittleren Band, also prüft das Modell seine Antwort noch einmal; Urteil gedeckt, die Antwort wird ausgeliefert. Nicht durchlaufen und gestrichelt: hohes Vertrauen direkt zur Antwort, tiefes Vertrauen oder nicht gedeckt zu «Weiss ich nicht».">
             <defs>
               <marker id="fb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
                 <path class="ah" d="M0 0 L10 5 L0 10 z"/>
@@ -110,40 +110,51 @@ SELFCHECK_SVG = """\
                 <path class="ahp" d="M0 0 L10 5 L0 10 z"/>
               </marker>
             </defs>
-            <!-- Eingang -->
-            <rect class="box" x="160" y="4" width="240" height="38" rx="19"/>
-            <text class="t" x="280" y="30">Q2 · Vertrauen 0,72</text>
-            <path class="edge path" d="M280 42 V70" marker-end="url(#fbp)"/>
+            <!-- Die Antwort, die geprüft wird -->
+            <rect class="box llm" x="90" y="0" width="380" height="52" rx="14"/>
+            <text class="t inv" x="280" y="26">Antwort des Modells</text>
+            <text class="s inv" x="280" y="45">Beispiel Q2, aus den fünf Abschnitten</text>
+            <!-- Stufe 2: Belegprüfung, ohne Modellaufruf -->
+            <path class="edge path" d="M280 52 V76" marker-end="url(#fbp)"/>
+            <rect class="box" x="90" y="78" width="380" height="64" rx="14"/>
+            <text class="t" x="280" y="104">Hat jeder Satz eine Quellennummer?</text>
+            <text class="s" x="280" y="126">bei Q2: alle Sätze belegt → 1,0</text>
+            <!-- Vertrauen: die 0,72 wird hier erst gebildet -->
+            <path class="edge path" d="M280 142 V166" marker-end="url(#fbp)"/>
+            <rect class="box" x="90" y="168" width="380" height="64" rx="14"/>
+            <text class="t" x="280" y="194">Vertrauen aus beidem</text>
+            <text class="s" x="280" y="216">0,44 Fundlage · 1,0 Belege → 0,72</text>
             <!-- Band-Prüfung: drei Ausgänge -->
-            <rect class="box gate" x="90" y="72" width="380" height="56" rx="14"/>
-            <text class="t" x="280" y="96">Welches Band?</text>
-            <text class="s" x="280" y="117">tief &lt; 0,45 ≤ mittel &lt; 0,75 ≤ hoch</text>
+            <path class="edge path" d="M280 232 V256" marker-end="url(#fbp)"/>
+            <rect class="box gate" x="90" y="258" width="380" height="56" rx="14"/>
+            <text class="t" x="280" y="282">Welches Band?</text>
+            <text class="s" x="280" y="303">tief &lt; 0,45 ≤ mittel &lt; 0,75 ≤ hoch</text>
             <!-- nicht durchlaufen: hoch → direkt zur Antwort -->
-            <path class="edge alt" d="M90 100 H40 V363 H88" marker-end="url(#fb)"/>
-            <text class="lbl alt" x="48" y="92">hoch</text>
-            <!-- nicht durchlaufen: tief → «Weiss ich nicht» -->
-            <path class="edge alt" d="M470 100 H650 V266" marker-end="url(#fb)"/>
-            <text class="lbl alt" x="478" y="92">tief</text>
+            <path class="edge alt" d="M90 286 H40 V492 H88" marker-end="url(#fb)"/>
+            <text class="lbl alt" x="48" y="278">hoch</text>
+            <!-- nicht durchlaufen: tief → «Weiss ich nicht» (Kasten steht rechts unten, damit
+                 die Beschriftung «nicht gedeckt» daneben Platz hat) -->
+            <path class="edge alt" d="M470 286 H650 V428" marker-end="url(#fb)"/>
+            <text class="lbl alt" x="478" y="278">tief</text>
             <!-- Pfad von Q2: mittel → Self-Check (2. Modellaufruf) -->
-            <path class="edge path" d="M280 128 V162" marker-end="url(#fbp)"/>
-            <text class="lbl yes" x="290" y="150">mittel</text>
-            <rect class="box llm" x="90" y="164" width="380" height="92" rx="14"/>
-            <text class="t inv" x="280" y="192">Self-Check · 2. Modellaufruf</text>
-            <text class="s inv" x="280" y="218">Steht jede Aussage in den fünf Abschnitten?</text>
-            <text class="s inv" x="280" y="239">Ohne Vorwissen.</text>
+            <path class="edge path" d="M280 314 V338" marker-end="url(#fbp)"/>
+            <text class="lbl yes" x="290" y="331">mittel</text>
+            <rect class="box llm" x="90" y="340" width="380" height="64" rx="14"/>
+            <text class="t inv" x="280" y="366">Self-Check · 2. Modellaufruf</text>
+            <text class="s inv" x="280" y="388">Steht jede Aussage in den fünf Abschnitten?</text>
             <!-- nicht durchlaufen: nicht gedeckt → «Weiss ich nicht» -->
-            <path class="edge alt" d="M470 210 H560 V266" marker-end="url(#fb)"/>
-            <text class="lbl alt" x="478" y="202">nicht gedeckt</text>
-            <rect class="box stop" x="520" y="268" width="180" height="64" rx="14"/>
-            <text class="t stop" x="610" y="306">«Weiss ich nicht»</text>
+            <path class="edge alt" d="M470 372 H600 V428" marker-end="url(#fb)"/>
+            <text class="lbl alt" x="478" y="364">nicht gedeckt</text>
+            <rect class="box stop" x="500" y="430" width="200" height="70" rx="14"/>
+            <text class="t stop" x="600" y="472">«Weiss ich nicht»</text>
             <!-- Pfad von Q2: gedeckt → Antwort ausgeliefert -->
-            <path class="edge path" d="M280 256 V300" marker-end="url(#fbp)"/>
-            <text class="lbl yes" x="290" y="283">gedeckt</text>
-            <rect class="box db" x="90" y="302" width="380" height="122" rx="16"/>
-            <text class="capt" x="280" y="328">ANTWORT AUSGELIEFERT</text>
-            <text class="anst" x="280" y="356">Das Überschreiten der</text>
-            <text class="anst" x="280" y="380">Höchstgeschwindigkeit innerorts</text>
-            <text class="anst" x="280" y="404">um 6–10 km/h kostet 120 Franken <tspan class="cref">[3]</tspan>.</text>
+            <path class="edge path" d="M280 404 V428" marker-end="url(#fbp)"/>
+            <text class="lbl yes" x="290" y="421">gedeckt</text>
+            <rect class="box db" x="90" y="430" width="380" height="110" rx="16"/>
+            <text class="capt" x="280" y="456">ANTWORT AUSGELIEFERT</text>
+            <text class="anst" x="280" y="484">Das Überschreiten der</text>
+            <text class="anst" x="280" y="508">Höchstgeschwindigkeit innerorts</text>
+            <text class="anst" x="280" y="532">um 6–10 km/h kostet 120 Franken <tspan class="cref">[3]</tspan>.</text>
           </svg>
 """
 
@@ -236,7 +247,7 @@ EVAL_PANEL = """\
               <div class="req"><div><strong>≤ 15 %</strong><em>fälschlich abgelehnt</em></div><div><strong>0 %</strong><em>erfundene Belege</em></div></div></div>
             <div><b>22</b><span>steht nicht drin</span><small>muss «Weiss ich nicht» sagen</small>
               <div class="req"><div><strong>≥ 90 %</strong><em>«Weiss ich nicht»</em></div></div></div>
-            <div><b>13</b><span>Fangfragen</span><small>falsche Annahme korrigieren</small>
+            <div><b>13</b><span>Frage mit falscher Annahme</span><small>muss widersprechen, nicht bestätigen</small>
               <div class="req"><div><strong>0 %</strong><em>erfundene Belege</em></div></div></div>
           </div>
 """
@@ -290,15 +301,28 @@ SLIDES = [
     # Gekürzt: kürzerer Lead, ohne Take, ohne Prompt-Regeln; dafür die ausgelieferte
     # Antwort von Q2 (wörtlich aus Pipeline-Trace/Q2.json, Band mittel, Self-Check GEDECKT).
     ("V2", 16, 2, [
+        # Titel und Lead decken jetzt beide Prüfungen ab: Der Ausblick in Block 5 nimmt auf die
+        # Belegprüfung Bezug, und die 0,72 auf dieser Folie entsteht erst aus ihr.
+        ('<h1>Im Zweifel prüft ein <span class="accent">zweites Urteil</span></h1>',
+         '<h1>Zwei Prüfungen <span class="accent">nach der Antwort</span></h1>'),
         ("Bei mittlerem Vertrauen bekommt das Modell die eigene Antwort noch einmal vorgelegt – "
          "zusammen mit den fünf Abschnitten – und muss urteilen, ob jede Aussage darin steht.",
-         "Bei mittlerem Vertrauen prüft das Modell die eigene Antwort gegen die fünf Abschnitte."),
+         "Nach der Antwort prüft LearnFlow zweimal: zuerst maschinell, ob jeder Satz eine "
+         "Quellennummer trägt. Reicht das Vertrauen daraus nicht klar aus, legt das Modell die "
+         "eigene Antwort noch einmal vor."),
         (re.compile(r'[ \t]*<div class="take good">Fail-closed.*?</div>\n'), ""),
+        # Der Kasten zeigt jetzt beide Prüfungen, nicht nur den zweiten Modellaufruf.
+        ('<span>Zweiter Modellaufruf</span><span class="status">nur im mittleren Band</span>',
+         '<span>Zwei Prüfungen</span><span class="status">eine rechnet, eine fragt das Modell</span>'),
         # Die Formel wandert nach rechts ins Flussdiagramm.
         (re.compile(r'[ \t]*<div class="formula">.*?</div>\n'), ""),
         # Rechts nur noch Q2 als Flussdiagramm: Band-Prüfung → Self-Check (die drei
         # Prompt-Regeln in einem Satz) → ausgelieferte Antwort. Q1 fällt weg.
-        (re.compile(r'[ \t]*<div class="blk">.*?</div>\n', re.S), SELFCHECK_SVG),
+        (re.compile(r'[ \t]*<div class="blk">.*?</div>\n', re.S),
+         SELFCHECK_SVG
+         # Brücke zum Fazit (Block 5, Folie 2): Dort ist die Belegform der grösste Hebel.
+         + '          <div class="panel-foot" style="margin-top:14px">Die Belegprüfung zählt '
+           'Nummern, nicht Inhalte. Was das kostet, steht im Fazit.</div>\n'),
         (re.compile(r'[ \t]*<div class="bigpair".*?\n          </div>\n', re.S), ""),
     ]),
     # Evaluation: Eval als Ablauf in drei Schritten (V2 statt V3 F15, die dasselbe als Liste zeigt).
