@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LearnFlow — Live Demo: Rollen</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400..900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --paper: #f7f5f0;
+      --ink: #101e36;
+      --text: #253247;
+      --muted: #6f7886;
+      --line: #ded9ce;
+      --teal: #0fa8a0;
+      --teal-dark: #087d78;
+      --teal-pale: #e4f6f4;
+      --amber: #bf8830;
+      --amber-dark: #8a5f1e;
+      --amber-pale: #f7edd9;
+      --coral: #cf665c;
+      --coral-dark: #a8453c;
+      --coral-pale: #fae8e5;
+      --white: #fffefb;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #dcd8d0;
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+    }
+
+    body {
+      display: grid;
+      place-items: center;
+    }
+
+    .stage {
+      position: relative;
+      width: 1600px;
+      height: 900px;
+      overflow: hidden;
+      transform-origin: center center;
+      background:
+        radial-gradient(circle at 88% 16%, rgba(15, 168, 160, .10), transparent 25%),
+        linear-gradient(112deg, var(--paper) 0%, var(--paper) 62%, #f3f0e9 100%);
+      box-shadow: 0 30px 80px rgba(16, 30, 54, .18);
+    }
+
+    .topbar {
+      position: absolute;
+      z-index: 2;
+      top: 54px;
+      left: 70px;
+      right: 70px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      color: var(--ink);
+      font-weight: 820;
+      font-size: 22px;
+      letter-spacing: -.04em;
+    }
+
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 9px;
+      background: var(--ink);
+      color: var(--white);
+      font-size: 15px;
+      letter-spacing: -.02em;
+    }
+
+    .context {
+      color: var(--muted);
+      font-size: 15px;
+      font-weight: 720;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .content {
+      position: absolute;
+      inset: 168px 70px 90px;
+    }
+
+    .eyebrow {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+      color: var(--teal-dark);
+      font-size: 15px;
+      font-weight: 790;
+      letter-spacing: .11em;
+      text-transform: uppercase;
+    }
+    .eyebrow::before { content: ""; width: 42px; height: 3px; border-radius: 3px; background: var(--teal); }
+
+    h1 {
+      margin: 0 0 48px;
+      max-width: 1000px;
+      color: var(--ink);
+      font-size: 52px;
+      font-weight: 800;
+      line-height: 1.08;
+      letter-spacing: -.045em;
+    }
+
+    .steps {
+      display: grid;
+      gap: 16px;
+    }
+
+    .step {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      align-items: center;
+      gap: 26px;
+      padding: 20px 26px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(255, 254, 251, .82);
+      box-shadow: 0 10px 24px rgba(16, 30, 54, .06);
+    }
+
+    .persona {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 16px;
+      border-radius: 999px;
+      font-size: 17px;
+      font-weight: 780;
+      letter-spacing: -.01em;
+      justify-self: start;
+    }
+    .persona .role {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      opacity: .75;
+    }
+
+    .persona.stefan { background: var(--teal-pale); color: var(--teal-dark); }
+    .persona.lara { background: var(--amber-pale); color: var(--amber-dark); }
+    .persona.admin { background: var(--coral-pale); color: var(--coral-dark); }
+
+    .action {
+      color: var(--ink);
+      font-size: 21px;
+      font-weight: 620;
+      line-height: 1.35;
+    }
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">LF</span>
+        <span>LearnFlow</span>
+      </div>
+      <div class="context">Interne RAG-Lernplattform</div>
+    </header>
+
+    <section class="content">
+      <div class="eyebrow">Live Demo</div>
+      <h1>Wer macht was?</h1>
+
+      <div class="steps">
+        <div class="step">
+          <span class="persona stefan">Stefan <span class="role">Senior</span></span>
+          <span class="action">Entscheidet, welche Dokumente hochgeladen werden</span>
+        </div>
+        <div class="step">
+          <span class="persona lara">Lara <span class="role">Junior</span></span>
+          <span class="action">Stellt eine Frage</span>
+        </div>
+        <div class="step">
+          <span class="persona stefan">Stefan <span class="role">Senior</span></span>
+          <span class="action">Generiert Quiz-Fragen und gibt sie frei</span>
+        </div>
+        <div class="step">
+          <span class="persona lara">Lara <span class="role">Junior</span></span>
+          <span class="action">Füllt das Quiz aus</span>
+        </div>
+        <div class="step">
+          <span class="persona admin">Administrator</span>
+          <span class="action">Stellt die Parameter ein</span>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const stage = document.querySelector('.stage');
+    function fitStage() {
+      const scale = Math.min(window.innerWidth / 1600, window.innerHeight / 900);
+      stage.style.transform = `scale(${scale})`;
+    }
+    window.addEventListener('resize', fitStage);
+    fitStage();
+
+    window.addEventListener('keydown', event => {
+      if (['ArrowRight', 'ArrowDown', 'PageDown', ' '].includes(event.key)) {
+        window.parent.postMessage({ type: 'learnflow-block-nav', direction: 1 }, '*');
+      }
+      if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(event.key)) {
+        window.parent.postMessage({ type: 'learnflow-block-nav', direction: -1 }, '*');
+      }
+    });
+  </script>
+</body>
+</html>
