@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LearnFlow – Wie haben wir es umgesetzt (C)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap">
+  <style>
+    /* ── Layout und Tokens aus Christophs Folien (learnflow_learnings.html) ── */
+    :root {
+      --paper: #f7f5f0;
+      --paper-deep: #eee9df;
+      --ink: #101e36;
+      --text: #253247;
+      --muted: #6f7886;
+      --line: #ded9ce;
+      --teal: #0fa8a0;
+      --teal-dark: #087d78;
+      --teal-pale: #e4f6f4;
+      --white: #fffefb;
+      --amber: #bf8830;
+      --amber-dark: #8a5f1e;
+      --amber-pale: #f7edd9;
+      --coral: #cf665c;
+      --coral-dark: #a8453c;
+      --coral-pale: #fae8e5;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 100%; height: 100%; margin: 0; overflow: hidden;
+      background: #dcd8d0;
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+    }
+    body { display: grid; place-items: center; }
+
+    .deck { position: fixed; top: 50%; left: 50%; width: 1600px; height: 900px; transform-origin: center center; }
+
+    .slide {
+      position: absolute; inset: 0; display: none; overflow: hidden;
+      background:
+        radial-gradient(circle at 88% 16%, rgba(15, 168, 160, .10), transparent 25%),
+        linear-gradient(112deg, var(--paper) 0%, var(--paper) 62%, #f3f0e9 100%);
+      box-shadow: 0 30px 80px rgba(16, 30, 54, .18);
+    }
+    .slide.active { display: block; }
+
+    .topbar {
+      position: absolute; z-index: 5; top: 50px; left: 70px; right: 70px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .brand { display: flex; align-items: center; gap: 13px; color: var(--ink); font-size: 22px; font-weight: 820; letter-spacing: -.04em; }
+    .brand-mark {
+      display: grid; place-items: center; width: 34px; height: 34px; border-radius: 9px;
+      background: var(--ink); color: var(--white); font-size: 15px; letter-spacing: -.02em;
+    }
+    .context { color: var(--muted); font-size: 15px; font-weight: 720; letter-spacing: .12em; text-transform: uppercase; }
+
+    .content {
+      position: absolute; inset: 124px 70px 62px;
+      display: grid; grid-template-columns: .88fr 1.12fr; gap: 62px; align-items: center;
+    }
+    .content.wide { grid-template-columns: .62fr 1.38fr; gap: 50px; }
+    .story { min-width: 0; align-self: center; }
+
+    .eyebrow {
+      display: flex; align-items: center; gap: 12px; margin-bottom: 21px;
+      color: var(--teal-dark); font-size: 15px; font-weight: 790; letter-spacing: .11em; text-transform: uppercase;
+    }
+    .eyebrow::before { content: ""; width: 42px; height: 3px; border-radius: 3px; background: var(--teal); }
+
+    h1 { max-width: 650px; margin: 0; color: var(--ink); font-size: 48px; font-weight: 790; line-height: 1.06; letter-spacing: -.052em; }
+    h1 .accent { position: relative; display: inline-block; color: var(--teal-dark); }
+    h1 .accent::after {
+      content: ""; position: absolute; left: 1px; right: -4px; bottom: -6px; height: 7px; border-radius: 8px;
+      background: var(--teal); opacity: .20; transform: rotate(-1.1deg);
+    }
+    .lead { max-width: 600px; margin: 26px 0 0; color: #566173; font-size: 20px; line-height: 1.48; letter-spacing: -.014em; }
+
+    .learning {
+      max-width: 620px; margin-top: 24px; padding: 16px 0 16px 22px; border-left: 4px solid var(--teal);
+      color: var(--ink); font-size: 18px; font-weight: 660; line-height: 1.42;
+    }
+    .learning strong {
+      display: block; margin-bottom: 5px; color: var(--teal-dark);
+      font-size: 15px; font-weight: 820; letter-spacing: .10em; text-transform: uppercase;
+    }
+
+    .panel {
+      position: relative; align-self: center; min-height: 620px; padding: 38px 42px 34px;
+      border: 1px solid rgba(16, 30, 54, .10); border-radius: 30px; background: rgba(255, 254, 251, .88);
+      box-shadow: 0 30px 68px rgba(16, 30, 54, .13), 0 4px 12px rgba(16, 30, 54, .05); backdrop-filter: blur(9px);
+    }
+    .panel::after {
+      content: ""; position: absolute; z-index: -1; inset: 24px -24px -24px 34px;
+      border: 1px solid rgba(15, 168, 160, .14); border-radius: 30px;
+    }
+    .panel-label {
+      display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;
+      color: var(--muted); font-size: 15px; font-weight: 770; letter-spacing: .08em; text-transform: uppercase;
+    }
+    .status { display: flex; align-items: center; gap: 8px; color: var(--teal-dark); letter-spacing: .02em; text-transform: none; }
+    .status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--teal); box-shadow: 0 0 0 5px var(--teal-pale); }
+    .status.warn { color: var(--coral-dark); }
+    .status.warn::before { background: var(--coral); box-shadow: 0 0 0 5px var(--coral-pale); }
+
+    .page-number { position: absolute; right: 70px; bottom: 32px; z-index: 6; color: var(--muted); font-size: 15px; font-weight: 760; letter-spacing: .08em; }
+    .nav { position: fixed; z-index: 20; left: 50%; bottom: 18px; display: flex; gap: 10px; transform: translateX(-50%); }
+    .nav button { width: 11px; height: 11px; padding: 0; border: 0; border-radius: 50%; background: rgba(16, 30, 54, .28); cursor: pointer; }
+    .nav button.active { background: var(--teal-dark); }
+    .live {
+      display: flex; align-items: center; gap: 8px; padding: 6px 13px; border-radius: 99px;
+      background: var(--amber-pale); color: var(--amber-dark);
+      font-size: 13.5px; font-weight: 820; letter-spacing: .02em; text-transform: none;
+    }
+    .live::before { content: "↗"; font-size: 15px; font-weight: 900; }
+
+    .panel.center { display: flex; flex-direction: column; justify-content: center; }
+
+    .take {
+      max-width: 620px; margin-top: 26px; padding: 16px 0 16px 22px; border-left: 4px solid var(--amber);
+      color: var(--ink); font-size: 20px; font-weight: 700; line-height: 1.4;
+    }
+    .take.good { border-left-color: var(--teal); }
+    .take.bad { border-left-color: var(--coral); }
+
+    .wrail { display: flex; gap: 6px; margin-bottom: 22px; }
+    .wrail span {
+      padding: 7px 12px; border-radius: 99px; background: rgba(16, 30, 54, .06); color: #9aa1ac;
+      font-size: 13px; font-weight: 780; letter-spacing: .02em; white-space: nowrap;
+    }
+    .wrail span.done { background: var(--teal-pale); color: var(--teal-dark); }
+    .wrail span.on { background: var(--ink); color: var(--white); }
+
+    .pipe { display: grid; gap: 9px; }
+    .pipe > div { display: grid; grid-template-columns: 34px 1fr auto; gap: 14px; align-items: center; padding: 12px 15px; border: 1px solid var(--line); border-radius: 13px; background: var(--white); }
+    .pipe b { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; background: var(--paper); color: var(--muted); font-size: 15px; font-weight: 850; }
+    .pipe h3 { margin: 0; color: var(--ink); font-size: 18px; font-weight: 760; }
+    .pipe small { display: block; margin-top: 2px; color: var(--muted); font-size: 14.5px; font-weight: 620; }
+    .pipe .tag { padding: 6px 11px; border-radius: 99px; background: var(--paper); color: var(--muted); font-size: 13px; font-weight: 800; white-space: nowrap; }
+    .pipe .tag.llm { background: var(--ink); color: var(--white); }
+    .pipe .tag.gate { background: var(--coral-pale); color: var(--coral-dark); }
+    .pipe .tag.human { background: var(--amber-pale); color: var(--amber-dark); }
+
+    .finding {
+      margin-top: 22px; padding: 19px 21px; border-left: 4px solid var(--amber); border-radius: 0 14px 14px 0;
+      background: #fcf8ef; color: var(--text); font-size: 18px; line-height: 1.48;
+    }
+    .finding strong { color: var(--ink); }
+    .finding.good { border-left-color: var(--teal); background: #f1faf8; }
+
+    .panel-foot { margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: 16px; font-weight: 620; line-height: 1.45; }
+    .panel-foot strong { color: var(--ink); }
+
+    /* Zwei Spalten im Panel (Umsetzung | Prüfung) */
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; }
+    .split > section { min-width: 0; }
+    .split h2 {
+      margin: 0 0 13px; padding-bottom: 9px; border-bottom: 1px solid var(--line);
+      color: var(--muted); font-size: 13px; font-weight: 820; letter-spacing: .09em; text-transform: uppercase;
+    }
+    .split h2 span { color: var(--teal-dark); }
+    .steplist { display: grid; gap: 7px; }
+    .steplist > div { display: grid; grid-template-columns: 22px 1fr; gap: 11px; align-items: start; padding: 9px 11px; border: 1px solid var(--line); border-radius: 11px; background: var(--white); }
+    .steplist b { display: grid; place-items: center; width: 21px; height: 21px; margin-top: 1px; border-radius: 7px; background: var(--paper); color: var(--muted); font-size: 12.5px; font-weight: 850; }
+    .steplist strong { display: block; color: var(--ink); font-size: 15.5px; font-weight: 780; line-height: 1.22; }
+    .steplist small { display: block; margin-top: 2px; color: var(--muted); font-size: 13.5px; font-weight: 620; line-height: 1.28; }
+    .steplist > div.gate { border-color: rgba(207, 102, 92, .4); }
+    .steplist > div.gate b { background: var(--coral-pale); color: var(--coral-dark); }
+    .steplist > div.human { border-color: rgba(191, 136, 48, .45); background: #fdfaf3; }
+    .steplist > div.human b { background: var(--amber-pale); color: var(--amber-dark); }
+    .steplist > div.ki b { background: var(--ink); color: var(--white); }
+
+    /* CI-Checks */
+    .jobs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 11px; }
+    .jobs > div { padding: 15px 15px 14px; border-radius: 16px; background: var(--paper); }
+    .jobs .tick { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--teal-dark); color: var(--white); font-size: 13px; font-weight: 900; }
+    .jobs h3 { margin: 9px 0 7px; color: var(--ink); font: 840 16px var(--mono); letter-spacing: -.02em; }
+    .jobs p { margin: 0; color: var(--text); font-size: 14px; font-weight: 640; line-height: 1.42; }
+    .jobs p span { display: block; }
+    .gatebar {
+      display: flex; align-items: center; gap: 12px; margin-top: 16px; padding: 14px 18px;
+      border-radius: 15px; background: var(--ink); color: var(--white);
+      font-size: 16px; font-weight: 700; line-height: 1.35;
+    }
+    .gatebar b { color: #a8e7e2; font-weight: 850; }
+    .gatebar::before { content: "⛔"; font-size: 19px; }
+
+    .stat { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .stat div { padding: 15px 17px; border-radius: 15px; background: var(--paper); }
+    .stat b { display: block; color: var(--teal-dark); font-size: 33px; font-weight: 850; letter-spacing: -.045em; line-height: 1; }
+    .stat span { display: block; margin-top: 6px; color: var(--muted); font-size: 15px; font-weight: 680; line-height: 1.3; }
+
+    .revs { display: flex; align-items: center; gap: 7px; margin-top: 10px; }
+    .revs i { width: 10px; height: 10px; border-radius: 50%; background: var(--teal); opacity: .55; }
+    .revs i.first { opacity: 1; box-shadow: 0 0 0 4px var(--teal-pale); }
+    .revs span { margin-left: 5px; color: var(--muted); font-size: 14px; font-weight: 700; }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+    }
+
+    /* ── Variante C: der Zyklus als Kreis ────────────────────────────── */
+
+    /* F1 · zwei Startkarten ADR / Issue */
+    .startcards { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .startcards > div { padding: 20px 21px 18px; border-radius: 20px; background: var(--paper); }
+    .startcards > div.issue { background: #f4f2ec; }
+    .startcards h2 { margin: 0 0 4px; color: var(--muted); font-size: 13px; font-weight: 820; letter-spacing: .1em; text-transform: uppercase; }
+    .startcards .doctitle { color: var(--ink); font-size: 22px; font-weight: 850; letter-spacing: -.03em; margin-bottom: 14px; }
+    .startcards .doctitle small { display: block; margin-top: 3px; color: var(--muted); font-size: 14px; font-weight: 620; }
+    .arrow-between { display: grid; place-items: center; }
+    .arrow-between span { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; background: var(--ink); color: var(--white); font-size: 20px; font-weight: 900; }
+
+    /* F2 · Kreisdiagramm */
+    .cyclewrap { display: flex; justify-content: center; }
+    .cycle { position: relative; width: 560px; height: 540px; margin: 4px auto 0; }
+    .cycle::before {
+      content: ""; position: absolute; left: 50%; top: 50%; width: 400px; height: 400px;
+      transform: translate(-50%, -50%); border: 2px dashed var(--line); border-radius: 50%;
+    }
+    .cycle .hub {
+      position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+      width: 122px; height: 122px; border-radius: 50%; background: var(--ink); color: var(--white);
+      display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+      font-size: 14px; font-weight: 800; line-height: 1.28; letter-spacing: -.01em;
+      box-shadow: 0 16px 30px rgba(16, 30, 54, .22);
+    }
+    .cycle .hub small { display: block; margin-top: 4px; color: #a8e7e2; font-size: 11.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+    .cnode { position: absolute; width: 140px; transform: translate(-50%, -50%); text-align: center; }
+    .cnode .cn-badge {
+      display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px;
+      margin-bottom: 6px; border: 2px solid var(--white); border-radius: 50%; background: var(--teal-pale);
+      color: var(--teal-dark); font-size: 16px; font-weight: 850; box-shadow: 0 6px 14px rgba(16, 30, 54, .14);
+    }
+    .cnode.gate .cn-badge { background: var(--coral-pale); color: var(--coral-dark); }
+    .cnode.human .cn-badge { background: var(--amber-pale); color: var(--amber-dark); }
+    .cnode h4 { margin: 0; color: var(--ink); font-size: 14.5px; font-weight: 780; line-height: 1.22; }
+    .cnode small { display: block; margin-top: 2px; color: var(--muted); font-size: 12px; font-weight: 620; line-height: 1.22; }
+    .cyclelegend { display: flex; justify-content: center; gap: 18px; margin-top: 8px; }
+    .cyclelegend span { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font-size: 13.5px; font-weight: 700; }
+    .cyclelegend i { width: 12px; height: 12px; border-radius: 50%; }
+    .cyclelegend i.ki { background: var(--teal); }
+    .cyclelegend i.human { background: var(--amber); }
+    .cyclelegend i.gate { background: var(--coral); }
+
+    /* F4 · Rückkopplung */
+    .feedback { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    .feedback > div { padding: 18px 18px 16px; border-radius: 18px; background: var(--paper); }
+    .feedback > div.adr { background: var(--teal-pale); }
+    .feedback > div.newissue { background: var(--amber-pale); }
+    .feedback b { display: block; color: var(--ink); font-size: 30px; font-weight: 850; letter-spacing: -.04em; line-height: 1; }
+    .feedback > div.adr b { color: var(--teal-dark); }
+    .feedback > div.newissue b { color: var(--amber-dark); }
+    .feedback span { display: block; margin: 7px 0 6px; color: var(--ink); font-size: 15.5px; font-weight: 780; }
+    .feedback p { margin: 0; color: var(--muted); font-size: 14px; font-weight: 620; line-height: 1.38; }
+    .loopback { display: flex; align-items: center; gap: 14px; margin-top: 22px; padding: 15px 19px; border-radius: 15px; background: var(--ink); color: var(--white); font-size: 16px; font-weight: 700; line-height: 1.35; }
+    .loopback b { color: #a8e7e2; font-weight: 850; }
+    .loopback .icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: rgba(255,255,255,.14); font-size: 17px; }
+  </style>
+</head>
+<body>
+  <main class="deck" aria-label="LearnFlow — Wie haben wir es umgesetzt, Variante C">
+
+    <!-- ── 1 · Der Ausgangspunkt ────────────────────────────────────────── -->
+    <section class="slide active" aria-label="Ausgangspunkt">
+      <header class="topbar">
+        <div class="brand"><span class="brand-mark" aria-hidden="true">LF</span><span>LearnFlow</span></div>
+        <div class="context" data-title="Wie haben wir es umgesetzt"></div>
+      </header>
+      <div class="content">
+        <div class="story">
+          <div class="wrail"><span class="on">Ausgangspunkt</span><span>Der Zyklus</span><span>Die Gates</span><span>Rückkopplung</span></div>
+          <div class="eyebrow">Bevor der erste Prompt fällt</div>
+          <h1>Kein Ticket <span class="accent">ohne Entscheid</span> dahinter</h1>
+          <p class="lead">Jede Umsetzung beginnt mit zwei Dokumenten, nicht mit Code: dem Architekturentscheid, der das „Warum" festhält, und dem Issue, das daraus das „Was" und „Wann fertig" ableitet.</p>
+          <div class="take good">Zehn ADRs standen, bevor die erste Zeile Produktionscode entstand. Der Erst-Backlog T-01 bis T-38 wurde direkt aus den User Stories abgeleitet — mit DoD-Checkliste in jedem einzelnen Ticket.</div>
+        </div>
+        <div class="panel center">
+          <div class="panel-label"><span>Vom Entscheid zum Ticket</span><span class="status">Docs/ → GitHub Issues</span></div>
+          <div class="startcards">
+            <div class="adr" style="background:var(--teal-pale)">
+              <h2>Entscheid</h2>
+              <div class="doctitle">ADR-008<small>Fail-closed Konfidenz-Pipeline</small></div>
+              <div class="steplist">
+                <div><b>1</b><div><strong>Kontext</strong><small>Warum eine Schwelle nötig ist</small></div></div>
+                <div><b>2</b><div><strong>Entscheid</strong><small>Im Zweifel wird unterdrückt</small></div></div>
+                <div><b>3</b><div><strong>Konsequenzen</strong><small>Schwellen liegen in der DB, kalibrierbar</small></div></div>
+              </div>
+            </div>
+            <div class="issue">
+              <h2>Ticket</h2>
+              <div class="doctitle">T-46<small>Enum-Feld: Entscheid im ADR festhalten</small></div>
+              <div class="steplist">
+                <div><b>1</b><div><strong>Akzeptanzkriterien</strong><small>Was das Ticket erfüllen muss</small></div></div>
+                <div><b>2</b><div><strong>Definition of Done</strong><small>Checkliste: Review, CI, Tests, ADR</small></div></div>
+                <div><b>3</b><div><strong>Milestone</strong><small>Sprint-Zuordnung im Board</small></div></div>
+              </div>
+            </div>
+          </div>
+          <div class="stat" style="margin-top:22px">
+            <div><b>69</b><span>Issues insgesamt · 61 geschlossen</span></div>
+            <div><b>74</b><span>Pull Requests · 69 gemergt</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="page-number"></div>
+    </section>
+
+    <!-- ── 2 · Der Zyklus als Kreis ─────────────────────────────────────── -->
+    <section class="slide" aria-label="Der Zyklus">
+      <header class="topbar">
+        <div class="brand"><span class="brand-mark" aria-hidden="true">LF</span><span>LearnFlow</span></div>
+        <div class="context" data-title="Wie haben wir es umgesetzt"></div>
+      </header>
+      <div class="content wide">
+        <div class="story">
+          <div class="wrail"><span class="done">Ausgangspunkt</span><span class="on">Der Zyklus</span><span>Die Gates</span><span>Rückkopplung</span></div>
+          <div class="eyebrow">Pro Ticket</div>
+          <h1>Acht Stationen, <span class="accent">im Kreis</span> — nicht in einer Reihe</h1>
+          <p class="lead">Kein Ticket läuft geradlinig von Issue zu Merge. Es durchläuft denselben Zyklus: Plan, Rückfragen, Umsetzung, zwei Reviewstufen, Überarbeitung — erst wenn Tests grün sind, schliesst sich der Kreis und das nächste Ticket beginnt.</p>
+          <div class="learning">
+            <strong>Der Satz, der den Einstieg trägt</strong>
+            „Erstelle einen Plan, wie das Issue umgesetzt werden kann. Stelle mir vor der Umsetzung Fragen, bis alle Unklarheiten geklärt sind."
+          </div>
+        </div>
+        <div class="panel center">
+          <div class="panel-label"><span>Der Ablauf, verbindlich für jedes Ticket</span><span class="status">CLAUDE.md</span></div>
+          <div class="cyclewrap">
+            <div class="cycle">
+              <div class="hub">Ein Ticket<small>ein Zyklus</small></div>
+              <div class="cnode" style="left:280px; top:50px;"><span class="cn-badge">1</span><h4>Plan erstellen</h4><small>Issue + ADRs + Docs</small></div>
+              <div class="cnode human" style="left:442px; top:117px;"><span class="cn-badge">2</span><h4>Rückfragen klären</h4><small>Unklarheiten vorab entscheiden</small></div>
+              <div class="cnode" style="left:510px; top:280px;"><span class="cn-badge">3</span><h4>Umsetzen lassen</h4><small>Spec, Code, Tests</small></div>
+              <div class="cnode" style="left:442px; top:443px;"><span class="cn-badge">4</span><h4>Internes Review</h4><small>Gegen Akzeptanzkriterien</small></div>
+              <div class="cnode" style="left:280px; top:510px;"><span class="cn-badge">5</span><h4>PR erstellen</h4><small>Branch, Diff, Beschreibung</small></div>
+              <div class="cnode human" style="left:117px; top:443px;"><span class="cn-badge">6</span><h4>Review zweite Person</h4><small>Nicht Autor:in des Codes</small></div>
+              <div class="cnode" style="left:50px; top:280px;"><span class="cn-badge">7</span><h4>PR überarbeiten</h4><small>Befunde triagieren</small></div>
+              <div class="cnode gate" style="left:117px; top:117px;"><span class="cn-badge">8</span><h4>Merge</h4><small>Nur wenn CI grün</small></div>
+            </div>
+          </div>
+          <div class="cyclelegend"><span><i class="ki"></i>KI-Schritt</span><span><i class="human"></i>Mensch entscheidet</span><span><i class="gate"></i>Gate</span></div>
+        </div>
+      </div>
+      <div class="page-number"></div>
+    </section>
+
+    <!-- ── 3 · Die Gates ────────────────────────────────────────────────── -->
+    <section class="slide" aria-label="Die Gates">
+      <header class="topbar">
+        <div class="brand"><span class="brand-mark" aria-hidden="true">LF</span><span>LearnFlow</span></div>
+        <div class="context" data-title="Wie haben wir es umgesetzt"></div>
+      </header>
+      <div class="content">
+        <div class="story">
+          <div class="wrail"><span class="done">Ausgangspunkt</span><span class="done">Der Zyklus</span><span class="on">Die Gates</span><span>Rückkopplung</span></div>
+          <div class="eyebrow">Stationen 4–8</div>
+          <h1>Zwei Reviews, drei Checks — <span class="accent">gemergt wird nur grün</span></h1>
+          <p class="lead">Wenn die KI den Code schreibt, ist das klassische Vier-Augen-Review nicht mehr die stärkste Kontrolle. Deshalb prüft zuerst die KI gegen die eigenen Kriterien, dann eine zweite Person den PR — und erst danach entscheidet die CI.</p>
+          <div class="take good">Die KI findet die Inkonsistenz. Nur der Mensch weiss, welche der beiden Versionen die gemeinte war — darum bleibt Schritt 6 ein Mensch, kein zweiter Prompt.</div>
+        </div>
+        <div class="panel center">
+          <div class="panel-label"><span>Von der Überarbeitung zum Merge</span><span class="live">live in GitHub · Pull Request</span></div>
+          <div class="pipe">
+            <div><b>4</b><div><h3>Internes Review</h3><small>KI-Review gegen den eigenen PR, Befunde mit Datei und Zeile</small></div><span class="tag llm">KI</span></div>
+            <div><b>5</b><div><h3>PR erstellen</h3><small>Branch-Name mit Issue-Nummer, Spec-Diff im Titel</small></div><span class="tag">Mensch + KI</span></div>
+            <div><b>6</b><div><h3>Review durch zweite Person</h3><small>Unabhängige Sitzung bewertet die eigenen Befunde neu</small></div><span class="tag human">Mensch</span></div>
+            <div><b>7</b><div><h3>PR überarbeiten</h3><small>Was jetzt, was als Folge-Ticket, was bewusstes Restrisiko</small></div><span class="tag human">Mensch entscheidet</span></div>
+          </div>
+          <div class="gh-sub" style="margin-top:20px; color:var(--muted); font-size:12.5px; font-weight:820; letter-spacing:.09em; text-transform:uppercase;">Station 8 — der Merge-Gate</div>
+          <div class="jobs">
+            <div><span class="tick">✓</span><h3>backend</h3><p><span>ruff + mypy</span><span>pytest</span></p></div>
+            <div><span class="tick">✓</span><h3>frontend</h3><p><span>eslint + tsc</span><span>vitest</span></p></div>
+            <div><span class="tick">✓</span><h3>e2e</h3><p><span>voller Stack</span><span>eigenes Compose</span></p></div>
+          </div>
+          <div class="gatebar">Required Checks auf <b>main</b> — Branch Protection lässt keinen roten Merge zu.</div>
+        </div>
+      </div>
+      <div class="page-number"></div>
+    </section>
+
+    <!-- ── 4 · Rückkopplung ─────────────────────────────────────────────── -->
+    <section class="slide" aria-label="Rückkopplung">
+      <header class="topbar">
+        <div class="brand"><span class="brand-mark" aria-hidden="true">LF</span><span>LearnFlow</span></div>
+        <div class="context" data-title="Wie haben wir es umgesetzt"></div>
+      </header>
+      <div class="content">
+        <div class="story">
+          <div class="wrail"><span class="done">Ausgangspunkt</span><span class="done">Der Zyklus</span><span class="done">Die Gates</span><span class="on">Rückkopplung</span></div>
+          <div class="eyebrow">Nach dem Merge</div>
+          <h1>Der Kreis <span class="accent">schliesst sich</span> — beim nächsten Entscheid</h1>
+          <p class="lead">Ein gemergter PR ist selten das Ende. Die Umsetzung deckt auf, was der ADR nicht bedacht hatte, was ein neues Ticket braucht oder wo ein bestehendes Issue präziser werden muss — und beginnt den Zyklus von Folie 1 erneut.</p>
+          <div class="revs"><i class="first"></i><i></i><i></i><i></i><i></i><i></i><span>ADR-008 allein: sechsmal aus der Umsetzung nachgeführt</span></div>
+        </div>
+        <div class="panel center">
+          <div class="panel-label"><span>Was aus der Umsetzung zurückfliesst</span><span class="status">Beispiele aus dem Backlog</span></div>
+          <div class="feedback">
+            <div class="adr">
+              <b>6×</b><span>ADR nachgeführt</span>
+              <p>ADR-008 trägt sechs Nachträge — jeder eine Erkenntnis aus einem konkreten Ticket, zurück in den Entscheid geschrieben.</p>
+            </div>
+            <div class="newissue">
+              <b>30</b><span>neue Issues</span>
+              <p>Ungeplant, entstanden aus Reviews und Eval-Läufen — z.&nbsp;B. T-90 aus dem Review zu PR #86: ein Enum-Entscheid fehlte im ADR.</p>
+            </div>
+            <div>
+              <b>16</b><span>Issues ergänzt</span>
+              <p>Arbeitsverläufe, die reine Review-Protokolle sind — bestehende Akzeptanzkriterien wurden präzisiert statt neu erfunden.</p>
+            </div>
+          </div>
+          <div class="finding">
+            <strong>PR #91 — ein Befund, der zurück ins Ticket floss:</strong> „Das e2e-Login-Budget ist nach dem PR bei 4 von 5, und T-15 bringt den fünften." Aus dem Hinweis wurde ein eigenes Folge-Ticket, bevor die Testsuite kippte.
+          </div>
+          <div class="loopback"><span class="icon">↻</span>Neuer Stand in ADR und Issue — <b>der Zyklus beginnt wieder bei Folie 1.</b></div>
+        </div>
+      </div>
+      <div class="page-number"></div>
+    </section>
+
+  </main>
+
+  <nav class="nav" aria-label="Foliennavigation"></nav>
+
+  <script>
+    const deck = document.querySelector('.deck');
+    const slides = [...document.querySelectorAll('.slide')];
+    const nav = document.querySelector('.nav');
+    let current = 0;
+
+    slides.forEach((slide, i) => {
+      const ctx = slide.querySelector('.context');
+      if (ctx) ctx.textContent = `${ctx.dataset.title} · ${i + 1}/${slides.length}`;
+      const num = slide.querySelector('.page-number');
+      if (num) num.textContent = String(i + 1).padStart(2, '0');
+      const dot = document.createElement('button');
+      dot.type = 'button';
+      dot.setAttribute('aria-label', `Folie ${i + 1} anzeigen`);
+      dot.addEventListener('click', () => showSlide(i));
+      nav.appendChild(dot);
+    });
+    const dots = [...nav.querySelectorAll('button')];
+
+    function fitDeck() {
+      const scale = Math.min(window.innerWidth / 1600, window.innerHeight / 900);
+      deck.style.transform = `translate(-50%, -50%) scale(${scale})`;
+    }
+
+    function showSlide(index) {
+      current = (index + slides.length) % slides.length;
+      slides.forEach((slide, i) => slide.classList.toggle('active', i === current));
+      dots.forEach((dot, i) => dot.classList.toggle('active', i === current));
+    }
+
+    window.addEventListener('keydown', event => {
+      if (['ArrowRight', 'ArrowDown', 'PageDown', ' '].includes(event.key)) showSlide(current + 1);
+      if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(event.key)) showSlide(current - 1);
+      if (event.key === 'Home') showSlide(0);
+      if (event.key === 'End') showSlide(slides.length - 1);
+    });
+    window.addEventListener('resize', fitDeck);
+    fitDeck();
+    showSlide(0);
+  </script>
+</body>
+</html>

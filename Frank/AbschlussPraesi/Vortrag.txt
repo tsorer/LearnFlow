@@ -1,0 +1,19 @@
+Nachdem wir die Live-Demo gesehen haben und Nicklaus uns gezeigt hat, wie die Antwort zu stande kam, möchte ich etwas dazu sagen, wie wir LearnFlow umgesetzt haben.
+Zunächst haben wir bei der Ideenfindung verschiedene Varianten erarbeitet und uns nach diversen Feedback-Runden auf auf eine geeinigt. [Frage: Stimmt das und lässt es sich belegen?]
+Anschliessend haben wir die UserStories erstellt und dabei die Moscow-Methode verwendet. 
+Danach dann die ADRs. Insgesamt 10 Stück. Die Anzahl blieb das ganze Projekt über stabil, einige wurde aber während der Umsetzungsphase erweitert bzw. geändert [Beispiele?]
+Vor dem Starten mit der Umsetzung haben wir auch die Claude.md verfeinert. Dort steht zum Beispiel drin, welche Verzeichnisse ignoriert werden können (weil sie mit dem Kurs und nicht dem Projekt zu tun haben) und das bei der Umsetzung die ADRs und weitere Dokumente aus dem Verzeichnis 'Docs' berücksichtigt werden sollen.
+Reto hat uns ein github-Repository erstellt und mittels Access-Token haben wir jeweils Claude Zugriff auf dieses Repo gewährt. 
+Auf Basis der UserStories und ADRs haben wir initial 37[stimmt das?] Issues erstellt und Storypoints zugewiesen [120?]. 
+Wir hatten uns auch für Wochensprints entschieden, damit den Fortschritt besser tracken können. (Bei 20 SP pro Woche waren wir im grünen Bereich) [Übersicht Stories und SPs pro Woche/Sprint zeigen?]
+Einer der ersten Stories war der Aufbau der CI-Umgebung. Wir haben nur PRs gemergt, wenn die Tests erfolgreich waren. Wir hatten von anfang an Tests für das Backend, Frontend und End2End-Tests [stimmt das?]. An Ende hatten wir 200[?] Tests, die insgesamt 5 Minuten[?] brauchten. Es war also kein Problem sie als Github-Action auszuführen. 
+Unser Entwicklungsprozess war folgender:
+Jeder hat sich ein Issue ausgesucht und es in Bearbeitung genommen. (Damit nicht zwei gleichzeigt am selben Issue arbeiten). Mein Standardprompt war: Erstelle einen Umsetzungsplan für Issue XY. Aufgrund der claude.md war klar, dass es bei Unklarheiten Nachfragen gibt und diese wurden dann vor der Umsetzung geklärt. Wir haben keine Skills erstellt, sondern nur die Claude.md verwendet. 
+Der Plan wurde irgendwann genehmigt und umgesetzt. Während der Umsetzung habe ich in einer zweiten Session das Review von den von anderen umgesetzten PRs durchgeführt. Das parallele Arbeiten mit zwei oder drei Session hat eigentlich ganz gut funktioniert. 
+Nach der Umsetzung von meinem Ticket, habe ich vor dem Erstellen des PullRequest selber schon mal ein Review durchführen lassen. In der Regel wurden drei oder drei Punkte gefunden, die korrigiert werden mussten. 
+Trotzdem schon vor dem Erstellen des PRs ein Review gemacht wurde, wurde bei den Reviews von den anderen bzw. auch bei meinen Reviews von die PRs der anderen immer Punkte zum Korrigieren gefunden. Aber der dritte Runde waren es aber nur noch Punkte, die unkritisch waren und daher haben wir uns auf 2 Review-Runden beschränkt. 
+Selber Code geschrieben haben wir also nicht. 
+[Gibt es ein Beispiel, wo ich auf etwas hingewiesen habe, was Claude übersehen hatte?]
+Bei den Reviews bzw. auch schon teilweise bei der Umsetzung sind Folge-Issue oder Anpassungen bei den ADRs entstanden. Am Ende hatten wir dadurch 65? Issues und 64? PRs. 
+Übersicht Issues, PRs, Line of Code?
+Zuviel zu unserem Umsetzungsprozess und nun erzählt und Christoph etwas über die Herausforderungen und Learnings.
