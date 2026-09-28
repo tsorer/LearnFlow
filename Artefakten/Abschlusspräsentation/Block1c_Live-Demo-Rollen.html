@@ -122,52 +122,81 @@
       letter-spacing: -.045em;
     }
 
-    .steps {
+    .groups {
       display: grid;
-      gap: 16px;
-    }
-
-    .step {
-      display: grid;
-      grid-template-columns: 220px 1fr;
-      align-items: center;
+      grid-template-columns: repeat(3, 1fr);
       gap: 26px;
-      padding: 20px 26px;
-      border: 1px solid var(--line);
-      border-radius: 18px;
-      background: rgba(255, 254, 251, .82);
-      box-shadow: 0 10px 24px rgba(16, 30, 54, .06);
     }
 
-    .persona {
-      display: inline-flex;
+    .group {
+      display: flex;
+      flex-direction: column;
       align-items: center;
-      gap: 10px;
-      padding: 9px 16px;
-      border-radius: 999px;
-      font-size: 17px;
-      font-weight: 780;
-      letter-spacing: -.01em;
-      justify-self: start;
-    }
-    .persona .role {
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: .06em;
-      text-transform: uppercase;
-      opacity: .75;
+      padding: 36px 28px 32px;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: rgba(255, 254, 251, .82);
+      box-shadow: 0 14px 32px rgba(16, 30, 54, .07);
+      text-align: center;
     }
 
-    .persona.stefan { background: var(--teal-pale); color: var(--teal-dark); }
-    .persona.lara { background: var(--amber-pale); color: var(--amber-dark); }
-    .persona.admin { background: var(--coral-pale); color: var(--coral-dark); }
+    .avatar {
+      display: grid;
+      place-items: center;
+      width: 78px;
+      height: 78px;
+      border-radius: 50%;
+      margin-bottom: 20px;
+    }
+    .avatar svg { width: 36px; height: 36px; }
 
-    .action {
+    .group.stefan .avatar { background: var(--teal-pale); color: var(--teal-dark); }
+    .group.lara .avatar { background: var(--amber-pale); color: var(--amber-dark); }
+    .group.admin .avatar { background: var(--coral-pale); color: var(--coral-dark); }
+
+    .persona-name {
       color: var(--ink);
-      font-size: 21px;
-      font-weight: 620;
-      line-height: 1.35;
+      font-size: 23px;
+      font-weight: 800;
+      letter-spacing: -.02em;
     }
+
+    .persona-role {
+      margin-top: 4px;
+      margin-bottom: 26px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 750;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+
+    .actions {
+      display: grid;
+      gap: 14px;
+      width: 100%;
+      text-align: left;
+    }
+
+    .action-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 11px;
+      color: var(--text);
+      font-size: 18px;
+      font-weight: 600;
+      line-height: 1.4;
+    }
+    .action-item svg {
+      flex: 0 0 auto;
+      width: 19px;
+      height: 19px;
+      margin-top: 2px;
+    }
+
+    .group.stefan .action-item svg { color: var(--teal-dark); }
+    .group.lara .action-item svg { color: var(--amber-dark); }
+    .group.admin .action-item svg { color: var(--coral-dark); }
   </style>
 </head>
 <body>
@@ -184,26 +213,59 @@
       <div class="eyebrow">Live Demo</div>
       <h1>Wer macht was?</h1>
 
-      <div class="steps">
-        <div class="step">
-          <span class="persona stefan">Stefan <span class="role">Senior</span></span>
-          <span class="action">Entscheidet, welche Dokumente hochgeladen werden</span>
+      <div class="groups">
+        <div class="group stefan">
+          <div class="avatar" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </div>
+          <div class="persona-name">Stefan</div>
+          <div class="persona-role">Senior</div>
+          <div class="actions">
+            <div class="action-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              <span>Entscheidet, welche Dokumente hochgeladen werden</span>
+            </div>
+            <div class="action-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              <span>Generiert Quiz-Fragen und gibt sie frei</span>
+            </div>
+          </div>
         </div>
-        <div class="step">
-          <span class="persona lara">Lara <span class="role">Junior</span></span>
-          <span class="action">Stellt eine Frage</span>
+
+        <div class="group lara">
+          <div class="avatar" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </div>
+          <div class="persona-name">Lara</div>
+          <div class="persona-role">Junior</div>
+          <div class="actions">
+            <div class="action-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              <span>Stellt eine Frage</span>
+            </div>
+            <div class="action-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              <span>Bewertet Antworten (👍/👎)</span>
+            </div>
+            <div class="action-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              <span>Füllt das Quiz aus</span>
+            </div>
+          </div>
         </div>
-        <div class="step">
-          <span class="persona stefan">Stefan <span class="role">Senior</span></span>
-          <span class="action">Generiert Quiz-Fragen und gibt sie frei</span>
-        </div>
-        <div class="step">
-          <span class="persona lara">Lara <span class="role">Junior</span></span>
-          <span class="action">Füllt das Quiz aus</span>
-        </div>
-        <div class="step">
-          <span class="persona admin">Administrator</span>
-          <span class="action">Stellt die Parameter ein</span>
+
+        <div class="group admin">
+          <div class="avatar" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+          </div>
+          <div class="persona-name">Administrator</div>
+          <div class="persona-role">System</div>
+          <div class="actions">
+            <div class="action-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              <span>Stellt die Parameter ein</span>
+            </div>
+          </div>
         </div>
       </div>
     </section>
